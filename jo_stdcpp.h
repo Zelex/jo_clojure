@@ -35,7 +35,6 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <limits.h>
-#include <pthread.h>
 
 #ifdef _MSC_VER
 #define jo_strdup _strdup
@@ -48,6 +47,30 @@
 // 
 // Simple C++std replacements...
 //
+
+#define JO_M_PI 3.14159265358979323846
+#define JO_M_PI_2 1.57079632679489661923
+#define JO_M_PI_4 0.785398163397448309616
+#define JO_M_1_PI 0.318309886183790671538
+#define JO_M_2_PI 0.636619772367581343076
+#define JO_M_2_SQRTPI 1.12837916709551257390
+#define JO_M_SQRT2 1.41421356237309504880
+#define JO_M_SQRT1_2 0.707106781186547524401
+#define JO_M_LOG2E 1.44269504088896340736
+#define JO_M_LOG10E 0.434294481903251827651
+#define JO_M_LN2 0.693147180559945309417
+#define JO_M_LN10 2.30258509299404568402
+#define JO_M_E 2.7182818284590452354
+#define JO_M_SQRT3 1.73205080756887729352
+#define JO_M_SQRT3_2 0.866025403784438646763
+#define JO_M_SQRT2_2 0.707106781186547524401
+#define JO_M_SQRT1_3 0.577350269189625764509
+#define JO_M_SQRT3_2 0.866025403784438646763
+#define JO_M_SQRT3_4 0.707106781186547524401
+#define JO_M_SQRT2_3 1.0606601717798212866
+#define JO_M_SQRT3_8 0.447213595499957939282
+#define JO_M_SQRT3_8 0.447213595499957939282
+#define JO_M_SQRT3_16 0.223606797749978969645
 
 
 template<typename T> struct jo_numeric_limits;
@@ -245,7 +268,7 @@ struct jo_stringstream {
 template<typename T> static inline T jo_min(T a, T b) { return a < b ? a : b; }
 template<typename T> static inline T jo_max(T a, T b) { return a > b ? a : b; }
 
-#ifndef __PLACEMENT_NEW_INLINE
+#if !defined(__PLACEMENT_NEW_INLINE) && !defined(_MSC_VER)
 inline void *operator new(size_t, void *p) { return p; }
 #endif
 
@@ -1317,6 +1340,12 @@ struct jo_stable_sort {
     }
 };
 
+
+#ifdef _MSC_VER
+#include <mutex>
+#define jo_mutex std::mutex
+#else
+#include <pthread.h>
 class jo_mutex {
     pthread_mutex_t mutex;
 public:
@@ -1325,6 +1354,7 @@ public:
     void lock() { pthread_mutex_lock(&mutex); }
     void unlock() { pthread_mutex_unlock(&mutex); }
 };
+#endif
 
 class jo_lock_guard {
     jo_mutex& mutex;

@@ -1698,9 +1698,9 @@ node_idx_t native_rest(list_ptr_t env, list_ptr_t args) {
 }
 
 // same as (first (next args))
-node_idx_t native_fnext(list_ptr_t env, list_ptr_t args) {
+//node_idx_t native_fnext(list_ptr_t env, list_ptr_t args) {
 	// TODO
-}
+//}
 
 int main(int argc, char **argv) {
 	if(argc <= 1) {
@@ -1805,14 +1805,14 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("Math/min", new_node_native_function(&native_math_min, false)));
 	env->push_back_inplace(new_node_var("Math/max", new_node_native_function(&native_math_max, false)));
 	env->push_back_inplace(new_node_var("Math/clamp", new_node_native_function(&native_math_clamp, false)));
-	env->push_back_inplace(new_node_var("Math/PI", new_node_float(M_PI)));
-	env->push_back_inplace(new_node_var("Math/E", new_node_float(M_E)));
-	env->push_back_inplace(new_node_var("Math/LN2", new_node_float(M_LN2)));
-	env->push_back_inplace(new_node_var("Math/LN10", new_node_float(M_LN10)));
-	env->push_back_inplace(new_node_var("Math/LOG2E", new_node_float(M_LOG2E)));
-	env->push_back_inplace(new_node_var("Math/LOG10E", new_node_float(M_LOG10E)));
-	env->push_back_inplace(new_node_var("Math/SQRT2", new_node_float(M_SQRT2)));
-	env->push_back_inplace(new_node_var("Math/SQRT1_2", new_node_float(M_SQRT1_2)));
+	env->push_back_inplace(new_node_var("Math/PI", new_node_float(JO_M_PI)));
+	env->push_back_inplace(new_node_var("Math/E", new_node_float(JO_M_E)));
+	env->push_back_inplace(new_node_var("Math/LN2", new_node_float(JO_M_LN2)));
+	env->push_back_inplace(new_node_var("Math/LN10", new_node_float(JO_M_LN10)));
+	env->push_back_inplace(new_node_var("Math/LOG2E", new_node_float(JO_M_LOG2E)));
+	env->push_back_inplace(new_node_var("Math/LOG10E", new_node_float(JO_M_LOG10E)));
+	env->push_back_inplace(new_node_var("Math/SQRT2", new_node_float(JO_M_SQRT2)));
+	env->push_back_inplace(new_node_var("Math/SQRT1_2", new_node_float(JO_M_SQRT1_2)));
 	env->push_back_inplace(new_node_var("Math/NaN", new_node_float(NAN)));
 	env->push_back_inplace(new_node_var("Math/Infinity", new_node_float(INFINITY)));
 	env->push_back_inplace(new_node_var("Math/NegativeInfinity", new_node_float(-INFINITY)));
