@@ -1697,6 +1697,18 @@ node_idx_t native_rest(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// execute a shell command
+node_idx_t native_sh(list_ptr_t env, list_ptr_t args) {
+	jo_string str;
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_t *n = get_node(*it);
+		str += " ";
+		str += n->as_string();
+	}
+	int ret = system(str.c_str());
+	return new_node_int(ret);
+}
+
 // same as (first (next args))
 //node_idx_t native_fnext(list_ptr_t env, list_ptr_t args) {
 	// TODO
@@ -1768,6 +1780,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("delay?", new_node_native_function(&native_is_delay, false)));
 	env->push_back_inplace(new_node_var("constantly", new_node_native_function(&native_constantly, false)));
 	env->push_back_inplace(new_node_var("count", new_node_native_function(&native_count, false)));
+	env->push_back_inplace(new_node_var("sh", new_node_native_function(&native_sh, false)));
 	//env->push_back_inplace(new_node_var("repeat", new_node_native_function(&native_repeat, true)));
 	env->push_back_inplace(new_node_var("dotimes", new_node_native_function(&native_dotimes, true)));
 	env->push_back_inplace(new_node_var("nil?", new_node_native_function(&native_is_nil, false)));
