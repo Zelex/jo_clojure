@@ -1,0 +1,42 @@
+(println "Hello World...")
+(println "Hello " "World...")
+(println "Math " (+ 1 2 3))
+(println "Math " (- 1 2 3))
+(println "Math " (/ 1 2 3))
+(println "Math " (- 1))
+(println "Math " (- 1 2))
+(println "Math " (-))
+(println (* 1 2 3) " " (- 1 2 3) " " (/ 1 2 3) " " (- 1) " " (- 1 2) " " (-))
+(println "Hello Again, World. " (= 2,2,2,2))
+(println "neq? " (!= 2,1,2))
+(if (= 1 1) (println "A") (println "B"))
+(println x)
+(def x 5)
+(println x)
+(defn y (a b) (println a b) 2)
+(y 'Hello 'Jon)
+(def z (fn (a b) (println a b) 3))
+(z "Here's " 'Johny)
+(defn greet  (name)  (str "Hello, " name) )
+(println (greet 'students))
+(defn closure_test (a) (fn (b) (println a b)))
+(def closure_test2 (closure_test 'Foo))
+(closure_test2 'Bar)
+
+;(defn pow (x n) (apply * (repeat x n)))
+;(defn sq (y) (pow y 2))
+;(defn qb (y) (pow y 3))
+
+;(println (sq 2))
+;(println (qb 2))
+;(println (pow 2,4))
+
+; (repeat 10 println)
+
+(dotimes (n 5) (println "n is " n))
+
+(def my-delay (delay (println "this only happens once") 100))
+(println (my-delay))
+(println (my-delay))
+
+
