@@ -417,21 +417,41 @@ enum token_type_t {
 struct token_t {
 	token_type_t type;
 	jo_string str;
+	int line;
 };
 
-token_t get_token(FILE *fp) {
+struct parse_state_t {
+	FILE *fp;
+	int line_num;
+	int getc() {
+		int c = fgetc(fp);
+		if(c == '\n') {
+			line_num++;
+		}
+		return c;
+	}
+	void ungetc(int c) {
+		if(c == '\n') {
+			line_num--;
+		}
+		::ungetc(c, fp);
+	}
+};
+
+token_t get_token(parse_state_t *state) {
 	// skip leading whitepsace and comma
 	do {
-		int c = fgetc(fp);
+		int c = state->getc();
 		if(!is_whitespace(c) && c != ',') {
-			ungetc(c, fp);
+			state->ungetc(c);
 			break;
 		}
 	} while(true);
 
 	token_t tok;
+	tok.line = state->line_num;
 
-	int c = fgetc(fp);
+	int c = state->getc();
 	
 	// handle special case of end of file reached
 	if(c == EOF) {
@@ -444,16 +464,16 @@ token_t get_token(FILE *fp) {
 		tok.type = TOK_STRING;
 		// string literal
 		do {
-			int C = fgetc(fp);
+			int C = state->getc();
 			if (C == EOF) {
-				fprintf(stderr, "unterminated string\n");
+				fprintf(stderr, "unterminated string on line %i\n", state->line_num);
 				exit(__LINE__);
 			}
 			// escape next character
 			if(C == '\\') {
-				C = fgetc(fp);
+				C = state->getc();
 				if(C == EOF) {
-					fprintf(stderr, "unterminated string\n");
+					fprintf(stderr, "unterminated string on line %i\n", state->line_num);
 					exit(__LINE__);
 				}
 			} else if(C == '"') {
@@ -468,9 +488,9 @@ token_t get_token(FILE *fp) {
 		tok.type = TOK_STRING;
 		// string literal of a symbol
 		do {
-			int C = fgetc(fp);
+			int C = state->getc();
 			if(is_whitespace(C) || is_separator(C) || C == EOF) {
-				ungetc(C, fp);
+				state->ungetc(C);
 				break;
 			}
 			tok.str += C;
@@ -481,14 +501,14 @@ token_t get_token(FILE *fp) {
 	if(c == ';') {
 		// comment (skip)
 		do {
-			int C = fgetc(fp);
+			int C = state->getc();
 			if (C == EOF) {
 				fprintf(stderr, "unterminated comment\n");
 				exit(__LINE__);
 			}
 			if(C == '\n') break;
 		} while(true);
-		return get_token(fp); // recurse
+		return get_token(state); // recurse
 	}
 	if(is_separator(c)) {
 		tok.type = TOK_SEPARATOR;
@@ -502,11 +522,11 @@ token_t get_token(FILE *fp) {
 	tok.type = TOK_SYMBOL;
 	do {
 		if(is_whitespace(c) || is_separator(c) || c == EOF) {
-			ungetc(c, fp);
+			state->ungetc(c);
 			break;
 		}
 		tok.str += (char)c;
-		c = fgetc(fp);
+		c = state->getc();
 	} while(true);
 	
 	debugf("token: %s\n", tok.str.c_str());
@@ -514,9 +534,9 @@ token_t get_token(FILE *fp) {
 	return tok;
 }
 
-node_idx_t parse_next(FILE *fp, int stop_on_sep) {
-	token_t tok = get_token(fp);
-	debugf("parse_next %s, with %c\n", tok.str.c_str(), stop_on_sep);
+node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
+	token_t tok = get_token(state);
+	debugf("parse_next \"%s\", with '%c'\n", tok.str.c_str(), stop_on_sep);
 
 	if(tok.type == TOK_EOF) {
 		// end of list
@@ -528,13 +548,13 @@ node_idx_t parse_next(FILE *fp, int stop_on_sep) {
 	int c = tok_ptr[0];
 	int c2 = tok_ptr[1];
 
-	if(c == 0 || c == stop_on_sep) {
+	if(c == stop_on_sep) {
 		// end of list
 		return NIL_NODE;
 	}
 
 	if(tok.type == TOK_SEPARATOR && c != stop_on_sep && (c == ')' || c == ']' || c == '}')) {
-		fprintf(stderr, "unexpected separator '%c', was expecting '%c'\n", c, stop_on_sep);
+		fprintf(stderr, "unexpected separator '%c', was expecting '%c' on line %i\n", c, stop_on_sep, tok.line);
 		return NIL_NODE;
 	}
 
@@ -543,9 +563,13 @@ node_idx_t parse_next(FILE *fp, int stop_on_sep) {
 	//
 
 	// container types
-	//if(c == '#' && c2 == '"') return parse_regex(fp);
+	//if(c == '#' && c2 == '"') return parse_regex(state);
 	// parse number...
-	else if(is_num(c)) {
+	if(tok.type == TOK_STRING) {
+		debugf("string: %s\n", tok.str.c_str());
+		return new_node_string(tok.str.c_str());
+	} 
+	if(is_num(c)) {
 		bool is_int = true;
 		int int_val = 0;
 		double float_val = 0.0;
@@ -603,23 +627,23 @@ node_idx_t parse_next(FILE *fp, int stop_on_sep) {
 		}
 		debugf("float: %f\n", float_val);
 		return new_node_float(float_val);
-	} else if(tok.type == TOK_STRING) {
-		debugf("string: %s\n", tok.str.c_str());
-		return new_node_string(tok.str.c_str());
-	} else if(tok.type == TOK_SYMBOL) {
+	} 
+	if(tok.type == TOK_SYMBOL) {
 		debugf("symbol: %s\n", tok.str.c_str());
 		return new_node_symbol(tok.str.c_str());
 	} 
 
 	// parse list
 	if(c == '(') {
+		debugf("list begin\n");
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
-		node_idx_t next = parse_next(fp, ')');
+		node_idx_t next = parse_next(state, ')');
 		while(next != NIL_NODE) {
 			n.t_list->push_back_inplace(next);
-			next = parse_next(fp, ')');
+			next = parse_next(state, ')');
 		}
+		debugf("list end\n");
 		return new_node(&n);
 	}
 
@@ -1124,7 +1148,7 @@ node_idx_t native_def(list_ptr_t env, list_ptr_t args) {
 	node_idx_t init = NIL_NODE;
 	if(i) {
 		node_idx_t doc_string = *i++; // ignored for eval purposes if present
-		if(get_node_type(doc_string) != NODE_STRING) {
+		if(args->size() < 3 || get_node_type(doc_string) != NODE_STRING) {
 			init = doc_string;
 		} else if(i) {
 			init = *i++;
@@ -1698,15 +1722,72 @@ node_idx_t native_rest(list_ptr_t env, list_ptr_t args) {
 }
 
 // execute a shell command
-node_idx_t native_sh(list_ptr_t env, list_ptr_t args) {
+node_idx_t native_system_exec(list_ptr_t env, list_ptr_t args) {
 	jo_string str;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
 		str += " ";
 		str += n->as_string();
 	}
+	//printf("system_exec: %s\n", str.c_str());
 	int ret = system(str.c_str());
 	return new_node_int(ret);
+}
+
+node_idx_t native_unless(list_ptr_t env, list_ptr_t args) {
+	node_idx_t node_idx = args->nth(0);
+	node_t *node = get_node(node_idx);
+	if(!node->as_bool()) {
+		return eval_node_list(env, args->rest());
+	}
+	return NIL_NODE;
+}
+
+// Set system enviorment variables
+node_idx_t native_system_setenv(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	jo_string key = node->as_string();
+	node_idx_t value_idx = *it++;
+	node_t *value = get_node(value_idx);
+	jo_string value_str = value->as_string();
+	jo_setenv(key.c_str(), value_str.c_str(), 1);
+	return NIL_NODE;
+}
+
+// Get system enviorment variables
+node_idx_t native_system_getenv(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	jo_string key = node->as_string();
+	jo_string value = getenv(key.c_str());
+	return new_node_string(value);
+}
+
+node_idx_t native_system_dir_exists(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	jo_string path = node->as_string();
+	return new_node_bool(jo_dir_exists(path.c_str()));
+}
+
+node_idx_t native_system_file_exists(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	jo_string path = node->as_string();
+	return new_node_bool(jo_file_exists(path.c_str()));
+}
+
+node_idx_t native_system_chdir(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	jo_string path = node->as_string();
+	return new_node_bool(jo_chdir(path.c_str()) == 0);
 }
 
 // same as (first (next args))
@@ -1770,6 +1851,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("defn", new_node_native_function(&native_defn, true)));
 	env->push_back_inplace(new_node_var("*ns*", new_node_var("nil", NIL_NODE)));
 	env->push_back_inplace(new_node_var("if", new_node_native_function(&native_if, true)));
+	env->push_back_inplace(new_node_var("unless", new_node_native_function(&native_unless, true)));
 	env->push_back_inplace(new_node_var("when", new_node_native_function(&native_when, true)));
 	env->push_back_inplace(new_node_var("while", new_node_native_function(&native_while, true)));
 	env->push_back_inplace(new_node_var("quote", new_node_native_function(&native_quote, true)));
@@ -1780,7 +1862,6 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("delay?", new_node_native_function(&native_is_delay, false)));
 	env->push_back_inplace(new_node_var("constantly", new_node_native_function(&native_constantly, false)));
 	env->push_back_inplace(new_node_var("count", new_node_native_function(&native_count, false)));
-	env->push_back_inplace(new_node_var("sh", new_node_native_function(&native_sh, false)));
 	//env->push_back_inplace(new_node_var("repeat", new_node_native_function(&native_repeat, true)));
 	env->push_back_inplace(new_node_var("dotimes", new_node_native_function(&native_dotimes, true)));
 	env->push_back_inplace(new_node_var("nil?", new_node_native_function(&native_is_nil, false)));
@@ -1836,6 +1917,11 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("rand-int", new_node_native_function(&native_rand_int, false)));
 	env->push_back_inplace(new_node_var("rand-float", new_node_native_function(&native_rand_float, false)));
 	env->push_back_inplace(new_node_var("Time/now", new_node_native_function(&native_time_now, false)));
+	env->push_back_inplace(new_node_var("System/setenv", new_node_native_function(&native_system_setenv, false)));
+	env->push_back_inplace(new_node_var("System/getenv", new_node_native_function(&native_system_getenv, false)));
+	env->push_back_inplace(new_node_var("System/exec", new_node_native_function(&native_system_exec, false)));
+	env->push_back_inplace(new_node_var("-d", new_node_native_function(&native_system_dir_exists, false)));
+	env->push_back_inplace(new_node_var("-e", new_node_native_function(&native_system_file_exists, false)));
 	
 
 
@@ -1870,11 +1956,16 @@ int main(int argc, char **argv) {
 	
 	//printf("Parsing...\n");
 
+	parse_state_t parse_state;
+	parse_state.fp = fp;
+	parse_state.line_num = 1;
+
 	// parse the base list
 	list_ptr_t main_list = new_list();
-	for(node_idx_t next = parse_next(fp, 0); next != NIL_NODE; next = parse_next(fp, next)) {
+	for(node_idx_t next = parse_next(&parse_state, 0); next != NIL_NODE; next = parse_next(&parse_state, 0)) {
 		main_list->push_back_inplace(next);
 	}
+	fclose(fp);
 
 	//print_node_list(main_list, 0);
 
@@ -1883,8 +1974,8 @@ int main(int argc, char **argv) {
 
 	//print_node(root_idx, 0);
 
-	printf("nodes.size() = %zu\n", nodes.size());
-	printf("free_nodes.size() = %zu\n", free_nodes.size());
+	debugf("nodes.size() = %zu\n", nodes.size());
+	debugf("free_nodes.size() = %zu\n", free_nodes.size());
 
 	for(int i = -20; i <= 20; i++) {
 		for(int j = -20; j <= 20; j++) {
@@ -1908,6 +1999,5 @@ int main(int argc, char **argv) {
 
 
 
-	fclose(fp);
 }
 

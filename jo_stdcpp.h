@@ -37,11 +37,62 @@
 #include <limits.h>
 
 #ifdef _MSC_VER
+#include <direct.h>
 #define jo_strdup _strdup
+#define jo_chdir _chdir
 #pragma warning(push)
 #pragma warning(disable : 4345)
 #else
 #define jo_strdup strdup
+#define jo_chdir chdir
+#endif
+
+#ifdef _MSC_VER
+static int jo_setenv(const char *name, const char *value, int overwrite)
+{
+    int errcode = 0;
+    if(!overwrite) {
+        size_t envsize = 0;
+        errcode = getenv_s(&envsize, NULL, 0, name);
+        if(errcode || envsize) return errcode;
+    }
+    return _putenv_s(name, value);
+}
+#else
+#define jo_setenv setenv
+#endif
+
+static bool jo_file_exists(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if(f) {
+        fclose(f);
+        return true;
+    }
+    return false;
+}
+
+#ifndef _MSC_VER
+#include <dirent.h>
+static bool jo_dir_exists(const char *path)
+{
+    DIR *d = opendir(path);
+    if(d) {
+        closedir(d);
+        return true;
+    }
+    return false;
+}
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+static bool jo_dir_exists(const char *path)
+{
+    DWORD attrib = GetFileAttributes(path);
+    return (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+#undef min
+#undef max
 #endif
 
 // 
