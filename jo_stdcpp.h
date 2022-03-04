@@ -441,6 +441,31 @@ struct jo_string {
         return *this;
     }
 
+    // True if s empty or contains only whitespace.
+    bool empty() const {
+        for(size_t i = 0; i < size(); i++) {
+            if(!isspace(str[i])) return false;
+        }
+        return true;
+    }
+
+    // Converts first character of the string to upper-case, all other characters to lower-case.
+    jo_string &capitalize() {
+        if(size() == 0) return *this;
+        str[0] = toupper(str[0]);
+        for(size_t i = 1; i < size(); i++) {
+            str[i] = tolower(str[i]);
+        }
+        return *this;
+    }
+
+    bool ends_with(const char *s) const {
+        size_t l1 = strlen(s);
+        size_t l2 = size();
+        if(l1 > l2) return false;
+        return strcmp(str+l2-l1, s) == 0;
+    }
+
     jo_string &trim() {
         size_t start = 0;
         while(start < size() && isspace(str[start])) {

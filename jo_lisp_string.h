@@ -111,6 +111,44 @@ node_idx_t native_join(list_ptr_t env, list_ptr_t args) {
     return new_node_string(str);
 }
 
+// True if s is nil, empty, or contains only whitespace.
+node_idx_t native_is_blank(list_ptr_t env, list_ptr_t args) {
+    list_t::iterator it = args->begin();
+    node_idx_t node_idx = *it++;
+    if(node_idx == NIL_NODE) {
+        return new_node_bool(true);
+    }
+    node_t *node = get_node(node_idx);
+    if(node->is_string()) {
+        return new_node_bool(node->as_string().empty());
+    }
+    return new_node_bool(false);
+}
+
+// Converts first character of the string to upper-case, all other characters to lower-case.
+node_idx_t native_capitalize(list_ptr_t env, list_ptr_t args) {
+    list_t::iterator it = args->begin();
+    node_idx_t node_idx = *it++;
+    node_t *node = get_node(node_idx);
+    if(!node->is_string()) {
+        return NIL_NODE;
+    }
+    return new_node_string(node->as_string().capitalize());
+}
+
+node_idx_t native_ends_with(list_ptr_t env, list_ptr_t args) {
+    list_t::iterator it = args->begin();
+    node_idx_t node_idx = *it++;
+    node_t *node = get_node(node_idx);
+    if(!node->is_string()) {
+        return NIL_NODE;
+    }
+    node_idx = *it++;
+    node_t *what = get_node(node_idx);
+    return new_node_bool(node->as_string().ends_with(what->as_string().c_str()));
+}
+
+
 void jo_lisp_string_init(list_ptr_t env) {
 	env->push_back_inplace(new_node_var("str", new_node_native_function(&native_str, false)));
 	env->push_back_inplace(new_node_var("subs", new_node_native_function(&native_subs, false)));
@@ -123,4 +161,7 @@ void jo_lisp_string_init(list_ptr_t env) {
 	env->push_back_inplace(new_node_var("replace", new_node_native_function(&native_replace, false)));
 	env->push_back_inplace(new_node_var("split-lines", new_node_native_function(&native_split_lines, false)));
 	env->push_back_inplace(new_node_var("join", new_node_native_function(&native_join, false)));
+	env->push_back_inplace(new_node_var("blank?", new_node_native_function(&native_is_blank, false)));
+	env->push_back_inplace(new_node_var("capitalize", new_node_native_function(&native_capitalize, false)));
+	env->push_back_inplace(new_node_var("ends-with?", new_node_native_function(&native_ends_with, false)));
 }
