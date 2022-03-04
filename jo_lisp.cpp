@@ -1736,6 +1736,26 @@ node_idx_t native_bit_not(list_ptr_t env, list_ptr_t args) {
 	return new_node_int(~node->as_int());
 }
 
+// removes duplicate elements in a list
+node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	if(!node->is_list()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list_list = node->as_list();
+	list_ptr_t ret = new_list();
+	for(list_t::iterator it = list_list->begin(); it; it++) {
+		node_idx_t value_idx = eval_node(env, *it);
+		node_t *value = get_node(value_idx);
+		if(!ret->contains(value_idx)) {
+			ret->push_back_inplace(value_idx);
+		}
+	}
+	return new_node_list(ret);
+}
+
 node_idx_t native_reverse(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
@@ -1898,6 +1918,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("list", new_node_native_function(&native_list, false)));
 	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, false)));
 	env->push_back_inplace(new_node_var("take-last", new_node_native_function(&native_take_last, false)));
+	env->push_back_inplace(new_node_var("distinct", new_node_native_function(&native_distinct, false)));
 	env->push_back_inplace(new_node_var("reverse", new_node_native_function(&native_upper_case, false)));
 	env->push_back_inplace(new_node_var("concat", new_node_native_function(&native_concat, false)));
 	env->push_back_inplace(new_node_var("var", new_node_native_function(&native_var, false)));

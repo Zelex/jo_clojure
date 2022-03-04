@@ -2688,6 +2688,17 @@ struct jo_persistent_list {
         return copy;
     }
 
+    bool contains(const T &value) const {
+        jo_shared_ptr<node> cur = head;
+        while(cur) {
+            if(cur->value == value) {
+                return true;
+            }
+            cur = cur->next;
+        }
+        return false;
+    }
+
     // iterator
     class iterator {
         jo_shared_ptr<node> cur;
