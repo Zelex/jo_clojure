@@ -667,16 +667,23 @@ node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
 }
 
 node_idx_t eval_node(list_ptr_t env, node_idx_t root);
+node_idx_t eval_node_list(list_ptr_t env, list_ptr_t list);
 
 // eval a list of nodes
 node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 	list_t::iterator it = list->begin();
 	node_idx_t n1i = *it++;
 	node_t *n1 = get_node(n1i);
-	if(n1->type == NODE_SYMBOL) {
-
-		node_idx_t sym_idx = env_get(env, n1->t_string);
-		node_t *sym_node = get_node(sym_idx);
+	if(n1->type == NODE_LIST || n1->type == NODE_SYMBOL) {
+		node_idx_t sym_idx;
+		node_t *sym_node;
+		if(n1->type == NODE_LIST) {
+			sym_idx = eval_list(env, n1->t_list);
+			sym_node = get_node(sym_idx);
+		} else {
+			sym_idx = env_get(env, n1->t_string);
+			sym_node = get_node(sym_idx);
+		}
 
 		// get the symbol's value
 		if(sym_node->type == NODE_NATIVE_FUNCTION) {
@@ -785,7 +792,7 @@ void print_node(node_idx_t node, int depth) {
 	} else if(n->type == NODE_NATIVE_FUNCTION) {
 		printf("%*s<native function>\n", depth, "");
 	} else if(n->type == NODE_FUNC) {
-		printf("%*s(defn %s\n", depth, "", n->t_string.c_str());
+		printf("%*s(fn \n", depth, "");
 		print_node_list(n->t_func.args, depth + 1);
 		print_node_list(n->t_func.body, depth + 1);
 		printf("%*s)\n", depth, "");
