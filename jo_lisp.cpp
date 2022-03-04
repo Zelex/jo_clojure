@@ -1869,6 +1869,11 @@ node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 //}
 
 #ifdef _MSC_VER
+#pragma comment(lib,"AdvApi32.lib")
+#pragma comment(lib,"User32.lib")
+#pragma comment(lib,"Comdlg32.lib")
+#pragma comment(lib,"Shell32.lib")
+#pragma comment(lib,"legacy_stdio_definitions.lib")
 static char real_exe_path[MAX_PATH];
 static bool IsRegistered(const char *ext) {
 	HKEY hKey;
