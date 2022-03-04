@@ -1983,6 +1983,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("rest", new_node_native_function(&native_rest, false)));
 	env->push_back_inplace(new_node_var("quote", new_node_native_function(&native_quote, true)));
 	env->push_back_inplace(new_node_var("list", new_node_native_function(&native_list, false)));
+	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, false)));
 	env->push_back_inplace(new_node_var("var", new_node_native_function(&native_var, false)));
 	env->push_back_inplace(new_node_var("def", new_node_native_function(&native_def, false)));
 	env->push_back_inplace(new_node_var("fn", new_node_native_function(&native_fn, true)));
