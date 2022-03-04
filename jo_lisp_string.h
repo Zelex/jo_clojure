@@ -40,12 +40,6 @@ node_idx_t native_upper_case(list_ptr_t env, list_ptr_t args) {
     return new_node_string(node->as_string().upper());
 }
 
-node_idx_t native_reverse(list_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    return new_node_string(node->as_string().reverse());
-}
-
 node_idx_t native_trim(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
@@ -123,7 +117,6 @@ void jo_lisp_string_init(list_ptr_t env) {
 	env->push_back_inplace(new_node_var("compare", new_node_native_function(&native_compare, false)));
 	env->push_back_inplace(new_node_var("lower-case", new_node_native_function(&native_lower_case, false)));
 	env->push_back_inplace(new_node_var("upper-case", new_node_native_function(&native_upper_case, false)));
-	env->push_back_inplace(new_node_var("reverse", new_node_native_function(&native_upper_case, false)));
 	env->push_back_inplace(new_node_var("trim", new_node_native_function(&native_trim, false)));
 	env->push_back_inplace(new_node_var("triml", new_node_native_function(&native_triml, false)));
 	env->push_back_inplace(new_node_var("trimr", new_node_native_function(&native_trimr, false)));

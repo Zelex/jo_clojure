@@ -1507,6 +1507,28 @@ node_idx_t native_second(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+node_idx_t native_last(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	if(node->is_list()) {
+		return node->as_list()->last_value();
+	}
+	return NIL_NODE;
+}
+
+node_idx_t native_drop(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t list_idx = *it++;
+	node_t *list = get_node(list_idx);
+	if(!list->is_list()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list_list = list->as_list();
+	node_idx_t n = *it++;
+	return new_node_list(list_list->drop(n));
+}
+
 // equivalent to (first (first x))
 node_idx_t native_ffirst(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
@@ -1714,6 +1736,47 @@ node_idx_t native_bit_not(list_ptr_t env, list_ptr_t args) {
 	return new_node_int(~node->as_int());
 }
 
+node_idx_t native_reverse(list_ptr_t env, list_ptr_t args) {
+    list_t::iterator it = args->begin();
+    node_t *node = get_node(*it++);
+	// if its a string
+	if(node->is_string()) {
+		return new_node_string(node->as_string().reverse());
+	}
+	// if its a list
+	if(node->is_list()) {
+		list_ptr_t list_list = node->as_list();
+		return new_node_list(list_list->reverse());
+	}
+	return NIL_NODE;
+}
+
+node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_t *node = get_node(*it++);
+	// if its a string
+	if(node->is_string()) {
+		jo_string str = node->as_string();
+		for(; it; it++) {
+			node_t *node = get_node(*it);
+			str += node->as_string();
+		}
+		return new_node_string(str);
+	}
+	// if its a list
+	if(node->is_list()) {
+		list_ptr_t list_list = node->as_list();
+		for(; it; it++) {
+			node_t *node = get_node(*it);
+			if(node->is_list()) {
+				list_list = list_list->conj(node->as_list());
+			}
+		}
+		return new_node_list(list_list);
+	}
+	return NIL_NODE;
+}
+
 // same as (first (next args))
 //node_idx_t native_fnext(list_ptr_t env, list_ptr_t args) {
 	// TODO
@@ -1826,6 +1889,8 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("peek", new_node_native_function(&native_peek, false)));
 	env->push_back_inplace(new_node_var("first", new_node_native_function(&native_first, false)));
 	env->push_back_inplace(new_node_var("second", new_node_native_function(&native_second, false)));
+	env->push_back_inplace(new_node_var("last", new_node_native_function(&native_last, false)));
+	env->push_back_inplace(new_node_var("drop", new_node_native_function(&native_drop, false)));
 	env->push_back_inplace(new_node_var("ffirst", new_node_native_function(&native_ffirst, false)));
 	env->push_back_inplace(new_node_var("next", new_node_native_function(&native_next, false)));
 	env->push_back_inplace(new_node_var("rest", new_node_native_function(&native_rest, false)));
@@ -1833,6 +1898,8 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("list", new_node_native_function(&native_list, false)));
 	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, false)));
 	env->push_back_inplace(new_node_var("take-last", new_node_native_function(&native_take_last, false)));
+	env->push_back_inplace(new_node_var("reverse", new_node_native_function(&native_upper_case, false)));
+	env->push_back_inplace(new_node_var("concat", new_node_native_function(&native_concat, false)));
 	env->push_back_inplace(new_node_var("var", new_node_native_function(&native_var, false)));
 	env->push_back_inplace(new_node_var("def", new_node_native_function(&native_def, false)));
 	env->push_back_inplace(new_node_var("fn", new_node_native_function(&native_fn, true)));
