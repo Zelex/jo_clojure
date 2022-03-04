@@ -1664,6 +1664,20 @@ node_idx_t native_first(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+node_idx_t native_second(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	if(node->is_list()) {
+		list_ptr_t list_list = node->as_list();
+		if(list_list->size() <= 1) {
+			return NIL_NODE;
+		}
+		return list_list->nth(1);
+	}
+	return NIL_NODE;
+}
+
 // equivalent to (first (first x))
 node_idx_t native_ffirst(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
@@ -1790,12 +1804,94 @@ node_idx_t native_system_chdir(list_ptr_t env, list_ptr_t args) {
 	return new_node_bool(jo_chdir(path.c_str()) == 0);
 }
 
+// (let ((a 1) (b 2)) (+ a b))
+node_idx_t native_let(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	if(!node->is_list()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list_list = node->as_list();
+	if(list_list->size() % 2 != 0) {
+		return NIL_NODE;
+	}
+	list_ptr_t new_env = env;
+	for(list_t::iterator it = list_list->begin(); it; it++) {
+		node_idx_t node_idx = *it;
+		node_t *node = get_node(node_idx);
+		if(!node->is_list()) {
+			return NIL_NODE;
+		}
+		list_ptr_t list_list = node->as_list();
+		if(list_list->size() != 2) {
+			return NIL_NODE;
+		}
+		node_idx_t key_idx = list_list->nth(0); // TODO: should this be eval'd?
+		node_idx_t value_idx = eval_node(new_env, list_list->nth(1));
+		node_t *key = get_node(key_idx);
+		new_env->cons(new_node_var(key->as_string(), value_idx));
+	}
+	return eval_node_list(new_env, args->rest());
+}
+
 // same as (first (next args))
 //node_idx_t native_fnext(list_ptr_t env, list_ptr_t args) {
 	// TODO
 //}
 
+#ifdef _MSC_VER
+static char real_exe_path[MAX_PATH];
+static bool IsRegistered(const char *ext) {
+	HKEY hKey;
+	char keystr[256];
+	sprintf(keystr, "%s.Document\\shell\\open\\command", ext);
+	LONG ret = RegOpenKeyExA(HKEY_CLASSES_ROOT, keystr, 0, KEY_READ, &hKey);
+	if (ret == ERROR_SUCCESS) {
+		DWORD n = 4;
+		ret = RegQueryValueExA(hKey, NULL, NULL, NULL, 0, &n);
+		if (ret == ERROR_SUCCESS) {
+			char *reg_data = (char *)malloc(n);
+			ret = RegQueryValueExA(hKey, NULL, NULL, NULL, (unsigned char *)reg_data, &n);
+			if (ret == ERROR_SUCCESS && strstr(reg_data, real_exe_path)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+#endif
+
 int main(int argc, char **argv) {
+#ifdef _MSC_VER
+    {
+		GetModuleFileNameA(GetModuleHandle(NULL), real_exe_path, MAX_PATH);
+		bool register_clj = !IsRegistered("CLJ") && (MessageBoxA(0, "Do you want to register .CLJ files with this program?", "JO_LISP", MB_OKCANCEL) == 1);
+		if(register_clj) {
+			char tmp[128];
+			sprintf(tmp, "%s.reg", tmpnam(0));
+			FILE *fp = fopen(tmp, "w");
+			if (fp) {
+				char exe_path[MAX_PATH * 2] = {0};
+				for (int i = 0, j = 0; real_exe_path[i]; ++i, ++j) {
+					exe_path[j] = real_exe_path[i];
+					if (exe_path[j] == '\\') {
+						exe_path[++j] = '\\';
+					}
+				}
+				fprintf(fp, "Windows Registry Editor Version 5.00\n\n");
+				if (register_clj) {
+					fprintf(fp, "[HKEY_CLASSES_ROOT\\.clj]\n@=\"CLJ.Document\"\n\n");
+					fprintf(fp, "[HKEY_CLASSES_ROOT\\CLJ.Document\\shell\\open\\command]\n@=\"%s\" \"%%1\"\n\n", exe_path);
+				}
+				fclose(fp);
+				system(tmp);
+				remove(tmp);
+			}
+		}
+	}
+#endif
+
 	if(argc <= 1) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
 		return 1;
@@ -1805,6 +1901,19 @@ int main(int argc, char **argv) {
 	if(!fp) {
 		return 0;
 	}
+	
+	//printf("Parsing...\n");
+
+	parse_state_t parse_state;
+	parse_state.fp = fp;
+	parse_state.line_num = 1;
+
+	// parse the base list
+	list_ptr_t main_list = new_list();
+	for(node_idx_t next = parse_next(&parse_state, 0); next != NIL_NODE; next = parse_next(&parse_state, 0)) {
+		main_list->push_back_inplace(next);
+	}
+	fclose(fp);
 
 	// new_node_func(new_node_list(new_node_symbol("print")), new_node_list(new_node_symbol("quote"))))
 
@@ -1839,6 +1948,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("pop", new_node_native_function(&native_pop, false)));
 	env->push_back_inplace(new_node_var("peek", new_node_native_function(&native_peek, false)));
 	env->push_back_inplace(new_node_var("first", new_node_native_function(&native_first, false)));
+	env->push_back_inplace(new_node_var("second", new_node_native_function(&native_second, false)));
 	env->push_back_inplace(new_node_var("ffirst", new_node_native_function(&native_ffirst, false)));
 	env->push_back_inplace(new_node_var("next", new_node_native_function(&native_next, false)));
 	env->push_back_inplace(new_node_var("rest", new_node_native_function(&native_rest, false)));
@@ -1923,11 +2033,6 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("-d", new_node_native_function(&native_system_dir_exists, false)));
 	env->push_back_inplace(new_node_var("-e", new_node_native_function(&native_system_file_exists, false)));
 	
-
-
-
-
-
 	/*
 	env.set("def", new_node_native_function(&native_def));
 	env.set("lambda", new_node_native_function(&native_lambda));
@@ -1953,19 +2058,6 @@ int main(int argc, char **argv) {
 	*/
 
 	//print_node_list(env, 0);
-	
-	//printf("Parsing...\n");
-
-	parse_state_t parse_state;
-	parse_state.fp = fp;
-	parse_state.line_num = 1;
-
-	// parse the base list
-	list_ptr_t main_list = new_list();
-	for(node_idx_t next = parse_next(&parse_state, 0); next != NIL_NODE; next = parse_next(&parse_state, 0)) {
-		main_list->push_back_inplace(next);
-	}
-	fclose(fp);
 
 	//print_node_list(main_list, 0);
 
@@ -1977,6 +2069,7 @@ int main(int argc, char **argv) {
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());
 
+	/*
 	for(int i = -20; i <= 20; i++) {
 		for(int j = -20; j <= 20; j++) {
 			jo_bigint big_i = i;
@@ -1993,6 +2086,7 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
+	*/
 	//jo_float f("1.23456789");
 	//jo_string f_str = f.to_string();
 	//printf("f = %s\n", f_str.c_str());
