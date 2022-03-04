@@ -29,7 +29,8 @@ enum {
 	NODE_VAR,
 	NODE_DELAY,
 
-	NODE_FLAG_MACRO = 1<<0,
+	NODE_FLAG_MACRO    = 1<<0,
+	NODE_FLAG_INFINITE = 1<<1,
 };
 
 typedef int node_idx_t;
@@ -45,7 +46,6 @@ list_ptr_t new_list() {
 
 struct node_t {
 	int type;
-	int stamp;
 	int flags;
 	jo_string t_string;
 	list_ptr_t t_list;
@@ -71,12 +71,24 @@ struct node_t {
 		return type == NODE_LIST;
 	}
 
-	list_ptr_t &as_list() {
-		return t_list;
+	bool is_vector() const {
+		return type == NODE_VECTOR;
 	}
 
 	bool is_string() const {
 		return type == NODE_STRING;
+	}
+
+	bool is_macro() const {
+		return flags & NODE_FLAG_MACRO;
+	}
+
+	bool is_infinite() const {
+		return flags & NODE_FLAG_INFINITE;
+	}
+
+	list_ptr_t &as_list() {
+		return t_list;
 	}
 
 	bool as_bool() const {
@@ -1833,6 +1845,22 @@ node_idx_t native_let(list_ptr_t env, list_ptr_t args) {
 		new_env->cons(new_node_var(key->as_string(), value_idx));
 	}
 	return eval_node_list(new_env, args->rest());
+}
+
+// (take n coll)
+// Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
+node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	int n = node->as_int();
+	node_idx_t coll_idx = *it++;
+	node_t *coll = get_node(coll_idx);
+	if(!coll->is_list()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list_list = coll->as_list();
+	return new_node_list(list_list->subvec(0, n));
 }
 
 // same as (first (next args))

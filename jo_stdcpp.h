@@ -2175,6 +2175,7 @@ struct jo_persistent_list {
         head = other.head;
         tail = other.tail;
         length = other.length;
+        infinite = other.infinite;
         return *this;
     }
 
@@ -2387,6 +2388,20 @@ struct jo_persistent_list {
         return this;
     }
 
+    jo_persistent_list *subvec(int start, int end) const {
+        jo_shared_ptr<node> cur = head;
+        while(cur && start > 0) {
+            cur = cur->next;
+            start--;
+        }
+        jo_persistent_list *copy = new jo_persistent_list();
+        while(cur && end > start) {
+            copy->push_back_inplace(cur->value);
+            end--;
+        }
+        return copy;
+    }
+
     // iterator
     class iterator {
         jo_shared_ptr<node> cur;
@@ -2462,7 +2477,6 @@ struct jo_persistent_list {
         tail = NULL;
         length = 0;
     }
-
 };
 
 static const char *va(const char *fmt, ...) {
