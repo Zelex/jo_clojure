@@ -2632,14 +2632,14 @@ struct jo_persistent_list {
         return copy;
     }
 
-    const T &first_value() const {
+    T first_value() const {
         if(!head) {
             return T();
         }
         return head->value;
     }
 
-    const T &last_value() const {
+    T last_value() const {
         if(!tail) {
             return T();
         }
