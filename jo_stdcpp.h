@@ -43,6 +43,7 @@
 #pragma warning(push)
 #pragma warning(disable : 4345)
 #else
+#include <unistd.h>
 #define jo_strdup strdup
 #define jo_chdir chdir
 #endif
@@ -2175,7 +2176,6 @@ struct jo_persistent_list {
         head = other.head;
         tail = other.tail;
         length = other.length;
-        infinite = other.infinite;
         return *this;
     }
 
