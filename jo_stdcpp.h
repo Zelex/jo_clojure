@@ -290,7 +290,6 @@ struct jo_string {
 
     const char *c_str() const { return str; };
     int compare(const jo_string &other) { return strcmp(str, other.str); }
-    bool empty() const { return str[0] == 0; }
     size_t size() const { return strlen(str); }
     size_t length() const { return strlen(str); }
 
