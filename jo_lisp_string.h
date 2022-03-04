@@ -96,6 +96,27 @@ node_idx_t native_split_lines(list_ptr_t env, list_ptr_t args) {
 	return new_node_list(list_list);
 }
 
+// (join sep collection)
+node_idx_t native_join(list_ptr_t env, list_ptr_t args) {
+    list_t::iterator it = args->begin();
+    node_idx_t node_idx = *it++;
+    node_t *node = get_node(node_idx);
+    if(!node->is_list()) {
+        return NIL_NODE;
+    }
+    jo_string sep = get_node(*it++)->as_string();
+    list_ptr_t list = node->as_list();
+    jo_string str;
+    for(list_t::iterator it = list->begin(); it;) {
+        node_t *n = get_node(*it++);
+        str += n->as_string();
+        if(it) {
+            str += sep;
+        }
+    }
+    return new_node_string(str);
+}
+
 void jo_lisp_string_init(list_ptr_t env) {
 	env->push_back_inplace(new_node_var("str", new_node_native_function(&native_str, false)));
 	env->push_back_inplace(new_node_var("subs", new_node_native_function(&native_subs, false)));
@@ -108,4 +129,5 @@ void jo_lisp_string_init(list_ptr_t env) {
 	env->push_back_inplace(new_node_var("trimr", new_node_native_function(&native_trimr, false)));
 	env->push_back_inplace(new_node_var("replace", new_node_native_function(&native_replace, false)));
 	env->push_back_inplace(new_node_var("split-lines", new_node_native_function(&native_split_lines, false)));
+	env->push_back_inplace(new_node_var("join", new_node_native_function(&native_join, false)));
 }
