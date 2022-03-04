@@ -1638,6 +1638,82 @@ node_idx_t native_take_last(list_ptr_t env, list_ptr_t args) {
 	return new_node_list(list_list->subvec(list_list->size() - n, list_list->size()));
 }
 
+// eval each arg in turn, return if any eval to false
+node_idx_t native_and(list_ptr_t env, list_ptr_t args) {
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_idx_t node_idx = eval_node(env, *it);
+		node_t *node = get_node(node_idx);
+		if(!node->as_bool()) {
+			return new_node_bool(false);
+		}
+	}
+	return new_node_bool(true);
+}
+
+node_idx_t native_or(list_ptr_t env, list_ptr_t args) {
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_idx_t node_idx = eval_node(env, *it);
+		node_t *node = get_node(node_idx);
+		if(node->as_bool()) {
+			return new_node_bool(true);
+		}
+	}
+	return new_node_bool(false);
+}
+
+node_idx_t native_not(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = eval_node(env, *it++);
+	node_t *node = get_node(node_idx);
+	return new_node_bool(!node->as_bool());
+}
+
+node_idx_t native_bit_and(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	int n = node->as_int();
+	for(; it; it++) {
+		node_idx_t node_idx = eval_node(env, *it);
+		node_t *node = get_node(node_idx);
+		n &= node->as_int();
+	}
+	return new_node_int(n);
+}
+
+node_idx_t native_bit_or(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	int n = node->as_int();
+	for(; it; it++) {
+		node_idx_t node_idx = eval_node(env, *it);
+		node_t *node = get_node(node_idx);
+		n |= node->as_int();
+	}
+	return new_node_int(n);
+}
+
+node_idx_t native_bit_xor(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	int n = node->as_int();
+	for(; it; it++) {
+		node_idx_t node_idx = eval_node(env, *it);
+		node_t *node = get_node(node_idx);
+		n ^= node->as_int();
+	}
+	return new_node_int(n);
+}
+
+node_idx_t native_bit_not(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = eval_node(env, *it++);
+	node_t *node = get_node(node_idx);
+	return new_node_int(~node->as_int());
+}
+
 // same as (first (next args))
 //node_idx_t native_fnext(list_ptr_t env, list_ptr_t args) {
 	// TODO
@@ -1733,6 +1809,13 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("<=", new_node_native_function(&native_lte, false)));
 	env->push_back_inplace(new_node_var(">", new_node_native_function(&native_gt, false)));
 	env->push_back_inplace(new_node_var(">=", new_node_native_function(&native_gte, false)));
+	env->push_back_inplace(new_node_var("and", new_node_native_function(&native_and, true)));
+	env->push_back_inplace(new_node_var("or", new_node_native_function(&native_or, true)));
+	env->push_back_inplace(new_node_var("not", new_node_native_function(&native_not, true)));
+	env->push_back_inplace(new_node_var("bit-and", new_node_native_function(&native_bit_and, true)));
+	env->push_back_inplace(new_node_var("bit-or", new_node_native_function(&native_bit_or, true)));
+	env->push_back_inplace(new_node_var("bit-xor", new_node_native_function(&native_bit_xor, true)));
+	env->push_back_inplace(new_node_var("bit-not", new_node_native_function(&native_bit_not, true)));
 	env->push_back_inplace(new_node_var("empty?", new_node_native_function(&native_is_empty, false)));
 	env->push_back_inplace(new_node_var("false?", new_node_native_function(&native_is_false, false)));
 	env->push_back_inplace(new_node_var("true?", new_node_native_function(&native_is_true, false)));
