@@ -1829,10 +1829,12 @@ node_idx_t native_let(list_ptr_t env, list_ptr_t args) {
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
 	if(!node->is_list()) {
+		printf("let: expected list\n");
 		return NIL_NODE;
 	}
 	list_ptr_t list_list = node->as_list();
 	if(list_list->size() % 2 != 0) {
+		printf("let: expected even number of elements\n");
 		return NIL_NODE;
 	}
 	list_ptr_t new_env = env;
@@ -1840,16 +1842,18 @@ node_idx_t native_let(list_ptr_t env, list_ptr_t args) {
 		node_idx_t node_idx = *it;
 		node_t *node = get_node(node_idx);
 		if(!node->is_list()) {
+			printf("let: expected list (2)\n");
 			return NIL_NODE;
 		}
 		list_ptr_t list_list = node->as_list();
 		if(list_list->size() != 2) {
+			printf("let: expected list of size 2\n");
 			return NIL_NODE;
 		}
 		node_idx_t key_idx = list_list->nth(0); // TODO: should this be eval'd?
 		node_idx_t value_idx = eval_node(new_env, list_list->nth(1));
 		node_t *key = get_node(key_idx);
-		new_env->cons(new_node_var(key->as_string(), value_idx));
+		new_env = new_env->cons(new_node_var(key->as_string(), value_idx));
 	}
 	return eval_node_list(new_env, args->rest());
 }

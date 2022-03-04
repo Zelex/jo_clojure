@@ -46,4 +46,4 @@
 ; (apply println 1 2 (quote 3 4))    ;; same as  (f 1 2 3 4)
 ; (apply println 1 2 3 (quote 4))    ;; same as  (f 1 2 3 4)
 
-; (println (let ((a 1) (b 2)) (+ a b)))
+(println (let ((a 1) (b 2)) (+ a b)))
