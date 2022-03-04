@@ -26,6 +26,7 @@
 
 #ifndef JO_STDCPP
 #define JO_STDCPP
+#pragma once
 
 // Not in any way intended to be fastest implementation, just simple bare minimum we need to compile tinyexr
 
@@ -35,8 +36,11 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <limits.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #ifdef _MSC_VER
+#include <conio.h>
 #include <direct.h>
 #define jo_strdup _strdup
 #define jo_chdir _chdir
@@ -83,6 +87,75 @@ static size_t jo_file_size(const char *path)
     return size;
 }
 
+static bool jo_file_readable(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if(!f) return false;
+    fclose(f);
+    return true;
+}
+
+// tests to see if it can write to a file without truncating it
+static bool jo_file_writable(const char *path)
+{
+    FILE *f = fopen(path, "r+");
+    if(!f) return false;
+    fclose(f);
+    return true;
+}
+
+// checks to see if file can be executed (cross-platform)
+static bool jo_file_executable(const char *path)
+{
+    // check stat to see if it has executable bit set
+    struct _stat s;
+    if(_stat(path, &s) != 0) return false;
+    return s.st_mode & _S_IEXEC;
+}
+
+static bool jo_file_empty(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if(!f) return true;
+    fseek(f, 0, SEEK_END);
+    size_t size = ftell(f);
+    fclose(f);
+    return size == 0;
+}
+
+static int jo_kbhit()
+{
+#ifdef _MSC_VER
+    return _kbhit();
+#else
+    struct timeval tv;
+    fd_set fds;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    FD_ZERO(&fds);
+    FD_SET(0, &fds); //STDIN_FILENO is 0
+    select(1, &fds, NULL, NULL, &tv);
+    return FD_ISSET(0, &fds);
+#endif
+}
+
+static int jo_getch()
+{
+#ifdef _MSC_VER
+    return _getch();
+#else
+    struct termios oldt, newt;
+    int ch;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    ch = getchar();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return ch;
+#endif
+}
+
 #ifndef _MSC_VER
 #include <dirent.h>
 static bool jo_dir_exists(const char *path)
@@ -105,6 +178,54 @@ static bool jo_dir_exists(const char *path)
 #undef min
 #undef max
 #endif
+
+// always adds a 0 terminator
+static void *jo_slurp_file(const char *path, size_t *size)
+{
+    FILE *f = fopen(path, "rb");
+    if(!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    size_t fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    void *data = malloc(fsize + 1);
+    if(!data) {
+        fclose(f);
+        return NULL;
+    }
+    size_t read = fread(data, 1, fsize, f);
+    fclose(f);
+    if(read != fsize) {
+        free(data);
+        return NULL;
+    }
+    ((char *)data)[fsize] = 0;
+    if(size) *size = fsize;
+    return data;
+}
+
+static char *jo_slurp_file(const char *path)
+{
+    size_t size = 0;
+    void *data = jo_slurp_file(path, &size);
+    if(!data) return NULL;
+    char *str = (char *)data;
+    str[size] = 0;
+    return str;
+}
+
+static int jo_spit_file(const char *path, const void *data, size_t size)
+{
+    FILE *f = fopen(path, "wb");
+    if(!f) return 1;
+    size_t written = fwrite(data, 1, size, f);
+    fclose(f);
+    return written != size;
+}
+
+static int jo_spit_file(const char *path, const char *data)
+{
+    return jo_spit_file(path, data, strlen(data));
+}
 
 // 
 // Simple C++std replacements...
