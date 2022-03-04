@@ -1754,6 +1754,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("count", new_node_native_function(&native_count, false)));
 	//env->push_back_inplace(new_node_var("repeat", new_node_native_function(&native_repeat, true)));
 	env->push_back_inplace(new_node_var("dotimes", new_node_native_function(&native_dotimes, true)));
+	env->push_back_inplace(new_node_var("doseq", new_node_native_function(&native_doseq, true)));
 	env->push_back_inplace(new_node_var("nil?", new_node_native_function(&native_is_nil, false)));
 	env->push_back_inplace(new_node_var("rand-int", new_node_native_function(&native_rand_int, false)));
 	env->push_back_inplace(new_node_var("rand-float", new_node_native_function(&native_rand_float, false)));
