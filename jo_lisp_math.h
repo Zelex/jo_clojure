@@ -163,7 +163,39 @@ node_idx_t native_math_clamp(list_ptr_t env, list_ptr_t args) {
 	return new_node_float(val);
 }
 
+node_idx_t native_is_even(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	return new_node_bool((node->as_int() & 1) == 0);
+}
+
+node_idx_t native_is_odd(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	return new_node_bool((node->as_int() & 1) == 1);
+}
+
+node_idx_t native_is_pos(list_ptr_t env, list_ptr_t args) {
+    list_t::iterator it = args->begin();
+    node_idx_t node_idx = *it++;
+    node_t *node = get_node(node_idx);
+    return new_node_bool(node->as_float() > 0);
+}
+
+node_idx_t native_is_neg(list_ptr_t env, list_ptr_t args) {
+    list_t::iterator it = args->begin();
+    node_idx_t node_idx = *it++;
+    node_t *node = get_node(node_idx);
+    return new_node_bool(node->as_float() < 0);
+}
+
 void jo_lisp_math_init(list_ptr_t env) {
+	env->push_back_inplace(new_node_var("even?", new_node_native_function(&native_is_even, false)));
+	env->push_back_inplace(new_node_var("odd?", new_node_native_function(&native_is_odd, false)));
+	env->push_back_inplace(new_node_var("pos?", new_node_native_function(&native_is_pos, false)));
+	env->push_back_inplace(new_node_var("neg?", new_node_native_function(&native_is_neg, false)));
 	env->push_back_inplace(new_node_var("Math/abs", new_node_native_function(&native_math_abs, false)));
 	env->push_back_inplace(new_node_var("Math/sqrt", new_node_native_function(&native_math_sqrt, false)));
 	env->push_back_inplace(new_node_var("Math/cbrt", new_node_native_function(&native_math_cbrt, false)));

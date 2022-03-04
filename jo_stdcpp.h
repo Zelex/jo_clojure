@@ -347,6 +347,32 @@ struct jo_string {
         return *this;
     }
 
+    jo_string &erase(size_t n, size_t m) {
+        size_t l = strlen(str);
+        if(n >= l) return *this;
+        if(m > l) m = l;
+        if(m <= n) {
+            str[n] = 0;
+            return *this;
+        }
+        memmove(str+n, str+m, l-m+1);
+        return *this;
+    }
+
+    jo_string &insert(size_t n, const char *s) {
+        size_t l0 = strlen(str);
+        size_t l1 = strlen(s);
+        char *new_str = (char*)realloc(str, l0 + l1 + 1);
+        if(!new_str) {
+            // malloc failed!
+            return *this;
+        }
+        str = new_str;
+        memmove(str+n+l1, str+n, l0-n+1);
+        memcpy(str+n, s, l1);
+        return *this;
+    }
+
     jo_string substr(size_t pos = 0, size_t len = jo_string_npos) {
         if(len == jo_string_npos) {
             len = size() - pos;
@@ -386,9 +412,109 @@ struct jo_string {
         return jo_string(tmp);
     }
 
+    int compare(const char *s) const { return strcmp(str, s); }
 
+    jo_string &lower() {
+        for(size_t i = 0; i < size(); i++) {
+            str[i] = tolower(str[i]);
+        }
+        return *this;
+    }
 
+    jo_string &upper() {
+        for(size_t i = 0; i < size(); i++) {
+            str[i] = toupper(str[i]);
+        }
+        return *this;
+    }
 
+    jo_string &reverse() {
+        char *tmp = str;
+        char *end = str + size();
+        while(tmp < end) {
+            char c = *tmp;
+            *tmp = *(end-1);
+            *(end-1) = c;
+            tmp++;
+            end--;
+        }
+        return *this;
+    }
+
+    jo_string &trim() {
+        size_t start = 0;
+        while(start < size() && isspace(str[start])) {
+            start++;
+        }
+        size_t end = size()-1;
+        while(end > start && isspace(str[end])) {
+            end--;
+        }
+        if(start > 0 || end < size()-1) {
+            char *tmp = (char*)malloc(end-start+2);
+            if(!tmp) {
+                // malloc failed!
+                return *this;
+            }
+            memcpy(tmp, str+start, end-start+1);
+            tmp[end-start+1] = 0;
+            free(str);
+            str = tmp;
+        }
+        return *this;
+    }
+
+    jo_string &ltrim() {
+        size_t start = 0;
+        while(start < size() && isspace(str[start])) {
+            start++;
+        }
+        if(start > 0) {
+            char *tmp = (char*)malloc(size()-start+1);
+            if(!tmp) {
+                // malloc failed!
+                return *this;
+            }
+            memcpy(tmp, str+start, size()-start);
+            tmp[size()-start] = 0;
+            free(str);
+            str = tmp;
+        }
+        return *this;
+    }
+
+    jo_string &rtrim() {
+        size_t end = size()-1;
+        while(end > 0 && isspace(str[end])) {
+            end--;
+        }
+        if(end < size()-1) {
+            char *tmp = (char*)malloc(end+2);
+            if(!tmp) {
+                // malloc failed!
+                return *this;
+            }
+            memcpy(tmp, str, end+1);
+            tmp[end+1] = 0;
+            free(str);
+            str = tmp;
+        }
+        return *this;
+    }
+
+    jo_string &replace(const char *s, const char *r) {
+        size_t pos = 0;
+        while(pos < size()) {
+            size_t pos2 = find(s, pos);
+            if(pos2 == jo_string_npos) {
+                break;
+            }
+            erase(pos2, strlen(s));
+            insert(pos2, r);
+            pos = pos2 + strlen(r);
+        }
+        return *this;
+    }
 };
 
 static inline jo_string operator+(const jo_string &lhs, const jo_string &rhs) { jo_string ret(lhs); ret += rhs; return ret; }

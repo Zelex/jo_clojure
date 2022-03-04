@@ -137,6 +137,14 @@ node_idx_t native_system_spit(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(jo_spit_file(path.c_str(), contents_str.c_str()) == 0);
 }
 
+node_idx_t native_system_date(list_ptr_t env, list_ptr_t args) {
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    char buf[256];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
+    return new_node_string(buf);
+}
+
 // reads a single line from stdin
 node_idx_t native_system_read_line(list_ptr_t env, list_ptr_t args) {
     char line[1024];
@@ -151,6 +159,7 @@ void jo_lisp_system_init(list_ptr_t env) {
 	env->push_back_inplace(new_node_var("System/getcwd", new_node_native_function(&native_system_getcwd, false)));
 	env->push_back_inplace(new_node_var("System/kbhit", new_node_native_function(&native_system_kbhit, false)));
 	env->push_back_inplace(new_node_var("System/getch", new_node_native_function(&native_system_getch, false)));
+	env->push_back_inplace(new_node_var("System/date", new_node_native_function(&native_system_date, false)));
 	env->push_back_inplace(new_node_var("slurp", new_node_native_function(&native_system_slurp, false)));
 	env->push_back_inplace(new_node_var("spit", new_node_native_function(&native_system_spit, false)));
 	env->push_back_inplace(new_node_var("read-line", new_node_native_function(&native_system_read_line, false)));

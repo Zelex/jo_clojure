@@ -1209,16 +1209,6 @@ node_idx_t native_rand_int(list_ptr_t env, list_ptr_t args) {
 	return new_node_int(rand() % get_node(args->nth(0))->as_int());
 }
 
-// concat all arguments as_string
-node_idx_t native_str(list_ptr_t env, list_ptr_t args) {
-	jo_string str;
-	for(list_t::iterator it = args->begin(); it; it++) {
-		node_t *n = get_node(*it);
-		str += n->as_string();
-	}
-	return new_node_string(str);
-}
-
 node_idx_t native_rand_float(list_ptr_t env, list_ptr_t args) {
 	return new_node_float(rand() / (float)RAND_MAX);
 }
@@ -1428,20 +1418,6 @@ node_idx_t native_is_delay(list_ptr_t env, list_ptr_t args) {
 	return new_node_bool(node->type == NODE_DELAY);
 }
 
-node_idx_t native_is_even(list_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return new_node_bool((node->as_int() & 1) == 0);
-}
-
-node_idx_t native_is_odd(list_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return new_node_bool((node->as_int() & 1) == 1);
-}
-
 node_idx_t native_is_empty(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -1617,7 +1593,9 @@ node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 	// TODO
 //}
 
+
 #include "jo_lisp_math.h"
+#include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
 
 #ifdef _MSC_VER
@@ -1689,7 +1667,6 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("t", new_node_bool(true)));
 	env->push_back_inplace(new_node_var("f", new_node_bool(false)));
 	env->push_back_inplace(new_node_var("let", new_node_native_function(&native_let, true)));
-	env->push_back_inplace(new_node_var("str", new_node_native_function(&native_str, false)));
 	env->push_back_inplace(new_node_var("print", new_node_native_function(&native_print, false)));
 	env->push_back_inplace(new_node_var("println", new_node_native_function(&native_println, false)));
 	env->push_back_inplace(new_node_var("+", new_node_native_function(&native_add, false)));
@@ -1705,8 +1682,6 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("<=", new_node_native_function(&native_lte, false)));
 	env->push_back_inplace(new_node_var(">", new_node_native_function(&native_gt, false)));
 	env->push_back_inplace(new_node_var(">=", new_node_native_function(&native_gte, false)));
-	env->push_back_inplace(new_node_var("even?", new_node_native_function(&native_is_even, false)));
-	env->push_back_inplace(new_node_var("odd?", new_node_native_function(&native_is_odd, false)));
 	env->push_back_inplace(new_node_var("empty?", new_node_native_function(&native_is_empty, false)));
 	env->push_back_inplace(new_node_var("false?", new_node_native_function(&native_is_false, false)));
 	env->push_back_inplace(new_node_var("true?", new_node_native_function(&native_is_true, false)));
@@ -1748,6 +1723,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("rand-float", new_node_native_function(&native_rand_float, false)));
 	env->push_back_inplace(new_node_var("Time/now", new_node_native_function(&native_time_now, false)));
 	jo_lisp_math_init(env);
+	jo_lisp_string_init(env);
 	jo_lisp_system_init(env);
 	
 
