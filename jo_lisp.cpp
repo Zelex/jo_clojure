@@ -1624,6 +1624,20 @@ node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 	return new_node_list(list_list->subvec(0, n));
 }
 
+node_idx_t native_take_last(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	int n = node->as_int();
+	node_idx_t coll_idx = *it++;
+	node_t *coll = get_node(coll_idx);
+	if(!coll->is_list()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list_list = coll->as_list();
+	return new_node_list(list_list->subvec(list_list->size() - n, list_list->size()));
+}
+
 // same as (first (next args))
 //node_idx_t native_fnext(list_ptr_t env, list_ptr_t args) {
 	// TODO
@@ -1714,6 +1728,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("dec", new_node_native_function(&native_dec, false)));
 	env->push_back_inplace(new_node_var("=", new_node_native_function(&native_eq, false)));
 	env->push_back_inplace(new_node_var("!=", new_node_native_function(&native_neq, false)));
+	env->push_back_inplace(new_node_var("not=", new_node_native_function(&native_neq, false)));
 	env->push_back_inplace(new_node_var("<", new_node_native_function(&native_lt, false)));
 	env->push_back_inplace(new_node_var("<=", new_node_native_function(&native_lte, false)));
 	env->push_back_inplace(new_node_var(">", new_node_native_function(&native_gt, false)));
@@ -1734,6 +1749,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("quote", new_node_native_function(&native_quote, true)));
 	env->push_back_inplace(new_node_var("list", new_node_native_function(&native_list, false)));
 	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, false)));
+	env->push_back_inplace(new_node_var("take-last", new_node_native_function(&native_take_last, false)));
 	env->push_back_inplace(new_node_var("var", new_node_native_function(&native_var, false)));
 	env->push_back_inplace(new_node_var("def", new_node_native_function(&native_def, false)));
 	env->push_back_inplace(new_node_var("fn", new_node_native_function(&native_fn, true)));
