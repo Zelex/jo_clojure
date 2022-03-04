@@ -1915,7 +1915,7 @@ int main(int argc, char **argv) {
 				fprintf(fp, "Windows Registry Editor Version 5.00\n\n");
 				if (register_clj) {
 					fprintf(fp, "[HKEY_CLASSES_ROOT\\.clj]\n@=\"CLJ.Document\"\n\n");
-					fprintf(fp, "[HKEY_CLASSES_ROOT\\CLJ.Document\\shell\\open\\command]\n@=\"%s\" \"%%1\"\n\n", exe_path);
+					fprintf(fp, "[HKEY_CLASSES_ROOT\\CLJ.Document\\shell\\open\\command]\n@=\"%s %%1\"\n\n", exe_path);
 				}
 				fclose(fp);
 				system(tmp);
@@ -1929,24 +1929,6 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
 		return 1;
 	}
-
-	FILE *fp = fopen(argv[1], "r");
-	if(!fp) {
-		return 0;
-	}
-	
-	//printf("Parsing...\n");
-
-	parse_state_t parse_state;
-	parse_state.fp = fp;
-	parse_state.line_num = 1;
-
-	// parse the base list
-	list_ptr_t main_list = new_list();
-	for(node_idx_t next = parse_next(&parse_state, 0); next != NIL_NODE; next = parse_next(&parse_state, 0)) {
-		main_list->push_back_inplace(next);
-	}
-	fclose(fp);
 
 	// new_node_func(new_node_list(new_node_symbol("print")), new_node_list(new_node_symbol("quote"))))
 
@@ -2068,31 +2050,26 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("-d", new_node_native_function(&native_system_dir_exists, false)));
 	env->push_back_inplace(new_node_var("-e", new_node_native_function(&native_system_file_exists, false)));
 	
-	/*
-	env.set("def", new_node_native_function(&native_def));
-	env.set("lambda", new_node_native_function(&native_lambda));
-	env.set("call", new_node_native_function(&native_call));
-	env.set("int", new_node_native_function(&native_int));
-	env.set("float", new_node_native_function(&native_float));
-	env.set("string", new_node_native_function(&native_string));
-	env.set("list", new_node_native_function(&native_list));
-	env.set("car", new_node_native_function(&native_car));
-	env.set("cdr", new_node_native_function(&native_cdr));
-	env.set("cons", new_node_native_function(&native_cons));
-	env.set("nil?", new_node_native_function(&native_is_nil));
-	env.set("int?", new_node_native_function(&native_is_int));
-	env.set("float?", new_node_native_function(&native_is_float));
-	env.set("string?", new_node_native_function(&native_is_string));
-	env.set("list?", new_node_native_function(&native_is_list));
-	env.set("car?", new_node_native_function(&native_is_car));
-	env.set("cdr?", new_node_native_function(&native_is_cdr));
-	env.set("cons?", new_node_native_function(&native_is_cons));
-	env.set("native?", new_node_native_function(&native_is_native));
-	env.set("function?", new_node_native_function(&native_is_function));
-	env.set("native-function?", new_node_native_function(&native_is_native_function));
-	*/
 
 	//print_node_list(env, 0);
+
+	FILE *fp = fopen(argv[1], "r");
+	if(!fp) {
+		return 0;
+	}
+	
+	//printf("Parsing...\n");
+
+	parse_state_t parse_state;
+	parse_state.fp = fp;
+	parse_state.line_num = 1;
+
+	// parse the base list
+	list_ptr_t main_list = new_list();
+	for(node_idx_t next = parse_next(&parse_state, 0); next != NIL_NODE; next = parse_next(&parse_state, 0)) {
+		main_list->push_back_inplace(next);
+	}
+	fclose(fp);
 
 	//print_node_list(main_list, 0);
 
