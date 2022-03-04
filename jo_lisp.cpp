@@ -1306,6 +1306,42 @@ node_idx_t native_dotimes(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+/*
+(defn Example []
+   (doseq (n (0 1 2))
+   (println n)))
+(Example)
+
+The ‘doseq’ statement is similar to the ‘for each’ statement which is found in many other programming languages. 
+The doseq statement is basically used to iterate over a sequence.
+*/
+node_idx_t native_doseq(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t binding_idx = *it++;
+	if(!get_node(binding_idx)->is_list()) {
+		return NIL_NODE;
+	}
+	node_t *binding = get_node(binding_idx);
+	list_ptr_t binding_list = binding->as_list();
+	if (binding_list->size() != 2) {
+		return NIL_NODE;
+	}
+	node_idx_t name_idx = binding_list->nth(0);
+	node_idx_t value_idx = binding_list->nth(1);
+	node_t *name = get_node(name_idx);
+	node_t *value = get_node(value_idx);
+	list_ptr_t value_list = value->as_list();
+	node_idx_t ret = NIL_NODE;
+	for(list_t::iterator it2 = value_list->begin(); it2; it2++) {
+		node_idx_t item_idx = *it2;
+		list_ptr_t new_env = env->cons(new_node_var(name->as_string(), item_idx));
+		for(list_t::iterator it3 = it; it3; it3++) { 
+			ret = eval_node(new_env, *it3);
+		}
+	}
+	return ret;
+}
+
 node_idx_t native_delay(list_ptr_t env, list_ptr_t args) {
 	node_idx_t reti = new_node(NODE_DELAY);
 	node_t *ret = get_node(reti);
