@@ -73,6 +73,16 @@ static bool jo_file_exists(const char *path)
     return false;
 }
 
+static size_t jo_file_size(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if(!f) return 0;
+    fseek(f, 0, SEEK_END);
+    size_t size = ftell(f);
+    fclose(f);
+    return size;
+}
+
 #ifndef _MSC_VER
 #include <dirent.h>
 static bool jo_dir_exists(const char *path)
