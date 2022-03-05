@@ -48,6 +48,7 @@
 #pragma warning(disable : 4345)
 #else
 #include <unistd.h>
+#include <termios.h>
 #define jo_strdup strdup
 #define jo_chdir chdir
 #endif
@@ -107,10 +108,15 @@ static bool jo_file_writable(const char *path)
 // checks to see if file can be executed (cross-platform)
 static bool jo_file_executable(const char *path)
 {
+#ifdef _MSC_VER
     // check stat to see if it has executable bit set
     struct _stat s;
     if(_stat(path, &s) != 0) return false;
     return s.st_mode & _S_IEXEC;
+#else
+    // check access to see if it can be executed
+    return access(path, X_OK) == 0;
+#endif
 }
 
 static bool jo_file_empty(const char *path)
@@ -227,6 +233,39 @@ static int jo_spit_file(const char *path, const char *data)
     return jo_spit_file(path, data, strlen(data));
 }
 
+static int jo_tolower(int c)
+{
+    if(c >= 'A' && c <= 'Z') return c + 32;
+    return c;
+}
+
+static int jo_toupper(int c)
+{
+    if(c >= 'a' && c <= 'z') return c - 32;
+    return c;
+}
+
+static int jo_isspace(int c)
+{
+    return (c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r');
+}
+
+// returns a pointer to the last occurrence of needle in haystack
+// or NULL if needle is not found
+static const char *jo_strrstr(const char *haystack, const char *needle)
+{
+    const char *h = haystack + strlen(haystack);
+    const char *n = needle + strlen(needle);
+    while(h > haystack) {
+        const char *h2 = h - 1;
+        const char *n2 = n - 1;
+        while(n2 > needle && *h2 == *n2) h2--, n2--;
+        if(n2 == needle) return h2;
+        h--;
+    }
+    return NULL;
+}
+
 // 
 // Simple C++std replacements...
 //
@@ -335,8 +374,14 @@ struct jo_string {
         return *this;
     }
 
-    size_t find_last_of(char c) {
+    size_t find_last_of(char c) const {
         char *tmp = strrchr(str, c);
+        if(!tmp) return jo_string_npos;
+        return (size_t)(tmp - str);
+    }
+
+    size_t find_last_of(const char *s) const {
+        const char *tmp = jo_strrstr(str, s);
         if(!tmp) return jo_string_npos;
         return (size_t)(tmp - str);
     }
@@ -415,14 +460,14 @@ struct jo_string {
 
     jo_string &lower() {
         for(size_t i = 0; i < size(); i++) {
-            str[i] = tolower(str[i]);
+            str[i] = jo_tolower(str[i]);
         }
         return *this;
     }
 
     jo_string &upper() {
         for(size_t i = 0; i < size(); i++) {
-            str[i] = toupper(str[i]);
+            str[i] = jo_toupper(str[i]);
         }
         return *this;
     }
@@ -443,7 +488,7 @@ struct jo_string {
     // True if s empty or contains only whitespace.
     bool empty() const {
         for(size_t i = 0; i < size(); i++) {
-            if(!isspace(str[i])) return false;
+            if(!jo_isspace(str[i])) return false;
         }
         return true;
     }
@@ -451,9 +496,9 @@ struct jo_string {
     // Converts first character of the string to upper-case, all other characters to lower-case.
     jo_string &capitalize() {
         if(size() == 0) return *this;
-        str[0] = toupper(str[0]);
+        str[0] = jo_toupper(str[0]);
         for(size_t i = 1; i < size(); i++) {
-            str[i] = tolower(str[i]);
+            str[i] = jo_tolower(str[i]);
         }
         return *this;
     }
@@ -465,13 +510,50 @@ struct jo_string {
         return strcmp(str+l2-l1, s) == 0;
     }
 
+    bool starts_with(const char *s) const {
+        size_t l1 = strlen(s);
+        size_t l2 = size();
+        if(l1 > l2) return false;
+        return strncmp(str, s, l1) == 0;
+    }
+
+    bool includes(const char *s) const {
+        return find(s) != jo_string_npos;
+    }
+
+    int index_of(char c) const {
+        for(size_t i = 0; i < size(); i++) {
+            if(str[i] == c) return (int)i;
+        }
+        return -1;
+    }
+
+    int index_of(const char *s) const {
+        size_t pos = find(s);
+        if(pos == jo_string_npos) return -1;
+        return (int)pos;
+    }
+
+    int last_index_of(char c) const {
+        for(int i = (int)size()-1; i >= 0; i--) {
+            if(str[i] == c) return i;
+        }
+        return -1;
+    }
+
+    int last_index_of(const char *s) const {
+        size_t pos = find_last_of(s);
+        if(pos == jo_string_npos) return -1;
+        return (int)pos;
+    }
+
     jo_string &trim() {
         size_t start = 0;
-        while(start < size() && isspace(str[start])) {
+        while(start < size() && jo_isspace(str[start])) {
             start++;
         }
         size_t end = size()-1;
-        while(end > start && isspace(str[end])) {
+        while(end > start && jo_isspace(str[end])) {
             end--;
         }
         if(start > 0 || end < size()-1) {
@@ -490,7 +572,7 @@ struct jo_string {
 
     jo_string &ltrim() {
         size_t start = 0;
-        while(start < size() && isspace(str[start])) {
+        while(start < size() && jo_isspace(str[start])) {
             start++;
         }
         if(start > 0) {
@@ -509,7 +591,7 @@ struct jo_string {
 
     jo_string &rtrim() {
         size_t end = size()-1;
-        while(end > 0 && isspace(str[end])) {
+        while(end > 0 && jo_isspace(str[end])) {
             end--;
         }
         if(end < size()-1) {
@@ -526,6 +608,17 @@ struct jo_string {
         return *this;
     }
 
+    jo_string &chomp() {
+        if(size() == 0) return *this;
+        if(str[size()-1] == '\n') {
+            str[size()-1] = 0;
+            if(size() > 0 && str[size()-1] == '\r') {
+                str[size()-1] = 0;
+            }
+        }
+        return *this;
+    }
+
     jo_string &replace(const char *s, const char *r) {
         size_t pos = 0;
         while(pos < size()) {
@@ -537,6 +630,16 @@ struct jo_string {
             insert(pos2, r);
             pos = pos2 + strlen(r);
         }
+        return *this;
+    }
+
+    jo_string &replace_first(const char *s, const char *r) {
+        size_t pos = find(s);
+        if(pos == jo_string_npos) {
+            return *this;
+        }
+        erase(pos, strlen(s));
+        insert(pos, r);
         return *this;
     }
 };
