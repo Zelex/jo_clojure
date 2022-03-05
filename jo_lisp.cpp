@@ -1797,11 +1797,20 @@ node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-// same as (first (next args))
-//node_idx_t native_fnext(list_ptr_t env, list_ptr_t args) {
-	// TODO
-//}
-
+node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
+	// collect the arguments, if its a list add the whole list, then eval it
+	list_ptr_t arg_list = new_list();
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_idx_t arg_idx = eval_node(env, *it);
+		node_t *arg = get_node(arg_idx);
+		if(arg->is_list()) {
+			arg_list = arg_list->conj(arg->as_list());
+		} else {
+			arg_list->push_back_inplace(arg_idx);
+		}
+	}
+	return eval_list(env, arg_list);
+}
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -1878,6 +1887,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("let", new_node_native_function(&native_let, true)));
 	env->push_back_inplace(new_node_var("print", new_node_native_function(&native_print, false)));
 	env->push_back_inplace(new_node_var("println", new_node_native_function(&native_println, false)));
+	env->push_back_inplace(new_node_var("apply", new_node_native_function(&native_apply, false)));
 	env->push_back_inplace(new_node_var("+", new_node_native_function(&native_add, false)));
 	env->push_back_inplace(new_node_var("-", new_node_native_function(&native_sub, false)));
 	env->push_back_inplace(new_node_var("*", new_node_native_function(&native_mul, false)));
