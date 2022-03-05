@@ -47,3 +47,29 @@
 ; (apply println 1 2 3 (quote 4))    ;; same as  (f 1 2 3 4)
 
 (println (let ((a 1) (b 2)) (+ a b)))
+
+
+; defs are not variables, don't do this:
+(defn factorial-using-do-dotimes (n)
+  (do
+    (def a 1)
+    (dotimes (i n)
+      (def a (* a (inc i)))))
+  a)
+
+; defs are not variables, don't do this:
+(defn factorial-using-do-while (n)
+  (do
+    (def a 0)
+    (def res 1)
+    (while (< a n)
+      (def a (inc a))
+      (def res (* res a)))
+      res)
+)
+
+(println a res)
+
+(println (factorial-using-do-dotimes 5))
+(println (factorial-using-do-while 5))
+

@@ -1071,14 +1071,15 @@ node_idx_t native_do(list_ptr_t env, list_ptr_t args) {
 
 node_idx_t native_while(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
-	node_idx_t cond = eval_node(env, *i++);
-	list_t::iterator j = i;
+	node_idx_t cond_idx = *i++;
+	node_idx_t cond = eval_node(env, cond_idx);
 	node_idx_t ret = NIL_NODE;
 	while(get_node(cond)->as_bool()) {
+		list_t::iterator j = i;
 		for(; j; j++) {
 			ret = eval_node(env, *j);
 		}
-		cond = eval_node(env, *i);
+		cond = eval_node(env, cond_idx);
 	}
 	return ret;
 }
@@ -1125,7 +1126,8 @@ node_idx_t native_def(list_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	list_t::iterator i = args->begin();
-	node_t *sym_node = get_node(*i++);
+	node_idx_t sym_node_idx = *i++;
+	node_t *sym_node = get_node(sym_node_idx);
 	node_idx_t init = NIL_NODE;
 	if(i) {
 		node_idx_t doc_string = *i++; // ignored for eval purposes if present
@@ -1137,7 +1139,8 @@ node_idx_t native_def(list_ptr_t env, list_ptr_t args) {
 	}
 
 	if(sym_node->type != NODE_SYMBOL) {
-		fprintf(stderr, "def: expected symbol");
+		fprintf(stderr, "def: expected symbol\n");
+		print_node(sym_node_idx);
 		return NIL_NODE;
 	}
 
@@ -1268,19 +1271,6 @@ node_idx_t native_time_now(list_ptr_t env, list_ptr_t args) {
 	return new_node_float(time_now());
 }
 
-node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
-	node_idx_t func_idx = eval_node(env, args->nth(0));
-	node_t *func = get_node(func_idx);
-	list_ptr_t func_args = new_list();
-	for(list_t::iterator it = args->begin(); it; it++) {
-		node_idx_t arg_idx = *it;
-		if(arg_idx != func_idx) {
-			func_args->cons(arg_idx);
-		}
-	}
-	return eval_node(env, func_args);
-}
-
 node_idx_t native_dotimes(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t binding_idx = *it++;
@@ -1293,7 +1283,7 @@ node_idx_t native_dotimes(list_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t name_idx = binding_list->nth(0);
-	node_idx_t value_idx = binding_list->nth(1);
+	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
 	node_t *name = get_node(name_idx);
 	node_t *value = get_node(value_idx);
 	int times = value->as_int();
@@ -1887,7 +1877,6 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("let", new_node_native_function(&native_let, true)));
 	env->push_back_inplace(new_node_var("print", new_node_native_function(&native_print, false)));
 	env->push_back_inplace(new_node_var("println", new_node_native_function(&native_println, false)));
-	env->push_back_inplace(new_node_var("apply", new_node_native_function(&native_apply, false)));
 	env->push_back_inplace(new_node_var("+", new_node_native_function(&native_add, false)));
 	env->push_back_inplace(new_node_var("-", new_node_native_function(&native_sub, false)));
 	env->push_back_inplace(new_node_var("*", new_node_native_function(&native_mul, false)));
@@ -1932,7 +1921,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("reverse", new_node_native_function(&native_upper_case, false)));
 	env->push_back_inplace(new_node_var("concat", new_node_native_function(&native_concat, false)));
 	env->push_back_inplace(new_node_var("var", new_node_native_function(&native_var, false)));
-	env->push_back_inplace(new_node_var("def", new_node_native_function(&native_def, false)));
+	env->push_back_inplace(new_node_var("def", new_node_native_function(&native_def, true)));
 	env->push_back_inplace(new_node_var("fn", new_node_native_function(&native_fn, true)));
 	env->push_back_inplace(new_node_var("fn?", new_node_native_function(&native_is_fn, false)));
 	env->push_back_inplace(new_node_var("defn", new_node_native_function(&native_defn, true)));
