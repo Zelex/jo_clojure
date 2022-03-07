@@ -73,3 +73,7 @@
 (println (factorial-using-do-dotimes 5))
 (println (factorial-using-do-while 5))
 
+;(println (take 5 (range)))
+(take 10 (range))
+
+

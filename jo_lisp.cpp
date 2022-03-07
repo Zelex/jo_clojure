@@ -21,6 +21,7 @@ enum {
 	NODE_SYMBOL,
 	//NODE_REGEX,
 	NODE_LIST,
+	NODE_LAZY_LIST,
 	NODE_VECTOR,
 	NODE_SET,
 	NODE_MAP,
@@ -31,6 +32,7 @@ enum {
 
 	NODE_FLAG_MACRO    = 1<<0,
 	NODE_FLAG_INFINITE = 1<<1,
+	NODE_FLAG_LAZY     = 1<<2,
 };
 
 typedef int node_idx_t;
@@ -62,28 +64,18 @@ struct node_t {
 		node_idx_t t_map;
 		node_idx_t t_set;
 		node_idx_t t_delay; // cached result
+		node_idx_t t_lazy_fn;
 		native_function_t t_native_function;
 	};
 
-	bool is_list() const {
-		return type == NODE_LIST;
-	}
-
-	bool is_vector() const {
-		return type == NODE_VECTOR;
-	}
-
-	bool is_string() const {
-		return type == NODE_STRING;
-	}
-
-	bool is_macro() const {
-		return flags & NODE_FLAG_MACRO;
-	}
-
-	bool is_infinite() const {
-		return flags & NODE_FLAG_INFINITE;
-	}
+	bool is_symbol() const { return type == NODE_SYMBOL; }
+	bool is_list() const { return type == NODE_LIST; }
+	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
+	bool is_vector() const { return type == NODE_VECTOR; }
+	bool is_string() const { return type == NODE_STRING; }
+	bool is_func() const { return type == NODE_FUNC; }
+	bool is_macro() const { return flags & NODE_FLAG_MACRO;}
+	bool is_infinite() const { return flags & NODE_FLAG_INFINITE; }
 
 	list_ptr_t &as_list() {
 		return t_list;
@@ -275,6 +267,13 @@ node_idx_t new_node(int type) {
 node_idx_t new_node_list(list_ptr_t nodes) {
 	node_idx_t idx = new_node(NODE_LIST);
 	get_node(idx)->t_list = nodes;
+	return idx;
+}
+
+node_idx_t new_node_lazy_list(node_idx_t lazy_fn) {
+	node_idx_t idx = new_node(NODE_LAZY_LIST);
+	get_node(idx)->t_lazy_fn = lazy_fn;
+	get_node(idx)->flags |= NODE_FLAG_LAZY;
 	return idx;
 }
 
@@ -740,6 +739,10 @@ void print_node(node_idx_t node, int depth) {
 	if(n->type == NODE_LIST) {
 		printf("%*s(\n", depth, "");
 		print_node_list(n->t_list, depth + 1);
+		printf("%*s)\n", depth, "");
+	} else if(n->type == NODE_LAZY_LIST) {
+		printf("%*s(lazy-seq\n", depth, "");
+		print_node(n->t_lazy_fn, depth + 1);
 		printf("%*s)\n", depth, "");
 	} else if(n->type == NODE_STRING) {
 		printf("%*s\"%s\"\n", depth, "", n->t_string.c_str());
@@ -1355,6 +1358,8 @@ node_idx_t native_when(list_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+// (cons x seq)
+// Returns a new seq where x is the first element and seq is the rest.
 node_idx_t native_cons(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t first_idx = *it++;
@@ -1480,6 +1485,19 @@ node_idx_t native_first(list_ptr_t env, list_ptr_t args) {
 		}
 		return list_list->nth(0);
 	}
+	if(node->is_lazy_list()) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, node->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			if(list_list->size() == 0) {
+				return NIL_NODE;
+			}
+			return list_list->nth(0);
+		}
+		return NIL_NODE;
+	}
 	return NIL_NODE;
 }
 
@@ -1494,6 +1512,25 @@ node_idx_t native_second(list_ptr_t env, list_ptr_t args) {
 		}
 		return list_list->nth(1);
 	}
+	if(node->is_lazy_list()) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, node->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			if(list_list->size() == 0) {
+				return NIL_NODE;
+			}
+			node_idx_t val_node = eval_list(env, list_list->rest());
+			if(get_node(val_node)->is_list()) {
+				list_ptr_t val_list = get_node(val_node)->as_list();
+				if(val_list->size() == 0) {
+					return NIL_NODE;
+				}
+				return val_list->nth(0);
+			}
+		}
+	}
 	return NIL_NODE;
 }
 
@@ -1504,6 +1541,27 @@ node_idx_t native_last(list_ptr_t env, list_ptr_t args) {
 	if(node->is_list()) {
 		return node->as_list()->last_value();
 	}
+	if(node->is_lazy_list()) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, node->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			if(list_list->size() == 0) {
+				return NIL_NODE;
+			}
+			do {
+				node_idx_t last_val = list_list->nth(0);
+				node_idx_t val_node_idx = eval_list(env, list_list->rest());
+				node_t *val_node = get_node(val_node_idx);
+				if(!val_node->is_list()) {
+					return last_val;
+				}
+				list_list = val_node->as_list();
+			} while(true);
+		}
+		return NIL_NODE;
+	}
 	return NIL_NODE;
 }
 
@@ -1511,12 +1569,71 @@ node_idx_t native_drop(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t list_idx = *it++;
 	node_t *list = get_node(list_idx);
-	if(!list->is_list()) {
+	list_ptr_t list_list = list->as_list();
+	node_idx_t n_idx = *it++;
+	int n = get_node(n_idx)->as_int();
+	if(list->is_list()) {
+		return new_node_list(list_list->drop(n));
+	}
+	if(list->is_lazy_list()) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, list->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			if(list_list->size() == 0) {
+				return NIL_NODE;
+			}
+			do {
+				node_idx_t last_val = list_list->nth(0);
+				node_idx_t val_node_idx = eval_list(env, list_list->rest());
+				node_t *val_node = get_node(val_node_idx);
+				if(!val_node->is_list()) {
+					return NIL_NODE;
+				}
+				list_list = val_node->as_list();
+			} while(--n);
+			return new_node_lazy_list(new_node_list(list_list->rest()));
+		}
 		return NIL_NODE;
 	}
+	return NIL_NODE;
+}
+
+node_idx_t native_nth(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t list_idx = *it++;
+	node_t *list = get_node(list_idx);
 	list_ptr_t list_list = list->as_list();
-	node_idx_t n = *it++;
-	return new_node_list(list_list->drop(n));
+	node_idx_t n_idx = *it++;
+	int n = get_node(n_idx)->as_int();
+	if(list->is_list()) {
+		return list_list->nth(n);
+	}
+	if(list->is_lazy_list()) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, list->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			if(list_list->size() == 0) {
+				return NIL_NODE;
+			}
+			node_idx_t last_val = NIL_NODE;
+			do {
+				last_val = list_list->nth(0);
+				node_idx_t val_node_idx = eval_list(env, list_list->rest());
+				node_t *val_node = get_node(val_node_idx);
+				if(!val_node->is_list()) {
+					return last_val;
+				}
+				list_list = val_node->as_list();
+			} while(--n);
+			return last_val;
+		}
+		return NIL_NODE;
+	}
+	return NIL_NODE;
 }
 
 // equivalent to (first (first x))
@@ -1524,21 +1641,46 @@ node_idx_t native_ffirst(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
+	node_idx_t first_idx = NIL_NODE;
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		if(list_list->size() == 0) {
 			return NIL_NODE;
 		}
-		node_idx_t first_idx = list_list->nth(0);
-		node_t *first = get_node(first_idx);
-		if(first->is_list()) {
-			list_ptr_t first_list = first->as_list();
-			if(first_list->size() == 0) {
+		first_idx = list_list->nth(0);
+	}
+	if(node->is_lazy_list()) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, node->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(!ret->is_list()) {
+			return NIL_NODE;
+		}
+		list_ptr_t list_list = ret->as_list();
+		if(list_list->size() == 0) {
+			return NIL_NODE;
+		}
+		first_idx = list_list->nth(0);
+	}
+	node_t *first = get_node(first_idx);
+	if(first->is_list()) {
+		list_ptr_t first_list = first->as_list();
+		if(first_list->size() == 0) {
+			return NIL_NODE;
+		}
+		return first_list->nth(0);
+	}
+	if(first->is_lazy_list()) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, first->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			if(list_list->size() == 0) {
 				return NIL_NODE;
 			}
-			return first_list->nth(0);
+			return list_list->nth(0);
 		}
-		return NIL_NODE;
 	}
 	return NIL_NODE;
 }
@@ -1550,6 +1692,9 @@ node_idx_t native_is_fn(list_ptr_t env, list_ptr_t args) {
 	return new_node_bool(node->type == NODE_FUNC);
 }
 
+// (next coll)
+// Returns a seq of the items after the first. Calls seq on its
+// argument.  If there are no more items, returns nil.
 node_idx_t native_next(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -1560,6 +1705,17 @@ node_idx_t native_next(list_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		return new_node_list(list_list->rest());
+	}
+	if(node->is_lazy_list()) {
+		node_idx_t reti = eval_node(env, node->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			if(list_list->size() == 0) {
+				return NIL_NODE;
+			}
+			return new_node_lazy_list(new_node_list(list_list->rest()));
+		}
 	}
 	return NIL_NODE;
 }
@@ -1572,6 +1728,15 @@ node_idx_t native_rest(list_ptr_t env, list_ptr_t args) {
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		return new_node_list(list_list->rest());
+	}
+	if(node->is_lazy_list()) {
+		// TODO: is this correct behavior for reaching the end of the lazy seq?
+		node_idx_t reti = eval_node(env, node->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			return new_node_lazy_list(new_node_list(list_list->rest()));
+		}
 	}
 	return NIL_NODE;
 }
@@ -1629,11 +1794,30 @@ node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 	int n = node->as_int();
 	node_idx_t coll_idx = *it++;
 	node_t *coll = get_node(coll_idx);
-	if(!coll->is_list()) {
+	if(coll->is_list()) {
+		list_ptr_t list_list = coll->as_list();
+		return new_node_list(list_list->subvec(0, n));
+	}
+	if(coll->is_lazy_list()) {
+		// executes a chain of n functions and returns a sequence of all the values returned
+		node_idx_t reti = eval_node(env, coll->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			list_ptr_t return_list = new_list();
+			do {
+				return_list->push_back_inplace(list_list->nth(0));
+				reti = eval_list(env, list_list->rest());
+				ret = get_node(reti);
+				if(ret->is_list()) {
+					list_list = ret->as_list();
+				}
+			} while(return_list->size() < n && ret->is_list());
+			return new_node_list(return_list);
+		}
 		return NIL_NODE;
 	}
-	list_ptr_t list_list = coll->as_list();
-	return new_node_list(list_list->subvec(0, n));
+	return NIL_NODE;
 }
 
 node_idx_t native_take_last(list_ptr_t env, list_ptr_t args) {
@@ -1643,11 +1827,15 @@ node_idx_t native_take_last(list_ptr_t env, list_ptr_t args) {
 	int n = node->as_int();
 	node_idx_t coll_idx = *it++;
 	node_t *coll = get_node(coll_idx);
-	if(!coll->is_list()) {
+	if(coll->is_list()) {
+		list_ptr_t list_list = coll->as_list();
+		return new_node_list(list_list->subvec(list_list->size() - n, list_list->size()));
+	}
+	if(coll->is_lazy_list()) {
+		printf("TODO: %i unimplemented\n", __LINE__);
 		return NIL_NODE;
 	}
-	list_ptr_t list_list = coll->as_list();
-	return new_node_list(list_list->subvec(list_list->size() - n, list_list->size()));
+	return NIL_NODE;
 }
 
 // eval each arg in turn, return if any eval to false
@@ -1802,6 +1990,65 @@ node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
 	return eval_list(env, arg_list);
 }
 
+// (range)(range end)(range start end)(range start end step)
+// Returns a lazy seq of nums from start (inclusive) to end
+// (exclusive), by step, where start defaults to 0, step to 1, and end to
+// infinity. When step is equal to 0, returns an infinite sequence of
+// start. When start is equal to end, returns empty list.
+node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int end = args->size();
+	int start = 0;
+	int step = 1;
+	if(end == 0) {
+		end = INT_MAX; // "infinite" series
+	}
+	if(end == 1) {
+		end = get_node(*it++)->as_int();
+	}
+	if(end == 2) {
+		start = get_node(*it++)->as_int();
+		end = get_node(*it++)->as_int();
+	}
+	if(end == 3) {
+		start = get_node(*it++)->as_int();
+		end = get_node(*it++)->as_int();
+		step = get_node(*it++)->as_int();
+	}
+	// constructs a function which returns the next value in the range, and another function
+	node_idx_t range_func_idx = new_node(NODE_LIST);
+	node_t *range_func = get_node(range_func_idx);
+	range_func->t_list = new_list();
+	range_func->t_list->push_back_inplace(new_node_symbol("range-next"));
+	range_func->t_list->push_back_inplace(new_node_int(start));
+	range_func->t_list->push_back_inplace(new_node_int(step));
+	range_func->t_list->push_back_inplace(new_node_int(end));
+	return new_node_lazy_list(range_func_idx);
+}
+
+node_idx_t native_range_next(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int start = get_node(*it++)->as_int();
+	int step = get_node(*it++)->as_int();
+	int end = get_node(*it++)->as_int();
+	if(start >= end) {
+		return NIL_NODE;
+	}
+	list_ptr_t ret = new_list();
+	// this value
+	ret->push_back_inplace(new_node_int(start));
+	// next function
+	ret->push_back_inplace(new_node_symbol("range-next"));
+	ret->push_back_inplace(new_node_int(start+step));
+	ret->push_back_inplace(new_node_int(step));
+	ret->push_back_inplace(new_node_int(end));
+	return new_node_list(ret);
+}
+
+
+
+
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -1910,6 +2157,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("second", new_node_native_function(&native_second, false)));
 	env->push_back_inplace(new_node_var("last", new_node_native_function(&native_last, false)));
 	env->push_back_inplace(new_node_var("drop", new_node_native_function(&native_drop, false)));
+	env->push_back_inplace(new_node_var("nth", new_node_native_function(&native_nth, false)));
 	env->push_back_inplace(new_node_var("ffirst", new_node_native_function(&native_ffirst, false)));
 	env->push_back_inplace(new_node_var("next", new_node_native_function(&native_next, false)));
 	env->push_back_inplace(new_node_var("rest", new_node_native_function(&native_rest, false)));
@@ -1945,6 +2193,8 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("rand-int", new_node_native_function(&native_rand_int, false)));
 	env->push_back_inplace(new_node_var("rand-float", new_node_native_function(&native_rand_float, false)));
 	env->push_back_inplace(new_node_var("Time/now", new_node_native_function(&native_time_now, false)));
+	env->push_back_inplace(new_node_var("range", new_node_native_function(&native_range, false)));
+	env->push_back_inplace(new_node_var("range-next", new_node_native_function(&native_range_next, false)));
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
 	jo_lisp_system_init(env);
