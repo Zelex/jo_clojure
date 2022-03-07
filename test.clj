@@ -77,10 +77,9 @@
 (println (factorial-using-do-while 5))
 (println (factorial-using-apply-range 5))
 (println (apply * (take 5 (range 1 6))))
-(println (* 1 2 3 4 5)))
+(println (* 1 2 3 4 5))
 
-;(println (take 5 (range)))
-(take 10 (range))
+(take 5 (range))
 
 
 
