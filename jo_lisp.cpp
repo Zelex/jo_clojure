@@ -217,23 +217,23 @@ jo_vector<node_idx_t> free_nodes; // available for allocation...
 void print_node(node_idx_t node, int depth = 0);
 void print_node_list(list_ptr_t nodes, int depth = 0);
 
-node_t *get_node(node_idx_t idx) {
+inline node_t *get_node(node_idx_t idx) {
 	return &nodes[idx];
 }
 
-int get_node_type(node_idx_t idx) {
+inline int get_node_type(node_idx_t idx) {
 	return get_node(idx)->type;
 }
 
-jo_string get_node_string(node_idx_t idx) {
+inline jo_string get_node_string(node_idx_t idx) {
 	return get_node(idx)->as_string();
 }
 
-jo_string get_node_type_string(node_idx_t idx) {
+inline jo_string get_node_type_string(node_idx_t idx) {
 	return get_node(idx)->type_as_string();
 }
 
-node_idx_t alloc_node() {
+inline node_idx_t alloc_node() {
 	if (free_nodes.size()) {
 		node_idx_t idx = free_nodes.back();
 		free_nodes.pop_back();
@@ -244,12 +244,12 @@ node_idx_t alloc_node() {
 	return idx;
 }
 
-void free_node(node_idx_t idx) {
+inline void free_node(node_idx_t idx) {
 	free_nodes.push_back(idx);
 }
 
 // TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
-node_idx_t new_node(const node_t *n) {
+inline node_idx_t new_node(const node_t *n) {
 	if(free_nodes.size()) {
 		int ni = free_nodes.pop_back();
 		nodes[ni] = *n;
@@ -634,23 +634,22 @@ node_idx_t eval_node_list(list_ptr_t env, list_ptr_t list);
 node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 	list_t::iterator it = list->begin();
 	node_idx_t n1i = *it++;
-	node_t *n1 = get_node(n1i);
-	if(n1->type == NODE_LIST || n1->type == NODE_SYMBOL) {
+	int n1_type = get_node_type(n1i);
+	if(n1_type == NODE_LIST || n1_type == NODE_SYMBOL) {
 		node_idx_t sym_idx;
-		node_t *sym_node;
-		if(n1->type == NODE_LIST) {
-			sym_idx = eval_list(env, n1->t_list);
-			sym_node = get_node(sym_idx);
+		if(n1_type == NODE_LIST) {
+			sym_idx = eval_list(env, get_node(n1i)->t_list);
 		} else {
-			sym_idx = env_get(env, n1->t_string);
-			sym_node = get_node(sym_idx);
+			sym_idx = env_get(env, get_node(n1i)->t_string);
 		}
+		int sym_type = get_node_type(sym_idx);
+		auto sym_flags = get_node(sym_idx)->flags;
 
 		// get the symbol's value
-		if(sym_node->type == NODE_NATIVE_FUNCTION) {
-			if(sym_node->flags & NODE_FLAG_MACRO) {
+		if(sym_type == NODE_NATIVE_FUNCTION) {
+			if(sym_flags & NODE_FLAG_MACRO) {
 				list_ptr_t args1(list->rest());
-				return sym_node->t_native_function(env, args1);
+				return get_node(sym_idx)->t_native_function(env, args1);
 			}
 
 			list_ptr_t args = new_list();
@@ -659,16 +658,16 @@ node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 			}
 
 			// call the function
-			return sym_node->t_native_function(env, args);
-		} else if(sym_node->type == NODE_FUNC || sym_node->type == NODE_DELAY) {
-			list_ptr_t &proto_args = sym_node->t_func.args;
-			list_ptr_t &proto_body = sym_node->t_func.body;
-			list_ptr_t &proto_env = sym_node->t_func.env;
+			return get_node(sym_idx)->t_native_function(env, args);
+		} else if(sym_type == NODE_FUNC || sym_type == NODE_DELAY) {
+			list_ptr_t &proto_args = get_node(sym_idx)->t_func.args;
+			list_ptr_t &proto_body = get_node(sym_idx)->t_func.body;
+			list_ptr_t &proto_env = get_node(sym_idx)->t_func.env;
 			list_ptr_t fn_env = proto_env->conj(*env);
 			list_ptr_t args1(list->rest());
 
-			if(sym_node->type == NODE_DELAY && sym_node->t_delay != INV_NODE) {
-				return sym_node->t_delay;
+			if(sym_type == NODE_DELAY && get_node(sym_idx)->t_delay != INV_NODE) {
+				return get_node(sym_idx)->t_delay;
 			}
 
 			if(proto_args.ptr) {
@@ -693,8 +692,8 @@ node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 				last = eval_node(fn_env, *i);
 			}
 
-			if(sym_node->type == NODE_DELAY) {
-				sym_node->t_delay = last;
+			if(sym_type == NODE_DELAY) {
+				get_node(sym_idx)->t_delay = last;
 			}
 			return last;
 		}
