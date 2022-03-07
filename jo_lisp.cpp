@@ -1088,15 +1088,11 @@ node_idx_t native_while(list_ptr_t env, list_ptr_t args) {
 }
 
 node_idx_t native_quote(list_ptr_t env, list_ptr_t args) {
-	node_t n = {NODE_LIST};
-	n.t_list = args->rest();
-	return new_node(&n);
+	return new_node_list(args);
 }
 
 node_idx_t native_list(list_ptr_t env, list_ptr_t args) {
-	node_t n = {NODE_LIST};
-	n.t_list = args->rest();
-	return new_node(&n);
+	return new_node_list(args);
 }
 
 /*
@@ -2168,7 +2164,6 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("unless", new_node_native_function(&native_unless, true)));
 	env->push_back_inplace(new_node_var("when", new_node_native_function(&native_when, true)));
 	env->push_back_inplace(new_node_var("while", new_node_native_function(&native_while, true)));
-	env->push_back_inplace(new_node_var("quote", new_node_native_function(&native_quote, true)));
 	env->push_back_inplace(new_node_var("cond", new_node_native_function(&native_cond, true)));
 	env->push_back_inplace(new_node_var("case", new_node_native_function(&native_case, true)));
 	env->push_back_inplace(new_node_var("apply", new_node_native_function(&native_apply, true)));
