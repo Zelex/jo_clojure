@@ -2630,6 +2630,7 @@ struct jo_persistent_list {
             cur = cur->next;
         }
         copy->tail = prev;
+        copy->length = length;
         return copy;
     }
 
@@ -2667,8 +2668,20 @@ struct jo_persistent_list {
         } else {
             copy->head = other.head;
         }
+        copy->tail = other.tail;
         copy->length += other.length;
         return copy;
+    }
+
+    jo_persistent_list *conj_inplace(const jo_persistent_list &other) {
+        if(tail) {
+            tail->next = other.head;
+        } else {
+            head = other.head;
+        }
+        tail = other.tail;
+        length += other.length;
+        return this;
     }
 
     // conj a value

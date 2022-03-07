@@ -755,7 +755,7 @@ void print_node(node_idx_t node, int depth) {
 	} else if(n->type == NODE_BOOL) {
 		printf("%*s%s\n", depth, "", n->t_bool ? "true" : "false");
 	} else if(n->type == NODE_NATIVE_FUNCTION) {
-		printf("%*s<native function>\n", depth, "");
+		printf("%*s<native>\n", depth, "");
 	} else if(n->type == NODE_FUNC) {
 		printf("%*s(fn \n", depth, "");
 		print_node_list(n->t_func.args, depth + 1);
@@ -1979,14 +1979,15 @@ node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
 	// collect the arguments, if its a list add the whole list, then eval it
 	list_ptr_t arg_list = new_list();
 	for(list_t::iterator it = args->begin(); it; it++) {
-		node_idx_t arg_idx = eval_node(env, *it);
+		node_idx_t arg_idx = it == args->begin() ? *it : eval_node(env, *it);
 		node_t *arg = get_node(arg_idx);
 		if(arg->is_list()) {
-			arg_list = arg_list->conj(arg->as_list());
+			arg_list = arg_list->conj(*arg->as_list().ptr);
 		} else {
 			arg_list->push_back_inplace(arg_idx);
 		}
 	}
+	//print_node_list(arg_list);
 	return eval_list(env, arg_list);
 }
 
