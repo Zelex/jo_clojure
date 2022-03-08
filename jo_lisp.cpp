@@ -1,4 +1,5 @@
 // TODO: arbitrary precision numbers... really? do I need to support this?
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -8,6 +9,9 @@
 
 //#define debugf printf
 #define debugf sizeof
+
+//#define warnf printf
+#define warnf sizeof
 
 enum {
 	INV_NODE = -1,
@@ -784,6 +788,48 @@ void print_node_list(list_ptr_t nodes, int depth) {
 	}
 }
 
+struct lazy_list_iterator_t {
+	list_ptr_t env;
+	node_idx_t cur;
+	node_idx_t val;
+	lazy_list_iterator_t(list_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE) {
+		if(get_node(cur)->is_lazy_list()) {
+			cur = eval_node(env, get_node(cur)->t_lazy_fn);
+			if(!done()) {
+				val = get_node(cur)->as_list()->nth(0);
+			}
+		}
+	}
+	bool done() const {
+		return !get_node(cur)->is_list();
+	}
+	void next() {
+		if(done()) {
+			return;
+		}
+		cur = eval_list(env, get_node(cur)->as_list()->rest());
+		if(!done()) {
+			val = get_node(cur)->as_list()->nth(0);
+		} else {
+			val = NIL_NODE;
+		}
+	}
+	node_idx_t next_fn() {
+		return new_node_list(get_node(cur)->as_list()->rest());
+	}
+	node_idx_t nth(int n) {
+		node_idx_t res = val;
+		while(n-- > 0) {
+			next();
+		}
+		return val;
+	}
+
+	operator bool() const {
+		return !done();
+	}
+};
+
 // native function to add any number of arguments
 node_idx_t native_add(list_ptr_t env, list_ptr_t args) { 
 	int i_sum = 0;
@@ -1481,17 +1527,8 @@ node_idx_t native_first(list_ptr_t env, list_ptr_t args) {
 		return list_list->nth(0);
 	}
 	if(node->is_lazy_list()) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, node->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			return list_list->nth(0);
-		}
-		return NIL_NODE;
+		lazy_list_iterator_t lit(env, node_idx);
+		return lit.val;
 	}
 	return NIL_NODE;
 }
@@ -1508,23 +1545,8 @@ node_idx_t native_second(list_ptr_t env, list_ptr_t args) {
 		return list_list->nth(1);
 	}
 	if(node->is_lazy_list()) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, node->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			node_idx_t val_node = eval_list(env, list_list->rest());
-			if(get_node(val_node)->is_list()) {
-				list_ptr_t val_list = get_node(val_node)->as_list();
-				if(val_list->size() == 0) {
-					return NIL_NODE;
-				}
-				return val_list->nth(0);
-			}
-		}
+		lazy_list_iterator_t lit(env, node_idx);
+		return lit.nth(1);
 	}
 	return NIL_NODE;
 }
@@ -1537,25 +1559,9 @@ node_idx_t native_last(list_ptr_t env, list_ptr_t args) {
 		return node->as_list()->last_value();
 	}
 	if(node->is_lazy_list()) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, node->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			do {
-				node_idx_t last_val = list_list->nth(0);
-				node_idx_t val_node_idx = eval_list(env, list_list->rest());
-				node_t *val_node = get_node(val_node_idx);
-				if(!val_node->is_list()) {
-					return last_val;
-				}
-				list_list = val_node->as_list();
-			} while(true);
-		}
-		return NIL_NODE;
+		lazy_list_iterator_t lit(env, node_idx);
+		for(; !lit.done(); lit.next()) {}
+		return lit.val;
 	}
 	return NIL_NODE;
 }
@@ -1571,26 +1577,12 @@ node_idx_t native_drop(list_ptr_t env, list_ptr_t args) {
 		return new_node_list(list_list->drop(n));
 	}
 	if(list->is_lazy_list()) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, list->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			do {
-				node_idx_t last_val = list_list->nth(0);
-				node_idx_t val_node_idx = eval_list(env, list_list->rest());
-				node_t *val_node = get_node(val_node_idx);
-				if(!val_node->is_list()) {
-					return NIL_NODE;
-				}
-				list_list = val_node->as_list();
-			} while(--n);
-			return new_node_lazy_list(new_node_list(list_list->rest()));
+		lazy_list_iterator_t lit(env, list_idx);
+		lit.nth(n);
+		if(lit.done()) {
+			return NIL_NODE;
 		}
-		return NIL_NODE;
+		return new_node_lazy_list(lit.next_fn());
 	}
 	return NIL_NODE;
 }
@@ -1606,27 +1598,8 @@ node_idx_t native_nth(list_ptr_t env, list_ptr_t args) {
 		return list_list->nth(n);
 	}
 	if(list->is_lazy_list()) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, list->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			node_idx_t last_val = NIL_NODE;
-			do {
-				last_val = list_list->nth(0);
-				node_idx_t val_node_idx = eval_list(env, list_list->rest());
-				node_t *val_node = get_node(val_node_idx);
-				if(!val_node->is_list()) {
-					return last_val;
-				}
-				list_list = val_node->as_list();
-			} while(--n);
-			return last_val;
-		}
-		return NIL_NODE;
+		lazy_list_iterator_t lit(env, list_idx);
+		return lit.nth(n);
 	}
 	return NIL_NODE;
 }
@@ -1645,17 +1618,8 @@ node_idx_t native_ffirst(list_ptr_t env, list_ptr_t args) {
 		first_idx = list_list->nth(0);
 	}
 	if(node->is_lazy_list()) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, node->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(!ret->is_list()) {
-			return NIL_NODE;
-		}
-		list_ptr_t list_list = ret->as_list();
-		if(list_list->size() == 0) {
-			return NIL_NODE;
-		}
-		first_idx = list_list->nth(0);
+		lazy_list_iterator_t lit(env, node_idx);
+		first_idx = lit.val;
 	}
 	node_t *first = get_node(first_idx);
 	if(first->is_list()) {
@@ -1666,16 +1630,8 @@ node_idx_t native_ffirst(list_ptr_t env, list_ptr_t args) {
 		return first_list->nth(0);
 	}
 	if(first->is_lazy_list()) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, first->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			return list_list->nth(0);
-		}
+		lazy_list_iterator_t lit(env, first_idx);
+		return lit.val;
 	}
 	return NIL_NODE;
 }
@@ -1702,15 +1658,11 @@ node_idx_t native_next(list_ptr_t env, list_ptr_t args) {
 		return new_node_list(list_list->rest());
 	}
 	if(node->is_lazy_list()) {
-		node_idx_t reti = eval_node(env, node->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			return new_node_lazy_list(new_node_list(list_list->rest()));
+		lazy_list_iterator_t lit(env, node_idx);
+		if(lit.done()) {
+			return NIL_NODE;
 		}
+		return new_node_lazy_list(lit.next_fn());
 	}
 	return NIL_NODE;
 }
@@ -1725,13 +1677,11 @@ node_idx_t native_rest(list_ptr_t env, list_ptr_t args) {
 		return new_node_list(list_list->rest());
 	}
 	if(node->is_lazy_list()) {
-		// TODO: is this correct behavior for reaching the end of the lazy seq?
-		node_idx_t reti = eval_node(env, node->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			return new_node_lazy_list(new_node_list(list_list->rest()));
+		lazy_list_iterator_t lit(env, node_idx);
+		if(lit.done()) {
+			return new_node_list(new_list()); // empty list
 		}
+		return new_node_lazy_list(lit.next_fn());
 	}
 	return NIL_NODE;
 }
@@ -1783,23 +1733,17 @@ node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 		return new_node_list(list_list->subvec(0, n));
 	}
 	if(coll->is_lazy_list()) {
-		// executes a chain of n functions and returns a sequence of all the values returned
-		node_idx_t reti = eval_node(env, coll->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			list_ptr_t return_list = new_list();
-			do {
-				return_list->push_back_inplace(list_list->nth(0));
-				reti = eval_list(env, list_list->rest());
-				ret = get_node(reti);
-				if(ret->is_list()) {
-					list_list = ret->as_list();
-				}
-			} while(return_list->size() < n && ret->is_list());
-			return new_node_list(return_list);
+		lazy_list_iterator_t lit(env, coll_idx);
+		list_ptr_t return_list = new_list();
+		for(int i = 0; i < n; i++) {
+			if(lit.done()) {
+				warnf("take: expected more than %d items, had %d\n", n, i);
+				return new_node_list(return_list);
+			}
+			return_list->push_back_inplace(lit.val);
+			lit.next();
 		}
-		return NIL_NODE;
+		return new_node_list(return_list);
 	}
 	return NIL_NODE;
 }
@@ -1812,20 +1756,12 @@ node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
 		node_t *arg = get_node(arg_idx);
 		if(arg->is_list()) {
 			arg_list = arg_list->conj(*arg->as_list().ptr);
+			//print_node_list(arg_list);
 		} else if(arg->is_lazy_list()) {
-			// executes a chain of n functions and returns a sequence of all the values returned
-			node_idx_t reti = eval_node(env, arg->t_lazy_fn);
-			node_t *ret = get_node(reti);
-			if(ret->is_list()) {
-				list_ptr_t list_list = ret->as_list();
-				do {
-					arg_list->push_back_inplace(list_list->nth(0));
-					reti = eval_list(env, list_list->rest());
-					ret = get_node(reti);
-					if(ret->is_list()) {
-						list_list = ret->as_list();
-					}
-				} while(ret->is_list());
+			lazy_list_iterator_t lit(env, arg_idx);
+			while(!lit.done()) {
+				arg_list->push_back_inplace(lit.val);
+				lit.next();
 			}
 		} else {
 			arg_list->push_back_inplace(arg_idx);
@@ -1834,6 +1770,138 @@ node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
 	return eval_list(env, arg_list);
 }
 
+// (reduce f coll)
+// (reduce f val coll)
+// f should be a function of 2 arguments. 
+// If val is not supplied, returns the result of applying f to the first 2 items in coll, 
+//  then applying f to that result and the 3rd item, etc. 
+// If coll contains no items, f must accept no arguments as well, and reduce returns the result of calling f with no arguments.  
+// If coll has only 1 item, it is returned and f is not called.  
+// If val is supplied, returns the result of applying f to val and the first item in coll, 
+//  then applying f to that result and the 2nd item, etc. 
+// If coll contains no items, returns val and f is not called.
+node_idx_t native_reduce(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	if(!node->is_list()) {
+		printf("reduce: expected list\n");
+		return NIL_NODE;
+	}
+	list_ptr_t list_list = node->as_list();
+	if(list_list->size() < 2) {
+		printf("reduce: expected at least 2 elements\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = *it++;
+	node_t *f = get_node(f_idx);
+	if(!f->is_func()) {
+		printf("reduce: expected function\n");
+		return NIL_NODE;
+	}
+	// (reduce f coll)
+	// returns the result of applying f to the first 2 items in coll, then applying f to that result and the 3rd item, etc. 
+	// If coll contains no items, f must accept no arguments as well, and reduce returns the result of calling f with no arguments.  
+	// If coll has only 1 item, it is returned and f is not called.  
+	if(args->size() == 2) {
+		node_idx_t coll_idx = *it++;
+		node_t *coll = get_node(coll_idx);
+		if(coll->is_list()) {
+			list_ptr_t list_list = coll->as_list();
+			if(list_list->size() == 0) {
+				list_ptr_t arg_list = new_list();
+				arg_list->push_back_inplace(f_idx);
+				return eval_list(env, arg_list);
+			}
+			list_t::iterator it2 = list_list->begin();
+			node_idx_t reti = *it2++;
+			if(list_list->size() == 1) {
+				return reti;
+			}
+			for(; it2; it2++) {
+				node_idx_t arg_idx = *it2;
+				list_ptr_t arg_list = new_list();
+				arg_list->push_back_inplace(f_idx);
+				arg_list->push_back_inplace(reti);
+				arg_list->push_back_inplace(arg_idx);
+				reti = eval_list(env, arg_list);
+			}
+			return reti;
+		}
+		if(coll->is_lazy_list()) {
+			lazy_list_iterator_t lit(env, coll_idx);
+			if(lit.done()) {
+				list_ptr_t arg_list = new_list();
+				arg_list->push_back_inplace(f_idx);
+				return eval_list(env, arg_list);
+			}
+			node_idx_t reti = lit.val;
+			lit.next();
+			if(lit.done()) {
+				return reti;
+			}
+			for(; !lit.done(); lit.next()) {
+				node_idx_t arg_idx = lit.val;
+				list_ptr_t arg_list = new_list();
+				arg_list->push_back_inplace(f_idx);
+				arg_list->push_back_inplace(reti);
+				arg_list->push_back_inplace(arg_idx);
+				reti = eval_list(env, arg_list);
+			}
+			return reti;
+		}
+		warnf("reduce: expected list or lazy list\n");
+		return NIL_NODE;
+	}
+	// (reduce f val coll)
+	// returns the result of applying f to val and the first item in coll,
+	//  then applying f to that result and the 2nd item, etc.
+	// If coll contains no items, returns val and f is not called.
+	node_idx_t val_idx = *it++;
+	node_t *val = get_node(val_idx);
+	if(val->is_list()) {
+		list_ptr_t list_list = val->as_list();
+		if(list_list->size() == 0) {
+			return val_idx;
+		}
+		list_t::iterator it2 = list_list->begin();
+		node_idx_t reti = *it2++;
+		if(list_list->size() == 1) {
+			return reti;
+		}
+		for(; it2; it2++) {
+			node_idx_t arg_idx = *it2;
+			list_ptr_t arg_list = new_list();
+			arg_list->push_back_inplace(f_idx);
+			arg_list->push_back_inplace(reti);
+			arg_list->push_back_inplace(arg_idx);
+			reti = eval_list(env, arg_list);
+		}
+		return reti;
+	}
+	if(val->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, val_idx);
+		if(lit.done()) {
+			return val_idx;
+		}
+		node_idx_t reti = lit.val;
+		lit.next();
+		if(lit.done()) {
+			return reti;
+		}
+		for(; !lit.done(); lit.next()) {
+			node_idx_t arg_idx = lit.val;
+			list_ptr_t arg_list = new_list();
+			arg_list->push_back_inplace(f_idx);
+			arg_list->push_back_inplace(reti);
+			arg_list->push_back_inplace(arg_idx);
+			reti = eval_list(env, arg_list);
+		}
+		return reti;
+	}
+	warnf("reduce: expected list or lazy list\n");
+	return NIL_NODE;
+}
 
 node_idx_t native_take_last(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
@@ -1943,26 +2011,16 @@ node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
 		return new_node_list(ret);
 	}
 	if(node->is_lazy_list()) {
-		// executes a chain of n functions and returns a sequence of all the values returned
-		node_idx_t reti = eval_node(env, node->t_lazy_fn);
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			list_ptr_t return_list = new_list();
-			do {
-				node_idx_t value_idx = list_list->nth(0);
-				if(!return_list->contains(value_idx)) {
-					return_list->push_back_inplace(value_idx);
-				}
-				reti = eval_list(env, list_list->rest());
-				ret = get_node(reti);
-				if(ret->is_list()) { // TODO:  check for equality, not contains.... right?
-					list_list = ret->as_list();
-				}
-			} while(ret->is_list());
-			return new_node_list(return_list);
+		lazy_list_iterator_t lit(env, node_idx);
+		list_ptr_t ret = new_list();
+		for(; lit; lit.next()) {
+			node_idx_t value_idx = eval_node(env, lit.val);
+			node_t *value = get_node(value_idx);
+			if(!ret->contains(value_idx)) { // TODO:  check for equality, not contains.... right?
+				ret->push_back_inplace(value_idx);
+			}
 		}
-		return NIL_NODE;
+		return new_node_list(ret);
 	}
 	return NIL_NODE;
 }

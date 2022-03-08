@@ -2827,6 +2827,7 @@ struct jo_persistent_list {
         jo_persistent_list *copy = new jo_persistent_list();
         while(cur && end > start) {
             copy->push_back_inplace(cur->value);
+            cur = cur->next;
             end--;
         }
         return copy;

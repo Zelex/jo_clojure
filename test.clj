@@ -77,9 +77,12 @@
 (defn factorial-using-reduce (n)
   (reduce * (range 1 (inc n))))
 
-(println a res)
-
 (println (* 1 2 3 4 5))
+(println (apply * (take 5 (iterate inc 1))))
+(println (apply * (take 5 (quote 1 2 3 4 5))))
+(println (apply * (take 5 (range 1 6))))
+(println (apply * (range 2 6)))
+(println (apply * (quote 1 2 3 4 5)))
 (println (factorial-using-do-dotimes 5))
 (println (factorial-using-do-while 5))
 (println (factorial-using-apply-range 5))
