@@ -1760,9 +1760,9 @@ node_idx_t native_let(list_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	list_ptr_t new_env = env;
-	for(list_t::iterator it = list_list->begin(); it; it++) {
-		node_idx_t key_idx = *it++; // TODO: should this be eval'd?
-		node_idx_t value_idx = eval_node(new_env, *it++);
+	for(list_t::iterator i = list_list->begin(); i;) {
+		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
+		node_idx_t value_idx = eval_node(new_env, *i++);
 		node_t *key = get_node(key_idx);
 		new_env = new_env->cons(new_node_var(key->as_string(), value_idx));
 	}

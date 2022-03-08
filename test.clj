@@ -34,8 +34,6 @@
 (println (qb 2))
 (println (pow 2,4))
 
-; (repeat 10 println)
-
 (dotimes (n 5) (println "n is " n))
 
 (def my-delay (delay (println "this only happens once") 100))
@@ -49,7 +47,7 @@
 (apply println 1 2 (quote 3 4))    ;; same as  (f 1 2 3 4)
 (apply println 1 2 3 (quote 4))    ;; same as  (f 1 2 3 4)
 
-;(println (let (a 1 b 2) (+ a b)))
+(println (let (a 1 b 2) (+ a b)))
 
 ; defs are not variables, don't do this:
 (defn factorial-using-do-dotimes (n)
