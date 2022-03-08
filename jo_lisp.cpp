@@ -2001,14 +2001,14 @@ node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
 		step = get_node(*it++)->as_int();
 	}
 	// constructs a function which returns the next value in the range, and another function
-	node_idx_t range_func_idx = new_node(NODE_LIST);
-	node_t *range_func = get_node(range_func_idx);
-	range_func->t_list = new_list();
-	range_func->t_list->push_back_inplace(new_node_symbol("range-next"));
-	range_func->t_list->push_back_inplace(new_node_int(start));
-	range_func->t_list->push_back_inplace(new_node_int(step));
-	range_func->t_list->push_back_inplace(new_node_int(end));
-	return new_node_lazy_list(range_func_idx);
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	node_t *lazy_func = get_node(lazy_func_idx);
+	lazy_func->t_list = new_list();
+	lazy_func->t_list->push_back_inplace(new_node_symbol("range-next"));
+	lazy_func->t_list->push_back_inplace(new_node_int(start));
+	lazy_func->t_list->push_back_inplace(new_node_int(step));
+	lazy_func->t_list->push_back_inplace(new_node_int(end));
+	return new_node_lazy_list(lazy_func_idx);
 }
 
 node_idx_t native_range_next(list_ptr_t env, list_ptr_t args) {
@@ -2030,6 +2030,40 @@ node_idx_t native_range_next(list_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
+// (repeat x) (repeat n x)
+// Returns a lazy (infinite!, or length n if supplied) sequence of xs.
+node_idx_t native_repeat(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t x;
+	int n = INT_MAX;
+	if(args->size() == 1) {
+		x = *it++;
+	} else if(args->size() == 2) {
+		n = get_node(eval_node(env, *it++))->as_int();
+		x = *it++;
+	} else {
+		return NIL_NODE;
+	}
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	node_t *lazy_func = get_node(lazy_func_idx);
+	lazy_func->t_list = new_list();
+	lazy_func->t_list->push_back_inplace(new_node_symbol("repeat-next"));
+	lazy_func->t_list->push_back_inplace(x);
+	lazy_func->t_list->push_back_inplace(new_node_int(n));
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t x = *it++;
+	int n = get_node(*it++)->as_int();
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(x);
+	ret->push_back_inplace(new_node_symbol("repeat-next"));
+	ret->push_back_inplace(x);
+	ret->push_back_inplace(new_node_int(n-1));
+	return new_node_list(ret);
+}
 
 
 
@@ -2177,8 +2211,11 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("rand-int", new_node_native_function(&native_rand_int, false)));
 	env->push_back_inplace(new_node_var("rand-float", new_node_native_function(&native_rand_float, false)));
 	env->push_back_inplace(new_node_var("Time/now", new_node_native_function(&native_time_now, false)));
+	// lazy stuffs
 	env->push_back_inplace(new_node_var("range", new_node_native_function(&native_range, false)));
 	env->push_back_inplace(new_node_var("range-next", new_node_native_function(&native_range_next, false)));
+	env->push_back_inplace(new_node_var("repeat", new_node_native_function(&native_repeat, true)));
+	env->push_back_inplace(new_node_var("repeat-next", new_node_native_function(&native_repeat_next, true)));
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
 	jo_lisp_system_init(env);

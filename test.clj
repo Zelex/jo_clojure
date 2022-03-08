@@ -26,13 +26,13 @@
 (def closure_test2 (closure_test 'Foo))
 (closure_test2 'Bar)
 
-;(defn pow (x n) (apply * (repeat x n)))
-;(defn sq (y) (pow y 2))
-;(defn qb (y) (pow y 3))
+(defn pow (x n) (apply * (repeat x n)))
+(defn sq (y) (pow y 2))
+(defn qb (y) (pow y 3))
 
-;(println (sq 2))
-;(println (qb 2))
-;(println (pow 2,4))
+(println (sq 2))
+(println (qb 2))
+(println (pow 2,4))
 
 ; (repeat 10 println)
 
@@ -81,7 +81,8 @@
 (println (apply * (take 5 (range 1 6))))
 (println (* 1 2 3 4 5))
 
-(take 5 (range))
+;(take 5 (range))
+;(take 5 (repeat "lol"))
 
 
 
