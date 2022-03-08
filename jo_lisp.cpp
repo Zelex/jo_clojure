@@ -2078,7 +2078,6 @@ node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
 // (concat)(concat x)(concat x y)(concat x y & zs)
 // Returns a lazy seq representing the concatenation of the elements in the supplied colls.
 node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
-	print_node_list(args);
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
@@ -2107,6 +2106,18 @@ concat_next:
 		}
 		val = n->first_value();
 		args->cons_inplace(new_node_list(n->pop()));
+	} else if(ntype == NODE_LAZY_LIST) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, get_node(nidx)->t_lazy_fn);
+		if(reti == NIL_NODE) {
+			goto concat_next;
+		}
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			val = list_list->nth(0);
+			args->cons_inplace(new_node_lazy_list(new_node_list(list_list->rest())));
+		}
 	} else {
 		val = nidx;
 	}
