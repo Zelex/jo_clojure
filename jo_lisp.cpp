@@ -2118,6 +2118,14 @@ concat_next:
 			val = list_list->nth(0);
 			args->cons_inplace(new_node_lazy_list(new_node_list(list_list->rest())));
 		}
+	} else if(ntype == NODE_STRING) {
+		// pull off the first character of the string
+		jo_string str = get_node(nidx)->t_string;
+		if(str.size() == 0) {
+			goto concat_next;
+		}
+		val = new_node_string(str.substr(0, 1));
+		args->cons_inplace(new_node_string(str.substr(1)));
 	} else {
 		val = nidx;
 	}
