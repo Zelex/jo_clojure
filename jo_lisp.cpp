@@ -1804,6 +1804,37 @@ node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
+	// collect the arguments, if its a list add the whole list, then eval it
+	list_ptr_t arg_list = new_list();
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_idx_t arg_idx = it == args->begin() ? *it : eval_node(env, *it);
+		node_t *arg = get_node(arg_idx);
+		if(arg->is_list()) {
+			arg_list = arg_list->conj(*arg->as_list().ptr);
+		} else if(arg->is_lazy_list()) {
+			// executes a chain of n functions and returns a sequence of all the values returned
+			node_idx_t reti = eval_node(env, arg->t_lazy_fn);
+			node_t *ret = get_node(reti);
+			if(ret->is_list()) {
+				list_ptr_t list_list = ret->as_list();
+				do {
+					arg_list->push_back_inplace(list_list->nth(0));
+					reti = eval_list(env, list_list->rest());
+					ret = get_node(reti);
+					if(ret->is_list()) {
+						list_list = ret->as_list();
+					}
+				} while(ret->is_list());
+			}
+		} else {
+			arg_list->push_back_inplace(arg_idx);
+		}
+	}
+	return eval_list(env, arg_list);
+}
+
+
 node_idx_t native_take_last(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -1959,22 +1990,6 @@ node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
-	// collect the arguments, if its a list add the whole list, then eval it
-	list_ptr_t arg_list = new_list();
-	for(list_t::iterator it = args->begin(); it; it++) {
-		node_idx_t arg_idx = it == args->begin() ? *it : eval_node(env, *it);
-		node_t *arg = get_node(arg_idx);
-		if(arg->is_list()) {
-			arg_list = arg_list->conj(*arg->as_list().ptr);
-		} else {
-			arg_list->push_back_inplace(arg_idx);
-		}
-	}
-	//print_node_list(arg_list);
-	return eval_list(env, arg_list);
-}
-
 // (range)(range end)(range start end)(range start end step)
 // Returns a lazy seq of nums from start (inclusive) to end
 // (exclusive), by step, where start defaults to 0, step to 1, and end to
@@ -2057,6 +2072,9 @@ node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
 	int n = get_node(*it++)->as_int();
+	if(n <= 0) {
+		return NIL_NODE;
+	}
 	list_ptr_t ret = new_list();
 	ret->push_back_inplace(x);
 	ret->push_back_inplace(new_node_symbol("repeat-next"));
@@ -2064,7 +2082,6 @@ node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
 	ret->push_back_inplace(new_node_int(n-1));
 	return new_node_list(ret);
 }
-
 
 
 

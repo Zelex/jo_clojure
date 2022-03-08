@@ -26,7 +26,7 @@
 (def closure_test2 (closure_test 'Foo))
 (closure_test2 'Bar)
 
-(defn pow (x n) (apply * (repeat x n)))
+(defn pow (x n) (apply * (repeat n x)))
 (defn sq (y) (pow y 2))
 (defn qb (y) (pow y 3))
 
@@ -83,6 +83,7 @@
 
 ;(take 5 (range))
 ;(take 5 (repeat "lol"))
+
 
 
 
