@@ -1745,7 +1745,7 @@ node_idx_t native_unless(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-// (let ((a 1) (b 2)) (+ a b))
+// (let (a 1 b 2) (+ a b))
 node_idx_t native_let(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
