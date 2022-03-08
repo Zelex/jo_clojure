@@ -15,10 +15,13 @@
 (println x)
 (defn y (a b) (println a b) 2)
 (y 'Hello 'Jon)
+
 (def z (fn (a b) (println a b) 3))
 (z "Here's " 'Johny)
+
 (defn greet  (name)  (str "Hello, " name) )
 (println (greet 'students))
+
 (defn closure_test (a) (fn (b) (println a b)))
 (def closure_test2 (closure_test 'Foo))
 (closure_test2 'Bar)
@@ -48,7 +51,6 @@
 
 ;(println (let (a 1 b 2) (+ a b)))
 
-
 ; defs are not variables, don't do this:
 (defn factorial-using-do-dotimes (n)
   (do
@@ -69,7 +71,7 @@
 )
 
 (defn factorial-using-apply-range (n)
-  (apply * (take n (range 1 (inc n)))))
+  (apply * (take n (range 2 (inc n)))))
 
 (println a res)
 
