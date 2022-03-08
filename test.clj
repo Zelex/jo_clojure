@@ -71,11 +71,15 @@
 (defn factorial-using-apply-range (n)
   (apply * (take n (range 2 (inc n)))))
 
+(defn factorial-using-apply-iterate (n)
+  (apply * (take n (iterate inc 1))))
+
 (println a res)
 
 (println (factorial-using-do-dotimes 5))
 (println (factorial-using-do-while 5))
 (println (factorial-using-apply-range 5))
+(println (factorial-using-apply-iterate 5))
 (println (apply * (take 5 (range 1 6))))
 (println (* 1 2 3 4 5))
 
@@ -86,6 +90,8 @@
   (apply str (take width (concat s (repeat pad)))))
 
 (println "'" (padding-right "Clojure" 10 " ") "'")
+
+;(take 5 (iterate inc 1))
 
 
 

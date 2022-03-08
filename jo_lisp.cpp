@@ -2136,6 +2136,38 @@ concat_next:
 	return new_node_list(ret);
 }
 
+// (iterate f x)
+// Returns a lazy seq representing the infinite sequence of x, f(x), f(f(x)), etc.
+// f must be free of side-effects
+node_idx_t native_iterate(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f = *it++;
+	node_idx_t x = *it++;
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	node_t *lazy_func = get_node(lazy_func_idx);
+	lazy_func->t_list = new_list();
+	lazy_func->t_list->push_back_inplace(new_node_symbol("iterate-next"));
+	lazy_func->t_list->push_back_inplace(f);
+	lazy_func->t_list->push_back_inplace(x);
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+node_idx_t native_iterate_next(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f = *it++;
+	node_idx_t x = *it++;
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(x);
+	ret->push_back_inplace(new_node_symbol("iterate-next"));
+	ret->push_back_inplace(f);
+	list_ptr_t f_x_fn = new_list();
+	f_x_fn->push_back_inplace(f);
+	f_x_fn->push_back_inplace(x);
+	node_idx_t f_x = eval_list(env, f_x_fn);
+	ret->push_back_inplace(f_x);
+	return new_node_list(ret);
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -2287,6 +2319,8 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("repeat-next", new_node_native_function(&native_repeat_next, true)));
 	env->push_back_inplace(new_node_var("concat", new_node_native_function(&native_concat, true)));
 	env->push_back_inplace(new_node_var("concat-next", new_node_native_function(&native_concat_next, true)));
+	env->push_back_inplace(new_node_var("iterate", new_node_native_function(&native_iterate, true)));
+	env->push_back_inplace(new_node_var("iterate-next", new_node_native_function(&native_iterate_next, true)));
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
 	jo_lisp_system_init(env);
