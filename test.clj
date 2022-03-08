@@ -82,6 +82,11 @@
 ;(take 5 (range))
 ;(take 5 (repeat "lol"))
 
+(defn padding-right (s width pad) 
+  (apply str (take width (concat s (repeat pad)))))
+
+(println "'" (padding-right "Clojure" 10 " ") "'")
+
 
 
 

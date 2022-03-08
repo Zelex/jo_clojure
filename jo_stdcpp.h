@@ -1806,6 +1806,7 @@ struct jo_shared_ptr {
     
     jo_shared_ptr& operator=(const jo_shared_ptr& other) {
         if (this != &other) {
+            if(other.ref_count) (*other.ref_count)++;
             if(ref_count) {
                 if(--(*ref_count) == 0) {
                     delete ptr;
@@ -1814,7 +1815,6 @@ struct jo_shared_ptr {
             }
             ptr = other.ptr;
             ref_count = other.ref_count;
-            if(ref_count) (*ref_count)++;
         }
         return *this;
     }
@@ -1837,10 +1837,10 @@ struct jo_shared_ptr {
     
     ~jo_shared_ptr() {
         if(ref_count) {
-            --(*ref_count);
-            if (*ref_count == 0) {
+            if(--(*ref_count) == 0) {
                 delete ptr;
                 delete ref_count;
+                ptr = 0;
             }
         }
     }
@@ -2619,6 +2619,7 @@ struct jo_persistent_list {
         jo_shared_ptr<node> cur = head;
         jo_shared_ptr<node> cur_copy = NULL;
         jo_shared_ptr<node> prev = NULL;
+        copy->head = NULL;
         while(cur) {
             cur_copy = new node(cur->value, NULL);
             if(prev) {
@@ -2727,10 +2728,13 @@ struct jo_persistent_list {
 
     // pop off value from front
     jo_persistent_list *pop() const {
-        jo_persistent_list *copy = clone();
-        if(copy->head) {
-            copy->head = copy->head->next;
-            copy->length--;
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        if(head) {
+            copy->head = head->next;
+            if(!copy->head) {
+                copy->tail = NULL;
+            }
+            copy->length = length - 1;
         }
         return copy;
     }
