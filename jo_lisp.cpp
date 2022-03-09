@@ -639,7 +639,7 @@ node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 	list_t::iterator it = list->begin();
 	node_idx_t n1i = *it++;
 	int n1_type = get_node_type(n1i);
-	if(n1_type == NODE_LIST || n1_type == NODE_SYMBOL) {
+	if(n1_type == NODE_LIST || n1_type == NODE_SYMBOL || n1_type == NODE_STRING) {
 		node_idx_t sym_idx;
 		if(n1_type == NODE_LIST) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
@@ -2202,6 +2202,10 @@ node_idx_t native_iterate_next(list_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
+node_idx_t native_eval(list_ptr_t env, list_ptr_t args) {
+	return eval_node(env, args->first_value());
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -2276,6 +2280,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("t", new_node_bool(true)));
 	env->push_back_inplace(new_node_var("f", new_node_bool(false)));
 	env->push_back_inplace(new_node_var("let", new_node_native_function(&native_let, true)));
+	env->push_back_inplace(new_node_var("eval", new_node_native_function(&native_eval, false)));
 	env->push_back_inplace(new_node_var("print", new_node_native_function(&native_print, false)));
 	env->push_back_inplace(new_node_var("println", new_node_native_function(&native_println, false)));
 	env->push_back_inplace(new_node_var("+", new_node_native_function(&native_add, false)));
