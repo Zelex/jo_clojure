@@ -761,6 +761,7 @@ struct jo_vector {
             }
             if(ptr) {
                 memcpy(newptr, ptr, ptr_size*sizeof(T));
+                memset(ptr, 0xFE, ptr_size*sizeof(T));
                 free(ptr);
             }
             ptr = newptr;
@@ -804,6 +805,7 @@ struct jo_vector {
             }
             if(ptr) {
                 memcpy(newptr, ptr, ptr_size*sizeof(T));
+                memset(ptr, 0xFE, ptr_size*sizeof(T));
                 free(ptr);
             }
             ptr = newptr;
@@ -839,6 +841,22 @@ struct jo_vector {
 
     T &front() { return ptr[0]; }
     const T &front() const { return ptr[0]; }
+
+    void shrink_to_fit() {
+        if(ptr_capacity == ptr_size) {
+            return;
+        }
+        T *newptr = (T*)malloc(ptr_size*sizeof(T));
+        if(!newptr) {
+            // malloc failed!
+            return;
+        }
+        memcpy(newptr, ptr, ptr_size*sizeof(T));
+        memset(ptr, 0xFE, ptr_capacity*sizeof(T)); // DEBUG
+        free(ptr);
+        ptr = newptr;
+        ptr_capacity = ptr_size;
+    }
 };
 
 template<typename T, typename TT>

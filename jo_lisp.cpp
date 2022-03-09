@@ -245,6 +245,7 @@ inline node_idx_t alloc_node() {
 	}
 	node_idx_t idx = nodes.size();
 	nodes.push_back(node_t());
+	nodes.shrink_to_fit();
 	return idx;
 }
 
@@ -260,6 +261,7 @@ inline node_idx_t new_node(const node_t *n) {
 		return ni;
 	}
 	nodes.push_back(*n);
+	nodes.shrink_to_fit();
 	return nodes.size()-1;
 }
 
@@ -663,9 +665,9 @@ node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 			// call the function
 			return get_node(sym_idx)->t_native_function(env, args);
 		} else if(sym_type == NODE_FUNC || sym_type == NODE_DELAY) {
-			list_ptr_t &proto_args = get_node(sym_idx)->t_func.args;
-			list_ptr_t &proto_body = get_node(sym_idx)->t_func.body;
-			list_ptr_t &proto_env = get_node(sym_idx)->t_func.env;
+			list_ptr_t proto_args = get_node(sym_idx)->t_func.args;
+			list_ptr_t proto_body = get_node(sym_idx)->t_func.body;
+			list_ptr_t proto_env = get_node(sym_idx)->t_func.env;
 			list_ptr_t fn_env = proto_env->conj(*env);
 			list_ptr_t args1(list->rest());
 
@@ -680,9 +682,8 @@ node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 				// and create a new_node_var 
 				// and insert it to the head of env
 				for(list_t::iterator i = proto_args->begin(), i2 = args1->begin(); i && i2; i++, i2++) {
-					node_t *arg_sym = get_node(*i);
 					node_idx_t arg_value = eval_node(env, *i2);
-					node_idx_t var = new_node_var(arg_sym->t_string, arg_value);
+					node_idx_t var = new_node_var(get_node(*i)->t_string, arg_value);
 					fn_env = fn_env->cons(var);
 				}
 			}
@@ -1178,7 +1179,7 @@ node_idx_t native_def(list_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t sym_node_idx = *i++;
-	node_t *sym_node = get_node(sym_node_idx);
+	jo_string sym_node = get_node(sym_node_idx)->as_string();
 	node_idx_t init = NIL_NODE;
 	if(i) {
 		node_idx_t doc_string = *i++; // ignored for eval purposes if present
@@ -1189,13 +1190,13 @@ node_idx_t native_def(list_ptr_t env, list_ptr_t args) {
 		}
 	}
 
-	if(sym_node->type != NODE_SYMBOL) {
+	if(get_node_type(sym_node_idx) != NODE_SYMBOL) {
 		fprintf(stderr, "def: expected symbol\n");
 		print_node(sym_node_idx);
 		return NIL_NODE;
 	}
 
-	env_set(env, sym_node->as_string(), eval_node(env, init));
+	env_set(env, sym_node, eval_node(env, init));
 	return NIL_NODE;
 }
 
@@ -1216,7 +1217,8 @@ node_idx_t native_fn(list_ptr_t env, list_ptr_t args) {
 */
 node_idx_t native_defn(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
-	node_t *sym_node = get_node(*i++);
+	node_idx_t sym_node_idx = *i++;
+	jo_string sym_node = get_node(sym_node_idx)->as_string();
 	node_idx_t doc_string = *i++; // ignored for eval purposes if present
 	node_idx_t arg_list;
 	if(get_node_type(doc_string) != NODE_STRING) {
@@ -1225,7 +1227,7 @@ node_idx_t native_defn(list_ptr_t env, list_ptr_t args) {
 		arg_list = *i++;
 	}
 
-	if(sym_node->type != NODE_SYMBOL) {
+	if(get_node_type(sym_node_idx) != NODE_SYMBOL) {
 		fprintf(stderr, "defn: expected symbol");
 		return NIL_NODE;
 	}
@@ -1235,7 +1237,7 @@ node_idx_t native_defn(list_ptr_t env, list_ptr_t args) {
 	ret->t_func.args = get_node(arg_list)->t_list;
 	ret->t_func.body = args->rest();
 	ret->t_func.env = env;
-	env_set(env, sym_node->as_string(), reti);
+	env_set(env, sym_node, reti);
 	return NIL_NODE;
 }
 
@@ -1298,13 +1300,12 @@ Example:
 node_idx_t native_case(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t cond_idx = eval_node(env, *it++);
-	node_t *cond = get_node(cond_idx);
 	node_idx_t next = *it++;
 	while(it) {
 		node_idx_t body_idx = *it++;
 		node_idx_t value_idx = eval_node(env, next);
 		node_t *value = get_node(value_idx);
-		if(value->is_eq(cond)) {
+		if(value->is_eq(get_node(cond_idx))) {
 			return eval_node(env, body_idx);
 		}
 		next = *it++;
@@ -1335,11 +1336,10 @@ node_idx_t native_dotimes(list_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t name_idx = binding_list->nth(0);
 	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
-	node_t *name = get_node(name_idx);
-	node_t *value = get_node(value_idx);
-	int times = value->as_int();
+	int times = get_node(value_idx)->as_int();
+	jo_string name = get_node(name_idx)->as_string();
 	for(int i = 0; i < times; ++i) {
-		list_ptr_t new_env = env->cons(new_node_var(name->as_string(), new_node_int(i)));
+		list_ptr_t new_env = env->cons(new_node_var(name, new_node_int(i)));
 		for(list_t::iterator it2 = it; it2; it2++) { 
 			eval_node(new_env, *it2);
 		}
@@ -1369,13 +1369,12 @@ node_idx_t native_doseq(list_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t name_idx = binding_list->nth(0);
 	node_idx_t value_idx = binding_list->nth(1);
-	node_t *name = get_node(name_idx);
+	jo_string name = get_node(name_idx)->as_string();
 	node_t *value = get_node(value_idx);
 	list_ptr_t value_list = value->as_list();
 	node_idx_t ret = NIL_NODE;
 	for(list_t::iterator it2 = value_list->begin(); it2; it2++) {
-		node_idx_t item_idx = *it2;
-		list_ptr_t new_env = env->cons(new_node_var(name->as_string(), item_idx));
+		list_ptr_t new_env = env->cons(new_node_var(name, *it2));
 		for(list_t::iterator it3 = it; it3; it3++) { 
 			ret = eval_node(new_env, *it3);
 		}
@@ -2014,12 +2013,11 @@ node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
 	}
 	// constructs a function which returns the next value in the range, and another function
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
-	node_t *lazy_func = get_node(lazy_func_idx);
-	lazy_func->t_list = new_list();
-	lazy_func->t_list->push_back_inplace(new_node_symbol("range-next"));
-	lazy_func->t_list->push_back_inplace(new_node_int(start));
-	lazy_func->t_list->push_back_inplace(new_node_int(step));
-	lazy_func->t_list->push_back_inplace(new_node_int(end));
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_symbol("range-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_int(start));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_int(step));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_int(end));
 	return new_node_lazy_list(lazy_func_idx);
 }
 
@@ -2057,11 +2055,10 @@ node_idx_t native_repeat(list_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
-	node_t *lazy_func = get_node(lazy_func_idx);
-	lazy_func->t_list = new_list();
-	lazy_func->t_list->push_back_inplace(new_node_symbol("repeat-next"));
-	lazy_func->t_list->push_back_inplace(x);
-	lazy_func->t_list->push_back_inplace(new_node_int(n));
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_symbol("repeat-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(x);
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_int(n));
 	return new_node_lazy_list(lazy_func_idx);
 }
 
@@ -2086,10 +2083,9 @@ node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
-	node_t *lazy_func = get_node(lazy_func_idx);
-	lazy_func->t_list = new_list();
-	lazy_func->t_list->push_back_inplace(new_node_symbol("concat-next"));
-	lazy_func->t_list->conj_inplace(*args.ptr);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_symbol("concat-next"));
+	get_node(lazy_func_idx)->t_list->conj_inplace(*args.ptr);
 	return new_node_lazy_list(lazy_func_idx);
 }
 
@@ -2149,11 +2145,10 @@ node_idx_t native_iterate(list_ptr_t env, list_ptr_t args) {
 	node_idx_t f = *it++;
 	node_idx_t x = *it++;
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
-	node_t *lazy_func = get_node(lazy_func_idx);
-	lazy_func->t_list = new_list();
-	lazy_func->t_list->push_back_inplace(new_node_symbol("iterate-next"));
-	lazy_func->t_list->push_back_inplace(f);
-	lazy_func->t_list->push_back_inplace(x);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_symbol("iterate-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(f);
+	get_node(lazy_func_idx)->t_list->push_back_inplace(x);
 	return new_node_lazy_list(lazy_func_idx);
 }
 
@@ -2196,12 +2191,11 @@ node_idx_t native_map(list_ptr_t env, list_ptr_t args) {
 		return new_node_lazy_list(lazy_func_idx);
 	}
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
-	node_t *lazy_func = get_node(lazy_func_idx);
-	lazy_func->t_list = new_list();
-	lazy_func->t_list->push_back_inplace(new_node_symbol("map-next"));
-	lazy_func->t_list->push_back_inplace(f);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_symbol("map-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(f);
 	while(it) {
-		lazy_func->t_list->push_back_inplace(eval_node(env, *it++));
+		get_node(lazy_func_idx)->t_list->push_back_inplace(eval_node(env, *it++));
 	}
 	return new_node_lazy_list(lazy_func_idx);
 }
