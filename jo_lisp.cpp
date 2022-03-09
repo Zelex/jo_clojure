@@ -1731,35 +1731,6 @@ node_idx_t native_let(list_ptr_t env, list_ptr_t args) {
 	return eval_node_list(new_env, args->rest());
 }
 
-// (take n coll)
-// Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
-node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	int n = node->as_int();
-	node_idx_t coll_idx = *it++;
-	node_t *coll = get_node(coll_idx);
-	if(coll->is_list()) {
-		list_ptr_t list_list = coll->as_list();
-		return new_node_list(list_list->subvec(0, n));
-	}
-	if(coll->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, coll_idx);
-		list_ptr_t return_list = new_list();
-		for(int i = 0; i < n; i++) {
-			if(lit.done()) {
-				warnf("take: expected more than %d items, had %d\n", n, i);
-				return new_node_list(return_list);
-			}
-			return_list->push_back_inplace(lit.val);
-			lit.next();
-		}
-		return new_node_list(return_list);
-	}
-	return NIL_NODE;
-}
-
 node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
 	// collect the arguments, if its a list add the whole list, then eval it
 	list_ptr_t arg_list = new_list();
@@ -2262,6 +2233,35 @@ node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
 	return new_node_list(next_list);
 }
 
+// (take n coll)
+// Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
+node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
+	// TODO: Lazy!
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	int n = node->as_int();
+	node_idx_t coll_idx = *it++;
+	node_t *coll = get_node(coll_idx);
+	if(coll->is_list()) {
+		list_ptr_t list_list = coll->as_list();
+		return new_node_list(list_list->subvec(0, n));
+	}
+	if(coll->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, coll_idx);
+		list_ptr_t return_list = new_list();
+		for(int i = 0; i < n; i++) {
+			if(lit.done()) {
+				warnf("take: expected more than %d items, had %d\n", n, i);
+				return new_node_list(return_list);
+			}
+			return_list->push_back_inplace(lit.val);
+			lit.next();
+		}
+		return new_node_list(return_list);
+	}
+	return NIL_NODE;
+}
 
 node_idx_t native_eval(list_ptr_t env, list_ptr_t args) {
 	return eval_node(env, args->first_value());
