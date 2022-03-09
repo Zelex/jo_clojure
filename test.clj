@@ -106,6 +106,8 @@
 (println (reduce + 1 (list )))         ;;=> 1
 (println (reduce + 1 (list 2 3)))      ;;=> 6
 
+(println "end")
 
+(take 5 (map inc (list 1 2 3 4 5)))
 
 

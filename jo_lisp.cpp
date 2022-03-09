@@ -2202,6 +2202,67 @@ node_idx_t native_iterate_next(list_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
+// (map f)
+// (map f coll)
+// (map f c1 c2)
+// (map f c1 c2 c3)
+// (map f c1 c2 c3 & colls)
+// Returns a lazy sequence consisting of the result of applying f to
+// the set of first items of each coll, followed by applying f to the
+// set of second items in each coll, until any one of the colls is
+// exhausted.  Any remaining items in other colls are ignored. Function
+// f should accept number-of-colls arguments. Returns a transducer when
+// no collection is provided.
+node_idx_t native_map(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f = *it++;
+	if(args->size() == 1) {
+		node_idx_t lazy_func_idx = new_node(NODE_LIST);
+		node_t *lazy_func = get_node(lazy_func_idx);
+		lazy_func->t_list = new_list();
+		lazy_func->t_list->push_back_inplace(new_node_symbol("map-next"));
+		lazy_func->t_list->push_back_inplace(f);
+		return new_node_lazy_list(lazy_func_idx);
+	}
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	node_t *lazy_func = get_node(lazy_func_idx);
+	lazy_func->t_list = new_list();
+	lazy_func->t_list->push_back_inplace(new_node_symbol("map-next"));
+	lazy_func->t_list->push_back_inplace(f);
+	while(it) {
+		lazy_func->t_list->push_back_inplace(eval_node(env, *it++));
+	}
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f = *it++;
+	// pull off the first element of each list and call f with it
+	list_ptr_t next_list = new_list();
+	list_ptr_t arg_list = new_list();
+	arg_list->push_back_inplace(f);
+	next_list->push_back_inplace(new_node_symbol("map-next"));
+	next_list->push_back_inplace(f);
+	for(; it; it++) {
+		node_idx_t arg_idx = *it;
+		node_t *arg = get_node(arg_idx);
+		if(arg->is_list()) {
+			list_ptr_t list_list = arg->as_list();
+			if(list_list->size() == 0) {
+				return NIL_NODE;
+			}
+			arg_list->push_back_inplace(list_list->first_value());
+			next_list->push_back_inplace(new_node_list(list_list->rest()));
+		}
+	}
+	// call f with the args
+	node_idx_t ret = eval_list(env, arg_list);
+	next_list->cons_inplace(ret);
+	return new_node_list(next_list);
+}
+
+
 node_idx_t native_eval(list_ptr_t env, list_ptr_t args) {
 	return eval_node(env, args->first_value());
 }
@@ -2232,7 +2293,9 @@ node_idx_t native_into(list_ptr_t env, list_ptr_t args) {
 			ret->push_back_inplace(lit.val);
 		}
 	}
+	return new_node_list(ret);
 }
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -2389,6 +2452,8 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("concat-next", new_node_native_function(&native_concat_next, true)));
 	env->push_back_inplace(new_node_var("iterate", new_node_native_function(&native_iterate, true)));
 	env->push_back_inplace(new_node_var("iterate-next", new_node_native_function(&native_iterate_next, true)));
+	env->push_back_inplace(new_node_var("map", new_node_native_function(&native_map, true)));
+	env->push_back_inplace(new_node_var("map-next", new_node_native_function(&native_map_next, true)));
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
 	jo_lisp_system_init(env);
