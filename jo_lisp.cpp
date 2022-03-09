@@ -814,6 +814,9 @@ struct lazy_list_iterator_t {
 		}
 	}
 	node_idx_t next_fn() {
+		if(done()) {
+			return NIL_NODE;
+		}
 		return new_node_list(get_node(cur)->as_list()->rest());
 	}
 	node_idx_t nth(int n) {
@@ -2230,29 +2233,49 @@ node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
 // (take n coll)
 // Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
 node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
-	// TODO: Lazy!
 	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	int n = node->as_int();
-	node_idx_t coll_idx = *it++;
-	node_t *coll = get_node(coll_idx);
-	if(coll->is_list()) {
-		list_ptr_t list_list = coll->as_list();
-		return new_node_list(list_list->subvec(0, n));
+	node_idx_t n = eval_node(env, *it++);
+	node_idx_t coll = eval_node(env, *it++);
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_symbol("take-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(n);
+	get_node(lazy_func_idx)->t_list->push_back_inplace(coll);
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int n = get_node(*it++)->as_int();
+	if(n <= 0) {
+		return NIL_NODE;
 	}
-	if(coll->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, coll_idx);
-		list_ptr_t return_list = new_list();
-		for(int i = 0; i < n; i++) {
-			if(lit.done()) {
-				warnf("take: expected more than %d items, had %d\n", n, i);
-				return new_node_list(return_list);
-			}
-			return_list->push_back_inplace(lit.val);
-			lit.next();
+	node_idx_t coll = *it++;
+	if(get_node_type(coll) == NODE_LIST) {
+		list_ptr_t coll_list = get_node(coll)->as_list();
+		if(coll_list->size() == 0) {
+			return NIL_NODE;
 		}
-		return new_node_list(return_list);
+		node_idx_t ret = coll_list->first_value();
+		node_idx_t new_coll = new_node_list(coll_list->rest());
+		get_node(new_coll)->t_list->push_back_inplace(ret);
+		get_node(new_coll)->t_list->push_back_inplace(new_node_symbol("take-next"));
+		get_node(new_coll)->t_list->push_back_inplace(new_node_int(n-1));
+		get_node(new_coll)->t_list->push_back_inplace(new_coll);
+		return new_coll;
+	}
+	if(get_node_type(coll) == NODE_LAZY_LIST) {
+		lazy_list_iterator_t lit(env, coll);
+		list_ptr_t list = new_list();
+		list->push_back_inplace(lit.val);
+		list->push_back_inplace(new_node_symbol("take-next"));
+		list->push_back_inplace(new_node_int(n-1));
+		if(lit.done()) {
+			list->push_back_inplace(NIL_NODE);
+		} else {
+			list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
+		}
+		return new_node_list(list);
 	}
 	return NIL_NODE;
 }
@@ -2407,7 +2430,8 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("rest", new_node_native_function(&native_rest, false)));
 	env->push_back_inplace(new_node_var("quote", new_node_native_function(&native_quote, true)));
 	env->push_back_inplace(new_node_var("list", new_node_native_function(&native_list, false)));
-	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, false)));
+	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, true)));
+	env->push_back_inplace(new_node_var("take-next", new_node_native_function(&native_take_next, true)));
 	env->push_back_inplace(new_node_var("take-last", new_node_native_function(&native_take_last, false)));
 	env->push_back_inplace(new_node_var("distinct", new_node_native_function(&native_distinct, false)));
 	env->push_back_inplace(new_node_var("reverse", new_node_native_function(&native_upper_case, false)));
