@@ -2206,6 +2206,33 @@ node_idx_t native_eval(list_ptr_t env, list_ptr_t args) {
 	return eval_node(env, args->first_value());
 }
 
+// (into) 
+// (into to)
+// (into to from)
+// Returns a new coll consisting of to-coll with all of the items of
+//  from-coll conjoined.
+// A non-lazy concat
+node_idx_t native_into(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t to = *it++;
+	node_idx_t from = *it++;
+	list_ptr_t ret;
+	if(get_node_type(to) == NODE_LIST) {
+		ret = get_node(to)->t_list->clone();
+	} else if(get_node_type(to) == NODE_LAZY_LIST) {
+		ret = new_list();
+		for(lazy_list_iterator_t lit(env, to); !lit.done(); lit.next()) {
+			ret->push_back_inplace(lit.val);
+		}
+	}
+	if(get_node_type(from) == NODE_LIST) {
+		ret->conj_inplace(*get_node(from)->t_list);
+	} else if(get_node_type(from) == NODE_LAZY_LIST) {
+		for(lazy_list_iterator_t lit(env, from); !lit.done(); lit.next()) {
+			ret->push_back_inplace(lit.val);
+		}
+	}
+}
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -2310,6 +2337,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("do", new_node_native_function(&native_do, false)));
 	env->push_back_inplace(new_node_var("cons", new_node_native_function(&native_cons, false)));
 	env->push_back_inplace(new_node_var("conj", new_node_native_function(&native_conj, false)));
+	env->push_back_inplace(new_node_var("into", new_node_native_function(&native_into, false)));
 	env->push_back_inplace(new_node_var("pop", new_node_native_function(&native_pop, false)));
 	env->push_back_inplace(new_node_var("peek", new_node_native_function(&native_peek, false)));
 	env->push_back_inplace(new_node_var("first", new_node_native_function(&native_first, false)));
