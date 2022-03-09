@@ -266,6 +266,14 @@ static const char *jo_strrstr(const char *haystack, const char *needle)
     return NULL;
 }
 
+void jo_sleep(float seconds) {
+#ifdef _MSC_VER
+    Sleep((int)(seconds * 1000));
+#else
+    usleep((int)(seconds * 1000000));
+#endif
+}
+
 // 
 // Simple C++std replacements...
 //

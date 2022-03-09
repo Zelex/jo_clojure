@@ -152,6 +152,15 @@ node_idx_t native_system_read_line(list_ptr_t env, list_ptr_t args) {
     return new_node_string(line);
 }
 
+node_idx_t native_system_sleep(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	float seconds = node->as_float();
+	jo_sleep(seconds);
+	return NIL_NODE;
+}
+
 void jo_lisp_system_init(list_ptr_t env) {
 	env->push_back_inplace(new_node_var("System/setenv", new_node_native_function(&native_system_setenv, false)));
 	env->push_back_inplace(new_node_var("System/getenv", new_node_native_function(&native_system_getenv, false)));
@@ -160,6 +169,7 @@ void jo_lisp_system_init(list_ptr_t env) {
 	env->push_back_inplace(new_node_var("System/kbhit", new_node_native_function(&native_system_kbhit, false)));
 	env->push_back_inplace(new_node_var("System/getch", new_node_native_function(&native_system_getch, false)));
 	env->push_back_inplace(new_node_var("System/date", new_node_native_function(&native_system_date, false)));
+	env->push_back_inplace(new_node_var("System/sleep", new_node_native_function(&native_system_sleep, false)));
 	env->push_back_inplace(new_node_var("slurp", new_node_native_function(&native_system_slurp, false)));
 	env->push_back_inplace(new_node_var("spit", new_node_native_function(&native_system_spit, false)));
 	env->push_back_inplace(new_node_var("read-line", new_node_native_function(&native_system_read_line, false)));

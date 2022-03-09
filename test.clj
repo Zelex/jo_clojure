@@ -110,5 +110,5 @@
 
 (take 5 (map inc (list 1 2 3 4 5)))
 
-(while (not (System/kbhit)) (System/sleep 100))
+(while (not (System/kbhit)) (System/sleep 0.1))
 
