@@ -2266,15 +2266,14 @@ node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
 	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
 		lazy_list_iterator_t lit(env, coll);
+		if(lit.done()) {
+			return NIL_NODE;
+		}
 		list_ptr_t list = new_list();
 		list->push_back_inplace(lit.val);
 		list->push_back_inplace(new_node_symbol("take-next"));
 		list->push_back_inplace(new_node_int(n-1));
-		if(lit.done()) {
-			list->push_back_inplace(NIL_NODE);
-		} else {
-			list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
-		}
+		list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
 		return new_node_list(list);
 	}
 	return NIL_NODE;
