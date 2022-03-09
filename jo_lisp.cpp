@@ -826,6 +826,15 @@ struct lazy_list_iterator_t {
 	operator bool() const {
 		return !done();
 	}
+
+	list_ptr_t all() {
+		list_ptr_t res = new_list();
+		while(!done()) {
+			res->push_back_inplace(val);
+			next();
+		}
+		return res;
+	}
 };
 
 // native function to add any number of arguments
@@ -1407,6 +1416,11 @@ node_idx_t native_cons(list_ptr_t env, list_ptr_t args) {
 	node_t *second = get_node(second_idx);
 	if(second->type == NODE_LIST) {
 		list_ptr_t second_list = second->as_list();
+		return new_node_list(second_list->cons(first_idx));
+	}
+	if(second->type == NODE_LAZY_LIST) {
+		lazy_list_iterator_t lit(env, second_idx);
+		list_ptr_t second_list = lit.all();
 		return new_node_list(second_list->cons(first_idx));
 	}
 	list_ptr_t ret = new_list();

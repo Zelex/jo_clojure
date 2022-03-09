@@ -49,6 +49,8 @@
 
 (println (let (a 1 b 2) (+ a b)))
 
+(println "factorials")
+
 ; defs are not variables, don't do this:
 (defn factorial-using-do-dotimes (n)
   (do
@@ -77,7 +79,12 @@
 (defn factorial-using-reduce (n)
   (reduce * (range 1 (inc n))))
 
-(println "factorials")
+(defn make-fac-function (n)
+  (fn () (reduce * (range 1 (inc n)))))
+(def fac5 (make-fac-function 5))
+
+(defn factorial-using-eval-and-cons (n)
+  (eval (cons '* (range 1 (inc n)))))
 
 (println (* 1 2 3 4 5))
 (println (apply * (take 5 (iterate inc 1))))
@@ -91,6 +98,8 @@
 (println (factorial-using-apply-iterate 5))
 (println (reduce * (list 1 2 3 4 5)))
 (println (factorial-using-reduce 5))
+(fac5)
+(println (factorial-using-eval-and-cons 5))
 
 ;(take 5 (range))
 ;(take 5 (repeat "lol"))
