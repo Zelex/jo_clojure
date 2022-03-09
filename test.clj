@@ -93,6 +93,7 @@
 (println "reduce         " (factorial-using-reduce 5))
 (println "make           " (fac5))
 (println "eval           " (factorial-using-eval-and-cons 5))
+(println "map            " (apply * (take 4 (map inc (list 1 2 3 4 5)))))
 
 (defn padding-right (s width pad) 
   (apply str (take width (concat s (repeat pad)))))
@@ -106,9 +107,9 @@
 (println (reduce + 1 (list )))         ;;=> 1
 (println (reduce + 1 (list 2 3)))      ;;=> 6
 
+
 (println "end")
 
-(take 5 (map inc (list 1 2 3 4 5)))
-
 (while (not (System/kbhit)) (System/sleep 0.1))
+
 
