@@ -77,6 +77,8 @@
 (defn factorial-using-reduce (n)
   (reduce * (range 1 (inc n))))
 
+(println "factorials")
+
 (println (* 1 2 3 4 5))
 (println (apply * (take 5 (iterate inc 1))))
 (println (apply * (take 5 (quote 1 2 3 4 5))))
@@ -87,16 +89,24 @@
 (println (factorial-using-do-while 5))
 (println (factorial-using-apply-range 5))
 (println (factorial-using-apply-iterate 5))
+(println (reduce * (list 1 2 3 4 5)))
 (println (factorial-using-reduce 5))
 
 ;(take 5 (range))
 ;(take 5 (repeat "lol"))
+(println "padding")
 
 (defn padding-right (s width pad) 
   (apply str (take width (concat s (repeat pad)))))
 
 (println "'" (padding-right "Clojure" 10 " ") "'")
 
+(println (reduce + (list 1 2 3 4 5)))  ;;=> 15
+(println (reduce + (list )))           ;;=> 0
+(println (reduce + (list 1)))          ;;=> 1
+(println (reduce + (list 1 2)))        ;;=> 3
+(println (reduce + 1 (list )))         ;;=> 1
+(println (reduce + 1 (list 2 3)))      ;;=> 6
 ;(take 5 (iterate inc 1))
 
 

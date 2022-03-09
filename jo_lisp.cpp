@@ -660,7 +660,6 @@ node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 			for(; it; it++) {
 				args->push_back_inplace(eval_node(env, *it));
 			}
-
 			// call the function
 			return get_node(sym_idx)->t_native_function(env, args);
 		} else if(sym_type == NODE_FUNC || sym_type == NODE_DELAY) {
@@ -702,7 +701,6 @@ node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 			return last;
 		}
 	}
-
 	return NIL_NODE;
 }
 
@@ -1782,29 +1780,13 @@ node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
 // If coll contains no items, returns val and f is not called.
 node_idx_t native_reduce(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	if(!node->is_list()) {
-		printf("reduce: expected list\n");
-		return NIL_NODE;
-	}
-	list_ptr_t list_list = node->as_list();
-	if(list_list->size() < 2) {
-		printf("reduce: expected at least 2 elements\n");
-		return NIL_NODE;
-	}
 	node_idx_t f_idx = *it++;
-	node_t *f = get_node(f_idx);
-	if(!f->is_func()) {
-		printf("reduce: expected function\n");
-		return NIL_NODE;
-	}
 	// (reduce f coll)
 	// returns the result of applying f to the first 2 items in coll, then applying f to that result and the 3rd item, etc. 
 	// If coll contains no items, f must accept no arguments as well, and reduce returns the result of calling f with no arguments.  
 	// If coll has only 1 item, it is returned and f is not called.  
 	if(args->size() == 2) {
-		node_idx_t coll_idx = *it++;
+		node_idx_t coll_idx = eval_node(env, *it++);
 		node_t *coll = get_node(coll_idx);
 		if(coll->is_list()) {
 			list_ptr_t list_list = coll->as_list();
@@ -1815,11 +1797,8 @@ node_idx_t native_reduce(list_ptr_t env, list_ptr_t args) {
 			}
 			list_t::iterator it2 = list_list->begin();
 			node_idx_t reti = *it2++;
-			if(list_list->size() == 1) {
-				return reti;
-			}
-			for(; it2; it2++) {
-				node_idx_t arg_idx = *it2;
+			while(it2) {
+				node_idx_t arg_idx = *it2++;
 				list_ptr_t arg_list = new_list();
 				arg_list->push_back_inplace(f_idx);
 				arg_list->push_back_inplace(reti);
@@ -1830,16 +1809,7 @@ node_idx_t native_reduce(list_ptr_t env, list_ptr_t args) {
 		}
 		if(coll->is_lazy_list()) {
 			lazy_list_iterator_t lit(env, coll_idx);
-			if(lit.done()) {
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				return eval_list(env, arg_list);
-			}
 			node_idx_t reti = lit.val;
-			lit.next();
-			if(lit.done()) {
-				return reti;
-			}
 			for(; !lit.done(); lit.next()) {
 				node_idx_t arg_idx = lit.val;
 				list_ptr_t arg_list = new_list();
@@ -1857,49 +1827,41 @@ node_idx_t native_reduce(list_ptr_t env, list_ptr_t args) {
 	// returns the result of applying f to val and the first item in coll,
 	//  then applying f to that result and the 2nd item, etc.
 	// If coll contains no items, returns val and f is not called.
-	node_idx_t val_idx = *it++;
-	node_t *val = get_node(val_idx);
-	if(val->is_list()) {
-		list_ptr_t list_list = val->as_list();
-		if(list_list->size() == 0) {
-			return val_idx;
-		}
-		list_t::iterator it2 = list_list->begin();
-		node_idx_t reti = *it2++;
-		if(list_list->size() == 1) {
+	if(args->size() == 3) {
+		node_idx_t reti = eval_node(env, *it++);
+		node_idx_t coll = eval_node(env, *it++);
+		node_t *coll_node = get_node(coll);
+		if(coll_node->is_list()) {
+			list_ptr_t list_list = coll_node->as_list();
+			if(list_list->size() == 0) {
+				return reti;
+			}
+			list_t::iterator it2 = list_list->begin();
+			while(it2) {
+				node_idx_t arg_idx = *it2++;
+				list_ptr_t arg_list = new_list();
+				arg_list->push_back_inplace(f_idx);
+				arg_list->push_back_inplace(reti);
+				arg_list->push_back_inplace(arg_idx);
+				reti = eval_list(env, arg_list);
+			}
 			return reti;
 		}
-		for(; it2; it2++) {
-			node_idx_t arg_idx = *it2;
-			list_ptr_t arg_list = new_list();
-			arg_list->push_back_inplace(f_idx);
-			arg_list->push_back_inplace(reti);
-			arg_list->push_back_inplace(arg_idx);
-			reti = eval_list(env, arg_list);
-		}
-		return reti;
-	}
-	if(val->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, val_idx);
-		if(lit.done()) {
-			return val_idx;
-		}
-		node_idx_t reti = lit.val;
-		lit.next();
-		if(lit.done()) {
+		if(coll_node->is_lazy_list()) {
+			lazy_list_iterator_t lit(env, coll);
+			for(; !lit.done(); lit.next()) {
+				node_idx_t arg_idx = lit.val;
+				list_ptr_t arg_list = new_list();
+				arg_list->push_back_inplace(f_idx);
+				arg_list->push_back_inplace(reti);
+				arg_list->push_back_inplace(arg_idx);
+				reti = eval_list(env, arg_list);
+			}
 			return reti;
 		}
-		for(; !lit.done(); lit.next()) {
-			node_idx_t arg_idx = lit.val;
-			list_ptr_t arg_list = new_list();
-			arg_list->push_back_inplace(f_idx);
-			arg_list->push_back_inplace(reti);
-			arg_list->push_back_inplace(arg_idx);
-			reti = eval_list(env, arg_list);
-		}
-		return reti;
+		warnf("reduce: expected list or lazy list\n");
+		return NIL_NODE;
 	}
-	warnf("reduce: expected list or lazy list\n");
 	return NIL_NODE;
 }
 
@@ -2359,6 +2321,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("cond", new_node_native_function(&native_cond, true)));
 	env->push_back_inplace(new_node_var("case", new_node_native_function(&native_case, true)));
 	env->push_back_inplace(new_node_var("apply", new_node_native_function(&native_apply, true)));
+	env->push_back_inplace(new_node_var("reduce", new_node_native_function(&native_reduce, true)));
 	env->push_back_inplace(new_node_var("delay", new_node_native_function(&native_delay, true)));
 	env->push_back_inplace(new_node_var("delay?", new_node_native_function(&native_is_delay, false)));
 	env->push_back_inplace(new_node_var("constantly", new_node_native_function(&native_constantly, false)));
