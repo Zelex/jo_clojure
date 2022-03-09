@@ -1942,38 +1942,6 @@ node_idx_t native_bit_not(list_ptr_t env, list_ptr_t args) {
 	return new_node_int(~node->as_int());
 }
 
-// removes duplicate elements in a list
-node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	if(node->is_list()) {
-		list_ptr_t list_list = node->as_list();
-		list_ptr_t ret = new_list();
-		for(list_t::iterator it = list_list->begin(); it; it++) {
-			node_idx_t value_idx = eval_node(env, *it);
-			node_t *value = get_node(value_idx);
-			if(!ret->contains(value_idx)) { // TODO:  check for equality, not contains.... right?
-				ret->push_back_inplace(value_idx);
-			}
-		}
-		return new_node_list(ret);
-	}
-	if(node->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, node_idx);
-		list_ptr_t ret = new_list();
-		for(; lit; lit.next()) {
-			node_idx_t value_idx = eval_node(env, lit.val);
-			node_t *value = get_node(value_idx);
-			if(!ret->contains(value_idx)) { // TODO:  check for equality, not contains.... right?
-				ret->push_back_inplace(value_idx);
-			}
-		}
-		return new_node_list(ret);
-	}
-	return NIL_NODE;
-}
-
 node_idx_t native_reverse(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
@@ -2275,6 +2243,42 @@ node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
 		list->push_back_inplace(new_node_int(n-1));
 		list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
 		return new_node_list(list);
+	}
+	return NIL_NODE;
+}
+
+// (distinct)
+// (distinct coll)
+// Returns a lazy sequence of the elements of coll with duplicates removed.
+// Returns a stateful transducer when no collection is provided.
+node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
+	// TODO: lazy
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	if(node->is_list()) {
+		list_ptr_t list_list = node->as_list();
+		list_ptr_t ret = new_list();
+		for(list_t::iterator it = list_list->begin(); it; it++) {
+			node_idx_t value_idx = eval_node(env, *it);
+			node_t *value = get_node(value_idx);
+			if(!ret->contains(value_idx)) { // TODO:  check for equality, not contains.... right?
+				ret->push_back_inplace(value_idx);
+			}
+		}
+		return new_node_list(ret);
+	}
+	if(node->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, node_idx);
+		list_ptr_t ret = new_list();
+		for(; lit; lit.next()) {
+			node_idx_t value_idx = eval_node(env, lit.val);
+			node_t *value = get_node(value_idx);
+			if(!ret->contains(value_idx)) { // TODO:  check for equality, not contains.... right?
+				ret->push_back_inplace(value_idx);
+			}
+		}
+		return new_node_list(ret);
 	}
 	return NIL_NODE;
 }
