@@ -75,6 +75,7 @@ struct node_t {
 	bool is_symbol() const { return type == NODE_SYMBOL; }
 	bool is_list() const { return type == NODE_LIST; }
 	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
+	bool is_seq() const { return is_list() || is_lazy_list(); }
 	bool is_vector() const { return type == NODE_VECTOR; }
 	bool is_string() const { return type == NODE_STRING; }
 	bool is_func() const { return type == NODE_FUNC; }
@@ -841,6 +842,103 @@ struct lazy_list_iterator_t {
 	}
 };
 
+// Generic iterator... 
+// if its lazy, it iterates over the lazy list, otherwise it iterates over the list
+struct seq_iterator_t {
+	int type;
+	list_ptr_t env;
+	node_idx_t cur;
+	node_idx_t val;
+	list_ptr_t list;
+	list_t::iterator it;
+	seq_iterator_t(list_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), list(NULL), it(NULL) {
+		type = get_node_type(cur);
+		if(type == NODE_LIST) {
+			list = get_node(cur)->as_list();
+			it = list->begin();
+			if(!done()) {
+				val = *it++;
+			}
+		} else if(type == NODE_LAZY_LIST) {
+			cur = eval_node(env, get_node(cur)->t_lazy_fn);
+			if(!done()) {
+				val = get_node(cur)->as_list()->nth(0);
+			}
+		}
+	}
+	bool done() const {
+		if(type == NODE_LIST) {
+			return *it;
+		} else if(type == NODE_LAZY_LIST) {
+			return !get_node(cur)->is_list();
+		} else {
+			return true;
+		}
+	}
+	void next() {
+		if(done()) {
+			return;
+		}
+		if(type == NODE_LIST) {
+			val = *it++;
+		} else if(type == NODE_LAZY_LIST) {
+			cur = eval_list(env, get_node(cur)->as_list()->rest());
+			if(!done()) {
+				val = get_node(cur)->as_list()->first_value();
+			} else {
+				val = NIL_NODE;
+			}
+		}
+	}
+	node_idx_t nth(int n) {
+		node_idx_t res = val;
+		while(n-- > 0) {
+			next();
+		}
+		return val;
+	}
+
+	operator bool() const {
+		return !done();
+	}
+
+	list_ptr_t all() {
+		list_ptr_t res = new_list();
+		while(!done()) {
+			res->push_back_inplace(val);
+			next();
+		}
+		return res;
+	}
+};
+
+static bool node_eq(list_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
+	node_t *n1 = get_node(n1i);
+	node_t *n2 = get_node(n2i);
+	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
+		return n1->type == NODE_NIL && n2->type == NODE_NIL;
+	} else if(n1->is_seq() && n2->is_seq()) {
+		// in this case we want to iterate over the sequences and compare
+		// each element
+		seq_iterator_t i1(env, n1i), i2(env, n2i);
+		for(; i1 && i2; i1.next(), i2.next()) {
+			if(!node_eq(env, i1.val, i2.val)) {
+				return false;
+			}
+		}
+		return !i1 && !i2;
+	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
+		return n1->t_bool == n2->t_bool;
+	} else if(n1->type == NODE_STRING && n2->type == NODE_STRING) {
+		return n1->t_string == n2->t_string;
+	} else if(n1->type == NODE_INT && n2->type == NODE_INT) {
+		return n1->t_int == n2->t_int;
+	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
+		return n1->as_float() == n2->as_float();
+	}
+	return false;
+}
+
 // native function to add any number of arguments
 node_idx_t native_add(list_ptr_t env, list_ptr_t args) { 
 	int i_sum = 0;
@@ -995,20 +1093,13 @@ node_idx_t native_mod(list_ptr_t env, list_ptr_t args) {
 	return new_node_float(d_sum);
 }
 
-// compares the first argument with all other arguments 
+// Tests the equality between two objects
 node_idx_t native_eq(list_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
+	if(args->size() < 2) {
 		return NIL_NODE;
 	}
-
 	list_t::iterator i = args->begin();
-	node_t *n = get_node(*i++);
-	for(; i; i++) {
-		if(!n->is_eq(get_node(*i))) {
-			return new_node_bool(false);
-		}
-	}
-	return new_node_bool(true);
+	return new_node_bool(node_eq(env, *i++, *i++));
 }
 
 node_idx_t native_neq(list_ptr_t env, list_ptr_t args) {
@@ -1701,7 +1792,7 @@ node_idx_t native_rest(list_ptr_t env, list_ptr_t args) {
 }
 
 node_idx_t native_unless(list_ptr_t env, list_ptr_t args) {
-	node_idx_t node_idx = args->nth(0);
+	node_idx_t node_idx = eval_node(env, args->first_value());
 	node_t *node = get_node(node_idx);
 	if(!node->as_bool()) {
 		return eval_node_list(env, args->rest());

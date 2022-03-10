@@ -107,9 +107,10 @@
 (println (reduce + 1 (list )))         ;;=> 1
 (println (reduce + 1 (list 2 3)))      ;;=> 6
 
+(unless (= (distinct (list 1 2 1 3 1 4 1 5)) (list 1 2 3 4 5))
+  (println "distinct failed"))
 
 (println "end")
 
-(while (not (System/kbhit)) (System/sleep 0.1))
+;(while (not (System/kbhit)) (System/sleep 0.1))
 
-(distinct (list 1 2 1 3 1 4 1 5))
