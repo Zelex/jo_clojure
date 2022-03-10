@@ -2262,7 +2262,9 @@ node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
 		for(list_t::iterator it = list_list->begin(); it; it++) {
 			node_idx_t value_idx = eval_node(env, *it);
 			node_t *value = get_node(value_idx);
-			if(!ret->contains(value_idx)) { // TODO:  check for equality, not contains.... right?
+			if(!ret->contains([value_idx](node_idx_t idx) {
+				return get_node(idx)->is_eq(get_node(value_idx));
+			})) {
 				ret->push_back_inplace(value_idx);
 			}
 		}
@@ -2274,7 +2276,9 @@ node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
 		for(; lit; lit.next()) {
 			node_idx_t value_idx = eval_node(env, lit.val);
 			node_t *value = get_node(value_idx);
-			if(!ret->contains(value_idx)) { // TODO:  check for equality, not contains.... right?
+			if(!ret->contains([value_idx](node_idx_t idx) {
+				return get_node(idx)->is_eq(get_node(value_idx));
+			})) {
 				ret->push_back_inplace(value_idx);
 			}
 		}

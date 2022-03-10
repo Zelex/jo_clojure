@@ -2870,6 +2870,19 @@ struct jo_persistent_list {
         return false;
     }
 
+    // contains with lambda for comparison
+    template<typename F>
+    bool contains(const F &f) const {
+        jo_shared_ptr<node> cur = head;
+        while(cur) {
+            if(f(cur->value)) {
+                return true;
+            }
+            cur = cur->next;
+        }
+        return false;
+    }
+
     // iterator
     class iterator {
         jo_shared_ptr<node> cur;

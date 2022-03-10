@@ -112,4 +112,4 @@
 
 (while (not (System/kbhit)) (System/sleep 0.1))
 
-
+(distinct (list 1 2 1 3 1 4 1 5))
