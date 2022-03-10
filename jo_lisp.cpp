@@ -849,13 +849,11 @@ struct seq_iterator_t {
 	list_ptr_t env;
 	node_idx_t cur;
 	node_idx_t val;
-	list_ptr_t list;
 	list_t::iterator it;
-	seq_iterator_t(list_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), list(NULL), it(NULL) {
+	seq_iterator_t(list_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), it(NULL) {
 		type = get_node_type(cur);
 		if(type == NODE_LIST) {
-			list = get_node(cur)->as_list();
-			it = list->begin();
+			it = get_node(cur)->as_list()->begin();
 			if(!done()) {
 				val = *it++;
 			}
@@ -868,7 +866,7 @@ struct seq_iterator_t {
 	}
 	bool done() const {
 		if(type == NODE_LIST) {
-			return *it;
+			return !it;
 		} else if(type == NODE_LAZY_LIST) {
 			return !get_node(cur)->is_list();
 		} else {
@@ -1103,18 +1101,11 @@ node_idx_t native_eq(list_ptr_t env, list_ptr_t args) {
 }
 
 node_idx_t native_neq(list_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
+	if(args->size() < 2) {
 		return NIL_NODE;
 	}
-
 	list_t::iterator i = args->begin();
-	node_t *n = get_node(*i++);
-	for(; i; i++) {
-		if(!n->is_neq(get_node(*i))) {
-			return new_node_bool(false);
-		}
-	}
-	return new_node_bool(true);
+	return new_node_bool(!node_eq(env, *i++, *i++));
 }
 
 node_idx_t native_lt(list_ptr_t env, list_ptr_t args) {
