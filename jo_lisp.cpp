@@ -1210,6 +1210,47 @@ node_idx_t native_do(list_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+// (doall coll)
+// (doall n coll)
+// When lazy sequences are produced via functions that have side
+// effects, any effects other than those needed to produce the first
+// element in the seq do not occur until the seq is consumed. doall can
+// be used to force any effects. Walks through the successive nexts of
+// the seq, retains the head and returns it, thus causing the entire
+// seq to reside in memory at one time.
+node_idx_t native_doall(list_ptr_t env, list_ptr_t args) {
+	list_t::iterator i = args->begin();
+
+	if(args->size() == 1) {
+		node_idx_t coll = eval_node(env, *i++);
+		node_t *n = get_node(coll);
+		if(!n->is_seq()) {
+			return NIL_NODE;
+		}
+		list_ptr_t ret = new list_t();
+		for(seq_iterator_t it(env, coll); it; it.next()) {
+			ret->push_back_inplace(it.val);
+		}
+		return new_node_list(ret);
+	}
+
+	if(args->size() == 2) {
+		int n = get_node(eval_node(env, *i++))->as_int();
+		node_idx_t coll = eval_node(env, *i++);
+		node_t *n4 = get_node(coll);
+		if(!n4->is_seq()) {
+			return NIL_NODE;
+		}
+		list_ptr_t ret = new list_t();
+		for(seq_iterator_t it(env, coll); it && n; it.next(), n--) {
+			ret->push_back_inplace(it.val);
+		}
+		return new_node_list(ret);
+	}
+
+	return NIL_NODE;
+}
+
 node_idx_t native_while(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
 	node_idx_t cond_idx = *i++;
@@ -2051,15 +2092,12 @@ node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
 	int step = 1;
 	if(end == 0) {
 		end = INT_MAX; // "infinite" series
-	}
-	if(end == 1) {
+	} else if(end == 1) {
 		end = get_node(*it++)->as_int();
-	}
-	if(end == 2) {
+	} else if(end == 2) {
 		start = get_node(*it++)->as_int();
 		end = get_node(*it++)->as_int();
-	}
-	if(end == 3) {
+	} else if(end == 3) {
 		start = get_node(*it++)->as_int();
 		end = get_node(*it++)->as_int();
 		step = get_node(*it++)->as_int();
@@ -2272,6 +2310,14 @@ node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
 			}
 			arg_list->push_back_inplace(list_list->first_value());
 			next_list->push_back_inplace(new_node_list(list_list->rest()));
+		}
+		if(arg->is_lazy_list()) {
+			lazy_list_iterator_t lit(env, arg_idx);
+			if(lit.done()) {
+				return NIL_NODE;
+			}
+			arg_list->push_back_inplace(lit.val);
+			next_list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
 		}
 	}
 	// call f with the args
@@ -2504,6 +2550,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("false?", new_node_native_function(&native_is_false, false)));
 	env->push_back_inplace(new_node_var("true?", new_node_native_function(&native_is_true, false)));
 	env->push_back_inplace(new_node_var("do", new_node_native_function(&native_do, false)));
+	env->push_back_inplace(new_node_var("doall", new_node_native_function(&native_doall, true)));
 	env->push_back_inplace(new_node_var("cons", new_node_native_function(&native_cons, false)));
 	env->push_back_inplace(new_node_var("conj", new_node_native_function(&native_conj, false)));
 	env->push_back_inplace(new_node_var("into", new_node_native_function(&native_into, false)));
