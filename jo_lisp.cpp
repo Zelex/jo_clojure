@@ -2224,8 +2224,8 @@ int main(int argc, char **argv) {
 
 	list_ptr_t env = new_list();
 	env->push_back_inplace(new_node_var("nil", new_node(NODE_NIL)));
-	env->push_back_inplace(new_node_var("t", new_node_bool(true)));
-	env->push_back_inplace(new_node_var("f", new_node_bool(false)));
+	env->push_back_inplace(new_node_var("true", new_node_bool(true)));
+	env->push_back_inplace(new_node_var("false", new_node_bool(false)));
 	env->push_back_inplace(new_node_var("let", new_node_native_function(&native_let, true)));
 	env->push_back_inplace(new_node_var("eval", new_node_native_function(&native_eval, false)));
 	env->push_back_inplace(new_node_var("print", new_node_native_function(&native_print, false)));
