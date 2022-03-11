@@ -3,7 +3,7 @@
 #include "jo_stdcpp.h"
 
 // concat all arguments as_string
-node_idx_t native_str(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_str(list_ptr_t env, list_ptr_t args) {
 	jo_string str;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
@@ -13,7 +13,7 @@ node_idx_t native_str(list_ptr_t env, list_ptr_t args) {
 }
 
 // Returns the substring of ‘s’ beginning at start inclusive, and ending at end (defaults to length of string), exclusive.
-node_idx_t native_subs(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_subs(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     node_t *start = get_node(*it++);
@@ -21,50 +21,50 @@ node_idx_t native_subs(list_ptr_t env, list_ptr_t args) {
     return new_node_string(node->as_string().substr(start->as_int(), end->as_int()));
 }
 
-node_idx_t native_compare(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_compare(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     node_t *other = get_node(*it++);
     return new_node_int(node->as_string().compare(other->as_string()));
 }
 
-node_idx_t native_lower_case(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_lower_case(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().lower());
 }
 
-node_idx_t native_upper_case(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_upper_case(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().upper());
 }
 
-node_idx_t native_trim(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_trim(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().trim());
 }
 
-node_idx_t native_triml(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_triml(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().ltrim());
 }
 
-node_idx_t native_trimr(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_trimr(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().rtrim());
 }
 
-node_idx_t native_trim_newline(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_trim_newline(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().chomp());
 }
 
-node_idx_t native_replace(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_replace(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     node_t *what = get_node(*it++);
@@ -72,7 +72,7 @@ node_idx_t native_replace(list_ptr_t env, list_ptr_t args) {
     return new_node_string(node->as_string().replace(what->as_string().c_str(), with->as_string().c_str()));
 }
 
-node_idx_t native_replace_first(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_replace_first(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     node_t *what = get_node(*it++);
@@ -81,7 +81,7 @@ node_idx_t native_replace_first(list_ptr_t env, list_ptr_t args) {
 }
 
 // splits a string separated by newlines into a list of strings
-node_idx_t native_split_lines(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_split_lines(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
@@ -105,7 +105,7 @@ node_idx_t native_split_lines(list_ptr_t env, list_ptr_t args) {
 }
 
 // (join sep collection)
-node_idx_t native_join(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_join(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -126,7 +126,7 @@ node_idx_t native_join(list_ptr_t env, list_ptr_t args) {
 }
 
 // True if s is nil, empty, or contains only whitespace.
-node_idx_t native_is_blank(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_is_blank(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     if(node_idx == NIL_NODE) {
@@ -140,7 +140,7 @@ node_idx_t native_is_blank(list_ptr_t env, list_ptr_t args) {
 }
 
 // Converts first character of the string to upper-case, all other characters to lower-case.
-node_idx_t native_capitalize(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_capitalize(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -150,7 +150,7 @@ node_idx_t native_capitalize(list_ptr_t env, list_ptr_t args) {
     return new_node_string(node->as_string().capitalize());
 }
 
-node_idx_t native_ends_with(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_ends_with(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -162,7 +162,7 @@ node_idx_t native_ends_with(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(node->as_string().ends_with(what->as_string().c_str()));
 }
 
-node_idx_t native_starts_with(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_starts_with(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -174,7 +174,7 @@ node_idx_t native_starts_with(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(node->as_string().starts_with(what->as_string().c_str()));
 }
 
-node_idx_t native_includes(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_includes(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -186,7 +186,7 @@ node_idx_t native_includes(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(node->as_string().includes(what->as_string().c_str()));
 }
 
-node_idx_t native_index_of(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_index_of(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -198,7 +198,7 @@ node_idx_t native_index_of(list_ptr_t env, list_ptr_t args) {
     return new_node_int(node->as_string().index_of(what->as_string().c_str()));
 }
 
-node_idx_t native_last_index_of(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_last_index_of(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);

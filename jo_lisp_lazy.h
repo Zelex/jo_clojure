@@ -8,7 +8,7 @@
 // (exclusive), by step, where start defaults to 0, step to 1, and end to
 // infinity. When step is equal to 0, returns an infinite sequence of
 // start. When start is equal to end, returns empty list.
-node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	int end = args->size();
 	int start = 0;
@@ -35,7 +35,7 @@ node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-node_idx_t native_range_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_range_next(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	int start = get_node(*it++)->as_int();
 	int step = get_node(*it++)->as_int();
@@ -57,7 +57,7 @@ node_idx_t native_range_next(list_ptr_t env, list_ptr_t args) {
 // (repeat x)
 // (repeat n x)
 // Returns a lazy (infinite!, or length n if supplied) sequence of xs.
-node_idx_t native_repeat(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_repeat(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x;
 	int n = INT_MAX;
@@ -77,7 +77,7 @@ node_idx_t native_repeat(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
 	int n = get_node(*it++)->as_int();
@@ -97,7 +97,7 @@ node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
 // (concat x y) 
 // (concat x y & zs)
 // Returns a lazy seq representing the concatenation of the elements in the supplied colls.
-node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
@@ -107,7 +107,7 @@ node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-node_idx_t native_concat_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_concat_next(list_ptr_t env, list_ptr_t args) {
 concat_next:
 	if(args->size() == 0) {
 		return NIL_NODE;
@@ -158,7 +158,7 @@ concat_next:
 // (iterate f x)
 // Returns a lazy seq representing the infinite sequence of x, f(x), f(f(x)), etc.
 // f must be free of side-effects
-node_idx_t native_iterate(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_iterate(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	node_idx_t x = *it++;
@@ -170,7 +170,7 @@ node_idx_t native_iterate(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-node_idx_t native_iterate_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_iterate_next(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	node_idx_t x = *it++;
@@ -197,7 +197,7 @@ node_idx_t native_iterate_next(list_ptr_t env, list_ptr_t args) {
 // exhausted.  Any remaining items in other colls are ignored. Function
 // f should accept number-of-colls arguments. Returns a transducer when
 // no collection is provided.
-node_idx_t native_map(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_map(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	if(args->size() == 1) {
@@ -218,7 +218,7 @@ node_idx_t native_map(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	// pull off the first element of each list and call f with it
@@ -237,8 +237,7 @@ node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
 			}
 			arg_list->push_back_inplace(list_list->first_value());
 			next_list->push_back_inplace(new_node_list(list_list->rest()));
-		}
-		if(arg->is_lazy_list()) {
+		} else if(arg->is_lazy_list()) {
 			lazy_list_iterator_t lit(env, arg_idx);
 			if(lit.done()) {
 				return NIL_NODE;
@@ -255,7 +254,7 @@ node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
 
 // (take n coll)
 // Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
-node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t n = eval_node(env, *it++);
 	node_idx_t coll = eval_node(env, *it++);
@@ -267,7 +266,7 @@ node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	int n = get_node(*it++)->as_int();
 	if(n <= 0) {
@@ -306,7 +305,7 @@ node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
 // (distinct coll)
 // Returns a lazy sequence of the elements of coll with duplicates removed.
 // Returns a stateful transducer when no collection is provided.
-node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
 	// TODO: lazy
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -317,8 +316,8 @@ node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
 		for(list_t::iterator it = list_list->begin(); it; it++) {
 			node_idx_t value_idx = eval_node(env, *it);
 			node_t *value = get_node(value_idx);
-			if(!ret->contains([value_idx](node_idx_t idx) {
-				return get_node(idx)->is_eq(get_node(value_idx));
+			if(!ret->contains([env,value_idx](node_idx_t idx) {
+				return node_eq(env, idx, value_idx);
 			})) {
 				ret->push_back_inplace(value_idx);
 			}
@@ -331,8 +330,8 @@ node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
 		for(; lit; lit.next()) {
 			node_idx_t value_idx = eval_node(env, lit.val);
 			node_t *value = get_node(value_idx);
-			if(!ret->contains([value_idx](node_idx_t idx) {
-				return get_node(idx)->is_eq(get_node(value_idx));
+			if(!ret->contains([env,value_idx](node_idx_t idx) {
+				return node_eq(env, idx, value_idx);
 			})) {
 				ret->push_back_inplace(value_idx);
 			}

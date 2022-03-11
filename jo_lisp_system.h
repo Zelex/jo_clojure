@@ -3,7 +3,7 @@
 #include "jo_stdcpp.h"
 
 // execute a shell command
-node_idx_t native_system_exec(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_exec(list_ptr_t env, list_ptr_t args) {
 	jo_string str;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
@@ -16,7 +16,7 @@ node_idx_t native_system_exec(list_ptr_t env, list_ptr_t args) {
 }
 
 // Set system enviorment variables
-node_idx_t native_system_setenv(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_setenv(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
@@ -29,7 +29,7 @@ node_idx_t native_system_setenv(list_ptr_t env, list_ptr_t args) {
 }
 
 // Get system enviorment variables
-node_idx_t native_system_getenv(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_getenv(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
@@ -38,7 +38,7 @@ node_idx_t native_system_getenv(list_ptr_t env, list_ptr_t args) {
 	return new_node_string(value);
 }
 
-node_idx_t native_system_dir_exists(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_dir_exists(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
@@ -46,7 +46,7 @@ node_idx_t native_system_dir_exists(list_ptr_t env, list_ptr_t args) {
 	return new_node_bool(jo_dir_exists(path.c_str()));
 }
 
-node_idx_t native_system_file_exists(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_file_exists(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
@@ -54,7 +54,7 @@ node_idx_t native_system_file_exists(list_ptr_t env, list_ptr_t args) {
 	return new_node_bool(jo_file_exists(path.c_str()));
 }
 
-node_idx_t native_system_file_size(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_file_size(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
@@ -62,7 +62,7 @@ node_idx_t native_system_file_size(list_ptr_t env, list_ptr_t args) {
 	return new_node_int(jo_file_size(path.c_str()));
 }
 
-node_idx_t native_system_file_readable(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_file_readable(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -70,7 +70,7 @@ node_idx_t native_system_file_readable(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(jo_file_readable(path.c_str()));
 }
 
-node_idx_t native_system_file_writable(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_file_writable(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -78,7 +78,7 @@ node_idx_t native_system_file_writable(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(jo_file_writable(path.c_str()));
 }
 
-node_idx_t native_system_file_executable(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_file_executable(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -86,7 +86,7 @@ node_idx_t native_system_file_executable(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(jo_file_executable(path.c_str()));
 }
 
-node_idx_t native_system_file_empty(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_file_empty(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -94,7 +94,7 @@ node_idx_t native_system_file_empty(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(jo_file_empty(path.c_str()));
 }
 
-node_idx_t native_system_chdir(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_chdir(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
@@ -102,22 +102,22 @@ node_idx_t native_system_chdir(list_ptr_t env, list_ptr_t args) {
 	return new_node_bool(jo_chdir(path.c_str()) == 0);
 }
 
-node_idx_t native_system_getcwd(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_getcwd(list_ptr_t env, list_ptr_t args) {
 	char cwd[256];
 	getcwd(cwd, sizeof(cwd));
 	cwd[sizeof(cwd)-1] = 0;
 	return new_node_string(cwd);
 }
 
-node_idx_t native_system_kbhit(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_kbhit(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(jo_kbhit() != 0);
 }
 
-node_idx_t native_system_getch(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_getch(list_ptr_t env, list_ptr_t args) {
     return new_node_int(jo_getch());
 }
 
-node_idx_t native_system_slurp(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_slurp(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -126,7 +126,7 @@ node_idx_t native_system_slurp(list_ptr_t env, list_ptr_t args) {
     return new_node_string(contents);
 }
 
-node_idx_t native_system_spit(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_spit(list_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -137,7 +137,7 @@ node_idx_t native_system_spit(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(jo_spit_file(path.c_str(), contents_str.c_str()) == 0);
 }
 
-node_idx_t native_system_date(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_date(list_ptr_t env, list_ptr_t args) {
     time_t t = time(NULL);
     struct tm *tm = localtime(&t);
     char buf[256];
@@ -146,13 +146,13 @@ node_idx_t native_system_date(list_ptr_t env, list_ptr_t args) {
 }
 
 // reads a single line from stdin
-node_idx_t native_system_read_line(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_read_line(list_ptr_t env, list_ptr_t args) {
     char line[1024];
     fgets(line, sizeof(line), stdin);
     return new_node_string(line);
 }
 
-node_idx_t native_system_sleep(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_system_sleep(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
