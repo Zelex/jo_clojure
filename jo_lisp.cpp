@@ -2255,10 +2255,7 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("rest", new_node_native_function(&native_rest, false)));
 	env->push_back_inplace(new_node_var("quote", new_node_native_function(&native_quote, true)));
 	env->push_back_inplace(new_node_var("list", new_node_native_function(&native_list, false)));
-	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, true)));
-	env->push_back_inplace(new_node_var("take-next", new_node_native_function(&native_take_next, true)));
 	env->push_back_inplace(new_node_var("take-last", new_node_native_function(&native_take_last, false)));
-	env->push_back_inplace(new_node_var("distinct", new_node_native_function(&native_distinct, false)));
 	env->push_back_inplace(new_node_var("reverse", new_node_native_function(&native_upper_case, false)));
 	env->push_back_inplace(new_node_var("concat", new_node_native_function(&native_concat, false)));
 	env->push_back_inplace(new_node_var("var", new_node_native_function(&native_var, false)));
@@ -2287,19 +2284,10 @@ int main(int argc, char **argv) {
 	env->push_back_inplace(new_node_var("rand-float", new_node_native_function(&native_rand_float, false)));
 	env->push_back_inplace(new_node_var("Time/now", new_node_native_function(&native_time_now, false)));
 	// lazy stuffs
-	env->push_back_inplace(new_node_var("range", new_node_native_function(&native_range, false)));
-	env->push_back_inplace(new_node_var("range-next", new_node_native_function(&native_range_next, false)));
-	env->push_back_inplace(new_node_var("repeat", new_node_native_function(&native_repeat, true)));
-	env->push_back_inplace(new_node_var("repeat-next", new_node_native_function(&native_repeat_next, true)));
-	env->push_back_inplace(new_node_var("concat", new_node_native_function(&native_concat, true)));
-	env->push_back_inplace(new_node_var("concat-next", new_node_native_function(&native_concat_next, true)));
-	env->push_back_inplace(new_node_var("iterate", new_node_native_function(&native_iterate, true)));
-	env->push_back_inplace(new_node_var("iterate-next", new_node_native_function(&native_iterate_next, true)));
-	env->push_back_inplace(new_node_var("map", new_node_native_function(&native_map, true)));
-	env->push_back_inplace(new_node_var("map-next", new_node_native_function(&native_map_next, true)));
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
 	jo_lisp_system_init(env);
+	jo_lisp_lazy_init(env);
 	
 
 	//print_node_list(env, 0);

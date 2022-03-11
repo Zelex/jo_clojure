@@ -342,3 +342,18 @@ node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+void jo_lisp_lazy_init(list_ptr_t env) {
+	env->push_back_inplace(new_node_var("range", new_node_native_function(&native_range, false)));
+	env->push_back_inplace(new_node_var("range-next", new_node_native_function(&native_range_next, false)));
+	env->push_back_inplace(new_node_var("repeat", new_node_native_function(&native_repeat, true)));
+	env->push_back_inplace(new_node_var("repeat-next", new_node_native_function(&native_repeat_next, true)));
+	env->push_back_inplace(new_node_var("concat", new_node_native_function(&native_concat, true)));
+	env->push_back_inplace(new_node_var("concat-next", new_node_native_function(&native_concat_next, true)));
+	env->push_back_inplace(new_node_var("iterate", new_node_native_function(&native_iterate, true)));
+	env->push_back_inplace(new_node_var("iterate-next", new_node_native_function(&native_iterate_next, true)));
+	env->push_back_inplace(new_node_var("map", new_node_native_function(&native_map, true)));
+	env->push_back_inplace(new_node_var("map-next", new_node_native_function(&native_map_next, true)));
+	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, true)));
+	env->push_back_inplace(new_node_var("take-next", new_node_native_function(&native_take_next, true)));
+	env->push_back_inplace(new_node_var("distinct", new_node_native_function(&native_distinct, false)));
+}
