@@ -107,14 +107,8 @@
 (println (reduce + 1 '()))         ;;=> 1
 (println (reduce + 1 '(2 3)))      ;;=> 6
 
-(unless (= (distinct '(1 2 1 3 1 4 1 5)) '(1 2 3 4 5))
-  (println "distinct failed 1"))
-
-(unless (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6))
-  (println "distinct failed 2"))
-
-(unless (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6))
-  (println "distinct failed 3"))
+(unless (= (distinct '(1 2 1 3 1 4 1 5)) '(1 2 3 4 5)) (println "distinct failed 1"))
+(unless (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6)) (println "distinct failed 2"))
 
 (doall (map println (range 1 4)))
 
