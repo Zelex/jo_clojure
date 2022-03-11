@@ -22,7 +22,7 @@
 (defn greet [name] (str "Hello, " name) )
 (println (greet 'students))
 
-(defn closure_test [a] (fn (b) (println a b)))
+(defn closure_test [a] (fn [b] (println a b)))
 (def closure_test2 (closure_test 'Foo))
 (closure_test2 'Bar)
 
@@ -52,7 +52,7 @@
 (println "factorials")
 
 ; defs are not variables, don't do this:
-(defn factorial-using-do-dotimes (n)
+(defn factorial-using-do-dotimes [n]
   (do
     (def a 1)
     (dotimes (i n)
@@ -60,7 +60,7 @@
   a)
 
 ; defs are not variables, don't do this:
-(defn factorial-using-do-while (n)
+(defn factorial-using-do-while [n]
   (do
     (def a 0)
     (def res 1)
