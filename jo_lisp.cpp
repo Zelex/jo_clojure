@@ -1229,8 +1229,7 @@ node_idx_t native_if(list_ptr_t env, list_ptr_t args) {
 }
 
 node_idx_t native_print(list_ptr_t env, list_ptr_t args) {
-	list_t::iterator i = args->begin();
-	for(; i; i++) {
+	for(list_t::iterator i = args->begin(); i; i++) {
 		printf("%s", get_node(*i)->as_string().c_str());
 	}
 	return NIL_NODE;
@@ -1297,8 +1296,7 @@ node_idx_t native_while(list_ptr_t env, list_ptr_t args) {
 	node_idx_t cond = eval_node(env, cond_idx);
 	node_idx_t ret = NIL_NODE;
 	while(get_node(cond)->as_bool()) {
-		list_t::iterator j = i;
-		for(; j; j++) {
+		for(list_t::iterator j = i; j; j++) {
 			ret = eval_node(env, *j);
 		}
 		cond = eval_node(env, cond_idx);
@@ -1408,11 +1406,11 @@ node_idx_t native_defn(list_ptr_t env, list_ptr_t args) {
 }
 
 node_idx_t native_is_nil(list_ptr_t env, list_ptr_t args) {
-	return new_node_bool(args->nth(0) == NIL_NODE);
+	return new_node_bool(args->first_value() == NIL_NODE);
 }
 
 node_idx_t native_inc(list_ptr_t env, list_ptr_t args) {
-	node_t *n1 = get_node(args->nth(0));
+	node_t *n1 = get_node(args->first_value());
 	if(n1->type == NODE_INT) {
 		return new_node_int(n1->t_int + 1);
 	}
@@ -1420,7 +1418,7 @@ node_idx_t native_inc(list_ptr_t env, list_ptr_t args) {
 }
 
 node_idx_t native_dec(list_ptr_t env, list_ptr_t args) {
-	node_t *n1 = get_node(args->nth(0));
+	node_t *n1 = get_node(args->first_value());
 	if(n1->type == NODE_INT) {
 		return new_node_int(n1->t_int - 1);
 	}
@@ -1428,7 +1426,7 @@ node_idx_t native_dec(list_ptr_t env, list_ptr_t args) {
 }
 
 node_idx_t native_rand_int(list_ptr_t env, list_ptr_t args) {
-	return new_node_int(rand() % get_node(args->nth(0))->as_int());
+	return new_node_int(rand() % get_node(args->first_value())->as_int());
 }
 
 node_idx_t native_rand_float(list_ptr_t env, list_ptr_t args) {
