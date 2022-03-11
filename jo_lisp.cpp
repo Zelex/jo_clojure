@@ -465,15 +465,22 @@ token_t get_token(parse_state_t *state) {
 		return tok;
 	}
 	if(c == '\'') {
+		int C = state->getc();
+		if(C == '(') {
+			tok.type = TOK_SEPARATOR;
+			tok.str = "(quote)";
+			debugf("token: %s\n", tok.str.c_str());
+			return tok;
+		}
 		tok.type = TOK_STRING;
 		// string literal of a symbol
 		do {
-			int C = state->getc();
 			if(is_whitespace(C) || is_separator(C) || C == EOF) {
 				state->ungetc(C);
 				break;
 			}
 			tok.str += C;
+			C = state->getc();
 		} while (true);
 		debugf("token: %s\n", tok.str.c_str());
 		return tok;
@@ -612,6 +619,21 @@ node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
 		debugf("symbol: %s\n", tok.str.c_str());
 		return new_node_symbol(tok.str.c_str());
 	} 
+
+	// parse quote shorthand
+	if(tok.type == TOK_SEPARATOR && tok.str == "(quote)") {
+		debugf("list begin\n");
+		node_t n = {NODE_LIST};
+		n.t_list = new_list();
+		n.t_list->push_back_inplace(new_node_symbol("quote"));
+		node_idx_t next = parse_next(state, ')');
+		while(next != NIL_NODE) {
+			n.t_list->push_back_inplace(next);
+			next = parse_next(state, ')');
+		}
+		debugf("list end\n");
+		return new_node(&n);
+	}
 
 	// parse list
 	if(c == '(') {
@@ -924,7 +946,7 @@ static bool node_eq(list_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 				return false;
 			}
 		}
-		return !i1 && !i2;
+		return true;
 	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
 		return n1->t_bool == n2->t_bool;
 	} else if(n1->type == NODE_STRING && n2->type == NODE_STRING) {

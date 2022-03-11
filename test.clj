@@ -42,10 +42,10 @@
 
 ((fn (message) (println message))  "Hello world!")
 
-(apply println (quote 1 2 3 4))    ;; same as  (f 1 2 3 4)
-(apply println 1 (quote 2 3 4))    ;; same as  (f 1 2 3 4)
-(apply println 1 2 (quote 3 4))    ;; same as  (f 1 2 3 4)
-(apply println 1 2 3 (quote 4))    ;; same as  (f 1 2 3 4)
+(apply println '(1 2 3 4))    ;; same as  (f 1 2 3 4)
+(apply println 1 '(2 3 4))    ;; same as  (f 1 2 3 4)
+(apply println 1 2 '(3 4))    ;; same as  (f 1 2 3 4)
+(apply println 1 2 3 '(4))    ;; same as  (f 1 2 3 4)
 
 (println (let (a 1 b 2) (+ a b)))
 
@@ -93,26 +93,34 @@
 (println "reduce         " (factorial-using-reduce 5))
 (println "make           " (fac5))
 (println "eval           " (factorial-using-eval-and-cons 5))
-(println "map            " (apply * (take 4 (map inc (list 1 2 3 4 5)))))
+(println "map            " (apply * (take 4 (map inc '(1 2 3 4 5)))))
 
 (defn padding-right (s width pad) 
   (apply str (take width (concat s (repeat pad)))))
 
 (println "'" (padding-right "Clojure" 10 " ") "'")
 
-(println (reduce + (list 1 2 3 4 5)))  ;;=> 15
-(println (reduce + (list )))           ;;=> 0
-(println (reduce + (list 1)))          ;;=> 1
-(println (reduce + (list 1 2)))        ;;=> 3
-(println (reduce + 1 (list )))         ;;=> 1
-(println (reduce + 1 (list 2 3)))      ;;=> 6
+(println (reduce + '(1 2 3 4 5)))  ;;=> 15
+(println (reduce + '()))           ;;=> 0
+(println (reduce + '(1)))          ;;=> 1
+(println (reduce + '(1 2)))        ;;=> 3
+(println (reduce + 1 '()))         ;;=> 1
+(println (reduce + 1 '(2 3)))      ;;=> 6
 
-(unless (= (distinct (list 1 2 1 3 1 4 1 5)) (list 1 2 3 4 5))
-  (println "distinct failed"))
+(unless (= (distinct '(1 2 1 3 1 4 1 5)) '(1 2 3 4 5))
+  (println "distinct failed 1"))
+
+(unless (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6))
+  (println "distinct failed 2"))
+
+(unless (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6))
+  (println "distinct failed 3"))
 
 (doall (map println (range 1 4)))
 
 (println "end")
 
+
 ;(while (not (System/kbhit)) (System/sleep 0.1))
+;(doall (range 1 6))
 
