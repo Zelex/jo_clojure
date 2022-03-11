@@ -70,20 +70,20 @@
       res)
 )
 
-(defn factorial-using-apply-range (n)
+(defn factorial-using-apply-range [n]
   (apply * (take n (range 2 (inc n)))))
 
-(defn factorial-using-apply-iterate (n)
+(defn factorial-using-apply-iterate [n]
   (apply * (take n (iterate inc 1))))
 
-(defn factorial-using-reduce (n)
+(defn factorial-using-reduce [n]
   (reduce * (range 1 (inc n))))
 
-(defn make-fac-function (n)
+(defn make-fac-function [n]
   (fn () (reduce * (range 1 (inc n)))))
 (def fac5 (make-fac-function 5))
 
-(defn factorial-using-eval-and-cons (n)
+(defn factorial-using-eval-and-cons [n]
   (eval (cons '* (range 1 (inc n)))))
 
 (println "do-times       " (factorial-using-do-dotimes 5))
@@ -95,7 +95,7 @@
 (println "eval           " (factorial-using-eval-and-cons 5))
 (println "map            " (apply * (take 4 (map inc '(1 2 3 4 5)))))
 
-(defn padding-right (s width pad) 
+(defn padding-right [s width pad] 
   (apply str (take width (concat s (repeat pad)))))
 
 (println "'" (padding-right "Clojure" 10 " ") "'")
