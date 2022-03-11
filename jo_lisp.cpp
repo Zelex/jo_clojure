@@ -649,6 +649,20 @@ node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
 		return new_node(&n);
 	}
 
+	// parse vector
+	if(c == '[') {
+		debugf("list begin\n");
+		node_t n = {NODE_LIST};
+		n.t_list = new_list(); // TODO: actually vector pls
+		node_idx_t next = parse_next(state, ']');
+		while(next != NIL_NODE) {
+			n.t_list->push_back_inplace(next);
+			next = parse_next(state, ']');
+		}
+		debugf("list end\n");
+		return new_node(&n);
+	}
+
 	// parse map
 
 	// parse set

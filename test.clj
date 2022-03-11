@@ -13,22 +13,22 @@
 (println x)
 (def x 5)
 (println x)
-(defn y (a b) (println a b) 2)
+(defn y [a b] (println a b) 2)
 (y 'Hello 'Jon)
 
-(def z (fn (a b) (println a b) 3))
+(def z (fn [a b] (println a b) 3))
 (z "Here's " 'Johny)
 
-(defn greet  (name)  (str "Hello, " name) )
+(defn greet [name] (str "Hello, " name) )
 (println (greet 'students))
 
-(defn closure_test (a) (fn (b) (println a b)))
+(defn closure_test [a] (fn (b) (println a b)))
 (def closure_test2 (closure_test 'Foo))
 (closure_test2 'Bar)
 
-(defn pow (x n) (apply * (repeat n x)))
-(defn sq (y) (pow y 2))
-(defn qb (y) (pow y 3))
+(defn pow [x n] (apply * (repeat n x)))
+(defn sq [y] (pow y 2))
+(defn qb [y] (pow y 3))
 
 (println (sq 2))
 (println (qb 2))
