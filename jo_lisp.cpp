@@ -310,7 +310,7 @@ static node_idx_t env_get(list_ptr_t env, const jo_string &name) {
 	return get_node(idx)->t_var;
 }
 
-bool env_has(list_ptr_t env, const jo_string &name) {
+static bool env_has(list_ptr_t env, const jo_string &name) {
 	return env_find(env, name) != NIL_NODE;
 }
 

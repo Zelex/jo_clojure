@@ -1012,6 +1012,129 @@ T *jo_upper_bound(T *begin, T *end, T &needle) {
     return begin + first;
 }
 
+#ifdef _MSC_VER
+#include <mutex>
+#define jo_mutex std::mutex
+#else
+#include <pthread.h>
+class jo_mutex {
+    pthread_mutex_t mutex;
+public:
+    jo_mutex() { pthread_mutex_init(&mutex, nullptr); }
+    ~jo_mutex() { pthread_mutex_destroy(&mutex); }
+    void lock() { pthread_mutex_lock(&mutex); }
+    void unlock() { pthread_mutex_unlock(&mutex); }
+};
+#endif
+
+class jo_lock_guard {
+    jo_mutex& mutex;
+public:
+    jo_lock_guard(jo_mutex& mutex) : mutex(mutex) { mutex.lock(); }
+    ~jo_lock_guard() { mutex.unlock(); }
+};
+
+// Maintains a linked list of blocks of objects which can be allocated from
+// and deallocated to.
+// Allocates single objects from blocks of 32 objects. Only frees memory when an entire block is free.
+template<typename T>
+struct jo_pool_alloc {
+    struct block_item {
+        // This points to the current block, can be looked up on deallocate
+        struct block *b;
+        T t;
+    };
+    struct block {
+        block *next;
+        block *prev;
+        block_item items[32];
+        int count;
+    };
+
+    block *first;
+    block *last;
+    size_t count;
+    size_t capacity;
+    jo_mutex mutex;
+
+    jo_pool_alloc() : first(0), last(0), count(0), capacity(0), mutex() {}
+
+    ~jo_pool_alloc() {
+        jo_lock_guard lock(mutex);
+        block *ptr = first;
+        while(ptr) {
+            block *next = ptr->next;
+            free(ptr);
+            ptr = next;
+        }
+    }
+
+    T *allocate() {
+        jo_lock_guard lock(mutex);
+        if(!first) {
+            first = (block *)malloc(sizeof(block));
+            first->next = 0;
+            first->prev = 0;
+            first->count = 0;
+            last = first;
+            capacity = 32;
+        }
+        if(last->count == 32) {
+            last->next = (block *)malloc(sizeof(block));
+            last->next->prev = last;
+            last->next->next = 0;
+            last->next->count = 0;
+            last = last->next;
+            capacity += 32;
+        }
+        last->items[last->count].b = last;
+        T *ptr = &last->items[last->count].t;
+        last->count++;
+        count++;
+        return ptr;
+    }
+
+    void deallocate(T *ptr) {
+        jo_lock_guard lock(mutex);
+        block_item *item = (block_item *)(ptr - offsetof(block_item, t));
+        block *b = item->b;
+        b->count--;
+        count--;
+        if(b->count == 0) {
+            if(b->prev) {
+                b->prev->next = b->next;
+            } else {
+                first = b->next;
+            }
+            if(b->next) {
+                b->next->prev = b->prev;
+            } else {
+                last = b->prev;
+            }
+            free(b);
+            capacity -= 32;
+        }
+    }
+
+    size_t size() {
+        return count;
+    }
+
+    void clear() {
+        jo_lock_guard lock(mutex);
+        block *ptr = first;
+        while(ptr) {
+            block *next = ptr->next;
+            free(ptr);
+            ptr = next;
+        }
+        first = 0;
+        last = 0;
+        count = 0;
+        capacity = 0;
+    }
+};
+
 template<typename T>
 class jo_set {
     T *ptr;
@@ -1790,29 +1913,6 @@ struct jo_stable_sort {
     static void merge(T *array, int size) {
         merge(array, size, 0, size);
     }
-};
-
-
-#ifdef _MSC_VER
-#include <mutex>
-#define jo_mutex std::mutex
-#else
-#include <pthread.h>
-class jo_mutex {
-    pthread_mutex_t mutex;
-public:
-    jo_mutex() { pthread_mutex_init(&mutex, nullptr); }
-    ~jo_mutex() { pthread_mutex_destroy(&mutex); }
-    void lock() { pthread_mutex_lock(&mutex); }
-    void unlock() { pthread_mutex_unlock(&mutex); }
-};
-#endif
-
-class jo_lock_guard {
-    jo_mutex& mutex;
-public:
-    jo_lock_guard(jo_mutex& mutex) : mutex(mutex) { mutex.lock(); }
-    ~jo_lock_guard() { mutex.unlock(); }
 };
 
 template<typename T> 
