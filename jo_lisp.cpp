@@ -41,7 +41,7 @@ enum {
 
 typedef int node_idx_t;
 typedef jo_string sym_t;
-typedef jo_persistent_list<node_idx_t> list_t; // TODO: make node_t
+typedef jo_persistent_vector<node_idx_t> list_t; // TODO: make node_t
 typedef jo_shared_ptr<list_t> list_ptr_t;
 
 typedef node_idx_t (*native_function_t)(list_ptr_t env, list_ptr_t args);
@@ -833,7 +833,7 @@ struct seq_iterator_t {
 	node_idx_t cur;
 	node_idx_t val;
 	list_t::iterator it;
-	seq_iterator_t(list_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), it(NULL) {
+	seq_iterator_t(list_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), it() {
 		type = get_node_type(cur);
 		if(type == NODE_LIST) {
 			it = get_node(cur)->as_list()->begin();
@@ -2177,6 +2177,29 @@ int main(int argc, char **argv) {
 	if(argc <= 1) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
 		return 1;
+	}
+
+	if(0) {
+		// test persistent vectors
+		jo_persistent_vector<int> *pv = new jo_persistent_vector<int>();
+		for(int i = 0; i < 100; i++) {
+			pv->push_back_inplace(i);
+		}
+		for(int i = 0; i < 100; i++) {
+			int n = pv->nth(i);
+			printf("%d\n", n);
+		}
+		// test iterators
+		jo_persistent_vector<int>::iterator it = pv->begin();
+		for(; it; it++) {
+			printf("%d\n", *it);
+		}
+
+		delete pv;
+
+		printf("\n");
+		// test persistent vectors
+
 	}
 
 	// new_node_func(new_node_list(new_node_symbol("print")), new_node_list(new_node_symbol("quote"))))
