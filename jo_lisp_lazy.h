@@ -306,7 +306,7 @@ static node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
 // Returns a lazy sequence of the elements of coll with duplicates removed.
 // Returns a stateful transducer when no collection is provided.
 static node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
-	// TODO: lazy
+	// TODO: lazy? How is that a good idea for distinct? I think it's a bad idea.
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);

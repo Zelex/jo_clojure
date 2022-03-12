@@ -976,24 +976,19 @@ static bool node_lte(list_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 
 // native function to add any number of arguments
 static node_idx_t native_add(list_ptr_t env, list_ptr_t args) { 
-	int i_sum = 0;
-	double d_sum = 0.0;
-	bool is_int = true;
-
-	for(list_t::iterator i = args->begin(); i; i++) {
-		node_t *n = get_node(*i);
+	int i = 0;
+	double d = 0.0;
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_t *n = get_node(*it);
 		if(n->type == NODE_INT) {
-			i_sum += n->t_int;
+			i += n->t_int;
+		} else if(n->type == NODE_FLOAT) {
+			d += n->t_float;
 		} else {
-			d_sum += n->as_float();
-			is_int = false;
+			d += n->as_float();
 		}
 	}
-
-	if(is_int) {
-		return new_node_int(i_sum);
-	}
-	return new_node_float(d_sum + i_sum);
+	return d == 0.0 ? i : d+i;
 }
 
 // subtract any number of arguments from the first argument
@@ -1042,25 +1037,26 @@ static node_idx_t native_sub(list_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_mul(list_ptr_t env, list_ptr_t args) {
-	int i_sum = 1;
-	double d_sum = 1.0;
+	int i = 1;
+	double d = 1.0;
 	bool is_int = true;
 
 	if(args->size() == 0) {
 		return new_node_int(0); // TODO: common enough should be a static constant
 	}
 
-	for(list_t::iterator i = args->begin(); i; i++) {
-		node_t *n = get_node(*i);
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_t *n = get_node(*it);
 		if(n->type == NODE_INT) {
-			i_sum *= n->t_int;
+			i *= n->t_int;
+		} else if(n->type == NODE_FLOAT) {
+			d *= n->t_float;
 		} else {
-			d_sum *= n->as_float();
-			is_int = false;
+			d *= n->as_float();
 		}
 	}
 
-	return is_int ? new_node_int(i_sum) : new_node_float(d_sum * i_sum);
+	return d == 1.0 ? new_node_int(i) : new_node_float(d * i);
 }
 
 // divide any number of arguments from the first argument
@@ -1179,7 +1175,6 @@ static node_idx_t native_if(list_ptr_t env, list_ptr_t args) {
 	if(args->size() != 3) {
 		return NIL_NODE;
 	}
-
 	list_t::iterator i = args->begin();
 	node_idx_t cond = eval_node(env, *i++);
 	node_idx_t when_true = *i++, when_false = *i++;
