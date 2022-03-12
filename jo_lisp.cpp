@@ -41,7 +41,7 @@ enum {
 
 typedef int node_idx_t;
 typedef jo_string sym_t;
-typedef jo_persistent_vector<node_idx_t> list_t; // TODO: make node_t
+typedef jo_persistent_list<node_idx_t> list_t; // TODO: make node_t
 typedef jo_shared_ptr<list_t> list_ptr_t;
 
 typedef node_idx_t (*native_function_t)(list_ptr_t env, list_ptr_t args);
