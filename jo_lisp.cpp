@@ -42,6 +42,7 @@ enum {
 typedef int node_idx_t;
 typedef jo_string sym_t;
 typedef jo_persistent_list<node_idx_t> list_t; // TODO: make node_t
+//typedef jo_persistent_vector_bidirectional<node_idx_t> list_t; // TODO: make node_t
 typedef jo_shared_ptr<list_t> list_ptr_t;
 
 typedef node_idx_t (*native_function_t)(list_ptr_t env, list_ptr_t args);
@@ -629,7 +630,7 @@ static node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 			sym_idx = env_get(env, get_node(n1i)->t_string);
 		}
 		int sym_type = get_node_type(sym_idx);
-		auto sym_flags = get_node(sym_idx)->flags;
+		int sym_flags = get_node(sym_idx)->flags;
 
 		// get the symbol's value
 		if(sym_type == NODE_NATIVE_FUNCTION) {
@@ -667,8 +668,6 @@ static node_idx_t eval_list(list_ptr_t env, list_ptr_t list) {
 					fn_env = fn_env->cons(var);
 				}
 			}
-			
-			//print_node_list(fn_env, 0);
 			
 			// Evaluate all statements in the body list
 			node_idx_t last = NIL_NODE;
@@ -1854,7 +1853,6 @@ static node_idx_t native_apply(list_ptr_t env, list_ptr_t args) {
 		node_t *arg = get_node(arg_idx);
 		if(arg->is_list()) {
 			arg_list = arg_list->conj(*arg->as_list().ptr);
-			//print_node_list(arg_list);
 		} else if(arg->is_lazy_list()) {
 			for(lazy_list_iterator_t lit(env, arg_idx); !lit.done(); lit.next()) {
 				arg_list->push_back_inplace(lit.val);
@@ -2182,17 +2180,18 @@ int main(int argc, char **argv) {
 	if(0) {
 		// test persistent vectors
 		jo_persistent_vector<int> *pv = new jo_persistent_vector<int>();
-		for(int i = 0; i < 100; i++) {
-			pv->push_back_inplace(i);
-		}
-		for(int i = 0; i < 100; i++) {
-			int n = pv->nth(i);
-			printf("%d\n", n);
-		}
+		for(int i = 0; i < 100; i++) { pv->push_back_inplace(i); }
+		for(int i = 0; i < 33; i++) { pv->pop_front_inplace(); }
+		for(int i = 0; i < 10; i++) { pv->pop_back_inplace(); }
+
 		// test iterators
 		jo_persistent_vector<int>::iterator it = pv->begin();
-		for(; it; it++) {
-			printf("%d\n", *it);
+		for(int i = 0; it; it++, ++i) {
+			if(*it != 33 + i) {
+				fprintf(stderr, "iterator test failed\n");
+				return 1;
+			}
+			//printf("%d\n", *it);
 		}
 
 		delete pv;
@@ -2202,7 +2201,23 @@ int main(int argc, char **argv) {
 
 	}
 
-	// new_node_func(new_node_list(new_node_symbol("print")), new_node_list(new_node_symbol("quote"))))
+	if(0) {
+		// test bidirectional persistent vectors
+		jo_persistent_vector_bidirectional<int> *pv = new jo_persistent_vector_bidirectional<int>();
+		for(int i = 0; i < 10; i++) { pv->push_front_inplace(-i); }
+		for(int i = 0; i < 1; i++) { pv->push_back_inplace(i); }
+		//for(int i = 0; i < 1; i++) { pv->pop_front_inplace(); }
+		for(int i = 0; i < 3; i++) { pv->pop_back_inplace(); }
+		for(int i = 0; i < 3; i++) { pv->push_back_inplace(i); }
+		//for(int i = 0; i < 1; i++) { pv->push_front_inplace(-i); }
+		jo_persistent_vector_bidirectional<int>::iterator it = pv->begin();
+		for(; it; it++) {
+			printf("%d\n", *it);
+		}
+		delete pv;
+		printf("\n");
+		exit(0);
+	}
 
 	list_ptr_t env = new_list();
 	env->push_back_inplace(new_node_var("nil", new_node(NODE_NIL)));
@@ -2287,9 +2302,6 @@ int main(int argc, char **argv) {
 	jo_lisp_system_init(env);
 	jo_lisp_lazy_init(env);
 	
-
-	//print_node_list(env, 0);
-
 	FILE *fp = fopen(argv[1], "r");
 	if(!fp) {
 		return 0;
@@ -2308,12 +2320,8 @@ int main(int argc, char **argv) {
 	}
 	fclose(fp);
 
-	//print_node_list(main_list, 0);
-
 	node_idx_t res_idx = eval_node_list(env, main_list);
 	print_node(res_idx, 0);
-
-	//print_node(root_idx, 0);
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());

@@ -2330,7 +2330,7 @@ struct jo_persistent_vector
     }
 
     void append_tail() {
-        size_t tail_offset = length - tail_length;
+        size_t tail_offset = length + head_offset - tail_length;
         size_t shift = 5 * (depth + 1);
         size_t max_size = 1 << (5 * shift);
 
@@ -2351,7 +2351,7 @@ struct jo_persistent_vector
         size_t index = 0;
         size_t key = tail_offset;
         for(size_t level = shift; level > 0; level -= 5) {
-            index = (key >> level) & 0x1f;
+            index = (key >> level) & 31;
             cur = prev->children[index];
             // we are at the end of our tree, insert tail node
             if(!cur && level - 5 == 0) {
@@ -2403,9 +2403,9 @@ struct jo_persistent_vector
         index += head_offset;
 
         int shift = 5 * depth;
-        size_t tail_offset = length - tail_length;
+        size_t tail_offset = length + head_offset - tail_length;
 
-        if(index >= length) {
+        if(index >= length + head_offset) {
             return append(value);
         }
 
@@ -2424,13 +2424,13 @@ struct jo_persistent_vector
         jo_shared_ptr<node> prev = copy->head;
         size_t key = index;
         for (int level = shift; level > 0; level -= 5) {
-            size_t index = (key >> level) & 0x1f;
+            size_t i = (key >> level) & 31;
             // copy nodes as we traverse
-            cur = new node(prev->children[index]);
-            prev->children[index] = cur;
+            cur = new node(prev->children[i]);
+            prev->children[i] = cur;
             prev = cur;
         }
-        prev->elements[key & 0x1f] = value;
+        prev->elements[key & 31] = value;
 
         // if we modified the tail, set it
         if(index >= tail_offset) {
@@ -2438,6 +2438,44 @@ struct jo_persistent_vector
         }
 
         return copy;
+    }
+
+    jo_persistent_vector *assoc_inplace(size_t index, const T &value) {
+        index += head_offset;
+
+        int shift = 5 * depth;
+        size_t tail_offset = length + head_offset - tail_length;
+
+        if(index >= length + head_offset) {
+            return append_inplace(value);
+        }
+
+        // traverse duplicating the way down.
+        if(shift == 0) {
+            head = new node(head);
+            head->elements[index] = value;
+            tail = head;
+            return this;
+        }
+
+        jo_shared_ptr<node> cur = NULL;
+        jo_shared_ptr<node> prev = head;
+        size_t key = index;
+        for (int level = shift; level > 0; level -= 5) {
+            size_t i = (key >> level) & 31;
+            // copy nodes as we traverse
+            cur = new node(prev->children[i]);
+            prev->children[i] = cur;
+            prev = cur;
+        }
+        prev->elements[key & 31] = value;
+
+        // if we modified the tail, set it
+        if(index >= tail_offset) {
+            tail = prev;
+        }
+
+        return this;
     }
 
     jo_persistent_vector *set(size_t index, const T &value) const {
@@ -2484,16 +2522,33 @@ struct jo_persistent_vector
     jo_persistent_vector *push_back_inplace(const T &value) {
         return append_inplace(value);
     }
+
+    jo_persistent_vector *push_front(const T &value) const {
+        assert(head_offset > 0);
+        jo_persistent_vector *copy = new jo_persistent_vector(*this);
+        copy->head_offset--;
+        copy->length++;
+        copy->assoc_inplace(0, value);
+        return copy;
+    }
+
+    jo_persistent_vector *push_front_inplace(const T &value) {
+        assert(head_offset > 0);
+        head_offset--;
+        length++;
+        assoc_inplace(0, value);
+        return this;
+    }
     
     jo_persistent_vector *pop_back() const {
         size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length - tail_length;
+        size_t tail_offset = length + head_offset - tail_length;
 
         // Create a copy of our root node from which we will base our append
         jo_persistent_vector *copy = new jo_persistent_vector(*this);
 
         // Is it in the tail?
-        if(length == tail_offset) {
+        if(length + head_offset == tail_offset) {
             // copy the tail (since we are changing the data)
             copy->tail = new node(*copy->tail);
             copy->tail_length--;
@@ -2504,7 +2559,7 @@ struct jo_persistent_vector
         // traverse duplicating the way down.
         jo_shared_ptr<node> cur = NULL;
         jo_shared_ptr<node> prev = copy->head;
-        size_t key = length - 1;
+        size_t key = length + head_offset - 1;
         for (size_t level = shift; level > 0; level -= 5) {
             size_t index = (key >> level) & 0x1f;
             // copy nodes as we traverse
@@ -2519,11 +2574,15 @@ struct jo_persistent_vector
     }
 
     jo_persistent_vector *pop_back_inplace() {
+        if(length == 0) {
+            return this;
+        }
+
         size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length - tail_length;
+        size_t tail_offset = length + head_offset - tail_length;
 
         // Is it in the tail?
-        if(length == tail_offset) {
+        if(length + head_offset == tail_offset) {
             // copy the tail (since we are changing the data)
             tail = new node(*tail);
             tail_length--;
@@ -2534,7 +2593,7 @@ struct jo_persistent_vector
         // traverse duplicating the way down.
         jo_shared_ptr<node> cur = NULL;
         jo_shared_ptr<node> prev = head;
-        size_t key = length - 1;
+        size_t key = length + head_offset - 1;
         for (size_t level = shift; level > 0; level -= 5) {
             size_t index = (key >> level) & 0x1f;
             // copy nodes as we traverse
@@ -2542,7 +2601,7 @@ struct jo_persistent_vector
             prev->children[index] = cur;
             prev = cur;
         }
-        prev->elements[key & 0x1f] = T();
+        prev->elements[key & 31] = T();
         tail_length--;
         length--;
         return this;
@@ -2551,11 +2610,13 @@ struct jo_persistent_vector
     jo_persistent_vector *pop_front() const {
         jo_persistent_vector *copy = new jo_persistent_vector(*this);
         copy->head_offset++;
+        copy->length--;
         return copy;
     }
 
     jo_persistent_vector *pop_front_inplace() {
         head_offset++;
+        length--;
         return this;
     }
 
@@ -2570,6 +2631,7 @@ struct jo_persistent_vector
     jo_persistent_vector *drop(size_t n) const {
         jo_persistent_vector *copy = new jo_persistent_vector(*this);
         copy->head_offset += n;
+        copy->length -= n;
         return copy;
     }
 
@@ -2577,7 +2639,7 @@ struct jo_persistent_vector
         index += head_offset;
 
         size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length - tail_length;
+        size_t tail_offset = length + head_offset - tail_length;
 
         // Is it in the tail?
         if(index >= tail_offset) {
@@ -2603,7 +2665,7 @@ struct jo_persistent_vector
         index += head_offset;
 
         size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length - tail_length;
+        size_t tail_offset = length + head_offset - tail_length;
 
         // Is it in the tail?
         if(index >= tail_offset) {
@@ -2627,17 +2689,15 @@ struct jo_persistent_vector
     }
 
     T &nth(size_t index) {
-        index += head_offset;
         return (*this)[index];
     }
 
     const T &nth(size_t index) const {
-        index += head_offset;
         return (*this)[index];
     }
 
     size_t size() const {
-        return length - head_offset;
+        return length;
     }
 
     jo_persistent_vector *clear() {
@@ -2658,7 +2718,7 @@ struct jo_persistent_vector
 
     size_t find(const T &value) const {
         size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length - tail_length;
+        size_t tail_offset = length + head_offset - tail_length;
 
         // Is it in the tail?
         if(tail_length > 0) {
@@ -2697,7 +2757,7 @@ struct jo_persistent_vector
     template<typename F>
     size_t find(const F &f) const {
         size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length - tail_length;
+        size_t tail_offset = length + head_offset - tail_length;
 
         // Is it in the tail?
         if(tail_length > 0) {
@@ -2817,6 +2877,334 @@ struct jo_persistent_vector
 
     T &last_value() {
         return back();
+    }
+};
+
+// A persistent vector class which is fast to both push to front and back
+template<typename T>
+struct jo_persistent_vector_bidirectional {
+    jo_persistent_vector<T> positive;
+    jo_persistent_vector<T> negative;
+
+    jo_persistent_vector_bidirectional() {}
+
+    jo_persistent_vector_bidirectional(const jo_persistent_vector<T> &positive, const jo_persistent_vector<T> &negative) :
+        positive(positive), negative(negative) {}
+
+    jo_persistent_vector_bidirectional(const jo_persistent_vector_bidirectional &other) :
+        positive(other.positive), negative(other.negative) {}
+
+    jo_persistent_vector_bidirectional &operator=(const jo_persistent_vector_bidirectional &other) {
+        positive = other.positive;
+        negative = other.negative;
+        return *this;
+    }
+
+    size_t size() const {
+        return positive.size() + negative.size();
+    }
+
+    jo_persistent_vector_bidirectional *push_back(const T &value) {
+        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
+        if(copy->positive.length > 0) {
+            copy->positive.push_back(value);
+        } else if(copy->negative.head_offset > 0) {
+            copy->negative = copy->negative.push_front(value);
+        } else {
+            copy->positive = copy->positive.push_back(value);
+        }
+        return copy;
+    }
+
+    jo_persistent_vector_bidirectional *push_back_inplace(const T &value) {
+        if(positive.length > 0) {
+            positive.push_back_inplace(value);
+        } else if(negative.head_offset > 0) {
+            negative.push_front_inplace(value);
+        } else {
+            positive.push_back_inplace(value);
+        }
+        return this;
+    }
+
+    jo_persistent_vector_bidirectional *push_front(const T &value) const {
+        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
+        if(copy->negative.length > 0) {
+            copy->negative.push_back_inplace(value);
+        } else if(copy->positive.head_offset > 0) {
+            copy->positive.push_front_inplace(value);
+        } else {
+            copy->negative.push_back_inplace(value);
+        }
+        return copy;
+    }
+
+    jo_persistent_vector_bidirectional *push_front_inplace(const T &value) {
+        if(negative.length > 0) {
+            negative.push_back_inplace(value);
+        } else if(positive.head_offset > 0) {
+            positive.push_front_inplace(value);
+        } else {
+            negative.push_back_inplace(value);
+        }
+        return this;
+    }
+
+    jo_persistent_vector_bidirectional *pop_front() const {
+        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
+        if(copy->negative.length > 0) {
+            copy->negative.pop_back_inplace();
+        } else {
+            copy->positive.pop_front_inplace();
+        }
+        return copy;
+    }
+
+    jo_persistent_vector_bidirectional *pop_front_inplace() {
+        if(negative.length > 0) {
+            negative.pop_back_inplace();
+        } else {
+            positive.pop_front_inplace();
+        }
+        return this;
+    }
+
+    jo_persistent_vector_bidirectional *pop_back() const {
+        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
+        if(copy->positive.length > 0) {
+            copy->positive = copy->positive.pop_back();
+        } else {
+            copy->negative = copy->negative.pop_front();
+        }
+        return copy;
+    }
+
+    jo_persistent_vector_bidirectional *pop_back_inplace() {
+        if(positive.length > 0) {
+            positive.pop_back_inplace();
+        } else {
+            negative.pop_front_inplace();
+        }
+        return this;
+    }
+
+    T &back() {
+        if(positive.length > 0) {
+            return positive.back();
+        } else {
+            return negative.front();
+        }
+    }
+
+    const T &back() const {
+        if(positive.length > 0) {
+            return positive.back();
+        } else {
+            return negative.front();
+        }
+    }
+
+    T &front() {
+        if(positive.length > 0) {
+            return positive.front();
+        } else {
+            return negative.back();
+        }
+    }
+
+    const T &front() const {
+        if(positive.length > 0) {
+            return positive.front();
+        } else {
+            return negative.back();
+        }
+    }
+
+    T &first_value() {
+        return front();
+    }
+
+    T &last_value() {
+        return back();
+    }
+
+    jo_persistent_vector<T> *to_vector() {
+        jo_persistent_vector<T> *vec = new jo_persistent_vector<T>();
+        for(jo_persistent_vector_bidirectional::iterator it = begin(); it; ++it) {
+            vec->push_back_inplace(*it);
+        }
+        return vec;
+    }
+
+    T &operator[](size_t index) {
+        if(index < negative.length) {
+            return negative[negative.length - index - 1];
+        } else {
+            return positive[index - negative.length];
+        }
+    }
+
+    const T &operator[](size_t index) const {
+        if(index < negative.length) {
+            return negative[negative.length - index - 1];
+        } else {
+            return positive[index - negative.length];
+        }
+    }
+
+    T &nth(size_t index) {
+        return (*this)[index];
+    }
+
+    const T &nth(size_t index) const {
+        return (*this)[index];
+    }
+
+    jo_persistent_vector_bidirectional *copy() const {
+        return new jo_persistent_vector_bidirectional(*this);
+    }
+
+    jo_persistent_vector_bidirectional *cons(const T &value) const {
+        return push_front(value);
+    }
+
+    jo_persistent_vector_bidirectional *cons_inplace(const T &value) {
+        return push_front_inplace(value);
+    }
+
+    jo_persistent_vector_bidirectional *rest() const {
+        return pop_front();
+    }
+
+    jo_persistent_vector_bidirectional *pop() const {
+        return pop_front();
+    }
+
+    jo_persistent_vector_bidirectional *drop(size_t n) const {
+        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
+        for(size_t i = 0; i < n; ++i) {
+            copy = copy->pop_front();
+        }
+        return copy;
+    }
+
+    jo_persistent_vector_bidirectional *conj(const jo_persistent_vector_bidirectional &other) const {
+        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
+        for(jo_persistent_vector_bidirectional::iterator it = other.begin(); it; ++it) {
+            copy->push_back_inplace(*it);
+        }
+        return copy;
+    }
+
+    jo_persistent_vector_bidirectional *conj_inplace(const jo_persistent_vector_bidirectional &other) {
+        for(jo_persistent_vector_bidirectional::iterator it = other.begin(); it; ++it) {
+            push_back_inplace(*it);
+        }
+        return this;
+    }
+
+    // subvec (this could be faster)
+    jo_persistent_vector_bidirectional *subvec(size_t start, size_t end) const {
+        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional();
+        for(size_t i = start; i < end; ++i) {
+            copy->push_back_inplace((*this)[i]);
+        }
+        return copy;
+    }
+
+    // reverse
+    jo_persistent_vector_bidirectional *reverse() const {
+        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional();
+        for(jo_persistent_vector_bidirectional::iterator it = begin(); it; ++it) {
+            copy->push_front_inplace(*it);
+        }
+        return copy;
+    }
+
+    // clone
+    jo_persistent_vector_bidirectional *clone() const {
+        return copy();
+    }
+
+    class iterator {
+    public:
+        iterator() : vec(NULL), index(0) {}
+        iterator(const jo_persistent_vector_bidirectional *vec, size_t index) : vec(vec), index(index) {}
+        iterator(const iterator &other) : vec(other.vec), index(other.index) {}
+        iterator &operator++() {
+            ++index;
+            return *this;
+        }
+        iterator &operator--() {
+            --index;
+            return *this;
+        }
+        iterator operator++(int) {
+            iterator copy(*this);
+            ++index;
+            return copy;
+        }
+        iterator operator--(int) {
+            iterator copy(*this);
+            --index;
+            return copy;
+        }
+        bool operator==(const iterator &other) const {
+            return vec == other.vec && index == other.index;
+        }
+        bool operator!=(const iterator &other) const {
+            return vec != other.vec || index != other.index;
+        }
+        operator bool() const {
+            return index < vec->size();
+        }
+        const T &operator*() const {
+            return (*vec)[index];
+        }
+        const T *operator->() const {
+            return &(*vec)[index];
+        }
+    private:
+        const jo_persistent_vector_bidirectional *vec;
+        size_t index;
+    };
+
+    iterator begin() const {
+        return iterator(this, 0);
+    }
+
+    iterator end() const {
+        return iterator(this, size());
+    }
+
+    jo_persistent_vector_bidirectional::iterator find(const T &value) const {
+        for(int i = 0; i < size(); ++i) {
+            if(operator[](i) == value) {
+                return iterator(this, i);
+            }
+        }
+        return iterator(this, size());
+    }
+
+    // find with lambda for comparison
+    template<typename F>
+    jo_persistent_vector_bidirectional::iterator find(const F &f) const {
+        for(int i = 0; i < size(); ++i) {
+            if(f(operator[](i))) {
+                return iterator(this, i);
+            }
+        }
+        return iterator(this, size());
+    }
+
+    bool contains(const T &value) const {
+        return find(value) != end();
+    }
+
+    // contains with lambda for comparison
+    template<typename F>
+    bool contains(const F &f) const {
+        return find(f) != end();
     }
 };
 
