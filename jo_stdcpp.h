@@ -703,7 +703,7 @@ template<typename T> static inline T jo_min(T a, T b) { return a < b ? a : b; }
 template<typename T> static inline T jo_max(T a, T b) { return a > b ? a : b; }
 
 #if !defined(__PLACEMENT_NEW_INLINE) && !defined(_MSC_VER)
-inline void *operator new(size_t, void *p) { return p; }
+//inline void *operator new(size_t, void *p) { return p; }
 #endif
 
 template<typename T>
@@ -1342,6 +1342,7 @@ class jo_map {
             root_size--;
         }
     }
+
     Node *find(Node *root, const Key &key) const {
         if(!root) return nullptr;
         if(cmp(key, root->key)) {
@@ -1446,11 +1447,10 @@ public:
         swap(cmp, other.cmp);
     }
 
-    class iterator {
+    struct iterator {
         Node *node;
         jo_map<Key, Value> *map;
         iterator(Node *node, jo_map<Key, Value> *map) : node(node), map(map) {}
-    public:
         iterator() : node(nullptr), map(nullptr) {}
         iterator(const iterator &other) : node(other.node), map(other.map) {}
         iterator &operator=(const iterator &other) {
@@ -3402,6 +3402,35 @@ struct jo_persistent_list {
         return copy;
     }
 
+    jo_persistent_list *erase_node(jo_shared_ptr<node> at) const {
+        jo_persistent_list *copy = new jo_persistent_list();
+        jo_shared_ptr<node> cur = head;
+        jo_shared_ptr<node> cur_copy = NULL;
+        jo_shared_ptr<node> prev = NULL;
+        while(cur && cur != at) {
+            cur_copy = new node(cur->value, NULL);
+            if(prev) {
+                prev->next = cur_copy;
+            } else {
+                copy->head = cur_copy;
+            }
+            prev = cur_copy;
+            cur = cur->next;
+        }
+        if(cur) {
+            if(prev) {
+                prev->next = cur->next;
+            } else {
+                copy->head = cur->next;
+            }
+            copy->tail = tail;
+        } else {
+            copy->tail = prev;
+        }
+        copy->length = length-1;
+        return copy;
+    }
+
     // pop off value from front
     jo_persistent_list *pop() const {
         jo_persistent_list *copy = new jo_persistent_list(*this);
@@ -3494,6 +3523,25 @@ struct jo_persistent_list {
         return this;
     }
 
+    // push_front inplace
+    jo_persistent_list *push_front_inplace(const T &value) {
+        if(!head) {
+            head = new node(value, NULL);
+            tail = head;
+        } else {
+            jo_shared_ptr<node> new_head = new node(value, head);
+            head = new_head;
+        }
+        length++;
+        return this;
+    }
+
+    jo_persistent_list *push_front(const T &value) const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->push_front_inplace(value);
+        return copy;
+    }
+
     jo_persistent_list *subvec(int start, int end) const {
         jo_shared_ptr<node> cur = head;
         while(cur && start > 0) {
@@ -3531,6 +3579,19 @@ struct jo_persistent_list {
             cur = cur->next;
         }
         return false;
+    }
+
+    jo_persistent_list *erase(const T &value) {
+        jo_shared_ptr<node> cur = head;
+        jo_shared_ptr<node> prev = NULL;
+        while(cur) {
+            if(cur->value == value) {
+                return erase_node(cur);
+            }
+            prev = cur;
+            cur = cur->next;
+        }
+        return this;
     }
 
     // iterator
@@ -3609,6 +3670,11 @@ struct jo_persistent_list {
         tail = NULL;
         length = 0;
     }
+
+    jo_persistent_list *erase(const iterator &it) const {
+        return erase(it.cur);
+    }
+
 };
 
 static const char *va(const char *fmt, ...) {

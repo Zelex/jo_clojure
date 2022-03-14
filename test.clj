@@ -13,7 +13,7 @@
 (println x)
 (def x 5)
 (println x)
-(defn y [a b] (println a b) 2)
+(defn y [a b] (println a " " b) 2)
 (y 'Hello 'Jon)
 
 (def z (fn [a b] (println a b) 3))

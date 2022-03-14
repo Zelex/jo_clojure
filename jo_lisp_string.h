@@ -3,7 +3,7 @@
 #include "jo_stdcpp.h"
 
 // concat all arguments as_string
-static node_idx_t native_str(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_str(env_ptr_t env, list_ptr_t args) {
 	jo_string str;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
@@ -13,7 +13,7 @@ static node_idx_t native_str(list_ptr_t env, list_ptr_t args) {
 }
 
 // Returns the substring of ‘s’ beginning at start inclusive, and ending at end (defaults to length of string), exclusive.
-static node_idx_t native_subs(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_subs(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     node_t *start = get_node(*it++);
@@ -21,50 +21,50 @@ static node_idx_t native_subs(list_ptr_t env, list_ptr_t args) {
     return new_node_string(node->as_string().substr(start->as_int(), end->as_int()));
 }
 
-static node_idx_t native_compare(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_compare(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     node_t *other = get_node(*it++);
     return new_node_int(node->as_string().compare(other->as_string()));
 }
 
-static node_idx_t native_lower_case(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_lower_case(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().lower());
 }
 
-static node_idx_t native_upper_case(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_upper_case(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().upper());
 }
 
-static node_idx_t native_trim(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_trim(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().trim());
 }
 
-static node_idx_t native_triml(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_triml(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().ltrim());
 }
 
-static node_idx_t native_trimr(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_trimr(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().rtrim());
 }
 
-static node_idx_t native_trim_newline(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_trim_newline(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     return new_node_string(node->as_string().chomp());
 }
 
-static node_idx_t native_replace(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     node_t *what = get_node(*it++);
@@ -72,7 +72,7 @@ static node_idx_t native_replace(list_ptr_t env, list_ptr_t args) {
     return new_node_string(node->as_string().replace(what->as_string().c_str(), with->as_string().c_str()));
 }
 
-static node_idx_t native_replace_first(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_replace_first(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
     node_t *what = get_node(*it++);
@@ -81,7 +81,7 @@ static node_idx_t native_replace_first(list_ptr_t env, list_ptr_t args) {
 }
 
 // splits a string separated by newlines into a list of strings
-static node_idx_t native_split_lines(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_split_lines(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
@@ -105,7 +105,7 @@ static node_idx_t native_split_lines(list_ptr_t env, list_ptr_t args) {
 }
 
 // (join sep collection)
-static node_idx_t native_join(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_join(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -126,7 +126,7 @@ static node_idx_t native_join(list_ptr_t env, list_ptr_t args) {
 }
 
 // True if s is nil, empty, or contains only whitespace.
-static node_idx_t native_is_blank(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_is_blank(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     if(node_idx == NIL_NODE) {
@@ -140,7 +140,7 @@ static node_idx_t native_is_blank(list_ptr_t env, list_ptr_t args) {
 }
 
 // Converts first character of the string to upper-case, all other characters to lower-case.
-static node_idx_t native_capitalize(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_capitalize(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -150,7 +150,7 @@ static node_idx_t native_capitalize(list_ptr_t env, list_ptr_t args) {
     return new_node_string(node->as_string().capitalize());
 }
 
-static node_idx_t native_ends_with(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_ends_with(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -162,7 +162,7 @@ static node_idx_t native_ends_with(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(node->as_string().ends_with(what->as_string().c_str()));
 }
 
-static node_idx_t native_starts_with(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_starts_with(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -174,7 +174,7 @@ static node_idx_t native_starts_with(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(node->as_string().starts_with(what->as_string().c_str()));
 }
 
-static node_idx_t native_includes(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_includes(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -186,7 +186,7 @@ static node_idx_t native_includes(list_ptr_t env, list_ptr_t args) {
     return new_node_bool(node->as_string().includes(what->as_string().c_str()));
 }
 
-static node_idx_t native_index_of(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_index_of(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -198,7 +198,7 @@ static node_idx_t native_index_of(list_ptr_t env, list_ptr_t args) {
     return new_node_int(node->as_string().index_of(what->as_string().c_str()));
 }
 
-static node_idx_t native_last_index_of(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_last_index_of(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -210,25 +210,25 @@ static node_idx_t native_last_index_of(list_ptr_t env, list_ptr_t args) {
     return new_node_int(node->as_string().last_index_of(what->as_string().c_str()));
 }
 
-void jo_lisp_string_init(list_ptr_t env) {
-	env->push_back_inplace(new_node_var("str", new_node_native_function(&native_str, false)));
-	env->push_back_inplace(new_node_var("subs", new_node_native_function(&native_subs, false)));
-	env->push_back_inplace(new_node_var("compare", new_node_native_function(&native_compare, false)));
-	env->push_back_inplace(new_node_var("lower-case", new_node_native_function(&native_lower_case, false)));
-	env->push_back_inplace(new_node_var("upper-case", new_node_native_function(&native_upper_case, false)));
-	env->push_back_inplace(new_node_var("trim", new_node_native_function(&native_trim, false)));
-	env->push_back_inplace(new_node_var("triml", new_node_native_function(&native_triml, false)));
-	env->push_back_inplace(new_node_var("trimr", new_node_native_function(&native_trimr, false)));
-	env->push_back_inplace(new_node_var("trim-newline", new_node_native_function(&native_trim_newline, false)));
-	env->push_back_inplace(new_node_var("replace", new_node_native_function(&native_replace, false)));
-	env->push_back_inplace(new_node_var("replace-first", new_node_native_function(&native_replace_first, false)));
-	env->push_back_inplace(new_node_var("split-lines", new_node_native_function(&native_split_lines, false)));
-	env->push_back_inplace(new_node_var("join", new_node_native_function(&native_join, false)));
-	env->push_back_inplace(new_node_var("blank?", new_node_native_function(&native_is_blank, false)));
-	env->push_back_inplace(new_node_var("capitalize", new_node_native_function(&native_capitalize, false)));
-	env->push_back_inplace(new_node_var("ends-with?", new_node_native_function(&native_ends_with, false)));
-	env->push_back_inplace(new_node_var("starts-with?", new_node_native_function(&native_starts_with, false)));
-	env->push_back_inplace(new_node_var("includes?", new_node_native_function(&native_includes, false)));
-	env->push_back_inplace(new_node_var("index-of", new_node_native_function(&native_index_of, false)));
-	env->push_back_inplace(new_node_var("last-index-of", new_node_native_function(&native_last_index_of, false)));
+void jo_lisp_string_init(env_ptr_t env) {
+	env->set_inplace("str", new_node_native_function(&native_str, false));
+	env->set_inplace("subs", new_node_native_function(&native_subs, false));
+	env->set_inplace("compare", new_node_native_function(&native_compare, false));
+	env->set_inplace("lower-case", new_node_native_function(&native_lower_case, false));
+	env->set_inplace("upper-case", new_node_native_function(&native_upper_case, false));
+	env->set_inplace("trim", new_node_native_function(&native_trim, false));
+	env->set_inplace("triml", new_node_native_function(&native_triml, false));
+	env->set_inplace("trimr", new_node_native_function(&native_trimr, false));
+	env->set_inplace("trim-newline", new_node_native_function(&native_trim_newline, false));
+	env->set_inplace("replace", new_node_native_function(&native_replace, false));
+	env->set_inplace("replace-first", new_node_native_function(&native_replace_first, false));
+	env->set_inplace("split-lines", new_node_native_function(&native_split_lines, false));
+	env->set_inplace("join", new_node_native_function(&native_join, false));
+	env->set_inplace("blank?", new_node_native_function(&native_is_blank, false));
+	env->set_inplace("capitalize", new_node_native_function(&native_capitalize, false));
+	env->set_inplace("ends-with?", new_node_native_function(&native_ends_with, false));
+	env->set_inplace("starts-with?", new_node_native_function(&native_starts_with, false));
+	env->set_inplace("includes?", new_node_native_function(&native_includes, false));
+	env->set_inplace("index-of", new_node_native_function(&native_index_of, false));
+	env->set_inplace("last-index-of", new_node_native_function(&native_last_index_of, false));
 }

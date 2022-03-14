@@ -8,7 +8,7 @@
 // (exclusive), by step, where start defaults to 0, step to 1, and end to
 // infinity. When step is equal to 0, returns an infinite sequence of
 // start. When start is equal to end, returns empty list.
-static node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	int end = args->size();
 	int start = 0;
@@ -35,7 +35,7 @@ static node_idx_t native_range(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-static node_idx_t native_range_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	int start = get_node(*it++)->as_int();
 	int step = get_node(*it++)->as_int();
@@ -57,7 +57,7 @@ static node_idx_t native_range_next(list_ptr_t env, list_ptr_t args) {
 // (repeat x)
 // (repeat n x)
 // Returns a lazy (infinite!, or length n if supplied) sequence of xs.
-static node_idx_t native_repeat(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x;
 	int n = INT_MAX;
@@ -77,7 +77,7 @@ static node_idx_t native_repeat(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-static node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
 	int n = get_node(*it++)->as_int();
@@ -97,7 +97,7 @@ static node_idx_t native_repeat_next(list_ptr_t env, list_ptr_t args) {
 // (concat x y) 
 // (concat x y & zs)
 // Returns a lazy seq representing the concatenation of the elements in the supplied colls.
-static node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_concat(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
@@ -107,7 +107,7 @@ static node_idx_t native_concat(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-static node_idx_t native_concat_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_concat_next(env_ptr_t env, list_ptr_t args) {
 concat_next:
 	if(args->size() == 0) {
 		return NIL_NODE;
@@ -158,7 +158,7 @@ concat_next:
 // (iterate f x)
 // Returns a lazy seq representing the infinite sequence of x, f(x), f(f(x)), etc.
 // f must be free of side-effects
-static node_idx_t native_iterate(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_iterate(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	node_idx_t x = *it++;
@@ -170,7 +170,7 @@ static node_idx_t native_iterate(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-static node_idx_t native_iterate_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	node_idx_t x = *it++;
@@ -197,7 +197,7 @@ static node_idx_t native_iterate_next(list_ptr_t env, list_ptr_t args) {
 // exhausted.  Any remaining items in other colls are ignored. Function
 // f should accept number-of-colls arguments. Returns a transducer when
 // no collection is provided.
-static node_idx_t native_map(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_map(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	if(args->size() == 1) {
@@ -218,7 +218,7 @@ static node_idx_t native_map(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-static node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_map_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	// pull off the first element of each list and call f with it
@@ -254,7 +254,7 @@ static node_idx_t native_map_next(list_ptr_t env, list_ptr_t args) {
 
 // (take n coll)
 // Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
-static node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t n = eval_node(env, *it++);
 	node_idx_t coll = eval_node(env, *it++);
@@ -266,7 +266,7 @@ static node_idx_t native_take(list_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(lazy_func_idx);
 }
 
-static node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_take_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	int n = get_node(*it++)->as_int();
 	if(n <= 0) {
@@ -305,7 +305,7 @@ static node_idx_t native_take_next(list_ptr_t env, list_ptr_t args) {
 // (distinct coll)
 // Returns a lazy sequence of the elements of coll with duplicates removed.
 // Returns a stateful transducer when no collection is provided.
-static node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
+static node_idx_t native_distinct(env_ptr_t env, list_ptr_t args) {
 	// TODO: lazy? How is that a good idea for distinct? I think it's a bad idea.
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -341,18 +341,18 @@ static node_idx_t native_distinct(list_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-void jo_lisp_lazy_init(list_ptr_t env) {
-	env->push_back_inplace(new_node_var("range", new_node_native_function(&native_range, false)));
-	env->push_back_inplace(new_node_var("range-next", new_node_native_function(&native_range_next, false)));
-	env->push_back_inplace(new_node_var("repeat", new_node_native_function(&native_repeat, true)));
-	env->push_back_inplace(new_node_var("repeat-next", new_node_native_function(&native_repeat_next, true)));
-	env->push_back_inplace(new_node_var("concat", new_node_native_function(&native_concat, true)));
-	env->push_back_inplace(new_node_var("concat-next", new_node_native_function(&native_concat_next, true)));
-	env->push_back_inplace(new_node_var("iterate", new_node_native_function(&native_iterate, true)));
-	env->push_back_inplace(new_node_var("iterate-next", new_node_native_function(&native_iterate_next, true)));
-	env->push_back_inplace(new_node_var("map", new_node_native_function(&native_map, true)));
-	env->push_back_inplace(new_node_var("map-next", new_node_native_function(&native_map_next, true)));
-	env->push_back_inplace(new_node_var("take", new_node_native_function(&native_take, true)));
-	env->push_back_inplace(new_node_var("take-next", new_node_native_function(&native_take_next, true)));
-	env->push_back_inplace(new_node_var("distinct", new_node_native_function(&native_distinct, false)));
+void jo_lisp_lazy_init(env_ptr_t env) {
+	env->set_inplace("range", new_node_native_function(&native_range, false));
+	env->set_inplace("range-next", new_node_native_function(&native_range_next, false));
+	env->set_inplace("repeat", new_node_native_function(&native_repeat, true));
+	env->set_inplace("repeat-next", new_node_native_function(&native_repeat_next, true));
+	env->set_inplace("concat", new_node_native_function(&native_concat, true));
+	env->set_inplace("concat-next", new_node_native_function(&native_concat_next, true));
+	env->set_inplace("iterate", new_node_native_function(&native_iterate, true));
+	env->set_inplace("iterate-next", new_node_native_function(&native_iterate_next, true));
+	env->set_inplace("map", new_node_native_function(&native_map, true));
+	env->set_inplace("map-next", new_node_native_function(&native_map_next, true));
+	env->set_inplace("take", new_node_native_function(&native_take, true));
+	env->set_inplace("take-next", new_node_native_function(&native_take_next, true));
+	env->set_inplace("distinct", new_node_native_function(&native_distinct, false));
 }
