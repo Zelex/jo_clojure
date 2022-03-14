@@ -55,7 +55,7 @@
 (defn factorial-using-do-dotimes [n]
   (do
     (def a 1)
-    (dotimes (i n)
+    (dotimes (i n) ; dotimes here creates a sub environment... thus defines in here are not global
       (def a (* a (inc i)))))
   a)
 
