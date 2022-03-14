@@ -364,7 +364,7 @@ static node_idx_t new_node_var(const jo_string &name, node_idx_t value) {
 	return new_node(&n);
 }
 
-#if 0
+#if 1
 
 static inline node_idx_t env_find(env_ptr_t env, const jo_string &name) {
 	return env->find(name).var;
