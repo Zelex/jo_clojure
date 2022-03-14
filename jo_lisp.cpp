@@ -67,7 +67,13 @@ static node_idx_t new_node_var(const jo_string &name, node_idx_t value);
 struct env_t {
 	list_ptr_t vars;
 	// TODO: need persistent version of vars_map
-	std::unordered_map<std::string, node_idx_t> vars_map;
+	struct fast_val_t {
+		node_idx_t var;
+		node_idx_t value;
+		fast_val_t() : var(NIL_NODE), value(NIL_NODE) {}
+		fast_val_t(node_idx_t var, node_idx_t value) : var(var), value(value) {}
+	};
+	std::unordered_map<std::string, fast_val_t> vars_map;
 
 	env_t() : vars(new_list()), vars_map() {}
 
@@ -75,34 +81,30 @@ struct env_t {
 		vars_map.clear();
 		for(list_t::iterator it = vars->begin(); it; it++) {
 			assert(get_node_type(*it) == NODE_VAR);
-			vars_map[get_node_string(*it).c_str()] = *it;
+			vars_map[get_node_string(*it).c_str()] = fast_val_t(*it, get_node_var(*it));
 		}
 	}
 
-	node_idx_t find(const jo_string &name) const {
+	fast_val_t find(const jo_string &name) const {
 		auto it = vars_map.find(name.c_str());
 		if(it != vars_map.end()) {
 			return it->second;
 		}
-		return NIL_NODE;
+		return fast_val_t();
 	}
 
 	node_idx_t get(const jo_string &name) const {
-		node_idx_t idx = find(name.c_str());
-		if(idx == NIL_NODE) {
-			return NIL_NODE;
-		}
-		return get_node_var(idx);
+		return find(name.c_str()).value;
 	}
 
 	bool has(const jo_string &name) const {
-		return find(name) != NIL_NODE;
+		return find(name).var != NIL_NODE;
 	}
 
 	void remove(const jo_string &name) {
 		auto it = vars_map.find(name.c_str());
 		if(it != vars_map.end()) {
-			vars = vars->erase(it->second);
+			vars = vars->erase(it->second.var);
 			vars_map.erase(it);
 		}
 	}
@@ -113,7 +115,7 @@ struct env_t {
 		}
 		node_idx_t idx = new_node_var(name, value);
 		vars = vars->push_front(idx);
-		vars_map[name.c_str()] = idx;
+		vars_map[name.c_str()] = fast_val_t(idx, value);
 	}
 
 	env_ptr_t set(const jo_string &name, node_idx_t value) {
@@ -382,19 +384,19 @@ static node_idx_t clone_node(node_idx_t idx) {
 	return new_idx;
 }
 
-static node_idx_t env_find(env_ptr_t env, const jo_string &name) {
-	return env->find(name);
+static inline node_idx_t env_find(env_ptr_t env, const jo_string &name) {
+	return env->find(name).var;
 }
 
-static node_idx_t env_get(env_ptr_t env, const jo_string &name) {
+static inline node_idx_t env_get(env_ptr_t env, const jo_string &name) {
 	return env->get(name);
 }
 
-static bool env_has(env_ptr_t env, const jo_string &name) {
+static inline bool env_has(env_ptr_t env, const jo_string &name) {
 	return env->has(name);
 }
 
-static env_ptr_t env_set(env_ptr_t env, const jo_string &name, node_idx_t value) {
+static inline env_ptr_t env_set(env_ptr_t env, const jo_string &name, node_idx_t value) {
 	env->set_inplace(name, value);
 	return env;
 }
