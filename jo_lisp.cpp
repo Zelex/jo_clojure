@@ -1137,11 +1137,11 @@ static node_idx_t native_neq(list_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = !node_eq(env, n1, n2);
+	bool ret = node_eq(env, n1, n2);
 	for(; i && ret; i++) {
-		ret = ret && !node_eq(env, n1, *i);
+		ret = ret && node_eq(env, n1, *i);
 	}
-	return new_node_bool(ret);
+	return new_node_bool(!ret);
 }
 
 static node_idx_t native_lt(list_ptr_t env, list_ptr_t args) {
@@ -1178,12 +1178,12 @@ static node_idx_t native_gt(list_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = !node_lte(env, n1, n2);
+	bool ret = node_lte(env, n1, n2);
 	for(; i && ret; i++) {
-		ret = ret && !node_lte(env, n2, *i);
+		ret = ret && node_lte(env, n2, *i);
 		n2 = *i;
 	}
-	return new_node_bool(ret);
+	return new_node_bool(!ret);
 }
 
 static node_idx_t native_gte(list_ptr_t env, list_ptr_t args) {
@@ -1192,12 +1192,12 @@ static node_idx_t native_gte(list_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = !node_lt(env, n1, n2);
+	bool ret = node_lt(env, n1, n2);
 	for(; i && ret; i++) {
-		ret = ret && !node_lt(env, n2, *i);
+		ret = ret && node_lt(env, n2, *i);
 		n2 = *i;
 	}
-	return new_node_bool(ret);
+	return new_node_bool(!ret);
 }
 
 static node_idx_t native_if(list_ptr_t env, list_ptr_t args) {
@@ -1422,7 +1422,7 @@ static node_idx_t native_rand_float(list_ptr_t env, list_ptr_t args) {
 static node_idx_t native_cond(list_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	while(it) {
-		node_idx_t test = *it++, expr = *it++;
+		node_idx_t test = eval_node(env, *it++), expr = *it++;
 		node_t *n = get_node(test);
 		if(n->as_bool()) {
 			return eval_node(env, expr);
