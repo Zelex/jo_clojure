@@ -1,1 +1,1 @@
-c++ -std=c++17 jo_lisp.cpp -g -Oz
+c++ -std=c++17 jo_lisp.cpp -g -O2

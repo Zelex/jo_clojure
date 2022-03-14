@@ -318,6 +318,10 @@ struct jo_string {
     jo_string(char c) { str = jo_strdup(" "); str[0] = c; }
     jo_string(const jo_string *other) { str = jo_strdup(other->str); }
     jo_string(const jo_string &other) { str = jo_strdup(other.str); }
+    jo_string(jo_string &&other) {
+        str = other.str;
+        other.str = NULL;
+    }
     jo_string(const char *a, size_t size) {
         str = (char*)malloc(size+1);
         memcpy(str, a, size);
@@ -769,7 +773,7 @@ struct jo_vector {
             }
             if(ptr) {
                 memcpy(newptr, ptr, ptr_size*sizeof(T));
-                memset(ptr, 0xFE, ptr_size*sizeof(T));
+                //memset(ptr, 0xFE, ptr_size*sizeof(T));
                 free(ptr);
             }
             ptr = newptr;
@@ -813,7 +817,7 @@ struct jo_vector {
             }
             if(ptr) {
                 memcpy(newptr, ptr, ptr_size*sizeof(T));
-                memset(ptr, 0xFE, ptr_size*sizeof(T));
+                //memset(ptr, 0xFE, ptr_size*sizeof(T));
                 free(ptr);
             }
             ptr = newptr;
@@ -860,7 +864,7 @@ struct jo_vector {
             return;
         }
         memcpy(newptr, ptr, ptr_size*sizeof(T));
-        memset(ptr, 0xFE, ptr_capacity*sizeof(T)); // DEBUG
+        //memset(ptr, 0xFE, ptr_capacity*sizeof(T)); // DEBUG
         free(ptr);
         ptr = newptr;
         ptr_capacity = ptr_size;
