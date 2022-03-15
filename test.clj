@@ -10,51 +10,51 @@
 (println "Hello Again, World. " (= 2,2,2,2))
 (println "neq? " (!= 2,1,2))
 (if (= 1 1) (println "A") (println "B"))
-(println x)
 (def x 5)
-(println x)
-(defn y [a b] (println a " " b) 2)
-(y 'Hello 'Jon)
+(unless (= 5 x) (println "x is not 5"))
+(defn y [a b] (str a " " b))
+(unless (= "Hello Jon" (y 'Hello 'Jon)) (println "Failed Hello Jon"))
 
-(def z (fn [a b] (println a b) 3))
-(z "Here's " 'Johny)
+(def z (fn [a b] (str a b)))
+(unless (= "Here's Jonny" (z "Here's " 'Jonny)) (println "Failed! Here's Jonny"))
 
 (defn greet [name] (str "Hello, " name) )
-(println (greet 'students))
+(unless (= "Hello, students" (greet 'students)) (println "FAIL Hello Students"))
 
-(defn closure_test [a] (fn [b] (println a b)))
+(defn closure_test [a] (fn [b] (str a b)))
 (def closure_test2 (closure_test 'Foo))
-(closure_test2 'Bar)
+(unless (= "FooBar" (closure_test2 'Bar)) (println "FAIL FooBar Closure test"))
 
 (defn pow [x n] (apply * (repeat n x)))
 (defn sq [y] (pow y 2))
 (defn qb [y] (pow y 3))
 
-(println (sq 2))
-(println (qb 2))
-(println (pow 2,4))
+(unless (= 4 (sq 2)) (println "FAIL sq"))
+(unless (= 8 (qb 2)) (println "FAIL qb"))
+(unless (= 16 (pow 2,4)) (println "FAIL pow"))
 
 (dotimes (n 5) (println "n is " n))
 
 (def my-delay (delay (println "this only happens once") 100))
-(println (my-delay))
-(println (my-delay))
+(my-delay)
+(my-delay)
 
-((fn (message) (println message))  "Hello world!")
+(unless (= "Hello world!" ((fn (message) (str message))  "Hello world!")) (println "FAIL Hello world!"))
 
 (unless (= 10 (apply + '(1 2 3 4))) (println "FAILED 1"))
 (unless (= 10 (apply + 1 '(2 3 4))) (println "FAILED 2"))
 (unless (= 10 (apply + 1 2 '(3 4))) (println "FAILED 3"))
 (unless (= 10 (apply + 1 2 3 '(4))) (println "FAILED 4"))
 
-(println (let (a 1 b 2) (+ a b)))
+(unless (= 3 (let (a 1 b 2) (+ a b))) (println "FAILED let"))
 
 ; defs are not variables, don't do this:
 (defn factorial-using-do-dotimes [n]
   (do
     (def a 1)
     (dotimes (i n) ; dotimes here creates a sub environment... thus defines in here are not global
-      (def a (* a (inc i))) a))
+      (def a (* a (inc i))) 
+      a))
   )
 
 ; defs are not variables, don't do this:
@@ -106,7 +106,7 @@
 (unless (= (distinct '(1 2 1 3 1 4 1 5)) '(1 2 3 4 5)) (println "distinct failed 1"))
 (unless (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6)) (println "distinct failed 2"))
 
-(doall (map println (range 1 4)))
+;(doall (map println (range 1 4)))
 
 (println "time to fac(10) x 100 (list): " (time (dotimes [i 100] (* 2 3 4 5 6 7 8 9 10))))
 (println "time to fac(10) x 100 (range): " (time (dotimes [i 100] (apply * (take 9 (range 2 11))))))
