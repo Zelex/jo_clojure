@@ -1592,13 +1592,14 @@ static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
 	int times = get_node(value_idx)->as_int();
 	jo_string name = get_node(name_idx)->as_string();
 	env_ptr_t env2 = new_env(env);
+	node_idx_t ret = NIL_NODE;
 	for(int i = 0; i < times; ++i) {
 		env2->set_inplace(name, new_node_int(i));
 		for(list_t::iterator it2 = it; it2; it2++) { 
-			eval_node(env2, *it2);
+			ret = eval_node(env2, *it2);
 		}
 	}
-	return NIL_NODE;
+	return ret;
 }
 
 /*

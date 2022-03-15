@@ -56,8 +56,8 @@
   (do
     (def a 1)
     (dotimes (i n) ; dotimes here creates a sub environment... thus defines in here are not global
-      (def a (* a (inc i)))))
-  a)
+      (def a (* a (inc i))) a))
+  )
 
 ; defs are not variables, don't do this:
 (defn factorial-using-do-while [n]
