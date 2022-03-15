@@ -1102,11 +1102,10 @@ static node_idx_t native_add(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_sub(env_ptr_t env, list_ptr_t args) {
 	int i_sum = 0;
 	double d_sum = 0.0;
-	bool is_int = true;
 
 	size_t size = args->size();
 	if(size == 0) {
-		return NIL_NODE;
+		return ZERO_NODE;
 	}
 
 	// Special case. 1 argument return the negative of that argument
@@ -1124,7 +1123,6 @@ static node_idx_t native_sub(env_ptr_t env, list_ptr_t args) {
 		i_sum = n->t_int;
 	} else {
 		d_sum = n->as_float();
-		is_int = false;
 	}
 
 	for(; i; i++) {
@@ -1133,20 +1131,14 @@ static node_idx_t native_sub(env_ptr_t env, list_ptr_t args) {
 			i_sum -= n->t_int;
 		} else {
 			d_sum -= n->as_float();
-			is_int = false;
 		}
 	}
-
-	if(is_int) {
-		return new_node_int(i_sum);
-	}
-	return new_node_float(d_sum + i_sum);
+	return d_sum == 0.0 ? new_node_int(i_sum) : new_node_float(d_sum + i_sum);
 }
 
 static node_idx_t native_mul(env_ptr_t env, list_ptr_t args) {
 	int i = 1;
 	double d = 1.0;
-	bool is_int = true;
 
 	if(args->size() == 0) {
 		return ZERO_NODE; // TODO: common enough should be a static constant
@@ -1197,20 +1189,20 @@ static node_idx_t native_div(env_ptr_t env, list_ptr_t args) {
 		n = get_node(*i);
 		if(n->type == NODE_INT) {
 			i_sum /= n->t_int;
+			d_sum = i_sum;
 		} else {
 			d_sum /= n->as_float();
 			is_int = false;
 		}
 	}
 
-	return is_int ? new_node_int(i_sum) : new_node_float(d_sum / i_sum);
+	return is_int ? new_node_int(i_sum) : new_node_float(d_sum);
 }
 
 // modulo the first argument by the second
 static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
 	int i_sum = 0;
 	double d_sum = 0.0;
-	bool is_int = true;
 
 	if(args->size() == 0) {
 		return NIL_NODE;
