@@ -1095,7 +1095,7 @@ static node_idx_t native_add(env_ptr_t env, list_ptr_t args) {
 			d += n->as_float();
 		}
 	}
-	return d == 0.0 ? i : d+i;
+	return d == 0.0 ? new_node_int(i) : new_node_float(d+i);
 }
 
 // subtract any number of arguments from the first argument
