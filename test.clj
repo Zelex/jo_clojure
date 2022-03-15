@@ -111,9 +111,7 @@
 (println "time to fac(10) x 100 (list): " (time (dotimes [i 100] (* 2 3 4 5 6 7 8 9 10))))
 (println "time to fac(10) x 100 (range): " (time (dotimes [i 100] (apply * (take 9 (range 2 11))))))
 
-(println "end")
-
-
+;(println "end")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
 
