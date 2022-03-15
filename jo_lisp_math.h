@@ -1,5 +1,11 @@
 #pragma once
 
+// TODO:
+// o dot product
+// o cross product
+// o matrix type
+// o tensor type
+
 static node_idx_t native_math_abs(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->nth(0));
 	if(n1->type == NODE_INT) {

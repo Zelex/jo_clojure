@@ -112,10 +112,10 @@ concat_next:
 	if(args->size() == 0) {
 		return NIL_NODE;
 	}
-	node_idx_t nidx = args->first_value();
+	node_idx_t nidx = eval_node(env, args->first_value());
 	node_idx_t val = NIL_NODE;
 	int ntype = get_node(nidx)->type;
-	args = args->pop();
+	args = args->rest();
 	if(ntype == NODE_NIL) {
 		goto concat_next;
 	} else if(ntype == NODE_LIST) {
@@ -134,7 +134,7 @@ concat_next:
 		node_t *ret = get_node(reti);
 		if(ret->is_list()) {
 			list_ptr_t list_list = ret->as_list();
-			val = list_list->nth(0);
+			val = list_list->first_value();
 			args->cons_inplace(new_node_lazy_list(new_node_list(list_list->rest())));
 		}
 	} else if(ntype == NODE_STRING) {
