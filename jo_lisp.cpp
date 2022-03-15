@@ -16,6 +16,8 @@
 //#define warnf printf
 #define warnf sizeof
 
+static double time_program_start = jo_time();
+
 enum {
 	INV_NODE = -1,
 	NIL_NODE = 0,
@@ -1566,14 +1568,9 @@ static node_idx_t native_case(env_ptr_t env, list_ptr_t args) {
 	return eval_node(env, next);
 }
 
-// wall time in seconds since program start
-static float time_now() {
-	return clock() / (float)CLOCKS_PER_SEC; // TODO: not correct when multi-threaded!
-}
-
 // returns current time since program start in seconds
 static node_idx_t native_time_now(env_ptr_t env, list_ptr_t args) {
-	return new_node_float(time_now());
+	return new_node_float(jo_time() - time_program_start);
 }
 
 static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
@@ -2242,11 +2239,11 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 
 // Compute the time to execute arguments
 static node_idx_t native_time(env_ptr_t env, list_ptr_t args) {
-	float time_start = time_now();
+	double time_start = jo_time();
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_idx_t node_idx = eval_node(env, *it);
 	}
-	float time_end = time_now();
+	double time_end = jo_time();
 	return new_node_float(time_end - time_start);
 }
 

@@ -1016,6 +1016,30 @@ T *jo_upper_bound(T *begin, T *end, T &needle) {
     return begin + first;
 }
 
+static inline double jo_time() {
+#if defined(__APPLE__)
+    static mach_timebase_info_data_t sTimebaseInfo;
+    if (sTimebaseInfo.denom == 0) {
+        (void) mach_timebase_info(&sTimebaseInfo);
+    }
+    uint64_t time = mach_absolute_time();
+    return (double)time * sTimebaseInfo.numer / sTimebaseInfo.denom / 1000000000.0;
+#elif defined(_WIN32)
+    static LARGE_INTEGER sFrequency;
+    static BOOL sInitialized = FALSE;
+    if (!sInitialized) {
+        sInitialized = QueryPerformanceFrequency(&sFrequency);
+    }
+    LARGE_INTEGER time;
+    QueryPerformanceCounter(&time);
+    return (double)time.QuadPart / sFrequency.QuadPart;
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
+#endif
+}
+
 #ifdef _MSC_VER
 #include <mutex>
 #define jo_mutex std::mutex
