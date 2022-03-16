@@ -712,6 +712,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
 		//n.flags |= NODE_FLAG_LITERAL;
+		//n.flags |= NODE_FLAG_LITERAL_ARGS;
 		n.t_list->push_back_inplace(env->get("quote"));
 		node_idx_t next = parse_next(env, state, ')');
 		while(next != NIL_NODE) {
