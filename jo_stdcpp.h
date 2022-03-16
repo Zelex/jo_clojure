@@ -3678,6 +3678,17 @@ struct jo_persistent_list {
         return this;
     }
 
+    jo_persistent_list *take(int N) const {
+        jo_persistent_list *copy = new jo_persistent_list();
+        jo_shared_ptr<node> cur = head;
+        while(cur && N > 0) {
+            copy->push_back_inplace(cur->value);
+            cur = cur->next;
+            N--;
+        }
+        return copy;
+    }
+
     // iterator
     class iterator {
         jo_shared_ptr<node> cur;

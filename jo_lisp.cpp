@@ -883,7 +883,10 @@ struct lazy_list_iterator_t {
 	env_ptr_t env;
 	node_idx_t cur;
 	node_idx_t val;
-	lazy_list_iterator_t(env_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE) {
+	jo_vector<node_idx_t> next_list;
+	int next_idx;
+
+	lazy_list_iterator_t(env_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), next_list(), next_idx() {
 		if(get_node(cur)->is_lazy_list()) {
 			cur = eval_node(env, get_node(cur)->t_lazy_fn);
 			if(!done()) {
@@ -891,10 +894,16 @@ struct lazy_list_iterator_t {
 			}
 		}
 	}
+
 	bool done() const {
-		return !get_node(cur)->is_list();
+		return next_idx >= next_list.size() && !get_node(cur)->is_list();
 	}
+
 	void next() {
+		if(next_idx < next_list.size()) {
+			val = next_list[next_idx++];
+			return;
+		}
 		if(done()) {
 			return;
 		}
@@ -905,15 +914,17 @@ struct lazy_list_iterator_t {
 			val = NIL_NODE;
 		}
 	}
+
 	node_idx_t next_fn() {
 		if(done()) {
 			return NIL_NODE;
 		}
 		return new_node_list(get_node(cur)->as_list()->rest());
 	}
+
 	node_idx_t nth(int n) {
 		node_idx_t res = val;
-		while(n-- > 0) {
+		while(n-- > 0 && !done()) {
 			next();
 		}
 		return val;
@@ -930,6 +941,21 @@ struct lazy_list_iterator_t {
 			next();
 		}
 		return res;
+	}
+
+	// fetch the next N values, and put them into next_list
+	void prefetch(int n) {
+		// already prefetched at least n values?
+		if(next_list.size() > n || done()) {
+			return;
+		}
+		jo_vector<node_idx_t> res;
+		while(n-- > 0 && !done()) {
+			res.push_back(val);
+			next();
+		}
+		next_list = std::move(res);
+		next_idx = 0;
 	}
 };
 
@@ -937,33 +963,32 @@ struct lazy_list_iterator_t {
 // if its lazy, it iterates over the lazy list, otherwise it iterates over the list
 struct seq_iterator_t {
 	int type;
-	env_ptr_t env;
-	node_idx_t cur;
 	node_idx_t val;
 	list_t::iterator it;
-	seq_iterator_t(env_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), it() {
-		type = get_node_type(cur);
+	lazy_list_iterator_t lit;
+
+	seq_iterator_t(env_ptr_t env, node_idx_t node_idx) : val(NIL_NODE), it(), lit(env, node_idx) {
+		type = get_node_type(node_idx);
 		if(type == NODE_LIST) {
-			it = get_node(cur)->as_list()->begin();
+			it = get_node(node_idx)->as_list()->begin();
 			if(!done()) {
 				val = *it++;
 			}
 		} else if(type == NODE_LAZY_LIST) {
-			cur = eval_node(env, get_node(cur)->t_lazy_fn);
-			if(!done()) {
-				val = get_node(cur)->as_list()->first_value();
-			}
+			val = lit.val;
 		}
 	}
+
 	bool done() const {
 		if(type == NODE_LIST) {
 			return !it;
 		} else if(type == NODE_LAZY_LIST) {
-			return !get_node(cur)->is_list();
+			return lit.done();
 		} else {
 			return true;
 		}
 	}
+
 	void next() {
 		if(done()) {
 			return;
@@ -971,20 +996,21 @@ struct seq_iterator_t {
 		if(type == NODE_LIST) {
 			val = *it++;
 		} else if(type == NODE_LAZY_LIST) {
-			cur = eval_list(env, get_node(cur)->as_list()->rest());
-			if(!done()) {
-				val = get_node(cur)->as_list()->first_value();
-			} else {
-				val = NIL_NODE;
-			}
+			lit.next();
+			val = lit.val;
 		}
 	}
+
 	node_idx_t nth(int n) {
-		node_idx_t res = val;
-		while(n-- > 0) {
-			next();
+		if(type == NODE_LIST) {
+			node_idx_t res = val;
+			while(n-- > 0 && !done()) {
+				next();
+			}
+			return val;
+		} else {
+			lit.nth(n);
 		}
-		return val;
 	}
 
 	operator bool() const {
@@ -998,6 +1024,12 @@ struct seq_iterator_t {
 			next();
 		}
 		return res;
+	}
+
+	void prefetch(int n) {
+		if(type == NODE_LAZY_LIST) {
+			lit.prefetch(n);
+		}
 	}
 };
 
@@ -1982,7 +2014,7 @@ static node_idx_t native_apply(env_ptr_t env, list_ptr_t args) {
 		node_idx_t arg_idx = it == args->begin() ? *it : eval_node(env, *it);
 		node_t *arg = get_node(arg_idx);
 		if(arg->is_list()) {
-			arg_list = arg_list->conj(*arg->as_list().ptr);
+			arg_list->conj_inplace(*arg->as_list().ptr);
 		} else if(arg->is_lazy_list()) {
 			for(lazy_list_iterator_t lit(env, arg_idx); !lit.done(); lit.next()) {
 				arg_list->push_back_inplace(lit.val);
@@ -2366,6 +2398,7 @@ int main(int argc, char **argv) {
 	env->set_inplace("zero", ZERO_NODE);
 	env->set_inplace("false", FALSE_NODE);
 	env->set_inplace("true", TRUE_NODE);
+	env->set_inplace("quote", new_node_native_function(&native_quote, true));
 	env->set_inplace("let", new_node_native_function(&native_let, true));
 	env->set_inplace("eval", new_node_native_function(&native_eval, false));
 	env->set_inplace("print", new_node_native_function(&native_print, false));
@@ -2409,7 +2442,6 @@ int main(int argc, char **argv) {
 	env->set_inplace("ffirst", new_node_native_function(&native_ffirst, false));
 	env->set_inplace("next", new_node_native_function(&native_next, false));
 	env->set_inplace("rest", new_node_native_function(&native_rest, false));
-	env->set_inplace("quote", new_node_native_function(&native_quote, true));
 	env->set_inplace("list", new_node_native_function(&native_list, false));
 	env->set_inplace("take-last", new_node_native_function(&native_take_last, false));
 	env->set_inplace("reverse", new_node_native_function(&native_upper_case, false));
