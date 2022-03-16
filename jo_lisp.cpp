@@ -19,12 +19,17 @@
 static double time_program_start = jo_time();
 
 enum {
+	// hard coded nodes
 	INV_NODE = -1,
 	NIL_NODE = 0,
 	ZERO_NODE,
+	INT_0_NODE = ZERO_NODE,
+	INT_256_NODE = INT_0_NODE + 256,
 	FALSE_NODE,
 	TRUE_NODE,
 	QUOTE_NODE,
+
+
 
 	NODE_NIL = 0,
 	NODE_BOOL,
@@ -350,6 +355,9 @@ static node_idx_t new_node_bool(bool b) {
 }
 
 static node_idx_t new_node_int(int i) {
+	if(i >= 0 && i <= 256) {
+		return INT_0_NODE + i;
+	}
 	node_t n = {NODE_INT};
 	n.t_int = i;
 	return new_node(&n);
@@ -2388,7 +2396,12 @@ int main(int argc, char **argv) {
 	// first thing first, alloc special nodes
 	{
 		new_node(NODE_NIL);
-		new_node_int(0);
+		for(int i = 0; i <= 256; i++) {
+			node_idx_t nidx = new_node(NODE_INT);
+			assert(nidx == INT_0_NODE+i);
+			node_t *n = get_node(nidx);
+			n->t_int = i;
+		}
 		new_node_bool(false);
 		new_node_bool(true);
 		new_node_symbol("quote");
