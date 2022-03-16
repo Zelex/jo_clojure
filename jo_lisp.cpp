@@ -349,9 +349,7 @@ static node_idx_t new_node_native_function(native_function_t f, bool is_macro) {
 }
 
 static node_idx_t new_node_bool(bool b) {
-	node_t n = {NODE_BOOL};
-	n.t_bool = b;
-	return new_node(&n);
+	return b ? TRUE_NODE : FALSE_NODE;
 }
 
 static node_idx_t new_node_int(int i) {
@@ -2402,8 +2400,8 @@ int main(int argc, char **argv) {
 			node_t *n = get_node(nidx);
 			n->t_int = i;
 		}
-		new_node_bool(false);
-		new_node_bool(true);
+		get_node(new_node(NODE_BOOL))->t_bool = false;
+		get_node(new_node(NODE_BOOL))->t_bool = true;
 		new_node_symbol("quote");
 	}
 
