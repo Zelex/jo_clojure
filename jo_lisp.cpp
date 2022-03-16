@@ -744,15 +744,18 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list) {
 	int n1_type = get_node_type(n1i);
 	if(n1_type == NODE_LIST || n1_type == NODE_SYMBOL || n1_type == NODE_STRING || n1_type == NODE_NATIVE_FUNCTION) {
 		node_idx_t sym_idx;
+		int sym_type, sym_flags;
 		if(n1_type == NODE_NATIVE_FUNCTION) {
 			sym_idx = n1i;
+			sym_type = NODE_NATIVE_FUNCTION;
 		} else if(n1_type == NODE_LIST) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
+			sym_type = get_node_type(sym_idx);
 		} else {
 			sym_idx = env_get(env, get_node_string(n1i));
+			sym_type = get_node_type(sym_idx);
 		}
-		int sym_type = get_node_type(sym_idx);
-		int sym_flags = get_node(sym_idx)->flags;
+		sym_flags = get_node(sym_idx)->flags;
 
 		// get the symbol's value
 		if(sym_type == NODE_NATIVE_FUNCTION) {
@@ -2022,7 +2025,7 @@ static node_idx_t native_apply(env_ptr_t env, list_ptr_t args) {
 	// collect the arguments, if its a list add the whole list, then eval it
 	list_ptr_t arg_list = new_list();
 	for(list_t::iterator it = args->begin(); it; it++) {
-		node_idx_t arg_idx = it == args->begin() ? *it : eval_node(env, *it);
+		node_idx_t arg_idx = eval_node(env, *it);
 		node_t *arg = get_node(arg_idx);
 		if(arg->is_list()) {
 			arg_list->conj_inplace(*arg->as_list().ptr);
