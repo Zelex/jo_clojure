@@ -324,7 +324,7 @@ static node_idx_t native_distinct(env_ptr_t env, list_ptr_t args) {
 				ret->push_back_inplace(value_idx);
 			}
 		}
-		return new_node_list(ret);
+		return new_node_list(ret, NODE_FLAG_LITERAL);
 	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
