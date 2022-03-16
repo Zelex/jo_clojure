@@ -581,7 +581,7 @@ static token_t get_token(parse_state_t *state) {
 	return tok;
 }
 
-static node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
+static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_sep) {
 	token_t tok = get_token(state);
 	debugf("parse_next \"%s\", with '%c'\n", tok.str.c_str(), stop_on_sep);
 
@@ -677,6 +677,10 @@ static node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
 	} 
 	if(tok.type == TOK_SYMBOL) {
 		debugf("symbol: %s\n", tok.str.c_str());
+		if(env->has(tok.str.c_str())) {
+			//debugf("pre-resolve symbol: %s\n", tok.str.c_str());
+			return env->get(tok.str.c_str());
+		}
 		return new_node_symbol(tok.str.c_str());
 	} 
 
@@ -686,10 +690,10 @@ static node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(QUOTE_NODE);
-		node_idx_t next = parse_next(state, ')');
+		node_idx_t next = parse_next(env, state, ')');
 		while(next != NIL_NODE) {
 			n.t_list->push_back_inplace(next);
-			next = parse_next(state, ')');
+			next = parse_next(env, state, ')');
 		}
 		debugf("list end\n");
 		return new_node(&n);
@@ -700,10 +704,10 @@ static node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
 		debugf("list begin\n");
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
-		node_idx_t next = parse_next(state, ')');
+		node_idx_t next = parse_next(env, state, ')');
 		while(next != NIL_NODE) {
 			n.t_list->push_back_inplace(next);
-			next = parse_next(state, ')');
+			next = parse_next(env, state, ')');
 		}
 		debugf("list end\n");
 		return new_node(&n);
@@ -714,10 +718,10 @@ static node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
 		debugf("vector begin\n");
 		node_t n = {NODE_LIST};
 		n.t_list = new_list(); // TODO: actually vector pls
-		node_idx_t next = parse_next(state, ']');
+		node_idx_t next = parse_next(env, state, ']');
 		while(next != NIL_NODE) {
 			n.t_list->push_back_inplace(next);
-			next = parse_next(state, ']');
+			next = parse_next(env, state, ']');
 		}
 		debugf("vector end\n");
 		return new_node(&n);
@@ -738,9 +742,11 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list) {
 	list_t::iterator it = list->begin();
 	node_idx_t n1i = *it++;
 	int n1_type = get_node_type(n1i);
-	if(n1_type == NODE_LIST || n1_type == NODE_SYMBOL || n1_type == NODE_STRING) {
+	if(n1_type == NODE_LIST || n1_type == NODE_SYMBOL || n1_type == NODE_STRING || n1_type == NODE_NATIVE_FUNCTION) {
 		node_idx_t sym_idx;
-		if(n1_type == NODE_LIST) {
+		if(n1_type == NODE_NATIVE_FUNCTION) {
+			sym_idx = n1i;
+		} else if(n1_type == NODE_LIST) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
 		} else {
 			sym_idx = env_get(env, get_node_string(n1i));
@@ -751,8 +757,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list) {
 		// get the symbol's value
 		if(sym_type == NODE_NATIVE_FUNCTION) {
 			if(sym_flags & NODE_FLAG_MACRO) {
-				list_ptr_t args1(list->rest());
-				return get_node(sym_idx)->t_native_function(env, args1);
+				return get_node(sym_idx)->t_native_function(env, list->rest());
 			}
 
 			list_ptr_t args = new_list();
@@ -796,7 +801,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list) {
 			return last;
 		}
 	}
-	return NIL_NODE;
+	return n1i;
 }
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
@@ -2501,7 +2506,7 @@ int main(int argc, char **argv) {
 
 	// parse the base list
 	list_ptr_t main_list = new_list();
-	for(node_idx_t next = parse_next(&parse_state, 0); next != NIL_NODE; next = parse_next(&parse_state, 0)) {
+	for(node_idx_t next = parse_next(env, &parse_state, 0); next != NIL_NODE; next = parse_next(env, &parse_state, 0)) {
 		main_list->push_back_inplace(next);
 	}
 	fclose(fp);
