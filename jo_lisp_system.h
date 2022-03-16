@@ -162,22 +162,22 @@ static node_idx_t native_system_sleep(env_ptr_t env, list_ptr_t args) {
 }
 
 void jo_lisp_system_init(env_ptr_t env) {
-	env->set_inplace("System/setenv", new_node_native_function(&native_system_setenv, false));
-	env->set_inplace("System/getenv", new_node_native_function(&native_system_getenv, false));
-	env->set_inplace("System/exec", new_node_native_function(&native_system_exec, false));
-	env->set_inplace("System/getcwd", new_node_native_function(&native_system_getcwd, false));
-	env->set_inplace("System/kbhit", new_node_native_function(&native_system_kbhit, false));
-	env->set_inplace("System/getch", new_node_native_function(&native_system_getch, false));
-	env->set_inplace("System/date", new_node_native_function(&native_system_date, false));
-	env->set_inplace("System/sleep", new_node_native_function(&native_system_sleep, false));
-	env->set_inplace("slurp", new_node_native_function(&native_system_slurp, false));
-	env->set_inplace("spit", new_node_native_function(&native_system_spit, false));
-	env->set_inplace("read-line", new_node_native_function(&native_system_read_line, false));
-	env->set_inplace("-d", new_node_native_function(&native_system_dir_exists, false));
-	env->set_inplace("-e", new_node_native_function(&native_system_file_exists, false));
-	env->set_inplace("-s", new_node_native_function(&native_system_file_size, false));
-	env->set_inplace("-r", new_node_native_function(&native_system_file_readable, false));
-	env->set_inplace("-w", new_node_native_function(&native_system_file_writable, false));
-	env->set_inplace("-x", new_node_native_function(&native_system_file_executable, false));
-	env->set_inplace("-z", new_node_native_function(&native_system_file_empty, false));
+	env->set("System/setenv", new_node_native_function(&native_system_setenv, false));
+	env->set("System/getenv", new_node_native_function(&native_system_getenv, false));
+	env->set("System/exec", new_node_native_function(&native_system_exec, false));
+	env->set("System/getcwd", new_node_native_function(&native_system_getcwd, false));
+	env->set("System/kbhit", new_node_native_function(&native_system_kbhit, false));
+	env->set("System/getch", new_node_native_function(&native_system_getch, false));
+	env->set("System/date", new_node_native_function(&native_system_date, false));
+	env->set("System/sleep", new_node_native_function(&native_system_sleep, false));
+	env->set("slurp", new_node_native_function(&native_system_slurp, false));
+	env->set("spit", new_node_native_function(&native_system_spit, false));
+	env->set("read-line", new_node_native_function(&native_system_read_line, false));
+	env->set("-d", new_node_native_function(&native_system_dir_exists, false));
+	env->set("-e", new_node_native_function(&native_system_file_exists, false));
+	env->set("-s", new_node_native_function(&native_system_file_size, false));
+	env->set("-r", new_node_native_function(&native_system_file_readable, false));
+	env->set("-w", new_node_native_function(&native_system_file_writable, false));
+	env->set("-x", new_node_native_function(&native_system_file_executable, false));
+	env->set("-z", new_node_native_function(&native_system_file_empty, false));
 }

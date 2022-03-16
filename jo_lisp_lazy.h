@@ -75,6 +75,14 @@ static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 	} else {
 		return NIL_NODE;
 	}
+	// @ Maybe make 32 configurable
+	if(n <= 32) {
+		list_ptr_t ret = new_list();
+		for(int i = 0; i < n; i++) {
+			ret->push_back_inplace(x);
+		}
+		return new_node_list(ret);
+	}
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
 	get_node(lazy_func_idx)->t_list = new_list();
 	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("repeat-next"));
@@ -344,17 +352,17 @@ static node_idx_t native_distinct(env_ptr_t env, list_ptr_t args) {
 }
 
 void jo_lisp_lazy_init(env_ptr_t env) {
-	env->set_inplace("range", new_node_native_function(&native_range, false));
-	env->set_inplace("range-next", new_node_native_function(&native_range_next, false));
-	env->set_inplace("repeat", new_node_native_function(&native_repeat, true));
-	env->set_inplace("repeat-next", new_node_native_function(&native_repeat_next, true));
-	env->set_inplace("concat", new_node_native_function(&native_concat, true));
-	env->set_inplace("concat-next", new_node_native_function(&native_concat_next, true));
-	env->set_inplace("iterate", new_node_native_function(&native_iterate, true));
-	env->set_inplace("iterate-next", new_node_native_function(&native_iterate_next, true));
-	env->set_inplace("map", new_node_native_function(&native_map, true));
-	env->set_inplace("map-next", new_node_native_function(&native_map_next, true));
-	env->set_inplace("take", new_node_native_function(&native_take, true));
-	env->set_inplace("take-next", new_node_native_function(&native_take_next, true));
-	env->set_inplace("distinct", new_node_native_function(&native_distinct, false));
+	env->set("range", new_node_native_function(&native_range, false));
+	env->set("range-next", new_node_native_function(&native_range_next, false));
+	env->set("repeat", new_node_native_function(&native_repeat, true));
+	env->set("repeat-next", new_node_native_function(&native_repeat_next, true));
+	env->set("concat", new_node_native_function(&native_concat, true));
+	env->set("concat-next", new_node_native_function(&native_concat_next, true));
+	env->set("iterate", new_node_native_function(&native_iterate, true));
+	env->set("iterate-next", new_node_native_function(&native_iterate_next, true));
+	env->set("map", new_node_native_function(&native_map, true));
+	env->set("map-next", new_node_native_function(&native_map_next, true));
+	env->set("take", new_node_native_function(&native_take, true));
+	env->set("take-next", new_node_native_function(&native_take_next, true));
+	env->set("distinct", new_node_native_function(&native_distinct, false));
 }

@@ -20,6 +20,7 @@ static double time_program_start = jo_time();
 
 enum {
 	// hard coded nodes
+	TMP_NODE = -2,
 	INV_NODE = -1,
 	NIL_NODE = 0,
 	ZERO_NODE,
@@ -93,14 +94,6 @@ struct env_t {
 
 	env_t(env_ptr_t p) : vars(new_list()), vars_map(), parent(p) {}
 
-	void refresh_map() {
-		vars_map.clear();
-		for(list_t::iterator it = vars->begin(); it; it++) {
-			assert(get_node_type(*it) == NODE_VAR);
-			vars_map[get_node_string(*it).c_str()] = fast_val_t(*it, get_node_var(*it));
-		}
-	}
-
 	fast_val_t find(const jo_string &name) const {
 		auto it = vars_map.find(name.c_str());
 		if(it != vars_map.end()) {
@@ -132,7 +125,7 @@ struct env_t {
 		}
 	}
 
-	void set_inplace(jo_string name, node_idx_t value) {
+	void set(jo_string name, node_idx_t value) {
 		if(has(name)) {
 			remove(name);
 		}
@@ -141,21 +134,9 @@ struct env_t {
 		vars_map[name.c_str()] = fast_val_t(idx, value);
 	}
 
-	env_ptr_t set(const jo_string &name, node_idx_t value) {
-		printf("set %s to %s\n", name.c_str(), get_node_string(value).c_str());
-		env_ptr_t env = env_ptr_t(new env_t(parent));
-		env->vars = vars;
-		env->vars_map = vars_map;
-		env->set_inplace(name, value);
-		return env;
-	}
-
-	env_ptr_t conj(const env_ptr_t &other) const {
-		printf("warning, slow conj of envs\n");
-		env_t *env2 = new env_t(parent);
-		env2->vars = vars->conj(*other->vars.ptr);
-		env2->refresh_map();
-		return env2;
+	// sets the map only, but cannot iterate it. for dotimes and stuffs.
+	void set_temp(const jo_string &name, node_idx_t value) {
+		vars_map[name.c_str()] = fast_val_t(NIL_NODE, value);
 	}
 };
 
@@ -407,62 +388,6 @@ static node_idx_t new_node_var(const jo_string &name, node_idx_t value) {
 	n.t_var = value;
 	return new_node(&n);
 }
-
-#if 1
-
-static inline node_idx_t env_find(env_ptr_t env, const jo_string &name) {
-	return env->find(name).var;
-}
-
-static inline node_idx_t env_get(env_ptr_t env, const jo_string &name) {
-	return env->get(name);
-}
-
-static inline bool env_has(env_ptr_t env, const jo_string &name) {
-	return env->has(name);
-}
-
-static inline env_ptr_t env_set(env_ptr_t env, const jo_string &name, node_idx_t value) {
-	env->set_inplace(name, value);
-	return env;
-}
-
-#else
-
-static node_idx_t env_find(env_ptr_t env, const jo_string &name) {
-	for(list_t::iterator it = env->vars->begin(); it; ++it) {
-		node_idx_t idx = *it;
-		if(get_node_string(idx) == name) {
-			return idx;
-		}
-	}
-	return NIL_NODE;
-}
-
-static node_idx_t env_get(env_ptr_t env, const jo_string &name) {
-	node_idx_t idx = env_find(env, name);
-	if(idx == NIL_NODE) {
-		return NIL_NODE;
-	}
-	return get_node(idx)->t_var;
-}
-
-static bool env_has(env_ptr_t env, const jo_string &name) {
-	return env_find(env, name) != NIL_NODE;
-}
-
-// TODO: should this be destructive? or persistent?
-static env_ptr_t env_set(env_ptr_t env, const jo_string &name, node_idx_t value) {
-	node_idx_t idx = env_find(env, name);
-	if(idx == NIL_NODE) {
-		env->vars->cons_inplace(new_node_var(name, value));
-		return env;
-	}
-	get_node(idx)->t_var = value;
-	return env;
-}
-
-#endif
 
 static int is_whitespace(int c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 static int is_num(int c) { return (c >= '0' && c <= '9'); }
@@ -797,7 +722,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
 			sym_type = get_node_type(sym_idx);
 		} else {
-			sym_idx = env_get(env, get_node_string(n1i));
+			sym_idx = env->get(get_node_string(n1i));
 			sym_type = get_node_type(sym_idx);
 		}
 		sym_flags = get_node(sym_idx)->flags;
@@ -833,7 +758,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 				// and insert it to the head of env
 				for(list_t::iterator i = proto_args->begin(), i2 = args1->begin(); i && i2; i++, i2++) {
 					node_idx_t arg_value = eval_node(env, *i2);
-					fn_env->set_inplace(get_node_string(*i), arg_value);
+					fn_env->set_temp(get_node_string(*i), arg_value);
 				}
 			}
 			
@@ -864,11 +789,11 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 	if(type == NODE_LIST) {
 		return eval_list(env, get_node(root)->t_list, flags);
 	} else if(type == NODE_SYMBOL) {
-		node_idx_t sym_idx = env_find(env, get_node_string(root));
+		node_idx_t sym_idx = env->get(get_node_string(root));
 		if(sym_idx == NIL_NODE) {
 			return root;
 		}
-		return eval_node(env, get_node_var(sym_idx));
+		return eval_node(env, sym_idx);
 	}
 	return root;
 }
@@ -1495,8 +1420,8 @@ expands to (var x).
 static node_idx_t native_var(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
 	node_t *n = get_node(*i++);
-	if(env_has(env, n->as_string())) {
-		return env_find(env, n->as_string());
+	if(env->has(n->as_string())) {
+		return env->find(n->as_string()).var;
 	}
 	return NIL_NODE;
 }
@@ -1534,7 +1459,7 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	env_set(env, sym_node, eval_node(env, init));
+	env->set(sym_node, eval_node(env, init));
 	return NIL_NODE;
 }
 
@@ -1575,7 +1500,7 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 	ret->t_func.args = get_node(arg_list)->t_list;
 	ret->t_func.body = args->rest();
 	ret->t_func.env = env;
-	env_set(env, sym_node, reti);
+	env->set(sym_node, reti);
 	return NIL_NODE;
 }
 
@@ -1674,7 +1599,7 @@ static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t &env2 = new_env(env);
 	node_idx_t ret = NIL_NODE;
 	for(int i = 0; i < times; ++i) {
-		env2->set_inplace(name, new_node_int(i));
+		env2->set_temp(name, new_node_int(i));
 		for(list_t::iterator it2 = it; it2; it2++) { 
 			ret = eval_node(env2, *it2);
 		}
@@ -1710,7 +1635,7 @@ static node_idx_t native_doseq(env_ptr_t env, list_ptr_t args) {
 	node_idx_t ret = NIL_NODE;
 	env_ptr_t env2 = new_env(env);
 	for(list_t::iterator it2 = value_list->begin(); it2; it2++) {
-		env2->set_inplace(name, *it2);
+		env2->set_temp(name, *it2);
 		for(list_t::iterator it3 = it; it3; it3++) { 
 			ret = eval_node(env2, *it3);
 		}
@@ -2060,7 +1985,7 @@ static node_idx_t native_let(env_ptr_t env, list_ptr_t args) {
 		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
 		node_idx_t value_idx = eval_node(env2, *i++);
 		node_t *key = get_node(key_idx);
-		env2->set_inplace(key->as_string(), value_idx);
+		env2->set_temp(key->as_string(), value_idx);
 	}
 	return eval_node_list(env2, args->rest());
 }
@@ -2468,83 +2393,83 @@ int main(int argc, char **argv) {
 		new_node_symbol("quote");
 	}
 
-	env->set_inplace("nil", NIL_NODE);
-	env->set_inplace("zero", ZERO_NODE);
-	env->set_inplace("false", FALSE_NODE);
-	env->set_inplace("true", TRUE_NODE);
-	env->set_inplace("quote", new_node_native_function("quote", &native_quote, true));
-	env->set_inplace("let", new_node_native_function("let", &native_let, true));
-	env->set_inplace("eval", new_node_native_function("eval", &native_eval, false));
-	env->set_inplace("print", new_node_native_function("print", &native_print, false));
-	env->set_inplace("println", new_node_native_function("println", &native_println, false));
-	env->set_inplace("+", new_node_native_function("+", &native_add, false));
-	env->set_inplace("-", new_node_native_function("-", &native_sub, false));
-	env->set_inplace("*", new_node_native_function("*", &native_mul, false));
-	env->set_inplace("/", new_node_native_function("/", &native_div, false));
-	env->set_inplace("mod", new_node_native_function("mod", &native_mod, false));
-	env->set_inplace("inc", new_node_native_function("inc", &native_inc, false));
-	env->set_inplace("dec", new_node_native_function("dec", &native_dec, false));
-	env->set_inplace("=", new_node_native_function("=", &native_eq, false));
-	env->set_inplace("!=", new_node_native_function("!=", &native_neq, false));
-	env->set_inplace("not=", new_node_native_function("not=", &native_neq, false));
-	env->set_inplace("<", new_node_native_function("lt", &native_lt, false));
-	env->set_inplace("<=", new_node_native_function("lte", &native_lte, false));
-	env->set_inplace(">", new_node_native_function("gt", &native_gt, false));
-	env->set_inplace(">=", new_node_native_function("gte", &native_gte, false));
-	env->set_inplace("and", new_node_native_function("and", &native_and, true));
-	env->set_inplace("or", new_node_native_function("or", &native_or, true));
-	env->set_inplace("not", new_node_native_function("not", &native_not, true));
-	env->set_inplace("bit-and", new_node_native_function("bit-and", &native_bit_and, true));
-	env->set_inplace("bit-or", new_node_native_function("bit-or", &native_bit_or, true));
-	env->set_inplace("bit-xor", new_node_native_function("bit-xor", &native_bit_xor, true));
-	env->set_inplace("bit-not", new_node_native_function("bit-not", &native_bit_not, true));
-	env->set_inplace("empty?", new_node_native_function("empty?", &native_is_empty, false));
-	env->set_inplace("false?", new_node_native_function("false?", &native_is_false, false));
-	env->set_inplace("true?", new_node_native_function("true?", &native_is_true, false));
-	env->set_inplace("do", new_node_native_function("do", &native_do, false));
-	env->set_inplace("doall", new_node_native_function("doall", &native_doall, true));
-	env->set_inplace("cons", new_node_native_function("cons", &native_cons, false));
-	env->set_inplace("conj", new_node_native_function("conj", &native_conj, false));
-	env->set_inplace("into", new_node_native_function("info", &native_into, false));
-	env->set_inplace("pop", new_node_native_function("pop", &native_pop, false));
-	env->set_inplace("peek", new_node_native_function("peek", &native_peek, false));
-	env->set_inplace("first", new_node_native_function("first", &native_first, false));
-	env->set_inplace("second", new_node_native_function("second", &native_second, false));
-	env->set_inplace("last", new_node_native_function("last", &native_last, false));
-	env->set_inplace("drop", new_node_native_function("drop", &native_drop, false));
-	env->set_inplace("nth", new_node_native_function("nth", &native_nth, false));
-	env->set_inplace("ffirst", new_node_native_function("ffirst", &native_ffirst, false));
-	env->set_inplace("next", new_node_native_function("next", &native_next, false));
-	env->set_inplace("rest", new_node_native_function("rest", &native_rest, false));
-	env->set_inplace("list", new_node_native_function("list", &native_list, false));
-	env->set_inplace("take-last", new_node_native_function("take-last", &native_take_last, false));
-	env->set_inplace("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
-	env->set_inplace("concat", new_node_native_function("concat", &native_concat, false));
-	env->set_inplace("var", new_node_native_function("var", &native_var, false));
-	env->set_inplace("def", new_node_native_function("def", &native_def, true));
-	env->set_inplace("fn", new_node_native_function("fn", &native_fn, true));
-	env->set_inplace("fn?", new_node_native_function("fn?", &native_is_fn, false));
-	env->set_inplace("defn", new_node_native_function("defn", &native_defn, true));
-	env->set_inplace("*ns*", new_node_var("nil", NIL_NODE));
-	env->set_inplace("if", new_node_native_function("if", &native_if, true));
-	env->set_inplace("unless", new_node_native_function("unless", &native_unless, true));
-	env->set_inplace("when", new_node_native_function("when", &native_when, true));
-	env->set_inplace("while", new_node_native_function("while", &native_while, true));
-	env->set_inplace("cond", new_node_native_function("cond", &native_cond, true));
-	env->set_inplace("case", new_node_native_function("case", &native_case, true));
-	env->set_inplace("apply", new_node_native_function("apply", &native_apply, true));
-	env->set_inplace("reduce", new_node_native_function("reduce", &native_reduce, true));
-	env->set_inplace("delay", new_node_native_function("delay", &native_delay, true));
-	env->set_inplace("delay?", new_node_native_function("is_delay", &native_is_delay, false));
-	env->set_inplace("constantly", new_node_native_function("constantly", &native_constantly, false));
-	env->set_inplace("count", new_node_native_function("count", &native_count, false));
-	env->set_inplace("dotimes", new_node_native_function("dotimes", &native_dotimes, true));
-	env->set_inplace("doseq", new_node_native_function("doseq", &native_doseq, true));
-	env->set_inplace("nil?", new_node_native_function("nil?", native_is_nil, false));
-	env->set_inplace("rand-int", new_node_native_function("rand-int", &native_rand_int, false));
-	env->set_inplace("rand-float", new_node_native_function("rand-float", &native_rand_float, false));
-	env->set_inplace("Time/now", new_node_native_function("Time/now", &native_time_now, false));
-	env->set_inplace("time", new_node_native_function("time", &native_time, true));
+	env->set("nil", NIL_NODE);
+	env->set("zero", ZERO_NODE);
+	env->set("false", FALSE_NODE);
+	env->set("true", TRUE_NODE);
+	env->set("quote", new_node_native_function("quote", &native_quote, true));
+	env->set("let", new_node_native_function("let", &native_let, true));
+	env->set("eval", new_node_native_function("eval", &native_eval, false));
+	env->set("print", new_node_native_function("print", &native_print, false));
+	env->set("println", new_node_native_function("println", &native_println, false));
+	env->set("+", new_node_native_function("+", &native_add, false));
+	env->set("-", new_node_native_function("-", &native_sub, false));
+	env->set("*", new_node_native_function("*", &native_mul, false));
+	env->set("/", new_node_native_function("/", &native_div, false));
+	env->set("mod", new_node_native_function("mod", &native_mod, false));
+	env->set("inc", new_node_native_function("inc", &native_inc, false));
+	env->set("dec", new_node_native_function("dec", &native_dec, false));
+	env->set("=", new_node_native_function("=", &native_eq, false));
+	env->set("!=", new_node_native_function("!=", &native_neq, false));
+	env->set("not=", new_node_native_function("not=", &native_neq, false));
+	env->set("<", new_node_native_function("lt", &native_lt, false));
+	env->set("<=", new_node_native_function("lte", &native_lte, false));
+	env->set(">", new_node_native_function("gt", &native_gt, false));
+	env->set(">=", new_node_native_function("gte", &native_gte, false));
+	env->set("and", new_node_native_function("and", &native_and, true));
+	env->set("or", new_node_native_function("or", &native_or, true));
+	env->set("not", new_node_native_function("not", &native_not, true));
+	env->set("bit-and", new_node_native_function("bit-and", &native_bit_and, true));
+	env->set("bit-or", new_node_native_function("bit-or", &native_bit_or, true));
+	env->set("bit-xor", new_node_native_function("bit-xor", &native_bit_xor, true));
+	env->set("bit-not", new_node_native_function("bit-not", &native_bit_not, true));
+	env->set("empty?", new_node_native_function("empty?", &native_is_empty, false));
+	env->set("false?", new_node_native_function("false?", &native_is_false, false));
+	env->set("true?", new_node_native_function("true?", &native_is_true, false));
+	env->set("do", new_node_native_function("do", &native_do, false));
+	env->set("doall", new_node_native_function("doall", &native_doall, true));
+	env->set("cons", new_node_native_function("cons", &native_cons, false));
+	env->set("conj", new_node_native_function("conj", &native_conj, false));
+	env->set("into", new_node_native_function("info", &native_into, false));
+	env->set("pop", new_node_native_function("pop", &native_pop, false));
+	env->set("peek", new_node_native_function("peek", &native_peek, false));
+	env->set("first", new_node_native_function("first", &native_first, false));
+	env->set("second", new_node_native_function("second", &native_second, false));
+	env->set("last", new_node_native_function("last", &native_last, false));
+	env->set("drop", new_node_native_function("drop", &native_drop, false));
+	env->set("nth", new_node_native_function("nth", &native_nth, false));
+	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false));
+	env->set("next", new_node_native_function("next", &native_next, false));
+	env->set("rest", new_node_native_function("rest", &native_rest, false));
+	env->set("list", new_node_native_function("list", &native_list, false));
+	env->set("take-last", new_node_native_function("take-last", &native_take_last, false));
+	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
+	env->set("concat", new_node_native_function("concat", &native_concat, false));
+	env->set("var", new_node_native_function("var", &native_var, false));
+	env->set("def", new_node_native_function("def", &native_def, true));
+	env->set("fn", new_node_native_function("fn", &native_fn, true));
+	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false));
+	env->set("defn", new_node_native_function("defn", &native_defn, true));
+	env->set("*ns*", new_node_var("nil", NIL_NODE));
+	env->set("if", new_node_native_function("if", &native_if, true));
+	env->set("unless", new_node_native_function("unless", &native_unless, true));
+	env->set("when", new_node_native_function("when", &native_when, true));
+	env->set("while", new_node_native_function("while", &native_while, true));
+	env->set("cond", new_node_native_function("cond", &native_cond, true));
+	env->set("case", new_node_native_function("case", &native_case, true));
+	env->set("apply", new_node_native_function("apply", &native_apply, true));
+	env->set("reduce", new_node_native_function("reduce", &native_reduce, true));
+	env->set("delay", new_node_native_function("delay", &native_delay, true));
+	env->set("delay?", new_node_native_function("is_delay", &native_is_delay, false));
+	env->set("constantly", new_node_native_function("constantly", &native_constantly, false));
+	env->set("count", new_node_native_function("count", &native_count, false));
+	env->set("dotimes", new_node_native_function("dotimes", &native_dotimes, true));
+	env->set("doseq", new_node_native_function("doseq", &native_doseq, true));
+	env->set("nil?", new_node_native_function("nil?", native_is_nil, false));
+	env->set("rand-int", new_node_native_function("rand-int", &native_rand_int, false));
+	env->set("rand-float", new_node_native_function("rand-float", &native_rand_float, false));
+	env->set("Time/now", new_node_native_function("Time/now", &native_time_now, false));
+	env->set("time", new_node_native_function("time", &native_time, true));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
