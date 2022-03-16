@@ -713,7 +713,6 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.t_list = new_list();
 		//n.flags |= NODE_FLAG_LITERAL;
 		n.t_list->push_back_inplace(env->get("quote"));
-		//n.t_list->push_back_inplace(QUOTE_NODE);
 		node_idx_t next = parse_next(env, state, ')');
 		while(next != NIL_NODE) {
 			n.t_list->push_back_inplace(next);
@@ -857,16 +856,11 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 	node_t *n, *n1, *n2;
 	node_idx_t i, n1i, n2i;
 
-	if(root == NIL_NODE) {
-		return NIL_NODE;
-	}
+	int flags = get_node_flags(root);
+	//if(flags & NODE_FLAG_LITERAL) { return root; }
 
 	int type = get_node_type(root);
 	if(type == NODE_LIST) {
-		int flags = get_node_flags(root);
-		//if(flags & NODE_FLAG_LITERAL) {
-			//return root;
-		//}
 		return eval_list(env, get_node(root)->t_list, flags);
 	} else if(type == NODE_SYMBOL) {
 		node_idx_t sym_idx = env_find(env, get_node_string(root));
