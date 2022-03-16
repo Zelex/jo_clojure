@@ -24,6 +24,7 @@ enum {
 	ZERO_NODE,
 	FALSE_NODE,
 	TRUE_NODE,
+	QUOTE_NODE,
 
 	NODE_NIL = 0,
 	NODE_BOOL,
@@ -678,7 +679,7 @@ static node_idx_t parse_next(parse_state_t *state, int stop_on_sep) {
 		debugf("list begin\n");
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(new_node_symbol("quote"));
+		n.t_list->push_back_inplace(QUOTE_NODE);
 		node_idx_t next = parse_next(state, ')');
 		while(next != NIL_NODE) {
 			n.t_list->push_back_inplace(next);
@@ -2358,6 +2359,7 @@ int main(int argc, char **argv) {
 		new_node_int(0);
 		new_node_bool(false);
 		new_node_bool(true);
+		new_node_symbol("quote");
 	}
 
 	env->set_inplace("nil", NIL_NODE);
