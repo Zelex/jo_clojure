@@ -15,6 +15,7 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 * Parses code into native structures, then executes. Essentially interpreted. 
 * Lazy sequences
 * Startup time is ridiculously fast by comparison
+* Implementations of persistent lists, vectors (WIP: hashes, maps, etc).
 
 # Differences:
 * Not entirely complete implementation (yet)
