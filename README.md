@@ -22,4 +22,4 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 # Future:
 * Native types and operations for Matrices and Tensors. 
 * Focus on automatic parallelization in general, and explicit when "you know what you are doing". 
-
+* Software Transactional Memory
