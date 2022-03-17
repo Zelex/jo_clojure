@@ -46,6 +46,12 @@
 #define jo_chdir _chdir
 #pragma warning(push)
 #pragma warning(disable : 4345)
+#elif defined(__APPLE__)
+#include <mach/mach_time.h>
+#include <unistd.h>
+#include <termios.h>
+#define jo_strdup strdup
+#define jo_chdir chdir
 #else
 #include <unistd.h>
 #include <termios.h>

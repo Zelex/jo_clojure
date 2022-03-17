@@ -743,7 +743,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 			list_ptr_t proto_args = get_node(sym_idx)->t_func.args;
 			list_ptr_t proto_body = get_node(sym_idx)->t_func.body;
 			env_ptr_t proto_env = get_node(sym_idx)->t_func.env;
-			env_ptr_t &fn_env = new_env(proto_env);
+			env_ptr_t fn_env = new_env(proto_env);
 			list_ptr_t args1(list->rest());
 
 			if(sym_type == NODE_DELAY && get_node(sym_idx)->t_delay != INV_NODE) {
@@ -994,6 +994,7 @@ struct seq_iterator_t {
 		} else {
 			lit.nth(n);
 		}
+		return lit.val;
 	}
 
 	operator bool() const {
@@ -1596,7 +1597,7 @@ static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
 	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
 	int times = get_node(value_idx)->as_int();
 	jo_string name = get_node(name_idx)->as_string();
-	env_ptr_t &env2 = new_env(env);
+	env_ptr_t env2 = new_env(env);
 	node_idx_t ret = NIL_NODE;
 	for(int i = 0; i < times; ++i) {
 		env2->set_temp(name, new_node_int(i));
