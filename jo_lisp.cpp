@@ -50,8 +50,8 @@ enum {
 	NODE_DELAY,
 
 	NODE_FLAG_MACRO        = 1<<0,
-	NODE_FLAG_INFINITE     = 1<<1,
-	NODE_FLAG_LAZY         = 1<<2,
+	NODE_FLAG_INFINITE     = 1<<1, // unused
+	NODE_FLAG_LAZY         = 1<<2, // unused
 	NODE_FLAG_LITERAL      = 1<<3,
 	NODE_FLAG_LITERAL_ARGS = 1<<4,
 };
@@ -59,17 +59,35 @@ enum {
 struct env_t;
 struct node_t;
 
-typedef int node_idx_t;
-typedef jo_string sym_t;
-typedef jo_persistent_list<node_idx_t> list_t; // TODO: make node_t
-//typedef jo_persistent_vector_bidirectional<node_idx_t> list_t; // TODO: make node_t
+struct node_idx_t {
+	int idx;
+	node_idx_t() = default;
+	node_idx_t(int idx) : idx(idx) {}
+	operator int() const { return idx; }
+	node_idx_t& operator=(int idx) { this->idx = idx; return *this; }
+	bool operator==(const node_idx_t& other) const { return idx == other.idx; }
+	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
+	bool operator==(int idx) const { return this->idx == idx; }
+	bool operator!=(int idx) const { return this->idx != idx; }
+};
+
+typedef jo_persistent_list<node_idx_t> list_t;
+//typedef jo_persistent_vector_bidirectional<node_idx_t> list_t;
 typedef jo_shared_ptr<list_t> list_ptr_t;
+
+typedef jo_persistent_vector<node_idx_t> vector_t;
+typedef jo_shared_ptr<vector_t> vector_ptr_t;
+
+typedef jo_persistent_unordered_map<node_idx_t, node_idx_t> map_t;
+typedef jo_shared_ptr<map_t> map_ptr_t;
 
 typedef jo_shared_ptr<env_t> env_ptr_t;
 
 typedef node_idx_t (*native_function_t)(env_ptr_t env, list_ptr_t args);
 
 static list_ptr_t new_list() { return list_ptr_t(new list_t()); }
+static vector_ptr_t new_vector() { return vector_ptr_t(new vector_t()); }
+static map_ptr_t new_map() { return map_ptr_t(new map_t()); }
 
 static inline node_t *get_node(node_idx_t idx);
 static inline int get_node_type(node_idx_t idx);
@@ -147,6 +165,8 @@ struct node_t {
 	int flags;
 	jo_string t_string;
 	list_ptr_t t_list;
+	vector_ptr_t t_vector;
+	map_ptr_t t_map;
 	struct {
 		list_ptr_t args;
 		list_ptr_t body;
@@ -158,9 +178,6 @@ struct node_t {
 		// most implementations combine these as "number", but at the moment that sounds silly
 		int t_int;
 		double t_float;
-		node_idx_t t_vector; // TODO: vectors of PODs or ??? should be hard coded types
-		node_idx_t t_map;
-		node_idx_t t_set;
 		node_idx_t t_delay; // cached result
 		node_idx_t t_lazy_fn;
 		native_function_t t_native_function;
@@ -168,17 +185,18 @@ struct node_t {
 
 	bool is_symbol() const { return type == NODE_SYMBOL; }
 	bool is_list() const { return type == NODE_LIST; }
-	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
-	bool is_seq() const { return is_list() || is_lazy_list(); }
 	bool is_vector() const { return type == NODE_VECTOR; }
+	bool is_map() const { return type == NODE_MAP; }
+	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
 	bool is_string() const { return type == NODE_STRING; }
 	bool is_func() const { return type == NODE_FUNC; }
 	bool is_macro() const { return flags & NODE_FLAG_MACRO;}
-	bool is_infinite() const { return flags & NODE_FLAG_INFINITE; }
 
-	list_ptr_t &as_list() {
-		return t_list;
-	}
+	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_vector(); }
+
+	list_ptr_t &as_list() { return t_list; }
+	vector_ptr_t &as_vector() { return t_vector; }
+	map_ptr_t &as_map() { return t_map; }
 
 	bool as_bool() const {
 		switch(type) {
@@ -697,7 +715,22 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		return new_node(&n);
 	}
 
-	// parse map
+	// parse map (hashmap)
+	// like a list, but with keys and values alternating
+	if(c == '{') {
+		debugf("map begin\n");
+		node_t n = {NODE_MAP};
+		n.t_map = new_map();
+		node_idx_t next = parse_next(env, state, '}');
+		node_idx_t next2 = next != NIL_NODE ? parse_next(env, state, '}') : NIL_NODE;
+		while(next != NIL_NODE && next2 != NIL_NODE) {
+			n.t_map->assoc_inplace(next, next2);
+			next = parse_next(env, state, '}');
+			next2 = next != NIL_NODE ? parse_next(env, state, '}') : NIL_NODE;
+		}
+		debugf("map end\n");
+		return new_node(&n);
+	}
 
 	// parse set
 
@@ -943,33 +976,49 @@ struct lazy_list_iterator_t {
 };
 
 // Generic iterator... 
-// if its lazy, it iterates over the lazy list, otherwise it iterates over the list
 struct seq_iterator_t {
 	int type;
 	node_idx_t val;
 	list_t::iterator it;
+	vector_t::iterator vit;
+	map_t::iterator mit;
 	lazy_list_iterator_t lit;
 
-	seq_iterator_t(env_ptr_t env, node_idx_t node_idx) : val(NIL_NODE), it(), lit(env, node_idx) {
+	seq_iterator_t(env_ptr_t env, node_idx_t node_idx) : val(NIL_NODE), it(), vit(), mit(), lit(env, node_idx) {
 		type = get_node_type(node_idx);
 		if(type == NODE_LIST) {
 			it = get_node(node_idx)->as_list()->begin();
 			if(!done()) {
 				val = *it++;
 			}
+		} else if(type == NODE_VECTOR) {
+			vit = get_node(node_idx)->as_vector()->begin();
+			if(!done()) {
+				val = *vit++;
+			}
+		} else if(type == NODE_MAP) {
+			mit = get_node(node_idx)->as_map()->begin();
+			if(!done()) {
+				val = mit->second;
+			}
 		} else if(type == NODE_LAZY_LIST) {
 			val = lit.val;
+		} else {
+			assert(false);
 		}
 	}
 
 	bool done() const {
 		if(type == NODE_LIST) {
 			return !it;
+		} else if(type == NODE_VECTOR) {
+			return !vit;
+		} else if(type == NODE_MAP) {
+			return !mit;
 		} else if(type == NODE_LAZY_LIST) {
 			return lit.done();
-		} else {
-			return true;
 		}
+		return true;
 	}
 
 	void next() {
@@ -978,6 +1027,13 @@ struct seq_iterator_t {
 		}
 		if(type == NODE_LIST) {
 			val = *it++;
+		} else if(type == NODE_VECTOR) {
+			val = *vit++;
+		} else if(type == NODE_MAP) {
+			mit++;
+			if(!done()) {
+				val = mit->second;
+			}
 		} else if(type == NODE_LAZY_LIST) {
 			lit.next();
 			val = lit.val;
@@ -985,16 +1041,14 @@ struct seq_iterator_t {
 	}
 
 	node_idx_t nth(int n) {
-		if(type == NODE_LIST) {
-			node_idx_t res = val;
-			while(n-- > 0 && !done()) {
-				next();
-			}
-			return val;
-		} else {
+		if(type == NODE_LAZY_LIST) {
 			lit.nth(n);
+			return lit.val;
 		}
-		return lit.val;
+		while(n-- > 0 && !done()) {
+			next();
+		}
+		return val;
 	}
 
 	operator bool() const {
@@ -1097,6 +1151,31 @@ static bool node_lte(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 	}
 	return false;
 }
+
+// jo_hash_value of node_idx_t
+template <>
+size_t jo_hash_value(node_idx_t n) {
+	node_t *n1 = get_node(n);
+	if(n1->type == NODE_NIL) {
+		return 0;
+	} else if(n1->is_seq()) {
+		uint32_t res = 0;
+		for(seq_iterator_t i(NULL, n); i; i.next()) {
+			res = (res * 31) + jo_hash_value(i.val);
+		}
+		return res;
+	} else if(n1->type == NODE_BOOL) {
+		return n1->t_bool ? 1 : 0;
+	} else if(n1->type == NODE_STRING || n1->type == NODE_SYMBOL) {
+		return jo_hash_value(n1->t_string.c_str());
+	} else if(n1->type == NODE_INT) {
+		return n1->t_int;
+	} else if(n1->type == NODE_FLOAT) {
+		return jo_hash_value(n1->as_float());
+	}
+	return 0;
+}
+
 
 // native function to add any number of arguments
 static node_idx_t native_add(env_ptr_t env, list_ptr_t args) { 

@@ -314,6 +314,47 @@ template<typename T1, typename T2>
 struct jo_pair {
     T1 first;
     T2 second;
+
+    jo_pair() : first(), second() {}
+    jo_pair(const T1 &a, const T2 &b) : first(a), second(b) {}
+
+    bool operator==(const jo_pair<T1, T2> &other) const {
+        return first == other.first && second == other.second;
+    }
+    bool operator!=(const jo_pair<T1, T2> &other) const {
+        return !(*this == other);
+    }
+    bool operator<(const jo_pair<T1, T2> &other) const {
+        if(first < other.first) return true;
+        if(first > other.first) return false;
+        return second < other.second;
+    }
+};
+
+// jo_triple
+template<typename T1, typename T2, typename T3>
+struct jo_triple {
+    T1 first;
+    T2 second;
+    T3 third;
+
+    jo_triple() : first(), second(), third() {}
+    jo_triple(const T1 &a, const T2 &b, const T3 &c) : first(a), second(b), third(c) {}
+
+    bool operator==(const jo_triple<T1, T2, T3> &other) const {
+        return first == other.first && second == other.second && third == other.third;
+    }
+    bool operator!=(const jo_triple<T1, T2, T3> &other) const {
+        return !(*this == other);
+    }
+    bool operator<(const jo_triple<T1, T2, T3> &other) const {
+        if(first < other.first) return true;
+        if(first > other.first) return false;
+        if(second < other.second) return true;
+        if(second > other.second) return false;
+        return third < other.third;
+    }
+
 };
 
 struct jo_string {
@@ -2876,6 +2917,9 @@ struct jo_persistent_vector
         const T *operator->() const {
             return &(*vec)[index];
         }
+        iterator operator+(size_t offset) const {
+            return iterator(vec, index + offset);
+        }
     private:
         const jo_persistent_vector *vec;
         size_t index;
@@ -3786,7 +3830,7 @@ struct jo_hash {
 };
 
 // jo_hash_value
-template<typename T> size_t jo_hash_value(const T value);
+template<typename T> size_t jo_hash_value(T value);
 
 template<> size_t jo_hash_value(const bool &value) { return value ? 1 : 0; }
 template<> size_t jo_hash_value(const char &value) { return value; }
@@ -3799,8 +3843,7 @@ template<> size_t jo_hash_value(const long &value) { return value; }
 template<> size_t jo_hash_value(const unsigned long &value) { return value; }
 template<> size_t jo_hash_value(const long long &value) { return value; }
 template<> size_t jo_hash_value(const unsigned long long &value) { return value; }
-template<> size_t jo_hash_value(const float &value) { return *(size_t *)&value; }
-template<> size_t jo_hash_value(const double &value) { return *(size_t *)&value; }
+template<> size_t jo_hash_value(const double value) { return *(size_t *)&value; }
 template<> size_t jo_hash_value(const long double &value) { return *(size_t *)&value; }
 template<> size_t jo_hash_value(const char *value) {
     size_t hash = 0;
@@ -3812,8 +3855,6 @@ template<> size_t jo_hash_value(const char *value) {
 }
 template<> size_t jo_hash_value(const jo_string &value) { return jo_hash_value(value.c_str()); }
 
-#if 0
-
 // jo_persistent_unordered_map is a persistent hash map
 // that uses a persistent vector as the underlying data structure
 // for the map.
@@ -3821,132 +3862,166 @@ template<typename K, typename V>
 class jo_persistent_unordered_map {
     // the way this works is that you make your hash value of K and
     // then use that as an index into the vector.
-    jo_persistent_vector<std::pair<K, V> > hash;
+    typedef jo_triple<K, V, bool> entry_t;
+    jo_persistent_vector< entry_t > vec;
+    size_t size;
+
 public:
-    jo_persistent_unordered_map() {}
-    jo_persistent_unordered_map(const jo_persistent_unordered_map &other) : hash(other.hash) {}
+    jo_persistent_unordered_map() : size() {}
+    jo_persistent_unordered_map(const jo_persistent_unordered_map &other) : vec(other.vec), size(other.size) {}
     jo_persistent_unordered_map &operator=(const jo_persistent_unordered_map &other) {
-        hash = other.hash;
+        vec = other.vec;
+        size = other.size;
         return *this;
     }
 
-    // insert a new value into the map
-    jo_persistent_unordered_map *insert(const K &key, const V &value) {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        int index = jo_hash_value(key);
-        copy->hash.set(index, std::pair<K, V>(key, value));
-        return copy;
-    }
-
-    // insert a new value into the map
-    jo_persistent_unordered_map *insert(const std::pair<K, V> &pair) {
-        return insert(pair.first, pair.second);
-    }
-
-    // insert a new value into the map
-    jo_persistent_unordered_map *insert(const jo_persistent_unordered_map &other) {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        for(int i = 0; i < other.hash.size(); i++) {
-            if(other.hash.get(i)) {
-                copy->hash.set(i, other.hash.get(i));
+    // iterator
+    class iterator {
+        typename jo_persistent_vector< entry_t >::iterator cur;
+    public:
+        iterator(const typename jo_persistent_vector< entry_t >::iterator &it) : cur(it) {
+            // find first non-erased entry
+            while(!cur->third) {
+                cur++;
             }
         }
-        return copy;
-    }
-
-    // insert a new value into the map
-    jo_persistent_unordered_map *insert(const jo_persistent_unordered_map *other) {
-        return insert(*other);
-    }
-
-    // remove a value from the map
-    jo_persistent_unordered_map *erase(const K &key) {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        int index = jo_hash_value(key);
-        copy->hash.set(index, NULL);
-        return copy;
-    }
-
-    // remove a value from the map
-    jo_persistent_unordered_map *erase(const jo_persistent_unordered_map &other) {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        for(int i = 0; i < other.hash.size(); i++) {
-            if(other.hash.get(i)) {
-                copy->hash.set(i, NULL);
-            }
+        iterator() : cur() {}
+        iterator &operator++() {
+            do {
+                cur++;
+            } while(cur && !cur->third);
+            return *this;
         }
+        iterator operator++(int) {
+            iterator ret = *this;
+            do {
+                cur++;
+            } while(cur && !cur->third);
+            return ret;
+        }
+        bool operator==(const iterator &other) const {
+            return cur == other.cur;
+        }
+        bool operator!=(const iterator &other) const {
+            return cur != other.cur;
+        }
+        const entry_t &operator*() const {
+            return *cur;
+        }
+        const entry_t *operator->() const {
+            return &*cur;
+        }
+        iterator operator+(int i) const {
+            iterator ret = *this;
+            ret.cur += i;
+            return ret;
+        }
+        operator bool() const {
+            return cur;
+        }
+    };
+
+    iterator begin() {
+        return iterator(vec.begin());
+    }
+
+    iterator end() {
+        return iterator(vec.end());
+    }
+
+    // remove a value from the map
+    jo_persistent_unordered_map *erase(const K &key) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        int index = jo_hash_value(key) % vec.size();
+        while(copy->vec[index].third) {
+            if(copy->vec[index].first == key) {
+                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, V(), true));
+                return copy;
+            }
+            index = (index + 1) % vec.size();
+        } 
         return copy;
     }
 
-    // remove a value from the map
-    jo_persistent_unordered_map *erase(const jo_persistent_unordered_map *other) {
-        return erase(*other);
+    // insert a new value into the map, if the value already exists, replaces it
+    jo_persistent_unordered_map *assoc(const K &key, const V &value) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        int index = jo_hash_value(key) % vec.size();
+        while(copy->vec[index].third) {
+            if(copy->vec[index].first == key) {
+                copy->vec.assoc_inplace(index, entry_t(key, value, true));
+                return copy;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        copy->vec.assoc_inplace(index, entry_t(key, value, true));
+        return copy;
+    }
+
+    jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value) {
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(vec[index].first == key) {
+                vec.assoc_inplace(index, entry_t(key, value, true));
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        vec.assoc_inplace(index, entry_t(key, value, true));
+        return this;
     }
 
     // remove a value from the map
-    jo_persistent_unordered_map *erase(const iterator &it) {
+    jo_persistent_unordered_map *erase(const iterator &it) const {
         return erase(it.cur->first);
-    }
-
-    // remove a value from the map
-    jo_persistent_unordered_map *erase(const iterator &it, const iterator &end) {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        while(it != end) {
-            copy->erase(*it);
-            it++;
-        }
-        return copy;
     }
 
     // find a value in the map
     iterator find(const K &key) {
-        for(int i = jo_hash_value(key); hash.get(i); i = (i + 1) % hash.size()) {
-            if(hash.get(i)->first == key) {
-                return iterator(hash.get(i));
-            }
-        }
-        return end();
-    }
-
-    // find a value in the map
-    iterator find(const iterator &it) {
-        return find(it.cur->first);
-    }
-
-    // find a value in the map
-    iterator find(const iterator &it, const iterator &end) {
-        iterator ret = end();
-        while(it != end) {
-            ret = find(*it);
-            if(ret != end()) {
-                return ret;
-            }
+        int index = jo_hash_value(key) % vec.size();
+        typename jo_persistent_vector< entry_t >::iterator it = vec.begin() + index;
+        while(it != vec.end() && it->first != key) {
             it++;
         }
-        return ret;
+        return iterator(it);
     }
 
-    // get the value at a key
-    V &operator[](const K &key) {
-        int index = jo_hash_value(key);
-        if(!hash.get(index)) {
-            hash.set(index, std::pair<K, V>(key, V()));
+    // find using lambda
+    template<typename F>
+    iterator find(const K &key, const F &f) {
+        int index = jo_hash_value(key) % vec.size();
+        typename jo_persistent_vector< entry_t >::iterator it = vec.begin() + index;
+        while(it != vec.end() && !f(it->first, key)) {
+            it++;
         }
-        return hash.get(index)->second;
+        return iterator(it);
     }
 
-    // get the value at a key
-    V &operator[](const iterator &it) {
-        return (*this)[it.cur->first];
+    const V &nth(const K &key) const {
+        int index = jo_hash_value(key) % vec.size();
+        typename jo_persistent_vector< entry_t >::iterator it = vec.begin() + index;
+        while(it != vec.end() && it->first != key) {
+            it++;
+        }
+        if(it == vec.end()) {
+            return V();
+        }
+        return it->second;
     }
 
-
-
-
-
-
+    // nth using lambda
+    template<typename F>
+    const V &nth(const F &f) const {
+        typename jo_persistent_vector< entry_t >::iterator it = vec.begin();
+        while(it != vec.end() && !f(it->first)) {
+            it++;
+        }
+        if(it == vec.end()) {
+            return V();
+        }
+        return it->second;
+    }
 };
-#endif
 
 
 static const char *va(const char *fmt, ...) {
