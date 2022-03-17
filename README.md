@@ -1,5 +1,7 @@
 # jo_lisp
 
+Author Jon Olick. @JonOlick on twitter. 
+
 Clojure language implementation in C. 
 
 Just started the project, nothing is done, everything is messy. Will clean up before version 1.0.
