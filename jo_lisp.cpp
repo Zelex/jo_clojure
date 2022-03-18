@@ -835,10 +835,15 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 			return last;
 		} else if(sym_type == NODE_MAP) {
 			// lookup the key in the map
-			int n2i = eval_node(env, *it);
-			return get_node(sym_idx)->t_map->nth(n2i, [env](const node_idx_t &a, const node_idx_t &b) {
+			int n2i = eval_node(env, *it++);
+			int n3i = it ? eval_node(env, *it++) : NIL_NODE;
+			auto it2 = get_node(sym_idx)->t_map->find(n2i, [env](const node_idx_t &a, const node_idx_t &b) {
 				return node_eq(env, a, b);
 			});
+			if(it2.third) {
+				return it2.second;
+			}
+			return n3i;
 		}
 	}
 	return n1i;

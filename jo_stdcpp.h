@@ -2948,6 +2948,29 @@ struct jo_persistent_vector
         iterator operator+(size_t offset) const {
             return iterator(vec, index + offset);
         }
+        iterator operator-(size_t offset) const {
+            return iterator(vec, index - offset);
+        }
+        iterator &operator+=(size_t offset) {
+            index += offset;
+            return *this;
+        }
+        iterator &operator-=(size_t offset) {
+            index -= offset;
+            return *this;
+        }
+        size_t operator-(const iterator &other) const {
+            return index - other.index;
+        }
+        size_t operator-(const iterator &other) {
+            return index - other.index;
+        }
+        iterator &operator=(const iterator &other) {
+            vec = other.vec;
+            index = other.index;
+            return *this;
+        }
+
     private:
         const jo_persistent_vector *vec;
         size_t index;
@@ -4085,46 +4108,50 @@ public:
     }
 
     // find a value in the map
-    iterator find(const K &key) {
-        int index = jo_hash_value(key) % vec.size();
-        typename jo_persistent_vector< entry_t >::iterator it = vec.begin() + index;
-        while(it != vec.end() && it->first != key) {
-            it++;
-        }
-        return iterator(it);
+    entry_t find(const K &key) {
+        size_t index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(vec[index].first == key) {
+                return vec[index];
+            }
+            index = (index + 1) % vec.size();
+        } 
+        return entry_t();
     }
 
     // find using lambda
     template<typename F>
-    iterator find(const K &key, const F &f) {
-        int index = jo_hash_value(key) % vec.size();
-        typename jo_persistent_vector< entry_t >::iterator it = vec.begin() + index;
-        while(it != vec.end() && !f(it->first, key)) {
-            it++;
-        }
-        return iterator(it);
+    entry_t find(const K &key, const F &f) {
+        size_t index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(f(vec[index].first, key)) {
+                return vec[index];
+            }
+            index = (index + 1) % vec.size();
+        } 
+        return entry_t();
     }
 
-    V nth(const K &key) const {
-        int index = jo_hash_value(key) % vec.size();
-        typename jo_persistent_vector< entry_t >::iterator it = vec.begin() + index;
-        while(it != vec.end() && it->first != key) {
+    V get(const K &key) const {
+        size_t index = jo_hash_value(key) % vec.size();
+        auto it = vec.begin() + index;
+        while(it && it->first != key && it->third) {
             it++;
         }
-        if(it == vec.end()) {
+        if(!it) {
             return V();
         }
         return it->second;
     }
 
-    // nth using lambda
     template<typename F>
-    V nth(const K &key, const F &f) const {
-        typename jo_persistent_vector< entry_t >::iterator it = vec.begin();
-        while(it != vec.end() && !f(it->first, key)) {
+    V get(const K &key, const F &f) const {
+        size_t index = jo_hash_value(key) % vec.size();
+        auto it = vec.begin() + index;
+        while(it && !f(it->first, key) && it->third) {
             it++;
         }
-        if(it == vec.end()) {
+        if(!it) {
             return V();
         }
         return it->second;
