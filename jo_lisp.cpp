@@ -363,6 +363,14 @@ static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0) {
 	return idx;
 }
 
+static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0) {
+	node_idx_t idx = new_node(NODE_MAP);
+	node_t *n = get_node(idx);
+	n->t_map = nodes;
+	n->flags |= flags;
+	return idx;
+}
+
 static node_idx_t new_node_lazy_list(node_idx_t lazy_fn) {
 	node_idx_t idx = new_node(NODE_LAZY_LIST);
 	get_node(idx)->t_lazy_fn = lazy_fn;
@@ -2425,6 +2433,29 @@ static node_idx_t native_time(env_ptr_t env, list_ptr_t args) {
 	return new_node_float(time_end - time_start);
 }
 
+
+// (hash-map)(hash-map & keyvals)
+// keyvals => key val
+// Returns a new hash map with supplied mappings.  If any keys are
+// equal, they are handled as if by repeated uses of assoc.
+static node_idx_t native_hash_map(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	map_ptr_t map = new_map();
+	while(it) {
+		node_idx_t k = eval_node(env, *it++);
+		if(!it) {
+			break;
+		}
+		node_idx_t v = eval_node(env, *it++);
+		map->assoc_inplace(k, v, [env](node_idx_t k, node_idx_t v) {
+			return node_eq(env, k, v);
+		});
+	}
+	return new_node_map(map);
+}
+
+
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -2612,6 +2643,7 @@ int main(int argc, char **argv) {
 	env->set("next", new_node_native_function("next", &native_next, false));
 	env->set("rest", new_node_native_function("rest", &native_rest, false));
 	env->set("list", new_node_native_function("list", &native_list, false));
+	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false));
 	env->set("take-last", new_node_native_function("take-last", &native_take_last, false));
 	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
 	env->set("concat", new_node_native_function("concat", &native_concat, false));

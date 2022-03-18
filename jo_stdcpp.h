@@ -3938,20 +3938,20 @@ public:
     public:
         iterator(const typename jo_persistent_vector< entry_t >::iterator &it) : cur(it) {
             // find first non-erased entry
-            while(!cur->third) {
+            while(cur && !cur->third) {
                 cur++;
             }
         }
         iterator() : cur() {}
         iterator &operator++() {
-            do {
+            if(cur) do {
                 cur++;
             } while(cur && !cur->third);
             return *this;
         }
         iterator operator++(int) {
             iterator ret = *this;
-            do {
+            if(cur) do {
                 cur++;
             } while(cur && !cur->third);
             return ret;
