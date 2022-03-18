@@ -769,16 +769,20 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 	list_t::iterator it = list->begin();
 	node_idx_t n1i = *it++;
 	int n1_type = get_node_type(n1i);
-	if(n1_type == NODE_LIST || n1_type == NODE_SYMBOL || n1_type == NODE_STRING || n1_type == NODE_NATIVE_FUNCTION) {
-		node_idx_t sym_idx;
-		int sym_type, sym_flags;
-		if(n1_type == NODE_NATIVE_FUNCTION) {
-			sym_idx = n1i;
-			sym_type = NODE_NATIVE_FUNCTION;
-		} else if(n1_type == NODE_LIST) {
+	int n1_flags = get_node_flags(n1i);
+	if(n1_type == NODE_LIST 
+	|| n1_type == NODE_SYMBOL 
+	|| n1_type == NODE_STRING 
+	|| n1_type == NODE_NATIVE_FUNCTION
+	|| n1_type == NODE_MAP
+	) {
+		node_idx_t sym_idx = n1i;
+		int sym_type = n1_type;
+		int sym_flags = n1_flags;
+		if(n1_type == NODE_LIST) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
 			sym_type = get_node_type(sym_idx);
-		} else {
+		} else if((n1_flags & NODE_FLAG_STRING) == NODE_FLAG_STRING) {
 			sym_idx = env->get(get_node_string(n1i));
 			sym_type = get_node_type(sym_idx);
 		}
