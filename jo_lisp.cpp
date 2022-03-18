@@ -50,7 +50,7 @@ enum {
 	NODE_DELAY,
 
 	NODE_FLAG_MACRO        = 1<<0,
-	NODE_FLAG_INFINITE     = 1<<1, // unused
+	NODE_FLAG_STRING       = 1<<1, // string or symbol
 	NODE_FLAG_LAZY         = 1<<2, // unused
 	NODE_FLAG_LITERAL      = 1<<3,
 	NODE_FLAG_LITERAL_ARGS = 1<<4,
@@ -94,8 +94,15 @@ static inline int get_node_type(node_idx_t idx);
 static inline int get_node_flags(node_idx_t idx);
 static inline jo_string get_node_string(node_idx_t idx);
 static inline node_idx_t get_node_var(node_idx_t idx);
+static inline bool get_node_bool(node_idx_t idx);
+static inline int get_node_int(node_idx_t idx);
+static inline float get_node_float(node_idx_t idx);
 
 static node_idx_t new_node_var(const jo_string &name, node_idx_t value);
+
+static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
+static bool node_lt(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
+static bool node_lte(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
 
 struct env_t {
 	// for iterating them all, otherwise unused.
@@ -273,9 +280,11 @@ struct node_t {
 static jo_vector<node_t> nodes;
 static jo_vector<node_idx_t> free_nodes; // available for allocation...
 
-static void print_node(node_idx_t node, int depth = 0);
+static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
 static void print_node_type(node_idx_t node);
 static void print_node_list(list_ptr_t nodes, int depth = 0);
+static void print_node_vector(vector_ptr_t nodes, int depth = 0);
+static void print_node_map(map_ptr_t nodes, int depth = 0);
 
 static inline node_t *get_node(node_idx_t idx) {
 	return &nodes[idx];
@@ -295,6 +304,18 @@ static inline jo_string get_node_string(node_idx_t idx) {
 
 static inline node_idx_t get_node_var(node_idx_t idx) {
 	return get_node(idx)->t_var;
+}
+
+static inline bool get_node_bool(node_idx_t idx) {
+	return get_node(idx)->as_bool();
+}
+
+static inline int get_node_int(node_idx_t idx) {
+	return get_node(idx)->as_int();
+}
+
+static inline float get_node_float(node_idx_t idx) {
+	return get_node(idx)->as_float();
 }
 
 static inline jo_string get_node_type_string(node_idx_t idx) {
@@ -390,13 +411,14 @@ static node_idx_t new_node_float(double f) {
 static node_idx_t new_node_string(const jo_string &s) {
 	node_t n = {NODE_STRING};
 	n.t_string = s;
-	n.flags |= NODE_FLAG_LITERAL;
+	n.flags |= NODE_FLAG_LITERAL | NODE_FLAG_STRING;
 	return new_node(&n);
 }
 
 static node_idx_t new_node_symbol(const jo_string &s) {
 	node_t n = {NODE_SYMBOL};
 	n.t_string = s;
+	n.flags |= NODE_FLAG_STRING;
 	return new_node(&n);
 }
 
@@ -724,7 +746,9 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_idx_t next = parse_next(env, state, '}');
 		node_idx_t next2 = next != NIL_NODE ? parse_next(env, state, '}') : NIL_NODE;
 		while(next != NIL_NODE && next2 != NIL_NODE) {
-			n.t_map->assoc_inplace(next, next2);
+			n.t_map->assoc_inplace(next, next2, [env](const node_idx_t &a, const node_idx_t &b) {
+				return node_eq(env, a, b);
+			});
 			next = parse_next(env, state, '}');
 			next2 = next != NIL_NODE ? parse_next(env, state, '}') : NIL_NODE;
 		}
@@ -805,6 +829,12 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 				get_node(sym_idx)->t_delay = last;
 			}
 			return last;
+		} else if(sym_type == NODE_MAP) {
+			// lookup the key in the map
+			int n2i = eval_node(env, *it);
+			return get_node(sym_idx)->t_map->nth(n2i, [env](const node_idx_t &a, const node_idx_t &b) {
+				return node_eq(env, a, b);
+			});
 		}
 	}
 	return n1i;
@@ -840,7 +870,57 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 }
 
 // Print the node heirarchy
-static void print_node(node_idx_t node, int depth) {
+static void print_node(node_idx_t node, int depth, bool same_line) {
+#if 1
+	int type = get_node_type(node);
+	int flags = get_node_flags(node);
+	if(type == NODE_LIST) {
+		list_ptr_t list = get_node(node)->t_list;
+		if(list->size() == 0) {
+			printf("()");
+			return;
+		}
+		printf("(");
+		for(list_t::iterator it = list->begin(); it; it++) {
+			print_node(*it, depth+1, it != list->end());
+		}
+		printf(")");
+	} else if(type == NODE_MAP) {
+		map_ptr_t map = get_node(node)->t_map;
+		if(map->size() == 0) {
+			printf("{}");
+			return;
+		}
+		printf("{");
+		for(map_t::iterator it = map->begin(); it; it++) {
+			print_node(it->first, depth+1, it != map->end());
+			printf(" ");
+			print_node(it->second, depth+1, it != map->end());
+			printf(",");
+		}
+		printf("}");
+	} else if(type == NODE_SYMBOL) {
+		printf("%s", get_node_string(node).c_str());
+	} else if(type == NODE_STRING) {
+		printf("\"%s\"", get_node_string(node).c_str());
+	} else if(type == NODE_NATIVE_FUNCTION) {
+		printf("<%s>", get_node_string(node).c_str());
+	} else if(type == NODE_FUNC) {
+		printf("<function>");
+	} else if(type == NODE_DELAY) {
+		printf("<delay>");
+	} else if(type == NODE_FLOAT) {
+		printf("%f", get_node_float(node));
+	} else if(type == NODE_INT) {
+		printf("%d", get_node_int(node));
+	} else if(type == NODE_BOOL) {
+		printf("%s", get_node_bool(node) ? "true" : "false");
+	} else if(type == NODE_NIL) {
+		printf("nil");
+	} else {
+		printf("<unknown>");
+	}
+#else
 	node_t *n = get_node(node);
 	if(n->type == NODE_LIST) {
 		printf("%*s(\n", depth, "");
@@ -883,6 +963,7 @@ static void print_node(node_idx_t node, int depth) {
 	} else {
 		printf("%*s<unknown>\n", depth, "");
 	}
+#endif
 }
 
 static void print_node_list(list_ptr_t nodes, int depth) {
@@ -1088,12 +1169,12 @@ static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 		return true;
 	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
 		return n1->t_bool == n2->t_bool;
-	} else if(n1->type == NODE_STRING && n2->type == NODE_STRING) {
-		return n1->t_string == n2->t_string;
 	} else if(n1->type == NODE_INT && n2->type == NODE_INT) {
 		return n1->t_int == n2->t_int;
 	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
 		return n1->as_float() == n2->as_float();
+	} else if((n1->flags&n2->flags&NODE_FLAG_STRING) == NODE_FLAG_STRING) {
+		return n1->t_string == n2->t_string;
 	}
 	return false;
 }

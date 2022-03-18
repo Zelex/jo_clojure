@@ -2391,6 +2391,17 @@ struct jo_persistent_vector
         depth = 0;
     }
 
+    jo_persistent_vector(size_t initial_size) {
+        head = tail = new node();
+        head_offset = 0;
+        tail_length = 0;
+        length = 0;
+        depth = 0;
+        for (size_t i = 0; i < initial_size; ++i) {
+            push_back_inplace(T());
+        }
+    }
+
     jo_persistent_vector(const jo_persistent_vector &other) {
         head = other.head;
         tail = other.tail;
@@ -2596,6 +2607,23 @@ struct jo_persistent_vector
 
     jo_persistent_vector *push_back_inplace(const T &value) {
         return append_inplace(value);
+    }
+
+    jo_persistent_vector *resize(size_t new_size) const {
+        if(new_size == length) {
+            return new jo_persistent_vector(*this);
+        }
+
+        if(new_size < length) {
+            return subvec(0, new_size);
+        }
+
+        // This could be faster...
+        jo_persistent_vector *copy = new jo_persistent_vector(*this);
+        for(size_t i = length; i < new_size; ++i) {
+            copy->append_inplace(T());
+        }
+        return copy;
     }
 
     jo_persistent_vector *push_front(const T &value) const {
@@ -3863,16 +3891,22 @@ class jo_persistent_unordered_map {
     // the way this works is that you make your hash value of K and
     // then use that as an index into the vector.
     typedef jo_triple<K, V, bool> entry_t;
+    // vec is used to store the keys and values
     jo_persistent_vector< entry_t > vec;
-    size_t size;
+    // number of entries actually used in the hash table
+    size_t length;
 
 public:
-    jo_persistent_unordered_map() : size() {}
-    jo_persistent_unordered_map(const jo_persistent_unordered_map &other) : vec(other.vec), size(other.size) {}
+    jo_persistent_unordered_map() : vec(16), length() {}
+    jo_persistent_unordered_map(const jo_persistent_unordered_map &other) : vec(other.vec), length(other.length) {}
     jo_persistent_unordered_map &operator=(const jo_persistent_unordered_map &other) {
         vec = other.vec;
-        size = other.size;
+        length = other.length;
         return *this;
+    }
+
+    size_t size() const {
+        return length;
     }
 
     // iterator
@@ -3929,6 +3963,33 @@ public:
         return iterator(vec.end());
     }
 
+    jo_persistent_unordered_map *resize(size_t new_size) const {
+        printf("resize\n");
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map();
+        copy->vec = jo_persistent_vector< entry_t >(new_size);
+        for(iterator it = begin(); it; ++it) {
+            int index = jo_hash_value(it->first) % new_size;
+            while(copy->vec[index].third) {
+                index = (index + 1) % new_size;
+            }
+            copy->vec.assoc_inplace(index, entry_t(it->first, it->second, true));
+        }
+        return copy;
+    }
+
+    jo_persistent_unordered_map *resize_inplace(size_t new_size) {
+        jo_persistent_vector<entry_t> new_vec(new_size);
+        for(iterator it = begin(); it; ++it) {
+            int index = jo_hash_value(it->first) % new_size;
+            while(new_vec[index].third) {
+                index = (index + 1) % new_size;
+            }
+            new_vec.assoc_inplace(index, entry_t(it->first, it->second, true));
+        }
+        vec = new_vec;
+        return this;
+    }
+
     // remove a value from the map
     jo_persistent_unordered_map *erase(const K &key) const {
         jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
@@ -3946,6 +4007,9 @@ public:
     // insert a new value into the map, if the value already exists, replaces it
     jo_persistent_unordered_map *assoc(const K &key, const V &value) const {
         jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        if(copy->vec.size() - copy->length < copy->vec.size() / 8) {
+            copy->resize_inplace(copy->vec.size() * 2);
+        }
         int index = jo_hash_value(key) % vec.size();
         while(copy->vec[index].third) {
             if(copy->vec[index].first == key) {
@@ -3955,10 +4019,34 @@ public:
             index = (index + 1) % vec.size();
         } 
         copy->vec.assoc_inplace(index, entry_t(key, value, true));
+        ++copy->length;
+        return copy;
+    }
+
+    // assoc with lambda for equality
+    template<typename F>
+    jo_persistent_unordered_map *assoc(const K &key, const V &value, F eq) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        if(copy->vec.size() - copy->length < copy->vec.size() / 8) {
+            copy->resize_inplace(copy->vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        while(copy->vec[index].third) {
+            if(eq(copy->vec[index].first, key)) {
+                copy->vec.assoc_inplace(index, entry_t(key, value, true));
+                return copy;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        copy->vec.assoc_inplace(index, entry_t(key, value, true));
+        ++copy->length;
         return copy;
     }
 
     jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize_inplace(vec.size() * 2);
+        }
         int index = jo_hash_value(key) % vec.size();
         while(vec[index].third) {
             if(vec[index].first == key) {
@@ -3968,6 +4056,26 @@ public:
             index = (index + 1) % vec.size();
         } 
         vec.assoc_inplace(index, entry_t(key, value, true));
+        ++length;
+        return this;
+    }
+
+    // assoc_inplace with lambda for equality
+    template<typename F>   
+    jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value, F eq) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize_inplace(vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(eq(vec[index].first, key)) {
+                vec.assoc_inplace(index, entry_t(key, value, true));
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        vec.assoc_inplace(index, entry_t(key, value, true));
+        ++length;
         return this;
     }
 
@@ -3997,7 +4105,7 @@ public:
         return iterator(it);
     }
 
-    const V &nth(const K &key) const {
+    V nth(const K &key) const {
         int index = jo_hash_value(key) % vec.size();
         typename jo_persistent_vector< entry_t >::iterator it = vec.begin() + index;
         while(it != vec.end() && it->first != key) {
@@ -4011,9 +4119,9 @@ public:
 
     // nth using lambda
     template<typename F>
-    const V &nth(const F &f) const {
+    V nth(const K &key, const F &f) const {
         typename jo_persistent_vector< entry_t >::iterator it = vec.begin();
-        while(it != vec.end() && !f(it->first)) {
+        while(it != vec.end() && !f(it->first, key)) {
             it++;
         }
         if(it == vec.end()) {
