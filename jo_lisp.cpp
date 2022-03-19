@@ -897,13 +897,9 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	int flags = get_node_flags(node);
 	if(type == NODE_LIST) {
 		list_ptr_t list = get_node(node)->t_list;
-		if(list->size() == 0) {
-			printf("()");
-			return;
-		}
 		printf("(");
 		for(list_t::iterator it = list->begin(); it; it++) {
-			print_node(*it, depth+1, it != list->end());
+			print_node(*it, depth+1, it);
 			printf(",");
 		}
 		printf(")");
@@ -1082,12 +1078,13 @@ struct lazy_list_iterator_t {
 struct seq_iterator_t {
 	int type;
 	node_idx_t val;
+	bool is_done;
 	list_t::iterator it;
 	vector_t::iterator vit;
 	map_t::iterator mit;
 	lazy_list_iterator_t lit;
 
-	seq_iterator_t(env_ptr_t env, node_idx_t node_idx) : val(NIL_NODE), it(), vit(), mit(), lit(env, node_idx) {
+	seq_iterator_t(env_ptr_t env, node_idx_t node_idx) : type(), val(NIL_NODE), is_done(), it(), vit(), mit(), lit(env, node_idx) {
 		type = get_node_type(node_idx);
 		if(type == NODE_LIST) {
 			it = get_node(node_idx)->as_list()->begin();
@@ -1160,9 +1157,10 @@ struct seq_iterator_t {
 
 	list_ptr_t all() {
 		list_ptr_t res = new_list();
+		res->push_back_inplace(val);
 		while(!done()) {
-			res->push_back_inplace(val);
 			next();
+			res->push_back_inplace(val);
 		}
 		return res;
 	}
@@ -1543,16 +1541,13 @@ static node_idx_t native_doall(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
 
 	if(args->size() == 1) {
-		node_idx_t coll = eval_node(env, *i++);
+		node_idx_t coll = eval_node(env, args->first_value());
 		node_t *n = get_node(coll);
 		if(!n->is_seq()) {
 			return NIL_NODE;
 		}
-		list_ptr_t ret = new list_t();
-		for(seq_iterator_t it(env, coll); it; it.next()) {
-			ret->push_back_inplace(it.val);
-		}
-		return new_node_list(ret);
+		seq_iterator_t it(env, coll);
+		return new_node_list(it.all());
 	}
 
 	if(args->size() == 2) {
