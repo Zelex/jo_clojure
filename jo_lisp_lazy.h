@@ -406,19 +406,19 @@ static node_idx_t native_filter_next(env_ptr_t env, list_ptr_t args) {
 }
 
 void jo_lisp_lazy_init(env_ptr_t env) {
-	env->set("range", new_node_native_function(&native_range, false));
-	env->set("range-next", new_node_native_function(&native_range_next, false));
-	env->set("repeat", new_node_native_function(&native_repeat, true));
-	env->set("repeat-next", new_node_native_function(&native_repeat_next, true));
-	env->set("concat", new_node_native_function(&native_concat, true));
-	env->set("concat-next", new_node_native_function(&native_concat_next, true));
-	env->set("iterate", new_node_native_function(&native_iterate, true));
-	env->set("iterate-next", new_node_native_function(&native_iterate_next, true));
-	env->set("map", new_node_native_function(&native_map, true));
-	env->set("map-next", new_node_native_function(&native_map_next, true));
-	env->set("take", new_node_native_function(&native_take, true));
-	env->set("take-next", new_node_native_function(&native_take_next, true));
-	env->set("distinct", new_node_native_function(&native_distinct, false));
-	env->set("filter", new_node_native_function(&native_filter, true));
-	env->set("filter-next", new_node_native_function(&native_filter_next, true));
+	env->set("range", new_node_native_function("range", &native_range, false));
+	env->set("range-next", new_node_native_function("range-next", &native_range_next, false));
+	env->set("repeat", new_node_native_function("repeat", &native_repeat, true));
+	env->set("repeat-next", new_node_native_function("repeat-next", &native_repeat_next, true));
+	env->set("concat", new_node_native_function("concat", &native_concat, true));
+	env->set("concat-next", new_node_native_function("concat-next", &native_concat_next, true));
+	env->set("iterate", new_node_native_function("iterate", &native_iterate, true));
+	env->set("iterate-next", new_node_native_function("iterate-next", &native_iterate_next, true));
+	env->set("map", new_node_native_function("map", &native_map, true));
+	env->set("map-next", new_node_native_function("map-next", &native_map_next, true));
+	env->set("take", new_node_native_function("take", &native_take, true));
+	env->set("take-next", new_node_native_function("take-next", &native_take_next, true));
+	env->set("distinct", new_node_native_function("distinct", &native_distinct, false));
+	env->set("filter", new_node_native_function("filter", &native_filter, true));
+	env->set("filter-next", new_node_native_function("filter-next", &native_filter_next, true));
 }

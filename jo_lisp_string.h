@@ -211,24 +211,24 @@ static node_idx_t native_last_index_of(env_ptr_t env, list_ptr_t args) {
 }
 
 void jo_lisp_string_init(env_ptr_t env) {
-	env->set("str", new_node_native_function(&native_str, false));
-	env->set("subs", new_node_native_function(&native_subs, false));
-	env->set("compare", new_node_native_function(&native_compare, false));
-	env->set("lower-case", new_node_native_function(&native_lower_case, false));
-	env->set("upper-case", new_node_native_function(&native_upper_case, false));
-	env->set("trim", new_node_native_function(&native_trim, false));
-	env->set("triml", new_node_native_function(&native_triml, false));
-	env->set("trimr", new_node_native_function(&native_trimr, false));
-	env->set("trim-newline", new_node_native_function(&native_trim_newline, false));
-	env->set("replace", new_node_native_function(&native_replace, false));
-	env->set("replace-first", new_node_native_function(&native_replace_first, false));
-	env->set("split-lines", new_node_native_function(&native_split_lines, false));
-	env->set("join", new_node_native_function(&native_join, false));
-	env->set("blank?", new_node_native_function(&native_is_blank, false));
-	env->set("capitalize", new_node_native_function(&native_capitalize, false));
-	env->set("ends-with?", new_node_native_function(&native_ends_with, false));
-	env->set("starts-with?", new_node_native_function(&native_starts_with, false));
-	env->set("includes?", new_node_native_function(&native_includes, false));
-	env->set("index-of", new_node_native_function(&native_index_of, false));
-	env->set("last-index-of", new_node_native_function(&native_last_index_of, false));
+	env->set("str", new_node_native_function("str", &native_str, false));
+	env->set("subs", new_node_native_function("subs", &native_subs, false));
+	env->set("compare", new_node_native_function("compare", &native_compare, false));
+	env->set("lower-case", new_node_native_function("lower-case", &native_lower_case, false));
+	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
+	env->set("trim", new_node_native_function("trim", &native_trim, false));
+	env->set("triml", new_node_native_function("triml", &native_triml, false));
+	env->set("trimr", new_node_native_function("trimr", &native_trimr, false));
+	env->set("trim-newline", new_node_native_function("trim-newline", &native_trim_newline, false));
+	env->set("replace", new_node_native_function("replace", &native_replace, false));
+	env->set("replace-first", new_node_native_function("replace-first", &native_replace_first, false));
+	env->set("split-lines", new_node_native_function("split-lines", &native_split_lines, false));
+	env->set("join", new_node_native_function("join", &native_join, false));
+	env->set("blank?", new_node_native_function("blank", &native_is_blank, false));
+	env->set("capitalize", new_node_native_function("capitalize", &native_capitalize, false));
+	env->set("ends-with?", new_node_native_function("ends-with?", &native_ends_with, false));
+	env->set("starts-with?", new_node_native_function("starts-with?", &native_starts_with, false));
+	env->set("includes?", new_node_native_function("includes?", &native_includes, false));
+	env->set("index-of", new_node_native_function("index-of", &native_index_of, false));
+	env->set("last-index-of", new_node_native_function("last-index-of", &native_last_index_of, false));
 }
