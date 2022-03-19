@@ -2488,6 +2488,35 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (get map key)(get map key not-found)
+// Returns the value mapped to key, not-found or nil if key not present.
+static node_idx_t native_get(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t map_idx = *it++;
+	node_idx_t key_idx = *it++;
+	node_idx_t not_found_idx = it ? *it++ : NIL_NODE;
+	node_t *map_node = get_node(map_idx);
+	node_t *key_node = get_node(key_idx);
+	node_t *not_found_node = get_node(not_found_idx);
+	if(map_node->is_map()) {
+		auto entry = map_node->t_map->find(key_idx, [env](node_idx_t k, node_idx_t v) {
+			return node_eq(env, k, v);
+		});
+		if(entry.third) {
+			return entry.second;
+		}
+		return not_found_idx;
+	}
+	if(map_node->is_vector()) {
+		int vec_idx = key_node->as_int();
+		if(vec_idx < 0 || vec_idx > map_node->t_vector->size()) {
+			return not_found_idx;
+		}
+		return map_node->t_vector->nth(key_node->as_int());
+	}
+	return NIL_NODE;
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -2706,6 +2735,7 @@ int main(int argc, char **argv) {
 	env->set("Time/now", new_node_native_function("Time/now", &native_time_now, false));
 	env->set("time", new_node_native_function("time", &native_time, true));
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
+	env->set("get", new_node_native_function("get", &native_get, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

@@ -5,3 +5,4 @@
 ({:a 1, :b 2} :qwerty :uiop) ; = :uiop
 (hash-map :key1 1, :key1 2)
 (assoc a :a 3)
+(get a :a)
