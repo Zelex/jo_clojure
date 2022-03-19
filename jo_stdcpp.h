@@ -3987,7 +3987,7 @@ public:
     }
 
     jo_persistent_unordered_map *resize(size_t new_size) const {
-        printf("resize\n");
+        //printf("resize\n");
         jo_persistent_unordered_map *copy = new jo_persistent_unordered_map();
         copy->vec = jo_persistent_vector< entry_t >(new_size);
         for(iterator it = begin(); it; ++it) {

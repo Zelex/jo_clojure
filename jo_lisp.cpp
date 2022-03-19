@@ -371,6 +371,14 @@ static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0) {
 	return idx;
 }
 
+static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0) {
+	node_idx_t idx = new_node(NODE_VECTOR);
+	node_t *n = get_node(idx);
+	n->t_vector = nodes;
+	n->flags |= flags;
+	return idx;
+}
+
 static node_idx_t new_node_lazy_list(node_idx_t lazy_fn) {
 	node_idx_t idx = new_node(NODE_LAZY_LIST);
 	get_node(idx)->t_lazy_fn = lazy_fn;
@@ -2454,6 +2462,31 @@ static node_idx_t native_hash_map(env_ptr_t env, list_ptr_t args) {
 	return new_node_map(map);
 }
 
+// (assoc map key val)(assoc map key val & kvs)
+// assoc[iate]. When applied to a map, returns a new map of the
+// same (hashed/sorted) type, that contains the mapping of key(s) to
+// val(s). When applied to a vector, returns a new vector that
+// contains val at index. Note - index must be <= (count vector).
+static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t map_idx = *it++;
+	node_idx_t key_idx = *it++;
+	node_idx_t val_idx = *it++;
+	node_t *map_node = get_node(map_idx);
+	node_t *key_node = get_node(key_idx);
+	node_t *val_node = get_node(val_idx);
+	if(map_node->is_map()) {
+		map_ptr_t map = map_node->t_map->assoc(key_idx, val_idx, [env](node_idx_t k, node_idx_t v) {
+			return node_eq(env, k, v);
+		});
+		return new_node_map(map);
+	} 
+	if(map_node->is_vector()) {
+		vector_ptr_t vector = map_node->t_vector->assoc(key_node->as_int(), val_idx);
+		return new_node_vector(vector);
+	}
+	return NIL_NODE;
+}
 
 
 #include "jo_lisp_math.h"
@@ -2672,6 +2705,7 @@ int main(int argc, char **argv) {
 	env->set("rand-float", new_node_native_function("rand-float", &native_rand_float, false));
 	env->set("Time/now", new_node_native_function("Time/now", &native_time_now, false));
 	env->set("time", new_node_native_function("time", &native_time, true));
+	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
