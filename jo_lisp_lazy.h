@@ -357,8 +357,8 @@ static node_idx_t native_distinct(env_ptr_t env, list_ptr_t args) {
 // Returns a transducer when no collection is provided.
 static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	node_idx_t pred_idx = *it++;
-	node_idx_t coll_idx = *it++;
+	node_idx_t pred_idx = eval_node(env, *it++);
+	node_idx_t coll_idx = eval_node(env, *it++);
 	if(get_node_type(coll_idx) == NODE_LIST) {
 		// don't do it lazily if not given lazy inputs... thats dumb
 		list_ptr_t list_list = get_node(coll_idx)->as_list();

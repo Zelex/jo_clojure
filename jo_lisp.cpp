@@ -251,12 +251,8 @@ struct node_t {
 		case NODE_BOOL:   return t_bool ? "true" : "false";
 		case NODE_INT:    return va("%i", t_int);
 		case NODE_FLOAT:  return va("%f", t_float);
-		case NODE_FUNC:
-		case NODE_VAR:
-		case NODE_SYMBOL:
-		case NODE_STRING: return t_string;
 		}
-		return jo_string();
+		return t_string;
 	}
 
 	jo_string type_as_string() const {
@@ -908,6 +904,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf("(");
 		for(list_t::iterator it = list->begin(); it; it++) {
 			print_node(*it, depth+1, it != list->end());
+			printf(",");
 		}
 		printf(")");
 	} else if(type == NODE_MAP) {
