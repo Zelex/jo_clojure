@@ -1086,6 +1086,7 @@ struct seq_iterator_t {
 
 	seq_iterator_t(env_ptr_t env, node_idx_t node_idx) : type(), val(NIL_NODE), is_done(), it(), vit(), mit(), lit(env, node_idx) {
 		type = get_node_type(node_idx);
+		val = INV_NODE;
 		if(type == NODE_LIST) {
 			it = get_node(node_idx)->as_list()->begin();
 			if(!done()) {
@@ -1157,9 +1158,10 @@ struct seq_iterator_t {
 
 	list_ptr_t all() {
 		list_ptr_t res = new_list();
-		res->push_back_inplace(val);
-		while(!done()) {
-			next();
+		for(;!done();next()) {
+			res->push_back_inplace(val);
+		}
+		if(val != INV_NODE) {
 			res->push_back_inplace(val);
 		}
 		return res;
@@ -1185,6 +1187,14 @@ static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 			if(!node_eq(env, i1.val, i2.val)) {
 				return false;
 			}
+		}
+		if(i1.val != INV_NODE || i2.val != INV_NODE) {
+			if(!node_eq(env, i1.val, i2.val)) {
+				return false;
+			}
+		}
+		if(i1 || i2) {
+			return false;
 		}
 		return true;
 	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
@@ -1213,6 +1223,14 @@ static bool node_lt(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 				return false;
 			}
 		}
+		if(i1.val != INV_NODE || i2.val != INV_NODE) {
+			if(!node_lt(env, i1.val, i2.val)) {
+				return false;
+			}
+		}
+		if(i1 || i2) {
+			return false;
+		}
 		return true;
 	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
 		return n1->t_bool < n2->t_bool;
@@ -1240,6 +1258,14 @@ static bool node_lte(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 				return false;
 			}
 		}
+		if(i1.val != INV_NODE || i2.val != INV_NODE) {
+			if(!node_lte(env, i1.val, i2.val)) {
+				return false;
+			}
+		}
+		if(i1 || i2) {
+			return false;
+		}
 		return true;
 	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
 		return n1->t_bool <= n2->t_bool;
@@ -1261,7 +1287,11 @@ size_t jo_hash_value(node_idx_t n) {
 		return 0;
 	} else if(n1->is_seq()) {
 		uint32_t res = 0;
-		for(seq_iterator_t i(NULL, n); i; i.next()) {
+		seq_iterator_t i(NULL, n);
+		for(; i; i.next()) {
+			res = (res * 31) + jo_hash_value(i.val);
+		}
+		if(i.val != INV_NODE) {
 			res = (res * 31) + jo_hash_value(i.val);
 		}
 		return res;
@@ -1558,7 +1588,11 @@ static node_idx_t native_doall(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		list_ptr_t ret = new list_t();
-		for(seq_iterator_t it(env, coll); it && n; it.next(), n--) {
+		seq_iterator_t it(env, coll);
+		for(; it && n; it.next(), n--) {
+			ret->push_back_inplace(it.val);
+		}
+		if(it.val != NIL_NODE && n) {
 			ret->push_back_inplace(it.val);
 		}
 		return new_node_list(ret);
