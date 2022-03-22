@@ -786,6 +786,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 	|| n1_type == NODE_SYMBOL 
 	|| n1_type == NODE_STRING 
 	|| n1_type == NODE_NATIVE_FUNCTION
+	|| n1_type == NODE_FUNC
 	|| n1_type == NODE_MAP
 	) {
 		node_idx_t sym_idx = n1i;
