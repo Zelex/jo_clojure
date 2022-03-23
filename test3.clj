@@ -24,4 +24,9 @@
 
 ;(filter (comp #{2 3} last) {:x 1 :y 2 :z 3}) ; don't support sets yet
 
-(filter some? '(1 nil [] :a nil))
+;(filter some? '(1 nil [] :a nil))
+
+;(def add-domain (partial str "@clojure.com"))
+;(str "info" (add-domain) )
+
+(#(+ 6 %) 1)

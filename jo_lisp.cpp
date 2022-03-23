@@ -525,6 +525,18 @@ static token_t get_token(parse_state_t *state) {
 		debugf("token: %s\n", tok.str.c_str());
 		return tok;
 	}
+	if(c == '#') {
+		int C = state->getc();
+		if(C == '(') {
+			// shorthand for inline function
+			tok.type = TOK_SEPARATOR;
+			tok.str = "__fn";
+			debugf("token: %s\n", tok.str.c_str());
+			return tok;
+		} else {
+			state->ungetc(C);
+		}
+	}
 	if(c == '\'') {
 		int C = state->getc();
 		if(C == '(') {
@@ -580,6 +592,25 @@ static token_t get_token(parse_state_t *state) {
 	debugf("token: %s\n", tok.str.c_str());
 
 	return tok;
+}
+
+static list_ptr_t get_symbols_list_r(list_ptr_t list) {
+	list_ptr_t symbol_list = new_list();
+	for(list_t::iterator it = list->begin(); it; it++) {
+		if(get_node_type(*it) == NODE_SYMBOL) {
+			symbol_list->push_back_inplace(*it);			
+		} else if(get_node_type(*it) == NODE_MAP) {
+			printf("TODO: map @ %i\n", __LINE__);
+		} else {
+			if(get_node(*it)->t_list.ptr) {
+				list_ptr_t sub_list = get_symbols_list_r(get_node(*it)->t_list);
+				if(sub_list->length) {
+					symbol_list->conj_inplace(*sub_list);
+				}
+			}
+		}
+	}
+	return symbol_list;
 }
 
 static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_sep) {
@@ -690,13 +721,53 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
-		//n.flags |= NODE_FLAG_LITERAL;
-		//n.flags |= NODE_FLAG_LITERAL_ARGS;
 		n.t_list->push_back_inplace(env->get("quote"));
 		while(next != INV_NODE) {
 			n.t_list->push_back_inplace(next);
 			next = parse_next(env, state, ')');
 		}
+		debugf("list end\n");
+		return new_node(&n);
+	}
+
+	// anonymous function shorthand. 
+	// Note: Analyze the function tree at parse time? I think this is correct?
+	if(tok.type == TOK_SEPARATOR && tok.str == "__fn") {
+		debugf("list begin\n");
+		node_idx_t next = parse_next(env, state, ')');
+		if(next == INV_NODE) {
+			return EMPTY_LIST_NODE;
+		}
+		node_t n = {NODE_LIST};
+		n.t_list = new_list();
+		n.t_list->push_back_inplace(env->get("fn"));
+		list_ptr_t body = new_list();
+		while(next != INV_NODE) {
+			body->push_back_inplace(next);
+			next = parse_next(env, state, ')');
+		}
+		list_ptr_t symbol_list = get_symbols_list_r(body);
+		list_ptr_t arg_list = new_list();
+		int num_args_used = 0;
+		for(list_t::iterator it = symbol_list->begin(); it; ++it) {
+			jo_string sym = get_node_string(*it);
+			if(sym == "%") {
+				num_args_used = jo_max(num_args_used, 1);
+			} else if(sym.substr(0, 1) == "%") {
+				num_args_used = jo_max(num_args_used, atoi(sym.substr(1).c_str()));
+			}
+		}
+		if(num_args_used == 1) {
+			arg_list->push_back_inplace(new_node_symbol("%"));
+		} else {
+			for(int i = 1; i < num_args_used; ++i) {
+				jo_stringstream ss;
+				ss << "%" << i;
+				arg_list->push_back_inplace(new_node_symbol(ss.str().c_str()));
+			}
+		}
+		n.t_list->push_back_inplace(new_node_list(arg_list));
+		n.t_list->push_back_inplace(new_node_list(body));
 		debugf("list end\n");
 		return new_node(&n);
 	}
@@ -918,7 +989,7 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 
 // Print the node heirarchy
 static void print_node(node_idx_t node, int depth, bool same_line) {
-#if 1
+#if 0
 	int type = get_node_type(node);
 	int flags = get_node_flags(node);
 	if(type == NODE_LIST) {
