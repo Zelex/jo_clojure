@@ -704,10 +704,13 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	// parse list
 	if(c == '(') {
 		debugf("list begin\n");
+		node_idx_t next = parse_next(env, state, ')');
+		if(next == NIL_NODE) {
+			return EMPTY_LIST_NODE;
+		}
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
 		int common_flags = ~0;
-		node_idx_t next = parse_next(env, state, ')');
 		bool is_native_fn = get_node_type(next) == NODE_NATIVE_FUNCTION;
 		while(next != NIL_NODE) {
 			common_flags &= get_node_flags(next);
@@ -728,10 +731,13 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	// parse vector
 	if(c == '[') {
 		debugf("vector begin\n");
+		node_idx_t next = parse_next(env, state, ']');
+		if(next == NIL_NODE) {
+			return EMPTY_LIST_NODE;
+		}
 		node_t n = {NODE_LIST};
 		n.t_list = new_list(); // TODO: actually vector pls
 		int common_flags = ~0;
-		node_idx_t next = parse_next(env, state, ']');
 		bool is_native_fn = get_node_type(next) == NODE_NATIVE_FUNCTION;
 		while(next != NIL_NODE) {
 			common_flags &= get_node_flags(next);
