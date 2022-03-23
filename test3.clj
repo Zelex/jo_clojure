@@ -29,4 +29,5 @@
 ;(def add-domain (partial str "@clojure.com"))
 ;(str "info" (add-domain) )
 
-(#(+ 6 %) 1)
+;(#(+ 6 %) 1)
+(#(+ %1 %2) 2 3)

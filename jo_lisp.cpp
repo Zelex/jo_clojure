@@ -760,7 +760,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(num_args_used == 1) {
 			arg_list->push_back_inplace(new_node_symbol("%"));
 		} else {
-			for(int i = 1; i < num_args_used; ++i) {
+			for(int i = 1; i <= num_args_used; ++i) {
 				jo_stringstream ss;
 				ss << "%" << i;
 				arg_list->push_back_inplace(new_node_symbol(ss.str().c_str()));
@@ -769,6 +769,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.t_list->push_back_inplace(new_node_list(arg_list));
 		n.t_list->push_back_inplace(new_node_list(body));
 		debugf("list end\n");
+		//print_node(new_node(&n));
 		return new_node(&n);
 	}
 
