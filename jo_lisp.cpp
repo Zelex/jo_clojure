@@ -831,8 +831,17 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 				// and create a new_node_var 
 				// and insert it to the head of env
 				for(list_t::iterator i = proto_args->begin(), i2 = args1->begin(); i && i2; i++, i2++) {
-					node_idx_t arg_value = eval_node(env, *i2);
-					fn_env->set_temp(get_node_string(*i), arg_value);
+					int i_type = get_node_type(*i);
+					int i2_type = get_node_type(*i2);
+					if(i_type == NODE_SYMBOL) {
+						fn_env->set_temp(get_node_string(*i), eval_node(env, *i2));
+					} else if(i_type == NODE_LIST && i2_type == NODE_LIST) {
+						for(list_t::iterator i3 = get_node(*i)->t_list->begin(), i4 = get_node(*i2)->t_list->begin(); i3 && i4; i3++, i4++) {
+							fn_env->set_temp(get_node_string(*i3), eval_node(env, *i4));
+						}
+					} else {
+						fn_env->set_temp(get_node_string(*i), *i2);
+					}
 				}
 			}
 			

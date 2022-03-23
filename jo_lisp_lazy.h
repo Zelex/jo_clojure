@@ -374,6 +374,23 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_list(ret);
 	}
+	if(get_node_type(coll_idx) == NODE_MAP) {
+		// don't do it lazily if not given lazy inputs... thats dumb
+		map_ptr_t list_list = get_node(coll_idx)->as_map();
+		map_ptr_t ret = new_map();
+		list_ptr_t args = new_list();
+		args->push_back_inplace(pred_idx);
+		for(map_t::iterator it = list_list->begin(); it; it++) {
+			list_ptr_t key_val = new_list();
+			key_val->push_back_inplace(it->first);
+			key_val->push_back_inplace(it->second);
+			node_idx_t comp = eval_list(env, args->conj(new_node_list(key_val)));
+			if(get_node_bool(comp)) {
+				ret->assoc_inplace(it->first, it->second);
+			}
+		}
+		return new_node_map(ret);
+	}
 	if(get_node_type(coll_idx) == NODE_LAZY_LIST) {
 		node_idx_t lazy_func_idx = new_node(NODE_LIST);
 		get_node(lazy_func_idx)->t_list = new_list();
