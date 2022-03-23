@@ -21,3 +21,7 @@
 
 ;((partial + 100) 5)
 ;((partial - 100) 5)
+
+;(filter (comp #{2 3} last) {:x 1 :y 2 :z 3}) ; don't support sets yet
+
+(filter some? '(1 nil [] :a nil))

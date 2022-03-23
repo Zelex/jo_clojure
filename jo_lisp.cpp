@@ -20,6 +20,7 @@ static double time_program_start = jo_time();
 
 enum {
 	// hard coded nodes
+	EOL_NODE = -3,
 	TMP_NODE = -2,
 	INV_NODE = -1,
 	NIL_NODE = 0,
@@ -31,8 +32,7 @@ enum {
 	QUOTE_NODE,
 	EMPTY_LIST_NODE,
 
-
-
+	// node types
 	NODE_NIL = 0,
 	NODE_BOOL,
 	NODE_INT,
@@ -50,6 +50,7 @@ enum {
 	NODE_VAR,
 	NODE_DELAY,
 
+	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
 	NODE_FLAG_STRING       = 1<<1, // string or symbol
 	NODE_FLAG_LAZY         = 1<<2, // unused
@@ -587,7 +588,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 
 	if(tok.type == TOK_EOF) {
 		// end of list
-		return NIL_NODE;
+		return INV_NODE;
 	}
 
 	const char *tok_ptr = tok.str.c_str();
@@ -597,12 +598,12 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 
 	if(c == stop_on_sep) {
 		// end of list
-		return NIL_NODE;
+		return INV_NODE;
 	}
 
 	if(tok.type == TOK_SEPARATOR && c != stop_on_sep && (c == ')' || c == ']' || c == '}')) {
 		fprintf(stderr, "unexpected separator '%c', was expecting '%c' on line %i\n", c, stop_on_sep, tok.line);
-		return NIL_NODE;
+		return INV_NODE;
 	}
 
 	// 
@@ -684,7 +685,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	if(tok.type == TOK_SEPARATOR && tok.str == "quote") {
 		debugf("list begin\n");
 		node_idx_t next = parse_next(env, state, ')');
-		if(next == NIL_NODE) {
+		if(next == INV_NODE) {
 			return EMPTY_LIST_NODE;
 		}
 		node_t n = {NODE_LIST};
@@ -692,7 +693,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		//n.flags |= NODE_FLAG_LITERAL;
 		//n.flags |= NODE_FLAG_LITERAL_ARGS;
 		n.t_list->push_back_inplace(env->get("quote"));
-		while(next != NIL_NODE) {
+		while(next != INV_NODE) {
 			n.t_list->push_back_inplace(next);
 			next = parse_next(env, state, ')');
 		}
@@ -704,14 +705,14 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	if(c == '(') {
 		debugf("list begin\n");
 		node_idx_t next = parse_next(env, state, ')');
-		if(next == NIL_NODE) {
+		if(next == INV_NODE) {
 			return EMPTY_LIST_NODE;
 		}
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
 		int common_flags = ~0;
 		bool is_native_fn = get_node_type(next) == NODE_NATIVE_FUNCTION;
-		while(next != NIL_NODE) {
+		while(next != INV_NODE) {
 			common_flags &= get_node_flags(next);
 			n.t_list->push_back_inplace(next);
 			next = parse_next(env, state, ')');
@@ -731,14 +732,14 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	if(c == '[') {
 		debugf("vector begin\n");
 		node_idx_t next = parse_next(env, state, ']');
-		if(next == NIL_NODE) {
+		if(next == INV_NODE) {
 			return EMPTY_LIST_NODE;
 		}
 		node_t n = {NODE_LIST};
 		n.t_list = new_list(); // TODO: actually vector pls
 		int common_flags = ~0;
 		bool is_native_fn = get_node_type(next) == NODE_NATIVE_FUNCTION;
-		while(next != NIL_NODE) {
+		while(next != INV_NODE) {
 			common_flags &= get_node_flags(next);
 			n.t_list->push_back_inplace(next);
 			next = parse_next(env, state, ']');
@@ -762,13 +763,13 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_t n = {NODE_MAP};
 		n.t_map = new_map();
 		node_idx_t next = parse_next(env, state, '}');
-		node_idx_t next2 = next != NIL_NODE ? parse_next(env, state, '}') : NIL_NODE;
-		while(next != NIL_NODE && next2 != NIL_NODE) {
+		node_idx_t next2 = next != INV_NODE ? parse_next(env, state, '}') : INV_NODE;
+		while(next != INV_NODE && next2 != INV_NODE) {
 			n.t_map->assoc_inplace(next, next2, [env](const node_idx_t &a, const node_idx_t &b) {
 				return node_eq(env, a, b);
 			});
 			next = parse_next(env, state, '}');
-			next2 = next != NIL_NODE ? parse_next(env, state, '}') : NIL_NODE;
+			next2 = next != INV_NODE ? parse_next(env, state, '}') : INV_NODE;
 		}
 		debugf("map end\n");
 		return new_node(&n);
@@ -776,7 +777,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 
 	// parse set
 
-	return NIL_NODE;
+	return INV_NODE;
 }
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
@@ -2053,6 +2054,13 @@ static node_idx_t native_is_true(env_ptr_t env, list_ptr_t args) {
 	return node->as_bool() ? TRUE_NODE : FALSE_NODE;
 }
 
+static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	return node->type != NODE_NIL ? TRUE_NODE : FALSE_NODE;
+}
+
 static node_idx_t native_first(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -2805,6 +2813,7 @@ int main(int argc, char **argv) {
 	env->set("zero?", new_node_native_function("zero?", &native_is_zero, false));
 	env->set("false?", new_node_native_function("false?", &native_is_false, false));
 	env->set("true?", new_node_native_function("true?", &native_is_true, false));
+	env->set("some?", new_node_native_function("some?", &native_is_some, false));
 	env->set("do", new_node_native_function("do", &native_do, false));
 	env->set("doall", new_node_native_function("doall", &native_doall, true));
 	env->set("cons", new_node_native_function("cons", &native_cons, false));
@@ -2873,7 +2882,7 @@ int main(int argc, char **argv) {
 
 	// parse the base list
 	list_ptr_t main_list = new_list();
-	for(node_idx_t next = parse_next(env, &parse_state, 0); next != NIL_NODE; next = parse_next(env, &parse_state, 0)) {
+	for(node_idx_t next = parse_next(env, &parse_state, 0); next != INV_NODE; next = parse_next(env, &parse_state, 0)) {
 		main_list->push_back_inplace(next);
 	}
 	fclose(fp);
@@ -2882,6 +2891,7 @@ int main(int argc, char **argv) {
 
 	node_idx_t res_idx = eval_node_list(env, main_list);
 	print_node(res_idx, 0);
+	printf("\n");
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());
