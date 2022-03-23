@@ -359,6 +359,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t pred_idx = eval_node(env, *it++);
 	node_idx_t coll_idx = eval_node(env, *it++);
+	//print_node(coll_idx);
 	if(get_node_type(coll_idx) == NODE_LIST) {
 		// don't do it lazily if not given lazy inputs... thats dumb
 		list_ptr_t list_list = get_node(coll_idx)->as_list();
@@ -367,6 +368,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		args->push_back_inplace(pred_idx);
 		for(list_t::iterator it = list_list->begin(); it; it++) {
 			node_idx_t item_idx = *it;//eval_node(env, *it);
+			//print_node(item_idx);
 			node_idx_t comp = eval_list(env, args->conj(item_idx));
 			if(get_node_bool(comp)) {
 				ret->push_back_inplace(item_idx);

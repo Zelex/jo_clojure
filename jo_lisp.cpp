@@ -29,6 +29,7 @@ enum {
 	FALSE_NODE,
 	TRUE_NODE,
 	QUOTE_NODE,
+	EMPTY_LIST_NODE,
 
 
 
@@ -779,6 +780,9 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 // eval a list of nodes
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 	list_t::iterator it = list->begin();
+	if(!it) {
+		return EMPTY_LIST_NODE;
+	}
 	node_idx_t n1i = *it++;
 	int n1_type = get_node_type(n1i);
 	int n1_flags = get_node_flags(n1i);
@@ -804,6 +808,12 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 		// get the symbol's value
 		if(sym_type == NODE_NATIVE_FUNCTION) {
 			if((sym_flags|list_flags) & (NODE_FLAG_MACRO|NODE_FLAG_LITERAL_ARGS)) {
+				/*
+				printf("\n");
+				print_node(sym_idx);
+				print_node_list(list->rest());
+				printf("\n");
+				*/
 				return get_node(sym_idx)->t_native_function(env, list->rest());
 			}
 
@@ -868,7 +878,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 			return n3i;
 		}
 	}
-	return n1i;
+	return new_node_list(list);
 }
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
@@ -1185,6 +1195,8 @@ struct seq_iterator_t {
 };
 
 static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
+	//print_node(n1i);
+	//print_node(n2i);
 	node_t *n1 = get_node(n1i);
 	node_t *n2 = get_node(n2i);
 	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
@@ -1475,6 +1487,12 @@ static node_idx_t native_neq(env_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
+	/*
+	printf("native_neq\n");
+	print_node(n1);
+	print_node(n2);
+	printf("\n");
+	*/
 	bool ret = node_eq(env, n1, n2);
 	for(; i && ret; i++) {
 		ret = ret && node_eq(env, n1, *i);
@@ -1626,6 +1644,9 @@ static node_idx_t native_while(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_quote(env_ptr_t env, list_ptr_t args) {
+	//printf("quote\n");
+	//print_node_list(args);
+	//printf("\n");
 	return new_node_list(args);
 }
 
@@ -1681,7 +1702,14 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	env->set(sym_node, eval_node(env, init));
+	node_idx_t value = eval_node(env, init);
+	//printf("def\n");
+	//print_node(value);
+	//printf("\n");
+	env->set(sym_node, value);
+	//printf("def\n");
+	//print_node(env->get(sym_node));
+	//printf("\n");
 	return NIL_NODE;
 }
 
@@ -2690,6 +2718,7 @@ int main(int argc, char **argv) {
 			n->flags |= NODE_FLAG_LITERAL;
 		}
 		new_node_symbol("quote");
+		new_node_list(new_list());
 	}
 
 	env->set("nil", NIL_NODE);
