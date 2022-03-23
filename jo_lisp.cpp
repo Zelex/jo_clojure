@@ -687,12 +687,15 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	// parse quote shorthand
 	if(tok.type == TOK_SEPARATOR && tok.str == "quote") {
 		debugf("list begin\n");
+		node_idx_t next = parse_next(env, state, ')');
+		if(next == NIL_NODE) {
+			return EMPTY_LIST_NODE;
+		}
 		node_t n = {NODE_LIST};
 		n.t_list = new_list();
 		//n.flags |= NODE_FLAG_LITERAL;
 		//n.flags |= NODE_FLAG_LITERAL_ARGS;
 		n.t_list->push_back_inplace(env->get("quote"));
-		node_idx_t next = parse_next(env, state, ')');
 		while(next != NIL_NODE) {
 			n.t_list->push_back_inplace(next);
 			next = parse_next(env, state, ')');
