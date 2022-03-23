@@ -15,4 +15,6 @@
 ;(def populated-vector? (fn [item] (not= item ())))
 ;(filter populated-vector? vector-of-vectors)
 
-((comp str +) 8 8 8)
+;((comp str +) 8 8 8)
+
+(filter (comp not zero?) [0 1 0 2 0 3 0 4])

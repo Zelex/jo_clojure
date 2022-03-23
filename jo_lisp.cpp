@@ -1763,6 +1763,17 @@ static node_idx_t native_is_nil(env_ptr_t env, list_ptr_t args) {
 	return args->first_value() == NIL_NODE ? TRUE_NODE : FALSE_NODE;
 }
 
+static node_idx_t native_is_zero(env_ptr_t env, list_ptr_t args) {
+	node_idx_t n = args->first_value();
+	if(get_node_type(n) == NODE_INT) {
+		return get_node(n)->as_int() == 0 ? TRUE_NODE : FALSE_NODE;
+	}
+	if(get_node_type(n) == NODE_FLOAT) {
+		return get_node(n)->as_float() == 0.0 ? TRUE_NODE : FALSE_NODE;
+	}
+	return FALSE_NODE;
+}
+
 static node_idx_t native_inc(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
 	if(n1->type == NODE_INT) {
@@ -2779,6 +2790,7 @@ int main(int argc, char **argv) {
 	env->set("bit-xor", new_node_native_function("bit-xor", &native_bit_xor, true));
 	env->set("bit-not", new_node_native_function("bit-not", &native_bit_not, true));
 	env->set("empty?", new_node_native_function("empty?", &native_is_empty, false));
+	env->set("zero?", new_node_native_function("zero?", &native_is_zero, false));
 	env->set("false?", new_node_native_function("false?", &native_is_false, false));
 	env->set("true?", new_node_native_function("true?", &native_is_true, false));
 	env->set("do", new_node_native_function("do", &native_do, false));
