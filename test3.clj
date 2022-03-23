@@ -17,4 +17,7 @@
 
 ;((comp str +) 8 8 8)
 
-(filter (comp not zero?) [0 1 0 2 0 3 0 4])
+;(filter (comp not zero?) [0 1 0 2 0 3 0 4])
+
+;((partial + 100) 5)
+;((partial - 100) 5)

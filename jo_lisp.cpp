@@ -2619,6 +2619,18 @@ static node_idx_t native_comp(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+// (partial f)(partial f arg1)(partial f arg1 arg2)(partial f arg1 arg2 arg3)
+// (partial f arg1 arg2 arg3 & more)
+// Takes a function f and fewer than the normal arguments to f, and
+// returns a fn that takes a variable number of additional args. When
+// called, the returned function calls f with args + additional args.
+static node_idx_t native_partial(env_ptr_t env, list_ptr_t args) {
+	node_idx_t ret = new_node_native_function("partial-lambda", jo_cify([args](env_ptr_t env, list_ptr_t args2) {
+		return eval_list(env, args->conj(*args2));
+	}), false);
+	return ret;
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -2841,6 +2853,7 @@ int main(int argc, char **argv) {
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
 	env->set("get", new_node_native_function("get", &native_get, false));
 	env->set("comp", new_node_native_function("comp", &native_comp, false));
+	env->set("partial", new_node_native_function("partial", &native_partial, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
