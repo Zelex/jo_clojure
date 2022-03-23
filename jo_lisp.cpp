@@ -627,12 +627,8 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			while(is_alnum(*tok_ptr)) {
 				int_val <<= 4;
 				int_val += *tok_ptr - '0';
-				if(*tok_ptr >= 'a' && *tok_ptr <= 'f') {
-					int_val -= 'a' - '0' - 10;
-				}
-				if(*tok_ptr >= 'A' && *tok_ptr <= 'F') {
-					int_val -= 'A' - '0' - 10;
-				}
+				if(*tok_ptr >= 'a' && *tok_ptr <= 'f') int_val -= 'a' - '0' - 10; 
+				if(*tok_ptr >= 'A' && *tok_ptr <= 'F') int_val -= 'A' - '0' - 10;
 				tok_ptr++;
 			}
 		}
@@ -2590,6 +2586,28 @@ static node_idx_t native_get(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (comp)(comp f)(comp f g)(comp f g & fs)
+// Takes a set of functions and returns a fn that is the composition
+// of those fns.  The returned fn takes a variable number of args,
+// applies the rightmost of fns to the args, the next
+// fn (right-to-left) to the result, etc.
+static node_idx_t native_comp(env_ptr_t env, list_ptr_t args) {
+	list_ptr_t rargs = args->reverse();
+	list_t::iterator it = args->begin(); // TODO: maybe reverse iterator (would be faster)
+	node_idx_t ret = new_node_native_function("comp-lambda", jo_cify([rargs](env_ptr_t env, list_ptr_t args) {
+		list_t::iterator it = rargs->begin();
+		node_idx_t ret = NIL_NODE;
+		if(it) {
+			ret = eval_list(env, new_list()->push_back_inplace(*it++)->conj_inplace(*args));
+			while(it) {
+				ret = eval_list(env, new_list()->push_back_inplace(*it++)->push_back_inplace(ret));
+			}
+		}
+		return ret;
+	}), false);
+	return ret;
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -2810,6 +2828,7 @@ int main(int argc, char **argv) {
 	env->set("time", new_node_native_function("time", &native_time, true));
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
 	env->set("get", new_node_native_function("get", &native_get, false));
+	env->set("comp", new_node_native_function("comp", &native_comp, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

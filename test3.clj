@@ -11,6 +11,8 @@
   ;{1 "a", 2 "b", 3 "c", 4 "d"})
 
 ; remove empty vectors from the root vector
-(def vector-of-vectors ((1 2 3) () (1) ()))
-(def populated-vector? (fn [item] (not= item ())))
-(filter populated-vector? vector-of-vectors)
+;(def vector-of-vectors ((1 2 3) () (1) ()))
+;(def populated-vector? (fn [item] (not= item ())))
+;(filter populated-vector? vector-of-vectors)
+
+((comp str +) 8 8 8)
