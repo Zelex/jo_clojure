@@ -401,6 +401,22 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		get_node(lazy_func_idx)->t_list->push_back_inplace(coll_idx);
 		return new_node_lazy_list(lazy_func_idx);
 	}
+	if(get_node_type(coll_idx) == NODE_STRING) {
+		jo_string str = get_node(coll_idx)->t_string;
+		jo_string ret;
+		list_ptr_t args = new_list();
+		args->push_back_inplace(pred_idx);
+		size_t str_len = str.length();
+		const char *str_ptr = str.c_str();
+		for(int i = 0; i < str_len; i++) {
+			node_idx_t item_idx = new_node_int(str_ptr[i]);
+			node_idx_t comp = eval_list(env, args->conj(item_idx));
+			if(get_node_bool(comp)) {
+				ret += (char)str_ptr[i];
+			}
+		}
+		return new_node_string(ret);
+	}
 	return NIL_NODE;
 }
 

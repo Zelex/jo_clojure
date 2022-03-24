@@ -29,3 +29,5 @@
 
 ;(#(+ 6 %) 1)
 ;(#(+ %1 %2) 2 3)
+
+(filter letter? "hello, world!")

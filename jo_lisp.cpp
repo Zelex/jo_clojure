@@ -2260,6 +2260,14 @@ static node_idx_t native_is_fn(env_ptr_t env, list_ptr_t args) {
 	return node->type == NODE_FUNC ? TRUE_NODE : FALSE_NODE;
 }
 
+static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	int c = node->as_int();
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ? TRUE_NODE : FALSE_NODE;
+}
+
 // (next coll)
 // Returns a seq of the items after the first. Calls seq on its
 // argument.  If there are no more items, returns nil.
@@ -2886,6 +2894,7 @@ int main(int argc, char **argv) {
 	env->set("false?", new_node_native_function("false?", &native_is_false, false));
 	env->set("true?", new_node_native_function("true?", &native_is_true, false));
 	env->set("some?", new_node_native_function("some?", &native_is_some, false));
+	env->set("letter?", new_node_native_function("letter?", &native_is_letter, false));
 	env->set("do", new_node_native_function("do", &native_do, false));
 	env->set("doall", new_node_native_function("doall", &native_doall, true));
 	env->set("cons", new_node_native_function("cons", &native_cons, false));
