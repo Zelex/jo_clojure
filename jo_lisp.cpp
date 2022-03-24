@@ -48,6 +48,7 @@ enum {
 	NODE_FLOAT,
 	NODE_STRING,
 	NODE_SYMBOL,
+	NODE_KEYWORD,
 	//NODE_REGEX,
 	NODE_LIST,
 	NODE_LAZY_LIST,
@@ -202,6 +203,7 @@ struct node_t {
 	};
 
 	bool is_symbol() const { return type == NODE_SYMBOL; }
+	bool is_keyword() const { return type == NODE_KEYWORD; }
 	bool is_list() const { return type == NODE_LIST; }
 	bool is_vector() const { return type == NODE_VECTOR; }
 	bool is_map() const { return type == NODE_MAP; }
@@ -222,6 +224,7 @@ struct node_t {
 			case NODE_INT:    return t_int != 0;
 			case NODE_FLOAT:  return t_float != 0.0;
 			case NODE_SYMBOL:
+			case NODE_KEYWORD:
 			case NODE_STRING: return t_string.length() != 0;
 			case NODE_LIST:
 			case NODE_VECTOR:
@@ -268,17 +271,18 @@ struct node_t {
 
 	jo_string type_as_string() const {
 		switch(type) {
-		case NODE_BOOL:   return "bool";
-		case NODE_INT:    return "int";
-		case NODE_FLOAT:  return "float";
-		case NODE_STRING: return "string";
-		case NODE_LIST:   return "list";
-		case NODE_VECTOR: return "vector";
-		case NODE_SET:    return "set";
-		case NODE_MAP:    return "map";
+		case NODE_BOOL:    return "bool";
+		case NODE_INT:     return "int";
+		case NODE_FLOAT:   return "float";
+		case NODE_STRING:  return "string";
+		case NODE_LIST:    return "list";
+		case NODE_VECTOR:  return "vector";
+		case NODE_SET:     return "set";
+		case NODE_MAP:     return "map";
 		case NODE_NATIVE_FUNCTION: return "native_function";
-		case NODE_VAR:	  return "var";
-		case NODE_SYMBOL: return "symbol";
+		case NODE_VAR:	   return "var";
+		case NODE_SYMBOL:  return "symbol";
+		case NODE_KEYWORD: return "keyword";
 		}
 		return "unknown";		
 	}
@@ -445,6 +449,13 @@ static node_idx_t new_node_symbol(const jo_string &s) {
 	return new_node(&n);
 }
 
+static node_idx_t new_node_keyword(const jo_string &s) {
+	node_t n = {NODE_KEYWORD};
+	n.t_string = s;
+	n.flags |= NODE_FLAG_STRING;
+	return new_node(&n);
+}
+
 static node_idx_t new_node_var(const jo_string &name, node_idx_t value) {
 	node_t n = {NODE_VAR};
 	n.t_string = name;
@@ -461,6 +472,7 @@ enum token_type_t {
 	TOK_EOF=0,
 	TOK_STRING,
 	TOK_SYMBOL,
+	TOK_KEYWORD,
 	TOK_SEPARATOR,
 };
 
@@ -556,6 +568,21 @@ static token_t get_token(parse_state_t *state) {
 		}
 		tok.type = TOK_STRING;
 		// string literal of a symbol
+		do {
+			if(is_whitespace(C) || is_separator(C) || C == EOF) {
+				state->ungetc(C);
+				break;
+			}
+			tok.str += C;
+			C = state->getc();
+		} while (true);
+		debugf("token: %s\n", tok.str.c_str());
+		return tok;
+	}
+	if(c == ':') {
+		tok.type = TOK_KEYWORD;
+		// string literal of a symbol
+		int C = state->getc();
 		do {
 			if(is_whitespace(C) || is_separator(C) || C == EOF) {
 				state->ungetc(C);
@@ -712,6 +739,9 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		debugf("float: %f\n", float_val);
 		return new_node_float(float_val);
 	} 
+	if(tok.type == TOK_KEYWORD) {
+		return new_node_keyword(tok.str.c_str());
+	}
 	if(tok.type == TOK_SYMBOL) {
 		debugf("symbol: %s\n", tok.str.c_str());
 		if(env->has(tok.str.c_str())) {
@@ -885,6 +915,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 	int n1_flags = get_node_flags(n1i);
 	if(n1_type == NODE_LIST 
 	|| n1_type == NODE_SYMBOL 
+	|| n1_type == NODE_KEYWORD 
 	|| n1_type == NODE_STRING 
 	|| n1_type == NODE_NATIVE_FUNCTION
 	|| n1_type == NODE_FUNC
@@ -973,6 +1004,19 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 				return it2.second;
 			}
 			return n3i;
+		} else if(sym_type == NODE_KEYWORD) {
+			// lookup the key in the map
+			int n2i = eval_node(env, *it++);
+			int n3i = it ? eval_node(env, *it++) : NIL_NODE;
+			if(get_node_type(n2i) == NODE_MAP) {
+				auto it2 = get_node(n2i)->t_map->find(sym_idx, [env](const node_idx_t &a, const node_idx_t &b) {
+					return node_eq(env, a, b);
+				});
+				if(it2.third) {
+					return it2.second;
+				}
+			}
+			return n3i;
 		}
 	}
 	return new_node_list(list);
@@ -1036,6 +1080,8 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf("}");
 	} else if(type == NODE_SYMBOL) {
 		printf("%s", get_node_string(node).c_str());
+	} else if(type == NODE_KEYWORD) {
+		printf(":%s", get_node_string(node).c_str());
 	} else if(type == NODE_STRING) {
 		printf("\"%s\"", get_node_string(node).c_str());
 	} else if(type == NODE_NATIVE_FUNCTION) {
