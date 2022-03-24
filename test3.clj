@@ -2,9 +2,7 @@
 ;(doall (range 4))
 ;(doall (filter even? (range 10)))
 
-;(filter 
-  ;(fn [x] (= (count x) 1))
-  ;'("a" "aa" "b" "n" "f" "lisp" "clojure" "q" ""))
+;(filter #(= (count %) 1) '("a" "aa" "b" "n" "f" "lisp" "clojure" "q" ""))
 
 ;(filter 
   ;(fn [[k v]] (even? k))
@@ -12,7 +10,7 @@
 
 ; remove empty vectors from the root vector
 ;(def vector-of-vectors ((1 2 3) () (1) ()))
-;(def populated-vector? (fn [item] (not= item ())))
+;(def populated-vector? #(not= % ()))
 ;(filter populated-vector? vector-of-vectors)
 
 ;((comp str +) 8 8 8)
@@ -30,4 +28,4 @@
 ;(str "info" (add-domain) )
 
 ;(#(+ 6 %) 1)
-(#(+ %1 %2) 2 3)
+;(#(+ %1 %2) 2 3)

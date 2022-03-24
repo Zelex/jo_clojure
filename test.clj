@@ -18,6 +18,9 @@
 (def z (fn [a b] (str a b)))
 (unless (= "Here's Jonny" (z "Here's " 'Jonny)) (println "Failed! Here's Jonny"))
 
+(def z #(str %1 %2))
+(unless (= "Here's Jonny" (z "Here's " 'Jonny)) (println "Failed! Here's Jonny"))
+
 (defn greet [name] (str "Hello, " name) )
 (unless (= "Hello, students" (greet 'students)) (println "FAIL Hello Students"))
 
@@ -40,6 +43,7 @@
 (my-delay)
 
 (unless (= "Hello world!" ((fn (message) (str message))  "Hello world!")) (println "FAIL Hello world!"))
+(unless (= "Hello world!" (#(str %)  "Hello world!")) (println "FAIL Hello world!"))
 
 (unless (= 10 (apply + '(1 2 3 4))) (println "FAILED 1"))
 (unless (= 10 (apply + 1 '(2 3 4))) (println "FAILED 2"))
@@ -77,8 +81,7 @@
 (defn factorial-using-reduce [n]
   (reduce * (range 1 (inc n))))
 
-(defn make-fac-function [n]
-  (fn () (reduce * (range 1 (inc n)))))
+(defn make-fac-function [n] #(reduce * (range 1 (inc n))))
 (def fac5 (make-fac-function 5))
 
 (defn factorial-using-eval-and-cons [n]
