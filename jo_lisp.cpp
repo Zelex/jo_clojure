@@ -2607,12 +2607,19 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 		for(lazy_list_iterator_t lit(env, to); !lit.done(); lit.next()) {
 			ret->push_back_inplace(lit.val);
 		}
+	} else {
+		return NIL_NODE;
 	}
 	if(get_node_type(from) == NODE_LIST) {
 		ret->conj_inplace(*get_node(from)->t_list);
 	} else if(get_node_type(from) == NODE_LAZY_LIST) {
 		for(lazy_list_iterator_t lit(env, from); !lit.done(); lit.next()) {
 			ret->push_back_inplace(lit.val);
+		}
+	} else if(get_node_type(from) == NODE_MAP) {
+		map_ptr_t from_map = get_node(from)->t_map;
+		for(map_t::iterator it = from_map->begin(); it != from_map->end(); it++) {
+			ret->push_back_inplace(it->second);
 		}
 	}
 	return new_node_list(ret);
@@ -2737,7 +2744,6 @@ static node_idx_t native_partial(env_ptr_t env, list_ptr_t args) {
 	}), false);
 	return ret;
 }
-
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"

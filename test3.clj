@@ -38,3 +38,6 @@
 ;(doall (map + [1 2 3] (iterate inc 1)))
 ;(doall (map + [1 2 3] (range)))
 ;(doall (range 10))
+
+;(into () '(1 2 3))
+
