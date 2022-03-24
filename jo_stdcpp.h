@@ -4193,6 +4193,18 @@ public:
         }
         return it->second;
     }
+
+    // conj
+    jo_persistent_unordered_map *conj(jo_persistent_unordered_map *other) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        for(auto it = other->vec.begin(); it != other->vec.end(); ++it) {
+            if(it->third) {
+                copy->assoc_inplace(it->first, it->second);
+            }
+        }
+        return copy;
+    }
+
 };
 
 

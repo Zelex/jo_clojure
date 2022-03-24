@@ -1009,7 +1009,7 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 
 // Print the node heirarchy
 static void print_node(node_idx_t node, int depth, bool same_line) {
-#if 0
+#if 1
 	int type = get_node_type(node);
 	int flags = get_node_flags(node);
 	if(type == NODE_LIST) {
@@ -2599,9 +2599,8 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t to = *it++;
 	node_idx_t from = *it++;
-	list_ptr_t ret;
 	if(get_node_type(to) == NODE_LIST) {
-		ret = new list_t(*get_node(to)->t_list);
+		list_ptr_t ret = new list_t(*get_node(to)->t_list);
 		if(get_node_type(from) == NODE_LIST) {
 			for(list_t::iterator it = get_node(from)->t_list->begin(); it; it++) {
 				ret->push_front_inplace(*it);
@@ -2616,10 +2615,20 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 				ret->push_front_inplace(it->second);
 			}
 		}
-	} else {
-		return NIL_NODE;
+		return new_node_list(ret);
 	}
-	return new_node_list(ret);
+	if(get_node_type(to) == NODE_MAP) {
+		map_ptr_t ret = new map_t(*get_node(to)->t_map);
+		if(get_node_type(from) == NODE_LIST) {
+			for(list_t::iterator it = get_node(from)->t_list->begin(); it; it++) {
+				if(get_node_type(*it) == NODE_MAP) {
+					ret = ret->conj(get_node(*it)->t_map.ptr);
+				}
+			}
+		}
+		return new_node_map(ret);
+	}
+	return NIL_NODE;
 }
 
 // Compute the time to execute arguments

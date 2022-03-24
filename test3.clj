@@ -39,5 +39,5 @@
 ;(doall (map + [1 2 3] (range)))
 ;(doall (range 10))
 
-(into () '(1 2 3))
-
+;(into () '(1 2 3))
+(into {:x 4} '({:a 1} {:b 2} {:c 3}))
