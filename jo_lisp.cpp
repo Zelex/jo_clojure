@@ -62,7 +62,7 @@ enum {
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
-	NODE_FLAG_STRING       = 1<<1, // string or symbol
+	NODE_FLAG_STRING       = 1<<1, // string or symbol or keyword
 	NODE_FLAG_LAZY         = 1<<2, // unused
 	NODE_FLAG_LITERAL      = 1<<3,
 	NODE_FLAG_LITERAL_ARGS = 1<<4,
@@ -242,6 +242,7 @@ struct node_t {
 		case NODE_FUNC:
 		case NODE_VAR:
 		case NODE_SYMBOL:
+		case NODE_KEYWORD:
 		case NODE_STRING: return atoi(t_string.c_str());
 		}
 		return 0;
@@ -255,6 +256,7 @@ struct node_t {
 		case NODE_FUNC:
 		case NODE_VAR:
 		case NODE_SYMBOL:
+		case NODE_KEYWORD:
 		case NODE_STRING: return atof(t_string.c_str());
 		}
 		return 0;
@@ -452,7 +454,7 @@ static node_idx_t new_node_symbol(const jo_string &s) {
 static node_idx_t new_node_keyword(const jo_string &s) {
 	node_t n = {NODE_KEYWORD};
 	n.t_string = s;
-	n.flags |= NODE_FLAG_STRING;
+	n.flags |= NODE_FLAG_LITERAL | NODE_FLAG_STRING;
 	return new_node(&n);
 }
 
@@ -581,7 +583,7 @@ static token_t get_token(parse_state_t *state) {
 	}
 	if(c == ':') {
 		tok.type = TOK_KEYWORD;
-		// string literal of a symbol
+		// string literal of a keyword
 		int C = state->getc();
 		do {
 			if(is_whitespace(C) || is_separator(C) || C == EOF) {
@@ -927,7 +929,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 		if(n1_type == NODE_LIST) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
 			sym_type = get_node_type(sym_idx);
-		} else if((n1_flags & NODE_FLAG_STRING) == NODE_FLAG_STRING) {
+		} else if(n1_flags & NODE_FLAG_STRING) {
 			sym_idx = env->get(get_node_string(n1i));
 			sym_type = get_node_type(sym_idx);
 		}
@@ -1115,6 +1117,8 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf("%*s\"%s\"\n", depth, "", get_node_string(node).c_str());
 	} else if(n->type == NODE_SYMBOL) {
 		printf("%*s%s\n", depth, "", get_node_string(node).c_str());
+	} else if(n->type == NODE_KEYWORD) {
+		printf("%*s:%s\n", depth, "", get_node_string(node).c_str());
 	} else if(n->type == NODE_INT) {
 		printf("%*s%d\n", depth, "", n->t_int);
 	} else if(n->type == NODE_FLOAT) {
@@ -1368,7 +1372,7 @@ static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 		return n1->t_int == n2->t_int;
 	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
 		return n1->as_float() == n2->as_float();
-	} else if((n1->flags&n2->flags&NODE_FLAG_STRING) == NODE_FLAG_STRING) {
+	} else if(n1->flags & n2->flags & NODE_FLAG_STRING) {
 		return n1->t_string == n2->t_string;
 	}
 	return false;
@@ -1462,7 +1466,7 @@ size_t jo_hash_value(node_idx_t n) {
 		return res;
 	} else if(n1->type == NODE_BOOL) {
 		return n1->t_bool ? 1 : 0;
-	} else if(n1->type == NODE_STRING || n1->type == NODE_SYMBOL) {
+	} else if(n1->flags & NODE_FLAG_STRING) {
 		return jo_hash_value(n1->t_string.c_str());
 	} else if(n1->type == NODE_INT) {
 		return n1->t_int;
