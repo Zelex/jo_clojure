@@ -34,7 +34,7 @@
 ;(filter (partial letter?) "hello, world!")
 ;(filter #(letter? %) "hello, world!")
 
-(doall (map + [1 2 3] [4 5 6]))
+;(doall (map + [1 2 3] [4 5 6]))
 ;(doall (map + [1 2 3] (iterate inc 1)))
 ;(doall (map + [1 2 3] (range)))
 ;(doall (range 10))
