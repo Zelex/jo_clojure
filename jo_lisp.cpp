@@ -1124,7 +1124,7 @@ struct lazy_list_iterator_t {
 		if(!done()) {
 			val = get_node(cur)->as_list()->first_value();
 		} else {
-			val = NIL_NODE;
+			val = INV_NODE;
 		}
 	}
 
