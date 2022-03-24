@@ -3585,6 +3585,18 @@ struct jo_persistent_list {
         return copy;
     }
 
+    jo_persistent_list *conj_inplace(const T &value) {
+        if(tail) {
+            tail->next = new node(value, NULL);
+            tail = tail->next;
+        } else {
+            head = new node(value, NULL);
+            tail = head;
+        }
+        length++;
+        return this;
+    }
+
     jo_persistent_list *assoc(size_t index, const T &value) const {
         jo_persistent_list *copy = new jo_persistent_list();
         jo_shared_ptr<node> cur = head;
