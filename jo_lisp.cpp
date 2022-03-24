@@ -31,6 +31,15 @@ enum {
 	TRUE_NODE,
 	QUOTE_NODE,
 	EMPTY_LIST_NODE,
+	PCT_NODE,
+	PCT1_NODE,
+	PCT2_NODE,
+	PCT3_NODE,
+	PCT4_NODE,
+	PCT5_NODE,
+	PCT6_NODE,
+	PCT7_NODE,
+	PCT8_NODE,
 
 	// node types
 	NODE_NIL = 0,
@@ -709,6 +718,16 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			//debugf("pre-resolve symbol: %s\n", tok.str.c_str());
 			return env->get(tok.str.c_str());
 		}
+		// fixed symbols
+		if(tok.str == "%") return PCT_NODE;
+		if(tok.str == "%1") return PCT1_NODE;
+		if(tok.str == "%2") return PCT2_NODE;
+		if(tok.str == "%3") return PCT3_NODE;
+		if(tok.str == "%4") return PCT4_NODE;
+		if(tok.str == "%5") return PCT5_NODE;
+		if(tok.str == "%6") return PCT6_NODE;
+		if(tok.str == "%7") return PCT7_NODE;
+		if(tok.str == "%8") return PCT8_NODE;
 		return new_node_symbol(tok.str.c_str());
 	} 
 
@@ -2857,6 +2876,15 @@ int main(int argc, char **argv) {
 		}
 		new_node_symbol("quote");
 		new_node_list(new_list());
+		new_node_symbol("%");
+		new_node_symbol("%1");
+		new_node_symbol("%2");
+		new_node_symbol("%3");
+		new_node_symbol("%4");
+		new_node_symbol("%5");
+		new_node_symbol("%6");
+		new_node_symbol("%7");
+		new_node_symbol("%8");
 	}
 
 	env->set("nil", NIL_NODE);
