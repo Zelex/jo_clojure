@@ -382,6 +382,14 @@ struct jo_triple {
 
 };
 
+// jo_swap, std::swap alternative
+template<typename T>
+inline void jo_swap(T &a, T &b) {
+    T tmp = a;
+    a = b;
+    b = tmp;
+}
+
 struct jo_string {
     char *str;
     
