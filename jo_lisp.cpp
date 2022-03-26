@@ -2300,6 +2300,20 @@ static node_idx_t native_nth(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (rand-nth coll)
+// Return a random element of the (sequential) collection. Will have
+// the same performance characteristics as nth for the given
+// collection.
+static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t list_idx = *it++;
+	node_t *list = get_node(list_idx);
+	if(list->is_list()) {
+		return list->as_list()->nth(rand() % list->as_list()->size());
+	}
+	return NIL_NODE;
+}
+
 // equivalent to (first (first x))
 static node_idx_t native_ffirst(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
@@ -2993,6 +3007,7 @@ int main(int argc, char **argv) {
 	env->set("last", new_node_native_function("last", &native_last, false));
 	env->set("drop", new_node_native_function("drop", &native_drop, false));
 	env->set("nth", new_node_native_function("nth", &native_nth, false));
+	env->set("rand-nth", new_node_native_function("rand-nth", &native_rand_nth, false));
 	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false));
 	env->set("next", new_node_native_function("next", &native_next, false));
 	env->set("rest", new_node_native_function("rest", &native_rest, false));

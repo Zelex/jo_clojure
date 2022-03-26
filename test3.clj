@@ -44,3 +44,6 @@
 ;(take-nth 2 (range 10))
 ;(doall (take 3 (take-nth 0 (range 2))))
 ;(doall (take 3 (take-nth -10 (range 2))))
+
+;(def food [:ice-cream :steak :apple])
+;(rand-nth food)
