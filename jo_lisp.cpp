@@ -2309,7 +2309,11 @@ static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
 	node_idx_t list_idx = *it++;
 	node_t *list = get_node(list_idx);
 	if(list->is_list()) {
-		return list->as_list()->nth(rand() % list->as_list()->size());
+		size_t list_size = list->as_list()->size();
+		if(list_size > 0) {
+			int n = rand() % list_size;
+			return list->as_list()->nth(n);
+		}
 	}
 	return NIL_NODE;
 }
