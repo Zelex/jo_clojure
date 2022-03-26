@@ -24,3 +24,11 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 * Native types and operations for Matrices and Tensors. 
 * Focus on automatic parallelization in general, and explicit when "you know what you are doing". 
 * Software Transactional Memory
+
+# Compile/install:
+
+Unix:
+Run `make` to build and `make install` to install to `/usr/local/bin` (might require `sudo`)
+
+Windows:
+Run `c.bat`
