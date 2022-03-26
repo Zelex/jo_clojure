@@ -54,3 +54,4 @@
 ;(boring "Is anybody home?")
 
 (reduce + (map (constantly 1) [:a :b :c]))
+(reduce + (map (constantly 1) (range 3)))

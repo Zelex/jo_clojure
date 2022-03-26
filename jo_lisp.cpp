@@ -2504,7 +2504,7 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 		if(coll->is_lazy_list()) {
 			lazy_list_iterator_t lit(env, coll_idx);
 			node_idx_t reti = lit.val;
-			for(; !lit.done(); lit.next()) {
+			for(lit.next(); !lit.done(); lit.next()) {
 				node_idx_t arg_idx = lit.val;
 				list_ptr_t arg_list = new_list();
 				arg_list->push_back_inplace(f_idx);
