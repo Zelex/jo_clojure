@@ -5,7 +5,6 @@ $(JO_TARGET):
 	c++ -std=c++17 jo_lisp.cpp -g -O0 -o $(JO_TARGET)
 
 install: $(JO_TARGET)
-	echo $(DESTDIR)
 	mkdir -p '$(DESTDIR)'
 	cp $(JO_TARGET) $(DESTDIR)
 
