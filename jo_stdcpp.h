@@ -3772,6 +3772,23 @@ struct jo_persistent_list {
         return copy;
     }
 
+    jo_persistent_list *pop_front_inplace() {
+        if(head) {
+            head = head->next;
+            if(!head) {
+                tail = NULL;
+            }
+            length--;
+        }
+        return this;
+    }
+
+    jo_persistent_list *pop_front() const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->pop_front_inplace();
+        return copy;
+    }
+
     jo_persistent_list *subvec(int start, int end) const {
         jo_shared_ptr<node> cur = head;
         while(cur && start > 0) {
@@ -3835,6 +3852,10 @@ struct jo_persistent_list {
         return copy;
     }
 
+    jo_persistent_list *take_last(int N) const {
+        return subvec(length - N, length);
+    }
+
     // iterator
     class iterator {
         jo_shared_ptr<node> cur;
@@ -3866,6 +3887,18 @@ struct jo_persistent_list {
             if(cur) {
                 cur = cur->next;
             }
+            return copy;
+        }
+        iterator operator+=(int n) {
+            while(cur && n > 0) {
+                cur = cur->next;
+                n--;
+            }
+            return *this;
+        }
+        iterator operator+(int n) const {
+            iterator copy = *this;
+            copy += n;
             return copy;
         }
         T &operator*() {

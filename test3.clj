@@ -40,4 +40,7 @@
 ;(doall (range 10))
 
 ;(into () '(1 2 3))
-(into {:x 4} '({:a 1} {:b 2} {:c 3}))
+;(into {:x 4} '({:a 1} {:b 2} {:c 3}))
+;(take-nth 2 (range 10))
+;(doall (take 3 (take-nth 0 (range 2))))
+;(doall (take 3 (take-nth -10 (range 2))))

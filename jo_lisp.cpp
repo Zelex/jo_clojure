@@ -1204,6 +1204,16 @@ struct lazy_list_iterator_t {
 		return new_node_list(get_node(cur)->as_list()->rest());
 	}
 
+	node_idx_t next_fn(int n) {
+		for(int i = 0; i < n; i++) {
+			next();
+		}
+		if(done()) {
+			return NIL_NODE;
+		}
+		return new_node_list(get_node(cur)->as_list()->rest());
+	}
+
 	node_idx_t nth(int n) {
 		node_idx_t res = val;
 		while(n-- > 0 && !done()) {
@@ -2529,20 +2539,6 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-static node_idx_t native_take_last(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	int n = node->as_int();
-	node_idx_t coll_idx = *it++;
-	node_t *coll = get_node(coll_idx);
-	if(coll->is_list()) {
-		list_ptr_t list_list = coll->as_list();
-		return new_node_list(list_list->subvec(list_list->size() - n, list_list->size()));
-	}
-	return NIL_NODE;
-}
-
 // eval each arg in turn, return if any eval to false
 static node_idx_t native_and(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator it = args->begin(); it; it++) {
@@ -3002,7 +2998,6 @@ int main(int argc, char **argv) {
 	env->set("rest", new_node_native_function("rest", &native_rest, false));
 	env->set("list", new_node_native_function("list", &native_list, false));
 	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false));
-	env->set("take-last", new_node_native_function("take-last", &native_take_last, false));
 	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
 	env->set("concat", new_node_native_function("concat", &native_concat, false));
 	env->set("var", new_node_native_function("var", &native_var, false));

@@ -311,6 +311,123 @@ static node_idx_t native_take_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(list);
 }
 
+// (take-nth n) (take-nth n coll)
+// Returns a lazy seq of every nth item in coll.  Returns a stateful
+// transducer when no collection is provided.
+static node_idx_t native_take_nth(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t n = eval_node(env, *it++);
+	if(!it) {
+		// stateful transducer
+		node_idx_t lazy_func_idx = new_node(NODE_LIST);
+		get_node(lazy_func_idx)->t_list = new_list();
+		get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("take-nth-next"));
+		get_node(lazy_func_idx)->t_list->push_back_inplace(n);
+		return new_node_lazy_list(lazy_func_idx);
+	}
+	int N = get_node(n)->as_int();
+	node_idx_t coll = eval_node(env, *it++);
+	if(get_node_type(coll) == NODE_LIST) {
+		// don't do it lazily if not given lazy inputs... thats dumb
+		list_ptr_t list_list = get_node(coll)->as_list();
+		if(N <= 0) {
+			// (take-nth 0 coll) will return an infinite sequence repeating for first item from coll. A negative N is treated the same as 0.
+			node_idx_t lazy_func_idx = new_node(NODE_LIST);
+			get_node(lazy_func_idx)->t_list = new_list();
+			get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("constantly-next"));
+			get_node(lazy_func_idx)->t_list->push_back_inplace(list_list->first_value());
+			return new_node_lazy_list(lazy_func_idx);
+		}
+		list_ptr_t list = new_list();
+		if(list_list->size() <= N) {
+			list->push_back_inplace(list_list->first_value());
+			return new_node_list(list);
+		}
+		for(list_t::iterator it = list_list->begin(); it; it += N) {
+			list->push_back_inplace(*it);
+		}
+		return new_node_list(list);
+	}
+	if(get_node_type(coll) == NODE_LAZY_LIST) {
+		if(N <= 0) {
+			lazy_list_iterator_t lit(env, coll);
+			// (take-nth 0 coll) will return an infinite sequence repeating for first item from coll. A negative N is treated the same as 0.
+			node_idx_t lazy_func_idx = new_node(NODE_LIST);
+			get_node(lazy_func_idx)->t_list = new_list();
+			get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("constantly-next"));
+			get_node(lazy_func_idx)->t_list->push_back_inplace(lit.val);
+			return new_node_lazy_list(lazy_func_idx);
+		}
+		node_idx_t lazy_func_idx = new_node(NODE_LIST);
+		get_node(lazy_func_idx)->t_list = new_list();
+		get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("take-nth-next"));
+		get_node(lazy_func_idx)->t_list->push_back_inplace(n);
+		get_node(lazy_func_idx)->t_list->push_back_inplace(coll);
+		return new_node_lazy_list(lazy_func_idx);
+	}
+	return coll;
+}
+
+static node_idx_t native_take_nth_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int n = get_node(*it++)->as_int();
+	if(n <= 0) {
+		return NIL_NODE;
+	}
+	node_idx_t coll = *it++;
+	lazy_list_iterator_t lit(env, coll);
+	if(lit.done()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list = new_list();
+	list->push_back_inplace(lit.val);
+	list->push_back_inplace(env->get("take-nth-next"));
+	list->push_back_inplace(new_node_int(n));
+	list->push_back_inplace(new_node_lazy_list(lit.next_fn(n)));
+	return new_node_list(list);
+}
+
+static node_idx_t native_constantly_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t value = *it++;
+	list_ptr_t list = new_list();
+	list->push_back_inplace(value);
+	list->push_back_inplace(env->get("constantly-next"));
+	list->push_back_inplace(value);
+	return new_node_list(list);
+}
+
+// (take-last n coll)
+// Returns a seq of the last n items in coll.  Depending on the type
+// of coll may be no better than linear time.  For vectors, see also subvec.
+static node_idx_t native_take_last(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t n = eval_node(env, *it++);
+	node_idx_t coll = eval_node(env, *it++);
+	int N = get_node(n)->as_int();
+	if(get_node_type(coll) == NODE_LIST) {
+		list_ptr_t list_list = get_node(coll)->as_list();
+		if(list_list->size() <= N) {
+			return coll;
+		}
+		return new_node_list(list_list->take_last(N));
+	}
+	if(get_node_type(coll) == NODE_LAZY_LIST) {
+		lazy_list_iterator_t lit(env, coll);
+		list_ptr_t ret = new_list();
+		for(; lit; lit.next()) {
+			node_idx_t value_idx = eval_node(env, lit.val);
+			node_t *value = get_node(value_idx);
+			ret->push_back_inplace(value_idx);
+			if(ret->size() > N) {
+				ret->pop_front_inplace();
+			}
+		}
+		return new_node_list(ret);
+	}
+	return coll;
+}
+
 // (distinct)
 // (distinct coll)
 // Returns a lazy sequence of the elements of coll with duplicates removed.
@@ -453,7 +570,11 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("map-next", new_node_native_function("map-next", &native_map_next, true));
 	env->set("take", new_node_native_function("take", &native_take, true));
 	env->set("take-next", new_node_native_function("take-next", &native_take_next, true));
+	env->set("take-nth", new_node_native_function("take-nth", &native_take_nth, true));
+	env->set("take-nth-next", new_node_native_function("take-nth-next", &native_take_nth_next, true));
+	env->set("take-last", new_node_native_function("take-last", &native_take_last, true));
 	env->set("distinct", new_node_native_function("distinct", &native_distinct, false));
 	env->set("filter", new_node_native_function("filter", &native_filter, true));
 	env->set("filter-next", new_node_native_function("filter-next", &native_filter_next, true));
+	env->set("constantly-next", new_node_native_function("constantly-next", &native_constantly_next, true));
 }
