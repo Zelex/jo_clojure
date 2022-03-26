@@ -47,3 +47,10 @@
 
 ;(def food [:ice-cream :steak :apple])
 ;(rand-nth food)
+
+;(def boring (constantly 10))
+;(boring 1 2 3)
+;(boring)
+;(boring "Is anybody home?")
+
+(reduce + (map (constantly 1) [:a :b :c]))

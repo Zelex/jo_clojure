@@ -2151,6 +2151,8 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 	return list_list->first_value();
 }
 
+// (constantly x)
+// Returns a function that takes any number of arguments and returns x.
 static node_idx_t native_constantly(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t reti = new_node(NODE_DELAY);
