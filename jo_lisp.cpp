@@ -2410,7 +2410,7 @@ static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-static node_idx_t native_unless(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_when_not(env_ptr_t env, list_ptr_t args) {
 	node_idx_t node_idx = eval_node(env, args->first_value());
 	node_t *node = get_node(node_idx);
 	if(!node->as_bool()) {
@@ -2982,7 +2982,6 @@ int main(int argc, char **argv) {
 	env->set("inc", new_node_native_function("inc", &native_inc, false));
 	env->set("dec", new_node_native_function("dec", &native_dec, false));
 	env->set("=", new_node_native_function("=", &native_eq, false));
-	env->set("!=", new_node_native_function("!=", &native_neq, false));
 	env->set("not=", new_node_native_function("not=", &native_neq, false));
 	env->set("<", new_node_native_function("lt", &native_lt, false));
 	env->set("<=", new_node_native_function("lte", &native_lte, false));
@@ -3028,8 +3027,8 @@ int main(int argc, char **argv) {
 	env->set("defn", new_node_native_function("defn", &native_defn, true));
 	env->set("*ns*", new_node_var("nil", NIL_NODE));
 	env->set("if", new_node_native_function("if", &native_if, true));
-	env->set("unless", new_node_native_function("unless", &native_unless, true));
 	env->set("when", new_node_native_function("when", &native_when, true));
+	env->set("when-not", new_node_native_function("when-not", &native_when_not, true));
 	env->set("while", new_node_native_function("while", &native_while, true));
 	env->set("cond", new_node_native_function("cond", &native_cond, true));
 	env->set("case", new_node_native_function("case", &native_case, true));

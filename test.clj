@@ -11,30 +11,30 @@
 (println "neq? " (!= 2,1,2))
 (if (= 1 1) (println "A") (println "B"))
 (def x 5)
-(unless (= 5 x) (println "x is not 5"))
+(when-not (= 5 x) (println "x is not 5"))
 (defn y [a b] (str a " " b))
-(unless (= "Hello Jon" (y 'Hello 'Jon)) (println "Failed Hello Jon"))
+(when-not (= "Hello Jon" (y 'Hello 'Jon)) (println "Failed Hello Jon"))
 
 (def z (fn [a b] (str a b)))
-(unless (= "Here's Jonny" (z "Here's " 'Jonny)) (println "Failed! Here's Jonny"))
+(when-not (= "Here's Jonny" (z "Here's " 'Jonny)) (println "Failed! Here's Jonny"))
 
 (def z #(str %1 %2))
-(unless (= "Here's Jonny" (z "Here's " 'Jonny)) (println "Failed! Here's Jonny"))
+(when-not (= "Here's Jonny" (z "Here's " 'Jonny)) (println "Failed! Here's Jonny"))
 
 (defn greet [name] (str "Hello, " name) )
-(unless (= "Hello, students" (greet 'students)) (println "FAIL Hello Students"))
+(when-not (= "Hello, students" (greet 'students)) (println "FAIL Hello Students"))
 
 (defn closure_test [a] (fn [b] (str a b)))
 (def closure_test2 (closure_test 'Foo))
-(unless (= "FooBar" (closure_test2 'Bar)) (println "FAIL FooBar Closure test"))
+(when-not (= "FooBar" (closure_test2 'Bar)) (println "FAIL FooBar Closure test"))
 
 (defn pow [x n] (apply * (repeat n x)))
 (defn sq [y] (pow y 2))
 (defn qb [y] (pow y 3))
 
-(unless (= 4 (sq 2)) (println "FAIL sq"))
-(unless (= 8 (qb 2)) (println "FAIL qb"))
-(unless (= 16 (pow 2,4)) (println "FAIL pow"))
+(when-not (= 4 (sq 2)) (println "FAIL sq"))
+(when-not (= 8 (qb 2)) (println "FAIL qb"))
+(when-not (= 16 (pow 2,4)) (println "FAIL pow"))
 
 (dotimes (n 5) (println "n is " n))
 
@@ -42,15 +42,15 @@
 (my-delay)
 (my-delay)
 
-(unless (= "Hello world!" ((fn (message) (str message))  "Hello world!")) (println "FAIL Hello world!"))
-(unless (= "Hello world!" (#(str %)  "Hello world!")) (println "FAIL Hello world!"))
+(when-not (= "Hello world!" ((fn (message) (str message))  "Hello world!")) (println "FAIL Hello world!"))
+(when-not (= "Hello world!" (#(str %)  "Hello world!")) (println "FAIL Hello world!"))
 
-(unless (= 10 (apply + '(1 2 3 4))) (println "FAILED 1"))
-(unless (= 10 (apply + 1 '(2 3 4))) (println "FAILED 2"))
-(unless (= 10 (apply + 1 2 '(3 4))) (println "FAILED 3"))
-(unless (= 10 (apply + 1 2 3 '(4))) (println "FAILED 4"))
+(when-not (= 10 (apply + '(1 2 3 4))) (println "FAILED 1"))
+(when-not (= 10 (apply + 1 '(2 3 4))) (println "FAILED 2"))
+(when-not (= 10 (apply + 1 2 '(3 4))) (println "FAILED 3"))
+(when-not (= 10 (apply + 1 2 3 '(4))) (println "FAILED 4"))
 
-(unless (= 3 (let (a 1 b 2) (+ a b))) (println "FAILED let"))
+(when-not (= 3 (let (a 1 b 2) (+ a b))) (println "FAILED let"))
 
 ; defs are not variables, don't do this:
 (defn factorial-using-do-dotimes [n]
@@ -87,27 +87,27 @@
 (defn factorial-using-eval-and-cons [n]
   (eval (cons '* (range 1 (inc n)))))
 
-(unless (= 120 (factorial-using-do-dotimes 5)) (println "FAILED: factorial-using-do-dotimes"))
-(unless (= 120 (factorial-using-do-while 5)) (println "FAILED: factorial-using-do-while"))
-(unless (= 120 (factorial-using-apply-range 5)) (println "FAILED: factorial-using-apply-range"))
-(unless (= 120 (factorial-using-apply-iterate 5)) (println "FAILED: factorial-using-apply-iterate"))
-(unless (= 120 (factorial-using-reduce 5)) (println "FAILED: factorial-using-reduce"))
-(unless (= 120 (fac5)) (println "FAILED: fac5"))
-(unless (= 120 (factorial-using-eval-and-cons 5)) (println "FAILED: factorial-using-eval-and-cons"))
-(unless (= 120 (apply * (take 4 (map inc '(1 2 3 4 5))))) (println "FAILED: factorial map"))
+(when-not (= 120 (factorial-using-do-dotimes 5)) (println "FAILED: factorial-using-do-dotimes"))
+(when-not (= 120 (factorial-using-do-while 5)) (println "FAILED: factorial-using-do-while"))
+(when-not (= 120 (factorial-using-apply-range 5)) (println "FAILED: factorial-using-apply-range"))
+(when-not (= 120 (factorial-using-apply-iterate 5)) (println "FAILED: factorial-using-apply-iterate"))
+(when-not (= 120 (factorial-using-reduce 5)) (println "FAILED: factorial-using-reduce"))
+(when-not (= 120 (fac5)) (println "FAILED: fac5"))
+(when-not (= 120 (factorial-using-eval-and-cons 5)) (println "FAILED: factorial-using-eval-and-cons"))
+(when-not (= 120 (apply * (take 4 (map inc '(1 2 3 4 5))))) (println "FAILED: factorial map"))
 
 (defn padding-right [s width pad] (apply str (take width (concat s (repeat pad)))))
-(unless (= "Clojure   " (padding-right "Clojure" 10 " ")) (println "FAILED: padding-right"))
+(when-not (= "Clojure   " (padding-right "Clojure" 10 " ")) (println "FAILED: padding-right"))
 
-(unless (= 15 (reduce + '(1 2 3 4 5))) (println "reduce 1 failed"))
-(unless (= 0 (reduce + '())) (println "reduce 2 failed"))
-(unless (= 1 (reduce + '(1))) (println "reduce 3 failed"))
-(unless (= 3 (reduce + '(1 2))) (println "reduce 4 failed"))
-(unless (= 1 (reduce + 1 '())) (println "reduce 5 failed"))
-(unless (= 6 (reduce + 1 '(2 3))) (println "reduce 6 failed"))
+(when-not (= 15 (reduce + '(1 2 3 4 5))) (println "reduce 1 failed"))
+(when-not (= 0 (reduce + '())) (println "reduce 2 failed"))
+(when-not (= 1 (reduce + '(1))) (println "reduce 3 failed"))
+(when-not (= 3 (reduce + '(1 2))) (println "reduce 4 failed"))
+(when-not (= 1 (reduce + 1 '())) (println "reduce 5 failed"))
+(when-not (= 6 (reduce + 1 '(2 3))) (println "reduce 6 failed"))
 
-(unless (= (distinct '(1 2 1 3 1 4 1 5)) '(1 2 3 4 5)) (println "distinct failed 1"))
-(unless (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6)) (println "distinct failed 2"))
+(when-not (= (distinct '(1 2 1 3 1 4 1 5)) '(1 2 3 4 5)) (println "distinct failed 1"))
+(when-not (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6)) (println "distinct failed 2"))
 
 ;(doall (map println (range 1 4)))
 
