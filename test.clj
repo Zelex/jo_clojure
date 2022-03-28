@@ -8,7 +8,7 @@
 (println "Math " (-))
 (println (* 1 2 3) " " (- 1 2 3) " " (/ 1 2 3) " " (- 1) " " (- 1 2) " " (-))
 (println "Hello Again, World. " (= 2,2,2,2))
-(println "neq? " (!= 2,1,2))
+(println "neq? " (not= 2,1,2))
 (if (= 1 1) (println "A") (println "B"))
 (def x 5)
 (when-not (= 5 x) (println "x is not 5"))
