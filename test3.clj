@@ -55,3 +55,7 @@
 
 ;(reduce + (map (constantly 1) [:a :b :c]))
 ;(reduce + (map (constantly 1) (range 3)))
+
+;(rand-nth [])
+
+(shuffle (1 2 3 4))

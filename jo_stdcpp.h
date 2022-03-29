@@ -390,6 +390,28 @@ inline void jo_swap(T &a, T &b) {
     b = tmp;
 }
 
+// jo_random_int
+inline int jo_random_int(int min, int max) {
+    return min + (rand() % (max - min + 1));
+}
+
+inline int jo_random_int(int max) {
+    return jo_random_int(0, max);
+}
+
+inline int jo_random_int() {
+    return jo_random_int(0, RAND_MAX);
+}
+
+// jo_random_shuffle
+template<typename T>
+void jo_random_shuffle(T *begin, T *end) {
+    for(T *i = begin; i != end; ++i) {
+        T *j = begin + jo_random_int(end - begin - 1);
+        jo_swap(*i, *j);
+    }
+}
+
 struct jo_string {
     char *str;
     
@@ -3854,6 +3876,25 @@ struct jo_persistent_list {
 
     jo_persistent_list *take_last(int N) const {
         return subvec(length - N, length);
+    }
+
+    // return a random permutation of the elements of the list
+    jo_persistent_list *shuffle() const {
+        // convert to jo_vector
+        jo_vector<T> v;
+        jo_shared_ptr<node> cur = head;
+        while(cur) {
+            v.push_back(cur->value);
+            cur = cur->next;
+        }
+        // shuffle
+        jo_random_shuffle(v.begin(), v.end());
+        // convert back to jo_persistent_list
+        jo_persistent_list *copy = new jo_persistent_list();
+        for(int i = 0; i < v.size(); i++) {
+            copy->push_back_inplace(v[i]);
+        }
+        return copy;
     }
 
     // iterator

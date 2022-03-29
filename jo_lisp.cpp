@@ -2817,6 +2817,18 @@ static node_idx_t native_partial(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+// (shuffle coll)
+// Return a random permutation of coll
+static node_idx_t native_shuffle(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t coll_idx = *it++;
+	int type = get_node_type(coll_idx);
+	if(type == NODE_LIST) {
+		return new_node_list(get_node(coll_idx)->t_list->shuffle());
+	}
+	return NIL_NODE;
+}
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3049,6 +3061,7 @@ int main(int argc, char **argv) {
 	env->set("get", new_node_native_function("get", &native_get, false));
 	env->set("comp", new_node_native_function("comp", &native_comp, false));
 	env->set("partial", new_node_native_function("partial", &native_partial, false));
+	env->set("shuffle", new_node_native_function("shuffle", &native_shuffle, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
