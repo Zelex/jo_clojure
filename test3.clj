@@ -58,4 +58,6 @@
 
 ;(rand-nth [])
 
-(shuffle (1 2 3 4))
+;(shuffle (1 2 3 4))
+
+;(random-sample 0.5 [1 2 3 4 5])

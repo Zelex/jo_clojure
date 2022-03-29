@@ -211,6 +211,8 @@ struct node_t {
 	bool is_string() const { return type == NODE_STRING; }
 	bool is_func() const { return type == NODE_FUNC; }
 	bool is_macro() const { return flags & NODE_FLAG_MACRO;}
+	bool is_float() const { return type == NODE_FLOAT; }
+	bool is_int() const { return type == NODE_INT; }
 
 	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_vector(); }
 
@@ -687,9 +689,14 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		return new_node_string(tok.str.c_str());
 	} 
 	if(is_num(c)) {
-		bool is_int = true;
+		// floating point
+		if(tok.str.find('.') != jo_string_npos) {
+			float float_val = atof(tok_ptr);
+			debugf("float: %f\n", float_val);
+			return new_node_float(float_val);
+		}
+
 		int int_val = 0;
-		double float_val = 0.0;
 		// 0x hexadecimal
 		if(c == '0' && (c2 == 'x' || c2 == 'X')) {
 			tok_ptr += 2;
@@ -723,23 +730,11 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			}
 		}
 		else {
-			is_int = true;
-			// determine if float or int
-			if(tok.str.find('.') != jo_string_npos) {
-				is_int = false;
-				float_val = atof(tok_ptr);
-			}
-			else {
-				int_val = atoi(tok_ptr);
-			}
+			int_val = atoi(tok_ptr);
 		}
 		// Create a new number node
-		if(is_int) {
-			debugf("int: %d\n", int_val);
-			return new_node_int(int_val);
-		}
-		debugf("float: %f\n", float_val);
-		return new_node_float(float_val);
+		debugf("int: %d\n", int_val);
+		return new_node_int(int_val);
 	} 
 	if(tok.type == TOK_KEYWORD) {
 		return new_node_keyword(tok.str.c_str());
@@ -2829,6 +2824,23 @@ static node_idx_t native_shuffle(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (random-sample prob)(random-sample prob coll)
+// Returns items from coll with random probability of prob (0.0 -
+// 1.0).  Returns a transducer when no collection is provided.
+static node_idx_t native_random_sample(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t prob_idx = *it++;
+	node_idx_t coll_idx = it ? *it++ : NIL_NODE;
+	node_t *prob_node = get_node(prob_idx);
+	node_t *coll_node = get_node(coll_idx);
+	float prob = prob_node->as_float();
+	prob = prob < 0 ? 0 : prob > 1 ? 1 : prob;
+	if(coll_node->is_list()) {
+		return new_node_list(coll_node->t_list->random_sample(prob));
+	}
+	return NIL_NODE;
+}
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3062,6 +3074,7 @@ int main(int argc, char **argv) {
 	env->set("comp", new_node_native_function("comp", &native_comp, false));
 	env->set("partial", new_node_native_function("partial", &native_partial, false));
 	env->set("shuffle", new_node_native_function("shuffle", &native_shuffle, false));
+	env->set("random-sample", new_node_native_function("random-sample", &native_random_sample, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

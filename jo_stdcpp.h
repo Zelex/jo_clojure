@@ -403,6 +403,10 @@ inline int jo_random_int() {
     return jo_random_int(0, RAND_MAX);
 }
 
+inline float jo_random_float() {
+    return (float)rand() / (float)RAND_MAX;
+}
+
 // jo_random_shuffle
 template<typename T>
 void jo_random_shuffle(T *begin, T *end) {
@@ -3893,6 +3897,19 @@ struct jo_persistent_list {
         jo_persistent_list *copy = new jo_persistent_list();
         for(int i = 0; i < v.size(); i++) {
             copy->push_back_inplace(v[i]);
+        }
+        return copy;
+    }
+
+    // return items with a random probability of p
+    jo_persistent_list *random_sample(float p) const { 
+        jo_persistent_list *copy = new jo_persistent_list();
+        jo_shared_ptr<node> cur = head;
+        while(cur) {
+            if(jo_random_float() < p) {
+                copy->push_back_inplace(cur->value);
+            }
+            cur = cur->next;
         }
         return copy;
     }
