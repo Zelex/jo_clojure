@@ -61,3 +61,12 @@
 ;(shuffle (1 2 3 4))
 
 ;(random-sample 0.5 [1 2 3 4 5])
+
+;(doall (keep even? (range 1 10)))
+
+(doall 
+;(keep #(if (odd? %) %) (range 10))
+;(map #(if (odd? %) %) (range 10))
+(for [ x (range 10) :when (odd? x)] x)
+;(filter odd? (range 10))
+)

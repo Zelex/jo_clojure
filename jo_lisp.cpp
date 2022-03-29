@@ -1709,12 +1709,13 @@ static node_idx_t native_gte(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_if(env_ptr_t env, list_ptr_t args) {
-	if(args->size() != 3) {
+	if(args->size() < 2) {
 		return NIL_NODE;
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t cond = eval_node(env, *i++);
-	node_idx_t when_true = *i++, when_false = *i++;
+	node_idx_t when_true = *i++;
+	node_idx_t when_false = i ? *i++ : NIL_NODE;
 	return eval_node(env, get_node(cond)->as_bool() ? when_true : when_false);
 }
 

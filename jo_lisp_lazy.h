@@ -557,6 +557,63 @@ static node_idx_t native_filter_next(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (keep f)(keep f coll)
+// Returns a lazy sequence of the non-nil results of (f item). Note,
+// this means false return values will be included.  f must be free of
+// side-effects.  Returns a transducer when no collection is provided.
+static node_idx_t native_keep(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f_idx = eval_node(env, *it++);
+	node_idx_t coll_idx = eval_node(env, *it++);
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("keep-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(f_idx);
+	get_node(lazy_func_idx)->t_list->push_back_inplace(coll_idx);
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f_idx = *it++;
+	node_idx_t coll_idx = *it++;
+	int coll_type = get_node_type(coll_idx);
+	list_ptr_t e = new_list();
+	e->push_back_inplace(f_idx);
+	if(coll_type == NODE_LIST) {
+		list_ptr_t list_list = get_node(coll_idx)->t_list;
+		while(!list_list->empty()) {
+			node_idx_t item_idx = list_list->first_value();
+			list_list = list_list->pop_front();
+			node_idx_t comp = eval_list(env, e->conj(item_idx));
+			if(comp != NIL_NODE) {
+				list_ptr_t ret = new_list();
+				ret->push_back_inplace(comp);
+				ret->push_back_inplace(env->get("keep-next"));
+				ret->push_back_inplace(f_idx);
+				ret->push_back_inplace(new_node_list(list_list));
+				return new_node_list(ret);
+			}
+		}
+	}
+	if(coll_type == NODE_LAZY_LIST) {
+		for(lazy_list_iterator_t lit(env, coll_idx); !lit.done(); lit.next()) {
+			node_idx_t item_idx = lit.val;
+			node_idx_t comp = eval_list(env, e->conj(item_idx));
+			if(comp != NIL_NODE) {
+				list_ptr_t ret = new_list();
+				ret->push_back_inplace(comp);
+				ret->push_back_inplace(env->get("keep-next"));
+				ret->push_back_inplace(f_idx);
+				ret->push_back_inplace(new_node_lazy_list(lit.next_fn()));
+				return new_node_list(ret);
+			}
+		}
+	}
+	return NIL_NODE;
+}
+
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, false));
@@ -577,4 +634,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("filter", new_node_native_function("filter", &native_filter, true));
 	env->set("filter-next", new_node_native_function("filter-next", &native_filter_next, true));
 	env->set("constantly-next", new_node_native_function("constantly-next", &native_constantly_next, true));
+	env->set("keep", new_node_native_function("keep", &native_keep, true));
+	env->set("keep-next", new_node_native_function("keep-next", &native_keep_next, true));
 }
