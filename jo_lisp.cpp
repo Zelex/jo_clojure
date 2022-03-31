@@ -1817,9 +1817,6 @@ static node_idx_t native_while(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_quote(env_ptr_t env, list_ptr_t args) {
-	//printf("quote\n");
-	//print_node_list(args);
-	//printf("\n");
 	return new_node_list(args);
 }
 
@@ -2093,6 +2090,37 @@ static node_idx_t native_when(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+// (when-let bindings & body)
+// bindings => binding-form test
+// When test is true, evaluates body with binding-form bound to the value of test
+static node_idx_t native_when_let(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t binding_idx = *it++;
+	if(!get_node(binding_idx)->is_list()) {
+		return NIL_NODE;
+	}
+	node_t *binding = get_node(binding_idx);
+	list_ptr_t binding_list = binding->as_list();
+	if (binding_list->size() != 2) {
+		return NIL_NODE;
+	}
+	env_ptr_t env2 = new_env(env);
+	for(list_t::iterator i = binding_list->begin(); i;) {
+		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
+		node_idx_t value_idx = eval_node(env2, *i++);
+		if(!get_node(value_idx)->as_bool()) {
+			return NIL_NODE;
+		}
+		node_t *key = get_node(key_idx);
+		env2->set_temp(key->as_string(), value_idx);
+	}
+	node_idx_t ret = NIL_NODE;
+	for(; it; it++) {
+		ret = eval_node(env2, *it);
+	}
+	return ret;
+}
+
 // (cons x seq)
 // Returns a new seq where x is the first element and seq is the rest.
 static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
@@ -2156,23 +2184,30 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t list_idx = *it++;
 	node_t *list = get_node(list_idx);
-	if(!list->is_list()) {
-		return NIL_NODE;
+	if(list->is_list()) {
+		list_ptr_t list_list = list->t_list;
+		if(list_list->size() == 0) {
+			return NIL_NODE;
+		}
+		return list_list->first_value();
 	}
-	list_ptr_t list_list = list->as_list();
-	if(list_list->size() == 0) {
-		return NIL_NODE;
+	if(list->is_string()) {
+		jo_string s = list->as_string();
+		if(s.size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_int(s.c_str()[0]);
 	}
-	return list_list->first_value();
+	return NIL_NODE;
 }
 
 // (constantly x)
 // Returns a function that takes any number of arguments and returns x.
 static node_idx_t native_constantly(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t reti = new_node(NODE_DELAY);
-	node_t *ret = get_node(reti);
-	ret->t_delay = args->first_value(); // always return this value
+	node_idx_t x_idx = args->first_value();
+	node_idx_t reti = new_node_native_function("native_constantly_fn", jo_cify([x_idx](env_ptr_t env, list_ptr_t args) {
+		return x_idx;
+	}), false);
 	return reti;
 }
 
@@ -3156,6 +3191,7 @@ int main(int argc, char **argv) {
 	env->set("*ns*", new_node_var("nil", NIL_NODE));
 	env->set("if", new_node_native_function("if", &native_if, true));
 	env->set("when", new_node_native_function("when", &native_when, true));
+	env->set("when-let", new_node_native_function("when-let", &native_when_let, true));
 	env->set("when-not", new_node_native_function("when-not", &native_when_not, true));
 	env->set("while", new_node_native_function("while", &native_while, true));
 	env->set("cond", new_node_native_function("cond", &native_cond, true));

@@ -148,11 +148,16 @@
   (is (= -1  (pos-neg-or-zero -5)))
   (is (=  1  (pos-neg-or-zero  5)))
   (is (=  0  (pos-neg-or-zero  0))))
+(defn when-let-test []
+  (is (= nil   (when-let [a nil] a)))
+  (is (= 5     (when-let [a 5]   a)))
+  (is (= 2     (when-let [[_ a]  (list 1 2)] a))))
 
 (string-test)
 (if-test)
 (when-test)
 (cond-test)
+(when-let-test)
 
 ;(doall (map println (range 1 4)))
 
