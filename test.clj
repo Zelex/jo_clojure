@@ -168,6 +168,13 @@
   (is (= true  (= (list 1 2 3)  (list 1 2 3))))
   (is (= false (= (list 1 2 3)  (list 1 2 4))))
   (is (= false (= (list 1 1 3)  (list 1 2 3)))))
+(defn seqable?-test []
+  (is (seqable? (list 1 2 3))))
+(defn cons-test []
+  (is (= (list 1)           (cons 1 nil)))
+  (is (= (list nil)         (cons nil nil)))
+  (is (= (list 3 3 4)       (cons 3 (rest (rest (list 1 2 3 4))))))
+  (is (= 3                  (first (cons 3 (rest (rest (list 1 2 3 4))))))))
 
 (string-test)
 (if-test)
@@ -176,6 +183,8 @@
 (when-let-test)
 ;(for-test)
 (list-test)
+;(seqable?-test)
+(cons-test)
 
 ;(doall (map println (range 1 4)))
 
