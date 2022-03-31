@@ -189,6 +189,13 @@
   (is (= 3   (nth (list 1 2 3)  2)))
   (is (= nil (nth (list 1 2 3)  10)))
   (is (= nil (nth (list 1 2 3) -10))))
+(defn nthrest-test []
+  (is (= (list 0 1 2 3 4 5 6 7 8 9)  (nthrest (range 10) 0)))
+  (is (= (list )                     (nthrest (range 10) 20)))
+  (is (= (list 5 6 7 8 9)            (nthrest (range 10) 5))))
+(defn count-test []
+  (is (= 0  (count (list ))))
+  (is (= 4  (count (list 1 2 3 4)))))
 
 (string-test)
 (if-test)
@@ -203,6 +210,8 @@
 (second-test)
 (rest-test)
 (nth-test)
+;(nthrest-test)
+(count-test)
 
 ;(doall (map println (range 1 4)))
 
