@@ -180,6 +180,9 @@
   (is (nil?  (first (rest (rest (list)))))))
 (defn second-test []
   (is (= 2 (second (list 1 2 3 4)))))
+(defn rest-test []
+  (is (= (list 2 3 4)  (rest (list 1 2 3 4))))
+  (is (= (list 3 4)    (rest (rest (list 1 2 3 4))))))
 
 (string-test)
 (if-test)
@@ -192,6 +195,7 @@
 (cons-test)
 (first-test)
 (second-test)
+(rest-test)
 
 ;(doall (map println (range 1 4)))
 
