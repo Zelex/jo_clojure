@@ -126,8 +126,33 @@
     (is (= 11        (count s1)))
     (is (true?       (string? s1)))
     (is (false?      (string? 42)))))
+(defn if-test []
+  (is (= 2     (if 1
+                 2)))
+  (is (= 1     (if (zero? 0)
+                 1 -1)))
+  (is (= -1    (if (zero? 1)
+                 1 -1)))
+
+  (is (= 2     (if nil
+                 1 2))))
+(defn when-test []
+  (is (= 1     (when (< 2 3) 1)))
+  (is (= 2     (when true    2))))
+(defn pos-neg-or-zero [n]
+  (cond
+    (< n 0) -1
+    (> n 0)  1
+    :else    0))
+(defn cond-test []
+  (is (= -1  (pos-neg-or-zero -5)))
+  (is (=  1  (pos-neg-or-zero  5)))
+  (is (=  0  (pos-neg-or-zero  0))))
 
 (string-test)
+(if-test)
+(when-test)
+(cond-test)
 
 ;(doall (map println (range 1 4)))
 

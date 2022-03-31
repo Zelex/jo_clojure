@@ -40,6 +40,10 @@ enum {
 	PCT6_NODE,
 	PCT7_NODE,
 	PCT8_NODE,
+	K_ELSE_NODE,
+	K_WHEN_NODE,
+	K_WHILE_NODE,
+	K_LET_NODE,
 
 	// node types
 	NODE_NIL = 0,
@@ -699,7 +703,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		debugf("string: %s\n", tok.str.c_str());
 		return new_node_string(tok.str.c_str());
 	} 
-	if(is_num(c)) {
+	if(is_num(c) || (c == '-' && is_num(c2))) {
 		// floating point
 		if(tok.str.find('.') != jo_string_npos) {
 			float float_val = atof(tok_ptr);
@@ -748,6 +752,11 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		return new_node_int(int_val);
 	} 
 	if(tok.type == TOK_KEYWORD) {
+		debugf("keyword: %s\n", tok.str.c_str());
+		if(tok.str == "else") return K_ELSE_NODE;
+		if(tok.str == "when") return K_WHEN_NODE;
+		if(tok.str == "while") return K_WHILE_NODE;
+		if(tok.str == "let") return K_LET_NODE;
 		return new_node_keyword(tok.str.c_str());
 	}
 	if(tok.type == TOK_SYMBOL) {
@@ -1965,8 +1974,7 @@ static node_idx_t native_cond(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	while(it) {
 		node_idx_t test = eval_node(env, *it++), expr = *it++;
-		node_t *n = get_node(test);
-		if(n->as_bool()) {
+		if (get_node(test)->as_bool() || test == K_ELSE_NODE) {
 			return eval_node(env, expr);
 		}
 	}
@@ -3085,6 +3093,10 @@ int main(int argc, char **argv) {
 		new_node_symbol("%6");
 		new_node_symbol("%7");
 		new_node_symbol("%8");
+		new_node_keyword("else");
+		new_node_keyword("when");
+		new_node_keyword("while");
+		new_node_keyword("let");
 	}
 
 	env->set("nil", NIL_NODE);
