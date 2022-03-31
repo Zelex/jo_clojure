@@ -183,6 +183,12 @@
 (defn rest-test []
   (is (= (list 2 3 4)  (rest (list 1 2 3 4))))
   (is (= (list 3 4)    (rest (rest (list 1 2 3 4))))))
+(defn nth-test []
+  (is (= 1   (nth (list 1 2 3)  0)))
+  (is (= 2   (nth (list 1 2 3)  1)))
+  (is (= 3   (nth (list 1 2 3)  2)))
+  (is (= nil (nth (list 1 2 3)  10)))
+  (is (= nil (nth (list 1 2 3) -10))))
 
 (string-test)
 (if-test)
@@ -196,6 +202,7 @@
 (first-test)
 (second-test)
 (rest-test)
+(nth-test)
 
 ;(doall (map println (range 1 4)))
 

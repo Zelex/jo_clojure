@@ -2403,6 +2403,9 @@ static node_idx_t native_nth(env_ptr_t env, list_ptr_t args) {
 		return new_node_int(str.c_str()[n]);
 	}
 	if(list->is_list()) {
+		if(n < 0 || n >= list->as_list()->size()) {
+			return NIL_NODE;
+		}
 		return list->as_list()->nth(n);
 	}
 	if(list->is_lazy_list()) {
