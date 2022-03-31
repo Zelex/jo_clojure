@@ -31,4 +31,4 @@ Unix:
 Run `make` to build and `make install` to install to `/usr/local/bin` (might require `sudo`)
 
 Windows:
-Run `c.bat`
+Run `c.bat` for Microsoft C/C++ compiler. Run `make` for mingw gcc.
