@@ -111,6 +111,7 @@ static inline int get_node_flags(node_idx_t idx);
 static inline jo_string get_node_string(node_idx_t idx);
 static inline node_idx_t get_node_var(node_idx_t idx);
 static inline bool get_node_bool(node_idx_t idx);
+static inline list_ptr_t get_node_list(node_idx_t idx);
 static inline int get_node_int(node_idx_t idx);
 static inline float get_node_float(node_idx_t idx);
 
@@ -119,6 +120,9 @@ static node_idx_t new_node_var(const jo_string &name, node_idx_t value);
 static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
 static bool node_lt(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
 static bool node_lte(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
+
+static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
+static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 
 struct env_t {
 	// for iterating them all, otherwise unused.
@@ -179,6 +183,18 @@ struct env_t {
 	void set_temp(const jo_string &name, node_idx_t value) {
 		vars_map[name.c_str()] = fast_val_t(NIL_NODE, value);
 	}
+
+	void set_temp(list_ptr_t key_list, list_ptr_t value_list) {
+		for(list_t::iterator k = key_list->begin(), v = value_list->begin(); k && v; k++,v++) {
+			node_idx_t key_idx = *k;
+			node_idx_t value_idx = *v;
+			if(get_node_type(key_idx) == NODE_LIST && get_node_type(value_idx) == NODE_LIST) {
+				set_temp(get_node_list(key_idx), get_node_list(value_idx));
+			} else {
+				set_temp(get_node_string(key_idx), value_idx);
+			}
+		}
+	}
 };
 
 static env_ptr_t new_env(env_ptr_t parent) { return env_ptr_t(new env_t(parent)); }
@@ -233,6 +249,7 @@ struct node_t {
 			case NODE_KEYWORD:
 			case NODE_STRING: return t_string.length() != 0;
 			case NODE_LIST:
+			case NODE_LAZY_LIST:
 			case NODE_VECTOR:
 			case NODE_SET:
 			case NODE_MAP:    return true; // TODO
@@ -289,6 +306,7 @@ struct node_t {
 		case NODE_FLOAT:   return "float";
 		case NODE_STRING:  return "string";
 		case NODE_LIST:    return "list";
+		case NODE_LAZY_LIST: return "lazy-list";
 		case NODE_VECTOR:  return "vector";
 		case NODE_SET:     return "set";
 		case NODE_MAP:     return "map";
@@ -332,6 +350,10 @@ static inline node_idx_t get_node_var(node_idx_t idx) {
 
 static inline bool get_node_bool(node_idx_t idx) {
 	return get_node(idx)->as_bool();
+}
+
+static inline list_ptr_t get_node_list(node_idx_t idx) {
+	return get_node(idx)->as_list();
 }
 
 static inline int get_node_int(node_idx_t idx) {
@@ -918,8 +940,6 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	return INV_NODE;
 }
 
-static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
-static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 
 // eval a list of nodes
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
@@ -2101,18 +2121,21 @@ static node_idx_t native_when_let(env_ptr_t env, list_ptr_t args) {
 	}
 	node_t *binding = get_node(binding_idx);
 	list_ptr_t binding_list = binding->as_list();
-	if (binding_list->size() != 2) {
+	if (binding_list->size() & 1) {
 		return NIL_NODE;
 	}
 	env_ptr_t env2 = new_env(env);
-	for(list_t::iterator i = binding_list->begin(); i;) {
+	for (list_t::iterator i = binding_list->begin(); i;) {
 		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
 		node_idx_t value_idx = eval_node(env2, *i++);
-		if(!get_node(value_idx)->as_bool()) {
+		if (!get_node(value_idx)->as_bool()) {
 			return NIL_NODE;
 		}
-		node_t *key = get_node(key_idx);
-		env2->set_temp(key->as_string(), value_idx);
+		if(get_node_type(key_idx) == NODE_LIST && get_node_type(value_idx) == NODE_LIST) {
+			env2->set_temp(get_node_list(key_idx), get_node_list(value_idx));
+		} else {
+			env2->set_temp(get_node_string(key_idx), value_idx);
+		}
 	}
 	node_idx_t ret = NIL_NODE;
 	for(; it; it++) {
