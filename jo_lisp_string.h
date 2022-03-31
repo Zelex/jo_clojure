@@ -210,6 +210,13 @@ static node_idx_t native_last_index_of(env_ptr_t env, list_ptr_t args) {
     return new_node_int(node->as_string().last_index_of(what->as_string().c_str()));
 }
 
+static node_idx_t native_is_string(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it = args->begin();
+    node_idx_t node_idx = *it++;
+    node_t *node = get_node(node_idx);
+    return new_node_bool(node->is_string());
+}
+
 void jo_lisp_string_init(env_ptr_t env) {
 	env->set("str", new_node_native_function("str", &native_str, false));
 	env->set("subs", new_node_native_function("subs", &native_subs, false));
@@ -231,4 +238,5 @@ void jo_lisp_string_init(env_ptr_t env) {
 	env->set("includes?", new_node_native_function("includes?", &native_includes, false));
 	env->set("index-of", new_node_native_function("index-of", &native_index_of, false));
 	env->set("last-index-of", new_node_native_function("last-index-of", &native_last_index_of, false));
+	env->set("string?", new_node_native_function("string?", &native_is_string, false));
 }

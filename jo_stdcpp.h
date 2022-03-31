@@ -256,6 +256,11 @@ static int jo_isspace(int c)
     return (c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r');
 }
 
+static int jo_isletter(int c)
+{
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+}
+
 // returns a pointer to the last occurrence of needle in haystack
 // or NULL if needle is not found
 static const char *jo_strrstr(const char *haystack, const char *needle)

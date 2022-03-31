@@ -267,7 +267,12 @@ struct node_t {
 	jo_string as_string() const {
 		switch(type) {
 		case NODE_BOOL:   return t_bool ? "true" : "false";
-		case NODE_INT:    return va("%i", t_int);
+		case NODE_INT:    
+			// only letter? TODO
+		 	if(jo_isletter(t_int)) {
+				return jo_string(t_int);
+			}
+			return va("%i", t_int);
 		case NODE_FLOAT:  return va("%f", t_float);
 		}
 		return t_string;
@@ -526,6 +531,12 @@ static token_t get_token(parse_state_t *state) {
 		return tok;
 	}
  
+	if(c == '\\') {
+		tok.type = TOK_SYMBOL;
+		int val = state->getc();
+		tok.str = va("%i", val);
+		return tok;
+	}
 	if(c == '"') {
 		tok.type = TOK_STRING;
 		// string literal
@@ -2088,6 +2099,12 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 	node_idx_t second_idx = *it++;
 	node_t *first = get_node(first_idx);
 	node_t *second = get_node(second_idx);
+	if(second->type == NODE_STRING) {
+		jo_string s = second->as_string();
+		jo_string s2 = first->as_string();
+		jo_string s3 = s2 + s;
+		return new_node_string(s3);
+	}
 	if(second->type == NODE_LIST) {
 		list_ptr_t second_list = second->as_list();
 		return new_node_list(second_list->cons(first_idx));
@@ -2214,6 +2231,9 @@ static node_idx_t native_first(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
+	if(node->is_string()) {
+		return new_node_int(node->as_string().c_str()[0]);
+	}
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		if(list_list->size() == 0) {
@@ -2232,6 +2252,13 @@ static node_idx_t native_second(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
+	if(node->is_string()) {
+		jo_string &str = node->t_string;
+		if(str.size() < 2) {
+			return NIL_NODE;
+		}
+		return new_node_int(node->as_string().c_str()[1]);
+	}
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		if(list_list->size() <= 1) {
@@ -2250,6 +2277,13 @@ static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
+	if(node->is_string()) {
+		jo_string &str = node->t_string;
+		if(str.size() < 1) {
+			return NIL_NODE;
+		}
+		return new_node_int(node->as_string().c_str()[str.size() - 1]);
+	}
 	if(node->is_list()) {
 		return node->as_list()->last_value();
 	}
@@ -2268,6 +2302,16 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 	list_ptr_t list_list = list->as_list();
 	node_idx_t n_idx = *it++;
 	int n = get_node(n_idx)->as_int();
+	if(list->is_string()) {
+		jo_string &str = list->t_string;
+		if(n < 0) {
+			n = str.size() + n;
+		}
+		if(n < 0 || n >= str.size()) {
+			return new_node_string("");
+		}
+		return new_node_string(str.substr(n));
+	}
 	if(list->is_list()) {
 		return new_node_list(list_list->drop(n));
 	}
@@ -2288,6 +2332,16 @@ static node_idx_t native_nth(env_ptr_t env, list_ptr_t args) {
 	node_t *list = get_node(list_idx);
 	node_idx_t n_idx = *it++;
 	int n = get_node(n_idx)->as_int();
+	if(list->is_string()) {
+		jo_string &str = list->t_string;
+		if(n < 0) {
+			n = str.size() + n;
+		}
+		if(n < 0 || n >= str.size()) {
+			return NIL_NODE;
+		}
+		return new_node_int(str.c_str()[n]);
+	}
 	if(list->is_list()) {
 		return list->as_list()->nth(n);
 	}
@@ -2306,6 +2360,13 @@ static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t list_idx = *it++;
 	node_t *list = get_node(list_idx);
+	if(list->is_string()) {
+		jo_string &str = list->t_string;
+		if(str.size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_int(str.c_str()[rand() % str.size()]);
+	}
 	if(list->is_list()) {
 		size_t list_size = list->as_list()->size();
 		if(list_size > 0) {
@@ -2392,6 +2453,13 @@ static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
+	if(node->is_string()) {
+		jo_string &str = node->t_string;
+		if(str.size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_string(str.substr(1));
+	}
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		return new_node_list(list_list->rest());
@@ -2842,6 +2910,35 @@ static node_idx_t native_random_sample(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (is form)(is form msg)
+// Generic assertion macro.  'form' is any predicate test.
+// 'msg' is an optional message to attach to the assertion.
+// 
+// Example: (is (= 4 (+ 2 2)) "Two plus two should be 4")
+//  Special forms:
+//  (is (thrown? c body)) checks that an instance of c is thrown from
+// body, fails if not; then returns the thing thrown.
+//  (is (thrown-with-msg? c re body)) checks that an instance of c is
+// thrown AND that the message on the exception matches (with
+// re-find) the regular expression re.
+static node_idx_t native_is(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t form_idx = *it++;
+	node_idx_t msg_idx = it ? *it++ : NIL_NODE;
+	node_t *form_node = get_node(eval_node(env, form_idx));
+	node_t *msg_node = get_node(eval_node(env, msg_idx));
+	if(!form_node->as_bool()) {
+		if(msg_node->is_string()) {
+			printf("%s\n", msg_node->t_string.c_str());
+		} else {
+			printf("Assertion failed\n");
+			print_node(form_idx);
+			printf("\n");
+		}
+	}
+	return NIL_NODE;
+}
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3076,6 +3173,7 @@ int main(int argc, char **argv) {
 	env->set("partial", new_node_native_function("partial", &native_partial, false));
 	env->set("shuffle", new_node_native_function("shuffle", &native_shuffle, false));
 	env->set("random-sample", new_node_native_function("random-sample", &native_random_sample, false));
+	env->set("is", new_node_native_function("is", &native_is, true));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

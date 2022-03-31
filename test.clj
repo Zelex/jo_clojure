@@ -109,6 +109,26 @@
 (when-not (= (distinct '(1 2 1 3 1 4 1 5)) '(1 2 3 4 5)) (println "distinct failed 1"))
 (when-not (= (distinct '(1 2 1 3 1 4 1 5)) (range 1 6)) (println "distinct failed 2"))
 
+(defn string-test []
+  (let [s1       "Some String"
+        s1-added "ASome String"
+        s2       "Other String"
+        s2       "Ali Topu At"]
+
+    (is (= s2        "Ali Topu At"))
+    (is (= false     (= s1 s2)))
+    (is (= true      (= s1 s1)))
+    (is (= false     (= s1 3.14)))
+    (is (= 99        \c))
+    (is (= \S        (first s1)))
+    (is (= s1-added  (cons 65 s1)))
+    (is (= s1        (rest (cons 65 s1))))
+    (is (= 11        (count s1)))
+    (is (true?       (string? s1)))
+    (is (false?      (string? 42)))))
+
+(string-test)
+
 ;(doall (map println (range 1 4)))
 
 (println "time to fac(10) x 100 (list):             " (time (dotimes [i 100] (* 2 3 4 5 6 7 8 9 10))))
@@ -119,4 +139,5 @@
 ;(println "end")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
+
 
