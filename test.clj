@@ -152,12 +152,20 @@
   (is (= nil   (when-let [a nil] a)))
   (is (= 5     (when-let [a 5]   a)))
   (is (= 2     (when-let [[_ a]  (list 1 2)] a))))
+(defn for-test []
+  (is (= (list 1 2 3) (for [x (list 1 2 3)] x)))
+  (is (= (list 1 4 6) (for [x (list 1 2 3)] (* x 2))))
+  (is (= (list 4 5 6 8 10 12 12 15 18)
+         (for [x (list 1 2 3)
+               y (list 4 5 6)]
+           (* x y)))))
 
 (string-test)
 (if-test)
 (when-test)
 (cond-test)
 (when-let-test)
+(for-test)
 
 ;(doall (map println (range 1 4)))
 
