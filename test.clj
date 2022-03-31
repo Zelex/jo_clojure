@@ -159,13 +159,23 @@
          (for [x (list 1 2 3)
                y (list 4 5 6)]
            (* x y)))))
+(defn list-test []
+  (is (= true  (= (list )       (list ))))
+  (is (= false (= (list )       (list 1 2 3))))
+  (is (= false (= (list )       (list nil))))
+  (is (= false (= (list 1 2 3)  (list 1 2))))
+  (is (= false (= (list 1 2)    (list 1 2 3))))
+  (is (= true  (= (list 1 2 3)  (list 1 2 3))))
+  (is (= false (= (list 1 2 3)  (list 1 2 4))))
+  (is (= false (= (list 1 1 3)  (list 1 2 3)))))
 
 (string-test)
 (if-test)
 (when-test)
 (cond-test)
 (when-let-test)
-(for-test)
+;(for-test)
+(list-test)
 
 ;(doall (map println (range 1 4)))
 
