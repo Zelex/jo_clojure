@@ -2072,7 +2072,7 @@ static node_idx_t native_doseq(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t name_idx = binding_list->first_value();
-	node_idx_t value_idx = binding_list->nth(1);
+	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
 	jo_string name = get_node(name_idx)->as_string();
 	node_t *value = get_node(value_idx);
 	list_ptr_t value_list = value->as_list();
