@@ -175,6 +175,11 @@
   (is (= (list nil)         (cons nil nil)))
   (is (= (list 3 3 4)       (cons 3 (rest (rest (list 1 2 3 4))))))
   (is (= 3                  (first (cons 3 (rest (rest (list 1 2 3 4))))))))
+(deftest first-test
+  (is (= 1   (first (list 1 2 3 4))))
+  (is (nil?  (first (rest (rest (list)))))))
+(deftest second-test
+  (is (= 2 (second (list 1 2 3 4)))))
 
 (string-test)
 (if-test)
@@ -185,6 +190,8 @@
 (list-test)
 ;(seqable?-test)
 (cons-test)
+(first-test)
+(second-test)
 
 ;(doall (map println (range 1 4)))
 
