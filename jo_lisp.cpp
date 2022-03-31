@@ -1876,13 +1876,7 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_idx_t value = eval_node(env, init);
-	//printf("def\n");
-	//print_node(value);
-	//printf("\n");
 	env->set(sym_node, value);
-	//printf("def\n");
-	//print_node(env->get(sym_node));
-	//printf("\n");
 	return NIL_NODE;
 }
 
