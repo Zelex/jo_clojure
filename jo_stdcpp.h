@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include <conio.h>
 #include <direct.h>
 #define jo_strdup _strdup
@@ -59,7 +59,7 @@
 #define jo_chdir chdir
 #endif
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 static int jo_setenv(const char *name, const char *value, int overwrite)
 {
     int errcode = 0;
@@ -114,7 +114,7 @@ static bool jo_file_writable(const char *path)
 // checks to see if file can be executed (cross-platform)
 static bool jo_file_executable(const char *path)
 {
-#ifdef _MSC_VER
+#ifdef _WIN32
     // check stat to see if it has executable bit set
     struct _stat s;
     if(_stat(path, &s) != 0) return false;
@@ -137,7 +137,7 @@ static bool jo_file_empty(const char *path)
 
 static int jo_kbhit()
 {
-#ifdef _MSC_VER
+#ifdef _WIN32
     return _kbhit();
 #else
     struct timeval tv;
@@ -153,7 +153,7 @@ static int jo_kbhit()
 
 static int jo_getch()
 {
-#ifdef _MSC_VER
+#ifdef _WIN32
     return _getch();
 #else
     struct termios oldt, newt;
@@ -168,7 +168,7 @@ static int jo_getch()
 #endif
 }
 
-#ifndef _MSC_VER
+#ifndef _WIN32
 #include <dirent.h>
 static bool jo_dir_exists(const char *path)
 {
@@ -278,7 +278,7 @@ static const char *jo_strrstr(const char *haystack, const char *needle)
 }
 
 void jo_sleep(float seconds) {
-#ifdef _MSC_VER
+#ifdef _WIN32
     Sleep((int)(seconds * 1000));
 #else
     usleep((int)(seconds * 1000000));
@@ -799,7 +799,7 @@ struct jo_stringstream {
 
     jo_stringstream &operator<<(int val) {
         char tmp[33];
-#ifdef _MSC_VER
+#ifdef _WIN32
         sprintf_s(tmp, "%i", val);
 #else
         sprintf(tmp, "%i", val);
@@ -817,7 +817,7 @@ struct jo_stringstream {
 template<typename T> static inline T jo_min(T a, T b) { return a < b ? a : b; }
 template<typename T> static inline T jo_max(T a, T b) { return a > b ? a : b; }
 
-#if !defined(__PLACEMENT_NEW_INLINE) && !defined(_MSC_VER)
+#if !defined(__PLACEMENT_NEW_INLINE) && !defined(_WIN32)
 //inline void *operator new(size_t, void *p) { return p; }
 #endif
 
@@ -1151,7 +1151,7 @@ static inline double jo_time() {
 #endif
 }
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include <mutex>
 #define jo_mutex std::mutex
 #else
@@ -4722,7 +4722,7 @@ struct jo_float {
     */
 };
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #pragma warning(pop)
 #endif
 
