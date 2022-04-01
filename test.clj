@@ -1,3 +1,8 @@
+(println "time to fac(10) x 100 (list):             " (time (dotimes [i 100] (* 2 3 4 5 6 7 8 9 10))))
+(println "time to fac(10) x 100 (apply-take-range): " (time (dotimes [i 100] (apply * (take 9 (range 2 11))))))
+(println "time to fac(10) x 100 (apply-range):      " (time (dotimes [i 100] (apply * (range 2 11)))))
+(println "time to fac(10) x 100 (apply-list):       " (time (dotimes [i 100] (apply * '(2 3 4 5 6 7 8 9 10)))))
+
 (println "Hello World...")
 (println "Hello " "World...")
 (println "Math " (+ 1 2 3))
@@ -487,25 +492,25 @@
   (is (= 0xBACB     (bit-override 0xBBBB 0xAACC 4 8)))
   (is (= 0xBBBB     (bit-override 0xAAAA 0xBBBB 0 16))))
 (defn sqrt-test []
-  (is (= 32         (sqrt 1024)))
-  (is (= 2          (sqrt 4))))
+  (is (= 32         (Math/sqrt 1024)))
+  (is (= 2          (Math/sqrt 4))))
 (defn pow-test []
-  (is (= 8          (pow 2 3)))
-  (is (= 16         (pow 2 4))))
+  (is (= 8          (Math/pow 2 3)))
+  (is (= 16         (Math/pow 2 4))))
 (defn cos-test []
-  (is (= 1          (cos 0)))
-  (is (= -0.99999   (cos 3.145))))
+  (is (= 1          (Math/cos 0)))
+  (is (= -0.99999   (Math/cos 3.145))))
 (defn sin-test []
-  (is (= 0          (sin 0)))
-  (is (= -0.00340   (sin 3.145))))
+  (is (= 0          (Math/sin 0)))
+  (is (= -0.00340   (Math/sin 3.145))))
 (defn atan2-test []
-  (is (= 0.98279    (atan2 45 30))))
+  (is (= 0.98279    (Math/atan2 45 30))))
 (defn log-test []
-  (is (= 2.30258    (log 10)))
-  (is (= 2          (log10 100))))
+  (is (= 2.30258    (Math/log 10)))
+  (is (= 2          (Math/log10 100))))
 (defn to-degrees-radians-test []
-  (is (= 180.19522  (to-degrees 3.145)))
-  (is (= 3.14159    (to-radians 180))))
+  (is (= 180.19522  (Math/to-degrees 3.145)))
+  (is (= 3.14159    (Math/to-radians 180))))
 (defn random-test []
   (is (= true       (not (nil? (rand)))))
   (is (= true       (not (nil? (rand 15))))))
@@ -620,14 +625,6 @@
 (fn-test)
 
 
-
-;(doall (map println (range 1 4)))
-
-(println "time to fac(10) x 100 (list):             " (time (dotimes [i 100] (* 2 3 4 5 6 7 8 9 10))))
-(println "time to fac(10) x 100 (apply-take-range): " (time (dotimes [i 100] (apply * (take 9 (range 2 11))))))
-(println "time to fac(10) x 100 (apply-range):      " (time (dotimes [i 100] (apply * (range 2 11)))))
-(println "time to fac(10) x 100 (apply-list):       " (time (dotimes [i 100] (apply * '(2 3 4 5 6 7 8 9 10)))))
-
-;(println "end")
+;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
