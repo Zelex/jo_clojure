@@ -1189,6 +1189,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 static void print_node_list(list_ptr_t nodes, int depth) {
 	for(list_t::iterator i = nodes->begin(); i; i++) {
 		print_node(*i, depth);
+		printf(" ");
 	}
 }
 
@@ -1387,10 +1388,20 @@ struct seq_iterator_t {
 };
 
 static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
-	//print_node(n1i);
-	//print_node(n2i);
+	/*
+	printf("node_eq(%d, %d)\n", n1i, n2i);
+	print_node(n1i);
+	printf("\n");
+	print_node(n2i);
+	printf("\n");
+	*/
+	if(n1i == INV_NODE || n2i == INV_NODE) {
+		return false;
+	}
+
 	node_t *n1 = get_node(n1i);
 	node_t *n2 = get_node(n2i);
+
 	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
 		return n1->type == NODE_NIL && n2->type == NODE_NIL;
 	} else if(n1->is_seq() && n2->is_seq()) {

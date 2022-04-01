@@ -64,9 +64,20 @@
 
 ;(doall (keep even? (range 1 10)))
 
-(doall 
+;(doall 
 ;(keep #(if (odd? %) %) (range 10))
-;(map #(if (odd? %) %) (range 10))
-(for [ x (range 10) :when (odd? x)] x)
+;;(map #(if (odd? %) %) (range 10))
+;(for [ x (range 10) :when (odd? x)] x)
 ;(filter odd? (range 10))
-)
+;)
+
+(defn list-test []
+  (is (= true  (= (list )       (list ))))
+  (is (= false (= (list )       (list 1 2 3))))
+  (is (= false (= (list )       (list nil))))
+  (is (= false (= (list 1 2 3)  (list 1 2))))
+  (is (= false (= (list 1 2)    (list 1 2 3))))
+  (is (= true  (= (list 1 2 3)  (list 1 2 3))))
+  (is (= false (= (list 1 2 3)  (list 1 2 4))))
+  (is (= false (= (list 1 1 3)  (list 1 2 3)))))
+(list-test)
