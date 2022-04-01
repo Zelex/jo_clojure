@@ -1217,13 +1217,13 @@ struct lazy_list_iterator_t {
 		return next_idx >= next_list.size() && !get_node(cur)->is_list();
 	}
 
-	void next() {
+	node_idx_t next() {
 		if(next_idx < next_list.size()) {
 			val = next_list[next_idx++];
-			return;
+			return val;
 		}
 		if(done()) {
-			return;
+			return INV_NODE;
 		}
 		cur = eval_list(env, get_node(cur)->as_list()->rest());
 		if(!done()) {
@@ -1231,6 +1231,7 @@ struct lazy_list_iterator_t {
 		} else {
 			val = INV_NODE;
 		}
+		return val;
 	}
 
 	node_idx_t next_fn() {
@@ -1303,12 +1304,12 @@ struct seq_iterator_t {
 		if(type == NODE_LIST) {
 			it = get_node(node_idx)->as_list()->begin();
 			if(!done()) {
-				val = *it++;
+				val = *it;
 			}
 		} else if(type == NODE_VECTOR) {
 			vit = get_node(node_idx)->as_vector()->begin();
 			if(!done()) {
-				val = *vit++;
+				val = *vit;
 			}
 		} else if(type == NODE_MAP) {
 			mit = get_node(node_idx)->as_map()->begin();
@@ -1335,23 +1336,24 @@ struct seq_iterator_t {
 		return true;
 	}
 
-	void next() {
+	node_idx_t next() {
 		if(done()) {
-			return;
+			return INV_NODE;
 		}
 		if(type == NODE_LIST) {
-			val = *it++;
+			*it++;
+			val = it ? *it : INV_NODE;
 		} else if(type == NODE_VECTOR) {
-			val = *vit++;
+			*vit++;
+			val = vit ? *vit : INV_NODE;
 		} else if(type == NODE_MAP) {
 			mit++;
-			if(!done()) {
-				val = mit->second;
-			}
+			val = mit ? mit->second : INV_NODE;
 		} else if(type == NODE_LAZY_LIST) {
 			lit.next();
-			val = lit.val;
+			val = lit ? lit.val : INV_NODE;
 		}
+		return val;
 	}
 
 	node_idx_t nth(int n) {
@@ -1394,7 +1396,7 @@ static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 	printf("\n");
 	print_node(n2i);
 	printf("\n");
-	*/
+	//*/
 	if(n1i == INV_NODE || n2i == INV_NODE) {
 		return false;
 	}
@@ -1408,17 +1410,14 @@ static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 		// in this case we want to iterate over the sequences and compare
 		// each element
 		seq_iterator_t i1(env, n1i), i2(env, n2i);
-		for(; i1 && i2; i1.next(), i2.next()) {
+		while(i1.val != INV_NODE && i2.val != INV_NODE) {
 			if(!node_eq(env, i1.val, i2.val)) {
 				return false;
 			}
+			i1.next();
+			i2.next();
 		}
 		if(i1.val != INV_NODE || i2.val != INV_NODE) {
-			if(!node_eq(env, i1.val, i2.val)) {
-				return false;
-			}
-		}
-		if(i1 || i2) {
 			return false;
 		}
 		return true;
@@ -1679,7 +1678,7 @@ static node_idx_t native_eq(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n1 = *i++, n2 = *i++;
 	bool ret = node_eq(env, n1, n2);
 	for(; i && ret; i++) {
-		ret = ret && node_eq(env, n1, *i);
+		ret &= node_eq(env, n1, *i);
 	}
 	return ret ? TRUE_NODE : FALSE_NODE;
 }
@@ -2199,20 +2198,29 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
+// (conj coll x)(conj coll x & xs)
+// conj[oin]. Returns a new collection with the xs
+// 'added'. (conj nil item) returns (item).  The 'addition' may
+// happen at different 'places' depending on the concrete type.
 static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t first_idx = *it++;
-	node_idx_t second_idx = *it++;
-	node_t *first = get_node(first_idx);
-	node_t *second = get_node(second_idx);
-	if(first->type == NODE_LIST) {
-		list_ptr_t first_list = first->as_list();
-		return new_node_list(first_list->cons(second_idx));
+	int first_type = get_node_type(first_idx);
+	list_ptr_t first_list;
+	if(first_type == NODE_NIL) {
+		first_list = new_list();
+	} else if(first_type != NODE_LIST) {
+		first_list = new_list();
+		first_list->push_front_inplace(first_idx);
+	} else {
+		first_list = get_node(first_idx)->as_list();
 	}
-	list_ptr_t ret = new_list();
-	ret->cons(second_idx);
-	ret->cons(first_idx);
-	return new_node_list(ret);
+	for(; it; it++) {
+		node_idx_t second_idx = *it;
+		node_t *second = get_node(second_idx);
+		first_list = first_list->push_front(second_idx);
+	}
+	return new_node_list(first_list);
 }
 
 static node_idx_t native_pop(env_ptr_t env, list_ptr_t args) {
