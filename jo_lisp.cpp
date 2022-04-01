@@ -2271,6 +2271,10 @@ static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
 		list_ptr_t list_list = list->as_list();
 		return new_node_int(list_list->size());
 	}
+	if(list->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, list_idx);
+		return new_node_int(lit.all()->size());
+	}
 	return ZERO_NODE;
 }
 
