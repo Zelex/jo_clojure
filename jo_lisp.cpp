@@ -2325,6 +2325,8 @@ static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) {
 	return node->type != NODE_NIL ? TRUE_NODE : FALSE_NODE;
 }
 
+// (first coll)
+// Returns the first item in the collection. Calls seq on its argument. If coll is nil, returns nil.
 static node_idx_t native_first(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -3290,6 +3292,7 @@ int main(int argc, char **argv) {
 	env->set("random-sample", new_node_native_function("random-sample", &native_random_sample, false));
 	env->set("is", new_node_native_function("is", &native_is, true));
 	env->set("identity", new_node_native_function("identity", &native_identity, false));
+	env->set("reverse", new_node_native_function("reverse", &native_reverse, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
