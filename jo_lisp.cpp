@@ -2161,6 +2161,21 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t first_idx = *it++;
 	node_idx_t second_idx = *it++;
+	if(first_idx == NIL_NODE && second_idx == NIL_NODE) {
+		list_ptr_t ret = new_list();
+		ret->cons_inplace(NIL_NODE);
+		return new_node_list(ret);
+	}
+	if(first_idx == NIL_NODE) {
+		list_ptr_t ret = new_list();
+		ret->cons_inplace(second_idx);
+		return new_node_list(ret);
+	}
+	if(second_idx == NIL_NODE) {
+		list_ptr_t ret = new_list();
+		ret->cons_inplace(first_idx);
+		return new_node_list(ret);
+	}
 	node_t *first = get_node(first_idx);
 	node_t *second = get_node(second_idx);
 	if(second->type == NODE_STRING) {
@@ -2179,8 +2194,8 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 		return new_node_list(second_list->cons(first_idx));
 	}
 	list_ptr_t ret = new_list();
-	ret->cons(second_idx);
-	ret->cons(first_idx);
+	ret->cons_inplace(second_idx);
+	ret->cons_inplace(first_idx);
 	return new_node_list(ret);
 }
 

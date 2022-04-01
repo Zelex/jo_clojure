@@ -28,14 +28,6 @@
 (def closure_test2 (closure_test 'Foo))
 (when-not (= "FooBar" (closure_test2 'Bar)) (println "FAIL FooBar Closure test"))
 
-(defn pow [x n] (apply * (repeat n x)))
-(defn sq [y] (pow y 2))
-(defn qb [y] (pow y 3))
-
-(when-not (= 4 (sq 2)) (println "FAIL sq"))
-(when-not (= 8 (qb 2)) (println "FAIL qb"))
-(when-not (= 16 (pow 2,4)) (println "FAIL pow"))
-
 (dotimes (n 5) (println "n is " n))
 
 (def my-delay (delay (println "this only happens once") 100))
