@@ -3759,9 +3759,8 @@ struct jo_persistent_list {
     jo_persistent_list *drop(int index) const {
         jo_persistent_list *copy = new jo_persistent_list();
         jo_shared_ptr<node> cur = head;
-        while(cur && index > 0) {
+        while(cur && --index > 0) {
             cur = cur->next;
-            index--;
         }
         if(cur) {
             copy->head = cur->next;

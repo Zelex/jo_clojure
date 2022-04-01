@@ -1098,7 +1098,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf("(");
 		for(list_t::iterator it = list->begin(); it; it++) {
 			print_node(*it, depth+1, it);
-			printf(",");
+			printf(" ");
 		}
 		printf(")");
 	} else if(type == NODE_MAP) {
@@ -1112,7 +1112,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 			print_node(it->first, depth+1, it != map->end());
 			printf(" ");
 			print_node(it->second, depth+1, it != map->end());
-			printf(",");
+			printf(" ");
 		}
 		printf("}");
 	} else if(type == NODE_SYMBOL) {
@@ -1122,7 +1122,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	} else if(type == NODE_STRING) {
 		printf("\"%s\"", get_node_string(node).c_str());
 	} else if(type == NODE_NATIVE_FUNCTION) {
-		printf("<%s>", get_node_string(node).c_str());
+		printf("%s", get_node_string(node).c_str());
 	} else if(type == NODE_FUNC) {
 		printf("<function>");
 	} else if(type == NODE_DELAY) {
@@ -1662,7 +1662,7 @@ static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
 // Tests the equality between two or more objects
 static node_idx_t native_eq(env_ptr_t env, list_ptr_t args) {
 	if(args->size() < 2) {
-		return NIL_NODE;
+		return TRUE_NODE;
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
@@ -1694,7 +1694,7 @@ static node_idx_t native_neq(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_lt(env_ptr_t env, list_ptr_t args) {
 	if(args->size() < 2) {
-		return NIL_NODE;
+		return TRUE_NODE;
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
@@ -1708,7 +1708,7 @@ static node_idx_t native_lt(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_lte(env_ptr_t env, list_ptr_t args) {
 	if(args->size() < 2) {
-		return NIL_NODE;
+		return TRUE_NODE;
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
@@ -1722,30 +1722,30 @@ static node_idx_t native_lte(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_gt(env_ptr_t env, list_ptr_t args) {
 	if(args->size() < 2) {
-		return NIL_NODE;
+		return TRUE_NODE;
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_lte(env, n1, n2);
+	bool ret = !node_lte(env, n1, n2);
 	for(; i && ret; i++) {
-		ret = ret && node_lte(env, n2, *i);
+		ret = ret && !node_lte(env, n2, *i);
 		n2 = *i;
 	}
-	return !ret ? TRUE_NODE : FALSE_NODE;
+	return ret ? TRUE_NODE : FALSE_NODE;
 }
 
 static node_idx_t native_gte(env_ptr_t env, list_ptr_t args) {
 	if(args->size() < 2) {
-		return NIL_NODE;
+		return TRUE_NODE;
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_lt(env, n1, n2);
+	bool ret = !node_lt(env, n1, n2);
 	for(; i && ret; i++) {
-		ret = ret && node_lt(env, n2, *i);
+		ret = ret && !node_lt(env, n2, *i);
 		n2 = *i;
 	}
-	return !ret ? TRUE_NODE : FALSE_NODE;
+	return ret ? TRUE_NODE : FALSE_NODE;
 }
 
 static node_idx_t native_if(env_ptr_t env, list_ptr_t args) {
@@ -2357,11 +2357,14 @@ static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	node_idx_t list_idx = *it++;
-	node_t *list = get_node(list_idx);
-	list_ptr_t list_list = list->as_list();
 	node_idx_t n_idx = *it++;
 	int n = get_node(n_idx)->as_int();
+	node_idx_t list_idx = *it++;
+	if(n <= 0) {
+		return list_idx;
+	}
+	node_t *list = get_node(list_idx);
+	list_ptr_t list_list = list->as_list();
 	if(list->is_string()) {
 		jo_string &str = list->t_string;
 		if(n < 0) {
@@ -3172,10 +3175,10 @@ int main(int argc, char **argv) {
 	env->set("dec", new_node_native_function("dec", &native_dec, false));
 	env->set("=", new_node_native_function("=", &native_eq, false));
 	env->set("not=", new_node_native_function("not=", &native_neq, false));
-	env->set("<", new_node_native_function("lt", &native_lt, false));
-	env->set("<=", new_node_native_function("lte", &native_lte, false));
-	env->set(">", new_node_native_function("gt", &native_gt, false));
-	env->set(">=", new_node_native_function("gte", &native_gte, false));
+	env->set("<", new_node_native_function("<", &native_lt, false));
+	env->set("<=", new_node_native_function("<=", &native_lte, false));
+	env->set(">", new_node_native_function(">", &native_gt, false));
+	env->set(">=", new_node_native_function(">=", &native_gte, false));
 	env->set("and", new_node_native_function("and", &native_and, true));
 	env->set("or", new_node_native_function("or", &native_or, true));
 	env->set("not", new_node_native_function("not", &native_not, true));

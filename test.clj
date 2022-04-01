@@ -127,15 +127,10 @@
     (is (true?       (string? s1)))
     (is (false?      (string? 42)))))
 (defn if-test []
-  (is (= 2     (if 1
-                 2)))
-  (is (= 1     (if (zero? 0)
-                 1 -1)))
-  (is (= -1    (if (zero? 1)
-                 1 -1)))
-
-  (is (= 2     (if nil
-                 1 2))))
+  (is (= 2 (if 1 2)))
+  (is (= 1 (if (zero? 0) 1 -1)))
+  (is (= -1 (if (zero? 1) 1 -1)))
+  (is (= 2 (if nil 1 2))))
 (defn when-test []
   (is (= 1     (when (< 2 3) 1)))
   (is (= 2     (when true    2))))
@@ -196,6 +191,366 @@
 (defn count-test []
   (is (= 0  (count (list ))))
   (is (= 4  (count (list 1 2 3 4)))))
+(defn =-test []
+  (is (= true   (= true true)))
+  (is (= false  (not (= true true))))
+  (is (= false  (not 1)))
+  (is (= true   (= 2)))
+  (is (= false  (= 2 3)))
+  (is (= true   (= 2 2 2 2)))
+  (is (= true   (= 2 2.0 2)))
+  (is (= false  (= 2 2 2 2 3 5))))
+(defn true?-test []
+  (is (= true  (true? true)))
+  (is (= false (true? false))))
+(defn false?-test []
+  (is (= false (false? true)))
+  (is (= true  (false? false))))
+(defn nil?-test []
+  (is (= false (= nil 1)))
+  (is (= false (= 1 nil)))
+  (is (= true  (= nil nil))))
+(defn <-test []
+  (is (= true  (< 2)))
+  (is (= true  (< 2 3 4 5))))
+(defn >-test []
+  (is (= true  (> 2)))
+  (is (= false (> 2 3 4 5)))
+  (is (= true  (> 6 5 4 3))))
+(defn >=-test []
+  (is (= true  (>= 2)))
+  (is (= true  (>= 5 4 3 2 2 2)))
+  (is (= false (>= 5 1 3 2 2 2))))
+(defn <=-test []
+  (is (= true  (<= 2)))
+  (is (= true  (<= 2 2 3 4 5)))
+  (is (= false (<= 2 2 1 3 4))))
+(defn and-test []
+  (is (= true  (let [a 1]
+                 (and (> a 0) (< a 10)))))
+
+  (is (= false (let [a 11]
+                 (and (> a 0) (< a 10)))))
+
+  (is (= true  (and true  (identity true))))
+  (is (= false (and true  (identity false)))))
+(defn or-test []
+  (is (= true  (or  true  (identity false))))
+  (is (= false (or  false (identity false)))))
+(defn lazy-countdown [n]
+  (if (>= n 0)
+    (cons n (lazy-seq (lazy-countdown (- n 1))))))
+
+(defn ints-from [n]
+  (cons n (lazy-seq (ints-from (inc n)))))
+
+(defn fib-seq
+  ([]
+   (fib-seq 0 1))
+  ([a b]
+   (lazy-seq
+    (cons b (fib-seq b (+ a b))))))
+
+(defn lazy-seq-test []
+  (is (= 0 (count (lazy-seq ))))
+  (is (= (list 1 2)  (cons 1 (cons 2 (lazy-seq )))))
+
+  (is (= 10    (first (ints-from 10))))
+  (is (= 11    (first (rest (ints-from 10)))))
+  (is (= 12    (first (rest (rest (ints-from 10))))))
+
+  (is (= 10    (first (lazy-countdown 10))))
+  (is (= 9     (first (rest (lazy-countdown 10)))))
+  (is (= 8     (first (rest (rest (lazy-countdown 10))))))
+  (is (= 11    (count (lazy-countdown 10)))))
+(defn map-test []
+  (is (= 2   (first (map inc (list 1 2 3)))))
+  (is (= 0   (first (map dec (list 1 2 3)))))
+  (is (= 4   (first (map (fn [x] (+ 3 x)) (list 1 2 3)))))
+  (is (= 3   (count (map inc (list 1 2 3)))))
+  (is (= (list 2 4 6) (map + (list 1 2 3) (list 1 2 3)))))
+(defn reduce-test []
+  (is (= 21               (reduce + (list 1 2 3 4 5 6))))
+  (is (= (list 6 5 4 3 2) (reduce (fn [h v] (conj h (inc v))) (list) (list 1 2 3 4 5))))
+  (is (= (list 4 3 2 1 0) (reduce (fn [h v] (conj h (dec v))) (list) (list 1 2 3 4 5)))))
+(defn range-test []
+  (is (= false (= (range 10) (range 15))))
+  (is (= false (= (range 15) (range 10))))
+  (is (= true  (= (range 10) (range 10))))
+  (is (= 10  (apply + (range 5))))
+  (is (= 5   (count   (range 5)))))
+(defn take-test []
+  (is (= 2   (->> (map inc (list 1 2 3))
+                  (take 2)
+                  (first))))
+  (is (= 3   (->> (map inc (list 1 2 3))
+                  (take 20)
+                  (count))))
+  (is (= 3   (->> (map inc (list 1 2 3))
+                  (take 2)
+                  (rest)
+                  (first))))
+  (is (= 3   (->> (map inc (list 1 2 3))
+                  (take 20)
+                  (count))))
+  (= (list 1 1 2 3 5) (take 5 (fib-seq)))
+  (= 12               (apply + (take 5 (fib-seq)))))
+(defn take-while-test []
+  (is (= (list -2 -1)          (take-while neg? (list -2 -1 0 1 2 3))))
+  (is (= (list -2 -1 0 1 2)    (take-while #(< % 3) (list -2 -1 0 1 2 3))))
+  (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 3) (list -2 -1 0 1 2 3))))
+  (is (= (list -2 -1 0 1 2 3)  (take-while #(<= % 4) (list -2 -1 0 1 2 3)))))
+(defn drop-test []
+  (is (= (list 1 2 3 4) (drop 0 (list 1 2 3 4))))
+  (is (= (list 2 3 4)   (drop 1 (list 1 2 3 4))))
+  (is (= (list 3 4)     (drop 2 (list 1 2 3 4))))
+  (is (= (list )        (drop 4 (list 1 2 3 4))))
+  (is (= (list )        (drop 5 (list 1 2 3 4)))))
+(defn drop-while-test []
+  (let [my-list (list 1 2 3 4 5 6)]
+    (is (= (list 3 4 5 6) (drop-while #(> 3 %)  my-list)))
+    (is (= (list 4 5 6)   (drop-while #(>= 3 %) my-list)))))
+(defn concat-test []
+  (let [a-list (concat (list 1 2 3) (list 4 5 6))
+        b-list (concat (list 1 2 3) (list 4 5 6) (list 7 8 9))]
+
+    (is (= 0      (count (concat ))))
+    (is (= 1      (first a-list)))
+    (is (= 4      (first (drop 3 a-list))))
+    (is (= 21     (reduce + a-list)))
+    (is (= b-list (list 1 2 3 4 5 6 7 8 9)))))
+(defn apply-test []
+  (is (= 21 (apply +       (list 1 2 3 4 5 6))))
+  (is (= 9  (apply + 1 2   (list 1 2 3))))
+  (is (= 12 (apply + 1 2 3 (list 1 2 3)))))
+(defn conj-test []
+  (is (= (list 4 3 2 1 1 2) (conj (list 1 2) 1 2 3 4)))
+  (is (= (list 4 3 2 1)     (conj nil 1 2 3 4))))
+(defn reverse-test []
+  (is (= (list 6 5 4 3 2 1) (reverse (list 1 2 3 4 5 6)))))
+(defn filter-test []
+  (is (= 1  (->> (list false false true)
+                 (filter true?)
+                 (count ))))
+  (is (= 2  (->> (list true false true false false)
+                 (filter true?)
+                 (count ))))
+  (is (= 2  (->> (list true false true false)
+                 (filter true?)
+                 (count ))))
+  (is (= 2  (->> (list true false true false)
+                 (filter false?)
+                 (count ))))
+  (is (= 3  (->> (list true false true false false)
+                 (filter false?)
+                 (count ))))
+  (is (= 2  (->> (list true false true false false)
+                 (filter (fn [x] (not (false? x))))
+                 (count ))))
+  (is (= 0  (->> (list false false)
+                 (filter true?)
+                 (count)))))
+(defn repeatedly-test []
+  (is (= 1 (first (repeatedly 3 (fn [] 1)))))
+  (is (= 3 (count (repeatedly 3 (fn [] 1)))))
+  (is (= 3 (count (lazy-seq-cache (repeatedly 3 (fn [] 1))))))
+  (is (= 2 (->> (repeatedly 3 (fn [] 1))
+                (map inc)
+                first)))
+  (is (= 2 (->> (repeatedly (fn [] 1))
+                (take 3)
+                (map inc)
+                reverse
+                first)))
+  (let [xs (lazy-seq-cache (repeatedly #(rand)))]
+    (is (= (take 5 xs) (take 5 xs)))))
+(defn partition-test []
+  (is (= (list (list 0 1 2 3)
+               (list 4 5 6 7))
+         (partition 4 (range 10))))
+  (is (= (list (list 0 1 2 3)
+               (list 4 5 6 7))
+         (partition 4 (range 8))))
+  (is (= (list (list 0 1 2 3)
+               (list 6 7 8 9)
+               (list 12 13 14 15))
+         (partition 4 6 (range 20))))
+  (is (= (list (list 0 1 2)
+               (list 6 7 8)
+               (list 12 13 14)
+               (list 18 19 42))
+         (partition 3 6 (list 42) (range 20))))
+  (is (= (list (list 0 1 2 3)
+               (list 6 7 8 9)
+               (list 12 13 14 15)
+               (list 18 19 42 43))
+         (partition 4 6 (list 42 43 44 45) (range 20)))))
+(defn every?-test []
+  (is (= false (every? false? (list true false))))
+  (is (= true  (every? false? (list false false)))))
+(defn interleave-test []
+  (is (= (list 1 3 2 4) (interleave (list 1 2) (list 3 4))))
+  (is (= (list 1 3)     (interleave (list 1 2) (list 3)))))
+(defn flatten-test []
+  (is (= (list 1 2 3 4 5) (flatten (list 1 2 (list 3) 4 5)))))
+(defn number-test []
+  (is (= 0.5       1/2))
+  (is (= 0.33333   1/3))
+  (is (= 3501      0xDAD))
+  (is (= 2748      0xABC)))
+(defn zero?-test []
+  (is (= true  (zero? 0)))
+  (is (= false (zero? 10)))
+  (is (= true  (zero? (- 1 1))))
+  (is (= true  (zero? (- 1.2 1.2))))
+  (is (= true  (zero? (+ 1.2 -1.2)))))
+(defn pos?-test []
+  (is (= true  (pos? 1)))
+  (is (= true  (pos? 0.2)))
+  (is (= false (pos? 0))))
+(defn neg?-test []
+  (is (= false (neg? 1)))
+  (is (= true  (neg? -1))))
+(defn add-test []
+  (is (= 0.6        (+ 0.3 0.3)))
+  (is (= 0          (+ )))
+  (is (= 1          (+ 1)))
+  (is (= 10         (+ 1 2 3 4)))
+  (is (= 10         (+ 1 2.0 3 4))))
+(defn sub-test []
+  (is (= -1         (- 1)))
+  (is (= 0          (- 4 2 2)))
+  (is (= 0          (- 4 2 2.0))))
+(defn mul-test []
+  (is (= 1          (* )))
+  (is (= 8          (* 2 2 2)))
+  (is (= 8          (* 2.0 2 2))))
+(defn div-test []
+  (is (= 1          (/ 1)))
+  (is (= 0.5        (/ 2)))
+  (is (= 1          (/ 4 2 2)))
+  (is (= 1          (/ 4 2 2.0))))
+(defn min-max-test []
+  (is (= 1          (min 1)))
+  (is (= 1          (min 2 1)))
+  (is (= 1          (min 3 5 7 1)))
+  (is (= 1          (max 1)))
+  (is (= 2          (max 2 1)))
+  (is (= 7          (max 3 5 7 1))))
+(defn mod-test []
+  (is (= 0          (mod 2 2)))
+  (is (= 0          (mod 4 2)))
+  (is (= 1          (mod 5 2)))
+  (is (= 1          (mod 8 7))))
+(defn floor-test []
+  (is (= 1          (floor 1.1)))
+  (is (= 1          (floor 1.5)))
+  (is (= 1          (floor 1.9))))
+(defn interp-test []
+  (is (= 100  (interp 10 0 10 0 100)))
+  (is (=  80  (interp  8 0 10 0 100)))
+  (is (=  70  (interp  7 0 10 0 100)))
+  (is (=  50  (interp  5 0 10 0 100)))
+  (is (=  20  (interp  2 0 10 0 100)))
+  (is (=   0  (interp  0 0 10 0 100))))
+(defn clip-test []
+  (is (=   5 (clip   10   0  5)))
+  (is (=  10 (clip   10   0 20)))
+  (is (=   0 (clip   10 -10  0)))
+  (is (= -10 (clip -100 -10  0))))
+(defn abs-test []
+  (is (=   42 (abs -42)))
+  (is (=   42 (abs  42)))
+  (is (=   42.42 (abs -42.42)))
+  (is (=   42.42 (abs  42.42))))
+(defn bit-and-test []
+  (is (= 0          (bit-and  4 3)))
+  (is (= 0          (bit-and  0 1))))
+(defn bit-not-test []
+  (is (= -5         (bit-not  4)))
+  (is (= -1         (bit-not  0))))
+(defn bit-or-test []
+  (is (= 7          (bit-or   4 3)))
+  (is (= 1          (bit-or   0 1))))
+(defn bit-xor-test []
+  (is (= 0          (bit-xor  4 4)))
+  (is (= 1          (bit-xor  1 0))))
+(defn bit-shift-left-test []
+  (is (= 8          (bit-shift-left 4 1)))
+  (is (= 16         (bit-shift-left 4 2))))
+(defn bit-shift-right-test []
+  (is (= 2          (bit-shift-right 4 1)))
+  (is (= 1          (bit-shift-right 4 2))))
+(defn bit-extract-test []
+  (is (= 1          (bit-extract 1781 0 2)))
+  (is (= 2          (bit-extract 1781 1 2)))
+  (is (= 245        (bit-extract 1781 0 8)))
+  (is (= 15         (bit-extract 1781 4 4)))
+  (is (= 111        (bit-extract 1781 4 8)))
+  (is (= 20         (bit-extract 500  0 5)))
+  (is (= 15         (bit-extract 500  5 6))))
+(defn bit-override-test []
+  (is (= 0xAC3A     (bit-override 0xAAAA 0x0C30 4 8)))
+  (is (= 0xBBCC     (bit-override 0xBBBB 0xAACC 0 8)))
+  (is (= 0xBACB     (bit-override 0xBBBB 0xAACC 4 8)))
+  (is (= 0xBBBB     (bit-override 0xAAAA 0xBBBB 0 16))))
+(defn sqrt-test []
+  (is (= 32         (sqrt 1024)))
+  (is (= 2          (sqrt 4))))
+(defn pow-test []
+  (is (= 8          (pow 2 3)))
+  (is (= 16         (pow 2 4))))
+(defn cos-test []
+  (is (= 1          (cos 0)))
+  (is (= -0.99999   (cos 3.145))))
+(defn sin-test []
+  (is (= 0          (sin 0)))
+  (is (= -0.00340   (sin 3.145))))
+(defn atan2-test []
+  (is (= 0.98279    (atan2 45 30))))
+(defn log-test []
+  (is (= 2.30258    (log 10)))
+  (is (= 2          (log10 100))))
+(defn to-degrees-radians-test []
+  (is (= 180.19522  (to-degrees 3.145)))
+  (is (= 3.14159    (to-radians 180))))
+(defn random-test []
+  (is (= true       (not (nil? (rand)))))
+  (is (= true       (not (nil? (rand 15))))))
+(defn fn-test []
+  (let [f1 (fn [])
+        f2 (fn [])
+
+        m-func (fn
+                 ([a] 1)
+                 ([a b] 2)
+                 ([a b c] 3))
+
+        n-func (do (fn
+                     ([]    0)
+                     ([x]   1)
+                     ([x y] 2)))]
+
+    (is (= true  (= f1 f1)))
+    (is (= false (= f1 f2)))
+
+    (is (= 1 (m-func 1)))
+    (is (= 2 (m-func 1 2)))
+    (is (= 3 (m-func 1 2 3)))
+
+    (is (= 0 (n-func)))
+    (is (= 1 (n-func 1)))
+    (is (= 2 (n-func 1 2)))
+
+    (is (= 3      (#(+ 1 2))))
+    (is (= 11     ((fn [n] (+ n 1)) 10)))
+    (is (= 3      (((fn [n] (fn [n] n)) 3) 3))))
+
+  (is (= (list 5 6 7 8 9)
+         ((fn recursive-range [x y]
+            (if (< x y)
+              (cons x (recursive-range (inc x) y))))
+          5 10))))
 
 (string-test)
 (if-test)
@@ -212,6 +567,67 @@
 (nth-test)
 ;(nthrest-test)
 (count-test)
+(=-test)
+(true?-test)
+(false?-test)
+(nil?-test)
+(<-test)
+(>-test)
+(>=-test)
+(<=-test)
+(and-test)
+(or-test)
+;(lazy-seq-test)
+(map-test)
+(reduce-test)
+(range-test)
+(take-test)
+;(take-while-test)
+(drop-test)
+;(drop-while-test)
+;(concat-test) ; crashes?
+(apply-test)
+(conj-test)
+(reverse-test)
+(filter-test)
+(repeatedly-test)
+(partition-test)
+;(every?-test)
+;(interleave-test)
+;(flatten-test)
+(number-test)
+(zero?-test)
+(pos?-test)
+(neg?-test)
+(add-test)
+(sub-test)
+(mul-test)
+(div-test)
+;(min-max-test)
+(mod-test)
+(floor-test)
+;(interp-test)
+;(clip-test)
+(abs-test)
+(bit-and-test)
+(bit-not-test)
+(bit-or-test)
+(bit-xor-test)
+(bit-shift-left-test)
+(bit-shift-right-test)
+(bit-extract-test)
+(bit-override-test)
+(sqrt-test)
+(pow-test)
+(cos-test)
+(sin-test)
+(atan2-test)
+(log-test)
+(to-degrees-radians-test)
+(random-test)
+(fn-test)
+
+
 
 ;(doall (map println (range 1 4)))
 
@@ -223,5 +639,3 @@
 ;(println "end")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
-
-
