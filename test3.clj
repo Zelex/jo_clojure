@@ -71,4 +71,6 @@
 ;(filter odd? (range 10))
 ;)
 
-(is (= 1 (first (repeatedly 3 (fn () 1 ) ) ) ))
+  (is (= (list (list 0 1 2 3)
+               (list 4 5 6 7))
+         (partition 4 (range 10))))

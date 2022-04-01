@@ -1264,9 +1264,9 @@ struct lazy_list_iterator_t {
 		return !done();
 	}
 
-	list_ptr_t all() {
+	list_ptr_t all(int n = INT_MAX) {
 		list_ptr_t res = new_list();
-		while(!done()) {
+		while(!done() && n-- > 0) {
 			res->push_back_inplace(val);
 			next();
 		}

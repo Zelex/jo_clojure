@@ -654,6 +654,95 @@ static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (partition n coll)(partition n step coll)(partition n step pad coll)
+// Returns a lazy sequence of lists of n items each, at offsets step
+// apart. If step is not supplied, defaults to n, i.e. the partitions
+// do not overlap. If a pad collection is supplied, use its elements as
+// necessary to complete last partition upto n items. In case there are
+// not enough padding elements, return a partition with less than n items.
+static node_idx_t native_partition(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t n_idx, step_idx, pad_idx, coll_idx;
+	if(args->size() == 1) {
+		return *it;
+	} else if(args->size() == 2) {
+		n_idx = eval_node(env, *it++);
+		step_idx = n_idx;
+		pad_idx = NIL_NODE;
+		coll_idx = eval_node(env, *it++);
+	} else if(args->size() == 3) {
+		n_idx = eval_node(env, *it++);
+		step_idx = eval_node(env, *it++);
+		pad_idx = NIL_NODE;
+		coll_idx = eval_node(env, *it++);
+	} else {
+		n_idx = eval_node(env, *it++);
+		step_idx = eval_node(env, *it++);
+		pad_idx = eval_node(env, *it++);
+		coll_idx = eval_node(env, *it++);
+	}
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("partition-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(n_idx);
+	get_node(lazy_func_idx)->t_list->push_back_inplace(step_idx);
+	get_node(lazy_func_idx)->t_list->push_back_inplace(pad_idx);
+	get_node(lazy_func_idx)->t_list->push_back_inplace(coll_idx);
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t n_idx = *it++;
+	node_idx_t step_idx = *it++;
+	node_idx_t pad_idx = *it++;
+	node_idx_t coll_idx = *it++;
+	int n = get_node_int(n_idx);
+	int step = get_node_int(step_idx);
+	int coll_type = get_node_type(coll_idx);
+	node_idx_t new_coll = NIL_NODE;
+	list_ptr_t ret;
+	if(coll_type == NODE_LIST) {
+		ret = get_node_list(coll_idx)->take(n);
+		new_coll = new_node_list(get_node_list(coll_idx)->drop(n));
+	} else if(coll_type == NODE_LAZY_LIST) {
+		lazy_list_iterator_t lit(env, coll_idx);
+		ret = lit.all(n);
+		new_coll = new_node_lazy_list(lit.next_fn());
+	} else {
+		printf("partition: collection type not supported\n");
+		return NIL_NODE;
+	}
+	if(ret->size() == 0) {
+		printf("partition: not enough elements in collection\n");
+		return NIL_NODE;
+	}
+	if(ret->size() < n) {
+		if(pad_idx != NIL_NODE) {
+			int pad_n = n - ret->size();
+			int pad_type = get_node_type(pad_idx);
+			list_ptr_t pad_coll;
+			if(pad_type == NODE_LIST) {
+				pad_coll = get_node_list(pad_idx)->take(pad_n);
+			} else if(pad_type == NODE_LAZY_LIST) {
+				pad_coll = lazy_list_iterator_t(env, pad_idx).all(pad_n);
+			} else {
+				return NIL_NODE;
+			}
+			ret = ret->conj(*pad_coll);
+		} else {
+			return NIL_NODE;
+		}
+	}
+	list_ptr_t ret_list = new_list();
+	ret_list->push_back_inplace(new_node_list(ret));
+	ret_list->push_back_inplace(env->get("partition-next"));
+	ret_list->push_back_inplace(n_idx);
+	ret_list->push_back_inplace(step_idx);
+	ret_list->push_back_inplace(pad_idx);
+	ret_list->push_back_inplace(new_coll);
+	return new_node_list(ret_list);
+}
 
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
@@ -679,4 +768,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("keep-next", new_node_native_function("keep-next", &native_keep_next, true));
 	env->set("repeatedly", new_node_native_function("repeatedly", &native_repeatedly, true));
 	env->set("repeatedly-next", new_node_native_function("repeatedly-next", &native_repeatedly_next, true));
+	env->set("partition", new_node_native_function("partition", &native_partition, true));
+	env->set("partition-next", new_node_native_function("partition-next", &native_partition_next, true));
 }
