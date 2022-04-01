@@ -440,9 +440,9 @@
   (is (= 1          (mod 5 2)))
   (is (= 1          (mod 8 7))))
 (defn floor-test []
-  (is (= 1          (floor 1.1)))
-  (is (= 1          (floor 1.5)))
-  (is (= 1          (floor 1.9))))
+  (is (= 1          (Math/floor 1.1)))
+  (is (= 1          (Math/floor 1.5)))
+  (is (= 1          (Math/floor 1.9))))
 (defn interp-test []
   (is (= 100  (interp 10 0 10 0 100)))
   (is (=  80  (interp  8 0 10 0 100)))
