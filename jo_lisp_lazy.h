@@ -704,17 +704,29 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	list_ptr_t ret;
 	if(coll_type == NODE_LIST) {
 		ret = get_node_list(coll_idx)->take(n);
-		new_coll = new_node_list(get_node_list(coll_idx)->drop(n));
+		new_coll = new_node_list(get_node_list(coll_idx)->drop(step));
 	} else if(coll_type == NODE_LAZY_LIST) {
 		lazy_list_iterator_t lit(env, coll_idx);
-		ret = lit.all(n);
-		new_coll = new_node_lazy_list(lit.next_fn());
+		if(step == n) {
+			ret = lit.all(n);
+			new_coll = new_node_lazy_list(lit.next_fn());
+		} else if(step < n) {
+			ret = lit.all(step);
+			new_coll = new_node_lazy_list(lit.next_fn());
+			if(lit.val != INV_NODE && n - step > 0) {
+				ret = ret->conj(*lit.all(n - step));
+			}
+		} else if(step > n) {
+			ret = lit.all(n);
+			lit.all(step - n);
+			new_coll = new_node_lazy_list(lit.next_fn());
+		}
 	} else {
-		printf("partition: collection type not supported\n");
+		//printf("partition: collection type not supported\n");
 		return NIL_NODE;
 	}
 	if(ret->size() == 0) {
-		printf("partition: not enough elements in collection\n");
+		//printf("partition: not enough elements in collection\n");
 		return NIL_NODE;
 	}
 	if(ret->size() < n) {
@@ -734,6 +746,7 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 	}
+	//printf("("); print_node_list(ret); printf(")\n");
 	list_ptr_t ret_list = new_list();
 	ret_list->push_back_inplace(new_node_list(ret));
 	ret_list->push_back_inplace(env->get("partition-next"));

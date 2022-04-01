@@ -70,7 +70,4 @@
 ;(for [ x (range 10) :when (odd? x)] x)
 ;(filter odd? (range 10))
 ;)
-
-  (is (= (list (list 0 1 2 3)
-               (list 4 5 6 7))
-         (partition 4 (range 10))))
+(is (= (list (list 0 1 2 3 ) (list 6 7 8 9 ) (list 12 13 14 15 ) ) (partition 4 6 (range 20 ) ) ))
