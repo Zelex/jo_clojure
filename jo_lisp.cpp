@@ -3031,6 +3031,12 @@ static node_idx_t native_is(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (identity x)
+// Returns its argument.
+static node_idx_t native_identity(env_ptr_t env, list_ptr_t args) {
+	return args->first_value();
+}
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3271,6 +3277,7 @@ int main(int argc, char **argv) {
 	env->set("shuffle", new_node_native_function("shuffle", &native_shuffle, false));
 	env->set("random-sample", new_node_native_function("random-sample", &native_random_sample, false));
 	env->set("is", new_node_native_function("is", &native_is, true));
+	env->set("identity", new_node_native_function("identity", &native_identity, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
