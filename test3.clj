@@ -71,4 +71,4 @@
 ;(filter odd? (range 10))
 ;)
 
-(is (= (list 6 5 4 3 2 1 ) (reverse (list 1 2 3 4 5 6 ) ) ))
+(is (= 1 (first (repeatedly 3 (fn () 1 ) ) ) ))

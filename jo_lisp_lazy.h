@@ -613,6 +613,47 @@ static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (repeatedly f)(repeatedly n f)
+// Takes a function of no args, presumably with side effects, and
+// returns an infinite (or length n if supplied) lazy sequence of calls
+// to it
+static node_idx_t native_repeatedly(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t n_idx, f_idx;
+	if(args->size() == 1) {
+		n_idx = new_node_int(INT_MAX);
+		f_idx = eval_node(env, *it++);
+	} else {
+		n_idx = eval_node(env, *it++);
+		f_idx = eval_node(env, *it++);
+	}
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("repeatedly-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(f_idx);
+	get_node(lazy_func_idx)->t_list->push_back_inplace(n_idx);
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f_idx = *it++;
+	node_idx_t n_idx = *it++;
+	int n = get_node_int(n_idx);
+	if(n > 0) {
+		list_ptr_t func = new_list();
+		func->push_back_inplace(f_idx);
+		node_idx_t ret = eval_list(env, func);
+		list_ptr_t ret_list = new_list();
+		ret_list->push_back_inplace(ret);
+		ret_list->push_back_inplace(env->get("repeatedly-next"));
+		ret_list->push_back_inplace(f_idx);
+		ret_list->push_back_inplace(new_node_int(n - 1));
+		return new_node_list(ret_list);
+	}
+	return NIL_NODE;
+}
+
 
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
@@ -636,4 +677,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("constantly-next", new_node_native_function("constantly-next", &native_constantly_next, true));
 	env->set("keep", new_node_native_function("keep", &native_keep, true));
 	env->set("keep-next", new_node_native_function("keep-next", &native_keep_next, true));
+	env->set("repeatedly", new_node_native_function("repeatedly", &native_repeatedly, true));
+	env->set("repeatedly-next", new_node_native_function("repeatedly-next", &native_repeatedly_next, true));
 }

@@ -456,10 +456,10 @@
   (is (=   0 (clip   10 -10  0)))
   (is (= -10 (clip -100 -10  0))))
 (defn abs-test []
-  (is (=   42 (abs -42)))
-  (is (=   42 (abs  42)))
-  (is (=   42.42 (abs -42.42)))
-  (is (=   42.42 (abs  42.42))))
+  (is (=   42 (Math/abs -42)))
+  (is (=   42 (Math/abs  42)))
+  (is (=   42.42 (Math/abs -42.42)))
+  (is (=   42.42 (Math/abs  42.42))))
 (defn bit-and-test []
   (is (= 0          (bit-and  4 3)))
   (is (= 0          (bit-and  0 1))))

@@ -6,6 +6,144 @@
 // o matrix type
 // o tensor type
 
+// native function to add any number of arguments
+static node_idx_t native_add(env_ptr_t env, list_ptr_t args) { 
+	int i = 0;
+	double d = 0.0;
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_t *n = get_node(*it);
+		if(n->type == NODE_INT) {
+			i += n->t_int;
+		} else if(n->type == NODE_FLOAT) {
+			d += n->t_float;
+		} else {
+			d += n->as_float();
+		}
+	}
+	return d == 0.0 ? new_node_int(i) : new_node_float(d+i);
+}
+
+// subtract any number of arguments from the first argument
+static node_idx_t native_sub(env_ptr_t env, list_ptr_t args) {
+	int i_sum = 0;
+	double d_sum = 0.0;
+
+	size_t size = args->size();
+	if(size == 0) {
+		return ZERO_NODE;
+	}
+
+	// Special case. 1 argument return the negative of that argument
+	if(size == 1) {
+		node_t *n = get_node(*args->begin());
+		if(n->type == NODE_INT) {
+			return new_node_int(-n->t_int);
+		}
+		return new_node_float(-n->as_float());
+	}
+
+	list_t::iterator i = args->begin();
+	node_t *n = get_node(*i++);
+	if(n->type == NODE_INT) {
+		i_sum = n->t_int;
+	} else {
+		d_sum = n->as_float();
+	}
+
+	for(; i; i++) {
+		n = get_node(*i);
+		if(n->type == NODE_INT) {
+			i_sum -= n->t_int;
+		} else {
+			d_sum -= n->as_float();
+		}
+	}
+	return d_sum == 0.0 ? new_node_int(i_sum) : new_node_float(d_sum + i_sum);
+}
+
+static node_idx_t native_mul(env_ptr_t env, list_ptr_t args) {
+	int i = 1;
+	double d = 1.0;
+
+	if(args->size() == 0) {
+		return ONE_NODE; 
+	}
+
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_t *n = get_node(*it);
+		int type = n->type;
+		if(type == NODE_INT) {
+			i *= n->t_int;
+		} else if(type == NODE_FLOAT) {
+			d *= n->t_float;
+		} else {
+			d *= n->as_float();
+		}
+	}
+
+	return d == 1.0 ? new_node_int(i) : new_node_float(d * i);
+}
+
+// divide any number of arguments from the first argument
+static node_idx_t native_div(env_ptr_t env, list_ptr_t args) {
+	int i_sum = 1;
+	double d_sum = 1.0;
+	bool is_int = true;
+
+	size_t size = args->size();
+	if(size == 0) {
+		return NIL_NODE;
+	}
+
+	// special case of 1 argument, compute 1.0 / value
+	if(size == 1) {
+		node_t *n = get_node(*args->begin());
+		return new_node_float(1.0 / n->as_float());
+	}
+
+	list_t::iterator i = args->begin();
+	node_t *n = get_node(*i++);
+	if(n->type == NODE_INT) {
+		i_sum = n->t_int;
+	} else {
+		d_sum = n->as_float();
+		is_int = false;
+	}
+
+	for(; i; i++) {
+		n = get_node(*i);
+		if(n->type == NODE_INT) {
+			i_sum /= n->t_int;
+			d_sum = i_sum;
+		} else {
+			d_sum /= n->as_float();
+			is_int = false;
+		}
+	}
+
+	return is_int ? new_node_int(i_sum) : new_node_float(d_sum);
+}
+
+// modulo the first argument by the second
+static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
+	int i_sum = 0;
+	double d_sum = 0.0;
+
+	if(args->size() == 0) {
+		return NIL_NODE;
+	}
+
+	list_t::iterator i = args->begin();
+	node_t *n = get_node(*i++);
+	if(n->type == NODE_INT) {
+		i_sum = n->t_int % get_node(*i)->as_int();
+		return new_node_int(i_sum);
+	}
+	d_sum = fmod(n->as_float(), get_node(*i)->as_float());
+	return new_node_float(d_sum);
+}
+
+
 static node_idx_t native_math_abs(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->nth(0));
 	if(n1->type == NODE_INT) {
@@ -14,6 +152,31 @@ static node_idx_t native_math_abs(env_ptr_t env, list_ptr_t args) {
 		return new_node_float(fabs(n1->as_float()));
 	}
 }
+
+static node_idx_t native_inc(env_ptr_t env, list_ptr_t args) {
+	node_t *n1 = get_node(args->first_value());
+	if(n1->type == NODE_INT) {
+		return new_node_int(n1->t_int + 1);
+	}
+	return new_node_float(n1->as_float() + 1.0f);
+}
+
+static node_idx_t native_dec(env_ptr_t env, list_ptr_t args) {
+	node_t *n1 = get_node(args->first_value());
+	if(n1->type == NODE_INT) {
+		return new_node_int(n1->t_int - 1);
+	}
+	return new_node_float(n1->as_float() - 1.0f);
+}
+
+static node_idx_t native_rand_int(env_ptr_t env, list_ptr_t args) {
+	return new_node_int(rand() % get_node(args->first_value())->as_int());
+}
+
+static node_idx_t native_rand_float(env_ptr_t env, list_ptr_t args) {
+	return new_node_float(rand() / (float)RAND_MAX);
+}
+
 
 static node_idx_t native_math_sqrt(env_ptr_t env, list_ptr_t args) { return new_node_float(sqrt(get_node(args->nth(0))->as_float())); }
 static node_idx_t native_math_cbrt(env_ptr_t env, list_ptr_t args) { return new_node_float(cbrt(get_node(args->nth(0))->as_float())); }
@@ -198,6 +361,15 @@ static node_idx_t native_is_neg(env_ptr_t env, list_ptr_t args) {
 }
 
 void jo_lisp_math_init(env_ptr_t env) {
+	env->set("+", new_node_native_function("+", &native_add, false));
+	env->set("-", new_node_native_function("-", &native_sub, false));
+	env->set("*", new_node_native_function("*", &native_mul, false));
+	env->set("/", new_node_native_function("/", &native_div, false));
+	env->set("mod", new_node_native_function("mod", &native_mod, false));
+	env->set("inc", new_node_native_function("inc", &native_inc, false));
+	env->set("dec", new_node_native_function("dec", &native_dec, false));
+	env->set("rand-int", new_node_native_function("rand-int", &native_rand_int, false));
+	env->set("rand-float", new_node_native_function("rand-float", &native_rand_float, false));
 	env->set("even?", new_node_native_function("even?", &native_is_even, false));
 	env->set("odd?", new_node_native_function("odd?", &native_is_odd, false));
 	env->set("pos?", new_node_native_function("pos?", &native_is_pos, false));
