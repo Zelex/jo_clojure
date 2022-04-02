@@ -2802,6 +2802,20 @@ struct jo_persistent_vector
         return copy;
     }
 
+    jo_persistent_vector *take(size_t n) const {
+        if(n >= length) {
+            return new jo_persistent_vector(*this);
+        }
+        return subvec(0, n);
+    }
+
+    jo_persistent_vector *take_last(size_t n) const {
+        if(n >= length) {
+            return new jo_persistent_vector(*this);
+        }
+        return subvec(length - n, n);
+    }
+
     T &operator[] (size_t index) {
         index += head_offset;
 
@@ -2865,6 +2879,10 @@ struct jo_persistent_vector
 
     size_t size() const {
         return length;
+    }
+
+    bool empty() const {
+        return length == 0;
     }
 
     jo_persistent_vector *clear() {

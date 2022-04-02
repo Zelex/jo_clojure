@@ -139,6 +139,13 @@ concat_next:
 		}
 		val = n->first_value();
 		args->cons_inplace(new_node_list(n->pop()));
+	} else if(ntype == NODE_VECTOR) {
+		vector_ptr_t n = get_node(nidx)->t_vector;
+		if(n->size() == 0) {
+			goto concat_next;
+		}
+		val = n->first_value();
+		args->cons_inplace(new_node_vector(n->pop_front()));
 	} else if(ntype == NODE_LAZY_LIST) {
 		// call the t_lazy_fn, and grab the first element of the return and return that.
 		node_idx_t reti = eval_node(env, get_node(nidx)->t_lazy_fn);
@@ -251,6 +258,13 @@ static node_idx_t native_map_next(env_ptr_t env, list_ptr_t args) {
 			}
 			arg_list->push_back_inplace(list_list->first_value());
 			next_list->push_back_inplace(new_node_list(list_list->rest()));
+		} else if(arg->is_vector()) {
+			vector_ptr_t list_list = arg->as_vector();
+			if(list_list->size() == 0) {
+				return NIL_NODE;
+			}
+			arg_list->push_back_inplace(list_list->first_value());
+			next_list->push_back_inplace(new_node_vector(list_list->rest()));
 		} else if(arg->is_lazy_list()) {
 			lazy_list_iterator_t lit(env, arg_idx);
 			if(lit.done()) {
@@ -280,6 +294,15 @@ static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
 			return coll;
 		}
 		return new_node_list(list_list->take(N));
+	}
+	if(get_node_type(coll) == NODE_VECTOR) {
+		// don't do it lazily if not given lazy inputs... thats dumb
+		int N = get_node(n)->as_int();
+		vector_ptr_t list_list = get_node(coll)->as_vector();
+		if(list_list->size() <= N) {
+			return coll;
+		}
+		return new_node_vector(list_list->take(N));
 	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
 		node_idx_t lazy_func_idx = new_node(NODE_LIST);
@@ -348,6 +371,27 @@ static node_idx_t native_take_nth(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_list(list);
 	}
+	if(get_node_type(coll) == NODE_VECTOR) {
+		// don't do it lazily if not given lazy inputs... thats dumb
+		vector_ptr_t list_list = get_node(coll)->as_vector();
+		if(N <= 0) {
+			// (take-nth 0 coll) will return an infinite sequence repeating for first item from coll. A negative N is treated the same as 0.
+			node_idx_t lazy_func_idx = new_node(NODE_LIST);
+			get_node(lazy_func_idx)->t_list = new_list();
+			get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("constantly-next"));
+			get_node(lazy_func_idx)->t_list->push_back_inplace(list_list->first_value());
+			return new_node_lazy_list(lazy_func_idx);
+		}
+		vector_ptr_t list = new_vector();
+		if(list_list->size() <= N) {
+			list->push_back_inplace(list_list->first_value());
+			return new_node_vector(list);
+		}
+		for(vector_t::iterator it = list_list->begin(); it; it += N) {
+			list->push_back_inplace(*it);
+		}
+		return new_node_vector(list);
+	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
 		if(N <= 0) {
 			lazy_list_iterator_t lit(env, coll);
@@ -412,6 +456,13 @@ static node_idx_t native_take_last(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_list(list_list->take_last(N));
 	}
+	if(get_node_type(coll) == NODE_VECTOR) {
+		vector_ptr_t list_list = get_node(coll)->as_vector();
+		if(list_list->size() <= N) {
+			return coll;
+		}
+		return new_node_vector(list_list->take_last(N));
+	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
 		lazy_list_iterator_t lit(env, coll);
 		list_ptr_t ret = new_list();
@@ -450,6 +501,20 @@ static node_idx_t native_distinct(env_ptr_t env, list_ptr_t args) {
 			}
 		}
 		return new_node_list(ret, NODE_FLAG_LITERAL);
+	}
+	if(node->is_vector()) {
+		vector_ptr_t vector_list = node->as_vector();
+		vector_ptr_t ret = new_vector();
+		for(vector_t::iterator it = vector_list->begin(); it; it++) {
+			node_idx_t value_idx = eval_node(env, *it);
+			node_t *value = get_node(value_idx);
+			if(!ret->contains([env,value_idx](node_idx_t idx) {
+				return node_eq(env, idx, value_idx);
+			})) {
+				ret->push_back_inplace(value_idx);
+			}
+		}
+		return new_node_vector(ret, NODE_FLAG_LITERAL);
 	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
@@ -492,6 +557,21 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 			}
 		}
 		return new_node_list(ret);
+	}
+	if(get_node_type(coll_idx) == NODE_VECTOR) {
+		vector_ptr_t vector_list = get_node(coll_idx)->as_vector();
+		vector_ptr_t ret = new_vector();
+		list_ptr_t args = new_list();
+		args->push_back_inplace(pred_idx);
+		for(vector_t::iterator it = vector_list->begin(); it; it++) {
+			node_idx_t item_idx = *it;//eval_node(env, *it);
+			//print_node(item_idx);
+			node_idx_t comp = eval_list(env, args->conj(item_idx));
+			if(get_node_bool(comp)) {
+				ret->push_back_inplace(item_idx);
+			}
+		}
+		return new_node_vector(ret);
 	}
 	if(get_node_type(coll_idx) == NODE_MAP) {
 		// don't do it lazily if not given lazy inputs... thats dumb
@@ -592,6 +672,22 @@ static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
 				ret->push_back_inplace(env->get("keep-next"));
 				ret->push_back_inplace(f_idx);
 				ret->push_back_inplace(new_node_list(list_list));
+				return new_node_list(ret);
+			}
+		}
+	}
+	if(coll_type == NODE_VECTOR) {
+		vector_ptr_t vec_list = get_node(coll_idx)->t_vector;
+		while(!vec_list->empty()) {
+			node_idx_t item_idx = vec_list->first_value();
+			vec_list = vec_list->pop_front();
+			node_idx_t comp = eval_list(env, e->conj(item_idx));
+			if(comp != NIL_NODE) {
+				list_ptr_t ret = new_list();
+				ret->push_back_inplace(comp);
+				ret->push_back_inplace(env->get("keep-next"));
+				ret->push_back_inplace(f_idx);
+				ret->push_back_inplace(new_node_vector(vec_list));
 				return new_node_list(ret);
 			}
 		}
@@ -702,9 +798,13 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	int coll_type = get_node_type(coll_idx);
 	node_idx_t new_coll = NIL_NODE;
 	list_ptr_t ret;
+	vector_ptr_t retv;
 	if(coll_type == NODE_LIST) {
 		ret = get_node_list(coll_idx)->take(n);
 		new_coll = new_node_list(get_node_list(coll_idx)->drop(step));
+	} else if(coll_type == NODE_VECTOR) {
+		retv = get_node_vector(coll_idx)->take(n);
+		new_coll = new_node_vector(get_node_vector(coll_idx)->drop(step));
 	} else if(coll_type == NODE_LAZY_LIST) {
 		lazy_list_iterator_t lit(env, coll_idx);
 		if(step == n) {
@@ -722,14 +822,14 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 			new_coll = new_node_lazy_list(lit.next_fn());
 		}
 	} else {
-		//printf("partition: collection type not supported\n");
+		printf("partition: collection type not supported\n");
 		return NIL_NODE;
 	}
-	if(ret->size() == 0) {
+	if((!ret.ptr || ret->size() == 0) && (!retv.ptr || retv->size() == 0)) {
 		//printf("partition: not enough elements in collection\n");
 		return NIL_NODE;
 	}
-	if(ret->size() < n) {
+	if((!ret.ptr || ret->size() < n) && (!retv.ptr || retv->size() < n)) {
 		if(pad_idx != NIL_NODE) {
 			int pad_n = n - ret->size();
 			int pad_type = get_node_type(pad_idx);
@@ -748,7 +848,11 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	}
 	//printf("("); print_node_list(ret); printf(")\n");
 	list_ptr_t ret_list = new_list();
-	ret_list->push_back_inplace(new_node_list(ret));
+	if(retv.ptr) {
+		ret_list->push_back_inplace(new_node_vector(retv));
+	} else {
+		ret_list->push_back_inplace(new_node_list(ret));
+	}
 	ret_list->push_back_inplace(env->get("partition-next"));
 	ret_list->push_back_inplace(n_idx);
 	ret_list->push_back_inplace(step_idx);

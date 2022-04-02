@@ -39,15 +39,15 @@
 (my-delay)
 (my-delay)
 
-(when-not (= "Hello world!" ((fn (message) (str message))  "Hello world!")) (println "FAIL Hello world!"))
-(when-not (= "Hello world!" (#(str %)  "Hello world!")) (println "FAIL Hello world!"))
+(when-not (= "Hello world!" ((fn [message] (str message))  "Hello world!")) (println "FAIL Hello world! 1"))
+(when-not (= "Hello world!" (#(str %)  "Hello world!")) (println "FAIL Hello world! 2"))
 
 (when-not (= 10 (apply + '(1 2 3 4))) (println "FAILED 1"))
 (when-not (= 10 (apply + 1 '(2 3 4))) (println "FAILED 2"))
 (when-not (= 10 (apply + 1 2 '(3 4))) (println "FAILED 3"))
 (when-not (= 10 (apply + 1 2 3 '(4))) (println "FAILED 4"))
 
-(when-not (= 3 (let (a 1 b 2) (+ a b))) (println "FAILED let"))
+(when-not (= 3 (let [a 1 b 2] (+ a b))) (println "FAILED let"))
 
 ; defs are not variables, don't do this:
 (defn factorial-using-do-dotimes [n]

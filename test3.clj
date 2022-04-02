@@ -71,4 +71,3 @@
 ;(filter odd? (range 10))
 ;)
 
-(Math/log 10)

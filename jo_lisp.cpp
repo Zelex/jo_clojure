@@ -113,6 +113,7 @@ static inline jo_string get_node_string(node_idx_t idx);
 static inline node_idx_t get_node_var(node_idx_t idx);
 static inline bool get_node_bool(node_idx_t idx);
 static inline list_ptr_t get_node_list(node_idx_t idx);
+static inline vector_ptr_t get_node_vector(node_idx_t idx);
 static inline int get_node_int(node_idx_t idx);
 static inline float get_node_float(node_idx_t idx);
 
@@ -208,7 +209,7 @@ struct node_t {
 	vector_ptr_t t_vector;
 	map_ptr_t t_map;
 	struct {
-		list_ptr_t args;
+		vector_ptr_t args;
 		list_ptr_t body;
 		env_ptr_t env;
 	} t_func;
@@ -355,6 +356,10 @@ static inline bool get_node_bool(node_idx_t idx) {
 
 static inline list_ptr_t get_node_list(node_idx_t idx) {
 	return get_node(idx)->as_list();
+}
+
+static inline vector_ptr_t get_node_vector(node_idx_t idx) {
+	return get_node(idx)->as_vector();
 }
 
 static inline int get_node_int(node_idx_t idx) {
@@ -672,13 +677,51 @@ static token_t get_token(parse_state_t *state) {
 	return tok;
 }
 
+static list_ptr_t get_symbols_list_r(list_ptr_t list);
+static list_ptr_t get_symbols_vector_r(vector_ptr_t list);
+
+static list_ptr_t get_symbols_vector_r(vector_ptr_t list) {
+	list_ptr_t symbol_list = new_list();
+	for(vector_t::iterator it = list->begin(); it; it++) {
+		int type = get_node_type(*it);
+		if(type == NODE_SYMBOL) {
+			symbol_list->push_back_inplace(*it);			
+		} else if(type == NODE_MAP) {
+			printf("TODO: map @ %i\n", __LINE__);
+		} else if(type == NODE_VECTOR) {
+			if(get_node(*it)->t_vector.ptr) {
+				list_ptr_t sub_list = get_symbols_vector_r(get_node(*it)->t_vector);
+				if(sub_list->length) {
+					symbol_list->conj_inplace(*sub_list);
+				}
+			}
+		} else {
+			if(get_node(*it)->t_list.ptr) {
+				list_ptr_t sub_list = get_symbols_list_r(get_node(*it)->t_list);
+				if(sub_list->length) {
+					symbol_list->conj_inplace(*sub_list);
+				}
+			}
+		}
+	}
+	return symbol_list;
+}
+
 static list_ptr_t get_symbols_list_r(list_ptr_t list) {
 	list_ptr_t symbol_list = new_list();
 	for(list_t::iterator it = list->begin(); it; it++) {
-		if(get_node_type(*it) == NODE_SYMBOL) {
+		int type = get_node_type(*it);
+		if(type == NODE_SYMBOL) {
 			symbol_list->push_back_inplace(*it);			
-		} else if(get_node_type(*it) == NODE_MAP) {
+		} else if(type == NODE_MAP) {
 			printf("TODO: map @ %i\n", __LINE__);
+		} else if(type == NODE_VECTOR) {
+			if(get_node(*it)->t_vector.ptr) {
+				list_ptr_t sub_list = get_symbols_vector_r(get_node(*it)->t_vector);
+				if(sub_list->length) {
+					symbol_list->conj_inplace(*sub_list);
+				}
+			}
 		} else {
 			if(get_node(*it)->t_list.ptr) {
 				list_ptr_t sub_list = get_symbols_list_r(get_node(*it)->t_list);
@@ -836,7 +879,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			next = parse_next(env, state, ')');
 		}
 		list_ptr_t symbol_list = get_symbols_list_r(body);
-		list_ptr_t arg_list = new_list();
+		vector_ptr_t arg_list = new_vector();
 		int num_args_used = 0;
 		for(list_t::iterator it = symbol_list->begin(); it; ++it) {
 			jo_string sym = get_node_string(*it);
@@ -855,7 +898,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 				arg_list->push_back_inplace(new_node_symbol(ss.str().c_str()));
 			}
 		}
-		n.t_list->push_back_inplace(new_node_list(arg_list));
+		n.t_list->push_back_inplace(new_node_vector(arg_list));
 		n.t_list->push_back_inplace(new_node_list(body));
 		debugf("list end\n");
 		//print_node(new_node(&n));
@@ -896,13 +939,13 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(next == INV_NODE) {
 			return EMPTY_LIST_NODE;
 		}
-		node_t n = {NODE_LIST};
-		n.t_list = new_list(); // TODO: actually vector pls
+		node_t n = {NODE_VECTOR};
+		n.t_vector = new_vector(); 
 		int common_flags = ~0;
 		bool is_native_fn = get_node_type(next) == NODE_NATIVE_FUNCTION;
 		while(next != INV_NODE) {
 			common_flags &= get_node_flags(next);
-			n.t_list->push_back_inplace(next);
+			n.t_vector->push_back_inplace(next);
 			next = parse_next(env, state, ']');
 		}
 		if(common_flags & NODE_FLAG_LITERAL) {
@@ -990,7 +1033,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 			// call the function
 			return get_node(sym_idx)->t_native_function(env, args);
 		} else if(sym_type == NODE_FUNC || sym_type == NODE_DELAY) {
-			list_ptr_t proto_args = get_node(sym_idx)->t_func.args;
+			vector_ptr_t proto_args = get_node(sym_idx)->t_func.args;
 			list_ptr_t proto_body = get_node(sym_idx)->t_func.body;
 			env_ptr_t proto_env = get_node(sym_idx)->t_func.env;
 			env_ptr_t fn_env = new_env(proto_env);
@@ -1006,11 +1049,18 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
 				// and evaluate it
 				// and create a new_node_var 
 				// and insert it to the head of env
-				for(list_t::iterator i = proto_args->begin(), i2 = args1->begin(); i && i2; i++, i2++) {
+				vector_t::iterator i = proto_args->begin();
+				list_t::iterator i2 = args1->begin();
+				for (; i && i2; i++, i2++)
+				{
 					int i_type = get_node_type(*i);
 					int i2_type = get_node_type(*i2);
 					if(i_type == NODE_SYMBOL) {
 						fn_env->set_temp(get_node_string(*i), eval_node(env, *i2));
+					} else if(i_type == NODE_VECTOR && i2_type == NODE_VECTOR) {
+						for(vector_t::iterator i3 = get_node(*i)->t_vector->begin(), i4 = get_node(*i2)->t_vector->begin(); i3 && i4; i3++, i4++) {
+							fn_env->set_temp(get_node_string(*i3), eval_node(env, *i4));
+						}
 					} else if(i_type == NODE_LIST && i2_type == NODE_LIST) {
 						for(list_t::iterator i3 = get_node(*i)->t_list->begin(), i4 = get_node(*i2)->t_list->begin(); i3 && i4; i3++, i4++) {
 							fn_env->set_temp(get_node_string(*i3), eval_node(env, *i4));
@@ -1412,8 +1462,8 @@ static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 			return n1i == n2i;
 		#else // actual function comparison.... not spec compliant it seems
 		{ 
-			list_t::iterator i1 = n1->t_func.args->begin();
-			list_t::iterator i2 = n2->t_func.args->begin();
+			vector_t::iterator i1 = n1->t_func.args->begin();
+			vector_t::iterator i2 = n2->t_func.args->begin();
 			for(; i1 && i2; ++i1, ++i2) {
 				if(!node_eq(env, *i1, *i2)) {
 					return false;
@@ -1803,7 +1853,7 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_fn(env_ptr_t env, list_ptr_t args) {
 	node_idx_t reti = new_node(NODE_FUNC);
 	node_t *ret = get_node(reti);
-	ret->t_func.args = get_node(args->first_value())->t_list;
+	ret->t_func.args = get_node(args->first_value())->t_vector;
 	ret->t_func.body = args->rest();
 	ret->t_func.env = env;
 	return reti;
@@ -1834,7 +1884,7 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 
 	node_idx_t reti = new_node(NODE_FUNC);
 	node_t *ret = get_node(reti);
-	ret->t_func.args = get_node(arg_list)->t_list;
+	ret->t_func.args = get_node(arg_list)->t_vector;
 	ret->t_func.body = args->rest();
 	ret->t_func.env = env;
 	env->set(sym_node, reti);
@@ -2458,22 +2508,22 @@ static node_idx_t native_when_not(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-// (let (a 1 b 2) (+ a b))
+// (let [a 1 b 2] (+ a b))
 static node_idx_t native_let(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
-	if(!node->is_list()) {
-		printf("let: expected list\n");
+	if(!node->is_vector()) {
+		printf("let: expected vector\n");
 		return NIL_NODE;
 	}
-	list_ptr_t list_list = node->as_list();
+	vector_ptr_t list_list = node->as_vector();
 	if(list_list->size() % 2 != 0) {
 		printf("let: expected even number of elements\n");
 		return NIL_NODE;
 	}
 	env_ptr_t env2 = new_env(env);
-	for(list_t::iterator i = list_list->begin(); i;) {
+	for(vector_t::iterator i = list_list->begin(); i;) {
 		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
 		node_idx_t value_idx = eval_node(env2, *i++);
 		node_t *key = get_node(key_idx);
