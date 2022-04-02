@@ -18,7 +18,7 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 * Implementations of persistent lists, vectors, maps (WIP: set, etc).
 
 # Differences:
-* Not entirely complete implementation (yet)
+* Not entirely complete implementation (yet). See TODO.md for information on what is left to do.
 
 # Future:
 * Native types and operations for Matrices and Tensors. 
