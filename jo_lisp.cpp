@@ -2117,6 +2117,10 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 		list_ptr_t second_list = second->as_list();
 		return new_node_list(second_list->cons(first_idx));
 	}
+	if(second->type == NODE_VECTOR) {
+		vector_ptr_t second_vector = second->as_vector();
+		return new_node_vector(second_vector->cons(first_idx));
+	}
 	if(second->type == NODE_LAZY_LIST) {
 		lazy_list_iterator_t lit(env, second_idx);
 		list_ptr_t second_list = lit.all();
@@ -2136,35 +2140,54 @@ static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t first_idx = *it++;
 	int first_type = get_node_type(first_idx);
-	list_ptr_t first_list;
+	list_ptr_t list;
+	vector_ptr_t vec;
 	if(first_type == NODE_NIL) {
-		first_list = new_list();
-	} else if(first_type != NODE_LIST) {
-		first_list = new_list();
-		first_list->push_front_inplace(first_idx);
+		list = new_list();
+	} else if(first_type == NODE_LIST) {
+		list = get_node(first_idx)->as_list();
+	} else if(first_type == NODE_VECTOR) {
+		vec = get_node(first_idx)->as_vector();
 	} else {
-		first_list = get_node(first_idx)->as_list();
+		list = new_list();
+		list->push_front_inplace(first_idx);
 	}
-	for(; it; it++) {
-		node_idx_t second_idx = *it;
-		node_t *second = get_node(second_idx);
-		first_list = first_list->push_front(second_idx);
+	if(list.ptr) {
+		for(; it; it++) {
+			node_idx_t second_idx = *it;
+			node_t *second = get_node(second_idx);
+			list = list->push_front(second_idx);
+		}
+		return new_node_list(list);
+	} else {
+		for(; it; it++) {
+			node_idx_t second_idx = *it;
+			node_t *second = get_node(second_idx);
+			vec = vec->push_back(second_idx);
+		}
+		return new_node_vector(vec);
 	}
-	return new_node_list(first_list);
 }
 
 static node_idx_t native_pop(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t list_idx = *it++;
 	node_t *list = get_node(list_idx);
-	if(!list->is_list()) {
-		return NIL_NODE;
+	if(list->is_list()) {
+		list_ptr_t list_list = list->as_list();
+		if(list_list->size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_list(list_list->pop());
 	}
-	list_ptr_t list_list = list->as_list();
-	if(list_list->size() == 0) {
-		return NIL_NODE;
+	if(list->is_vector()) {
+		vector_ptr_t list_vec = list->as_vector();
+		if(list_vec->size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_vector(list_vec->pop());
 	}
-	return new_node_list(list_list->pop());
+	return NIL_NODE;
 }
 
 static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
@@ -2177,6 +2200,13 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		return list_list->first_value();
+	}
+	if(list->is_vector()) {
+		vector_ptr_t list_vec = list->as_vector();
+		if(list_vec->size() == 0) {
+			return NIL_NODE;
+		}
+		return list_vec->first_value();
 	}
 	if(list->is_string()) {
 		jo_string s = list->as_string();
@@ -2209,6 +2239,10 @@ static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
 		list_ptr_t list_list = list->as_list();
 		return new_node_int(list_list->size());
 	}
+	if(list->is_vector()) {
+		vector_ptr_t list_vec = list->as_vector();
+		return new_node_int(list_vec->size());
+	}
 	if(list->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, list_idx);
 		return new_node_int(lit.all()->size());
@@ -2230,6 +2264,10 @@ static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) {
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		return list_list->size() == 0 ? TRUE_NODE : FALSE_NODE;
+	}
+	if(node->is_vector()) {
+		vector_ptr_t list_vec = node->as_vector();
+		return list_vec->size() == 0 ? TRUE_NODE : FALSE_NODE;
 	}
 	return FALSE_NODE;
 }
@@ -2271,6 +2309,13 @@ static node_idx_t native_first(env_ptr_t env, list_ptr_t args) {
 		}
 		return list_list->first_value();
 	}
+	if(node->is_vector()) {
+		vector_ptr_t list_vec = node->as_vector();
+		if(list_vec->size() == 0) {
+			return NIL_NODE;
+		}
+		return list_vec->first_value();
+	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
 		return lit.val;
@@ -2296,6 +2341,13 @@ static node_idx_t native_second(env_ptr_t env, list_ptr_t args) {
 		}
 		return list_list->nth(1);
 	}
+	if(node->is_vector()) {
+		vector_ptr_t list_vec = node->as_vector();
+		if(list_vec->size() <= 1) {
+			return NIL_NODE;
+		}
+		return list_vec->nth(1);
+	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
 		return lit.nth(1);
@@ -2316,6 +2368,9 @@ static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
 	}
 	if(node->is_list()) {
 		return node->as_list()->last_value();
+	}
+	if(node->is_vector()) {
+		return node->as_vector()->last_value();
 	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
@@ -2347,6 +2402,9 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 	}
 	if(list->is_list()) {
 		return new_node_list(list_list->drop(n));
+	}
+	if(list->is_vector()) {
+		return new_node_vector(list_vec->drop(n));
 	}
 	if(list->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, list_idx);
@@ -2381,6 +2439,12 @@ static node_idx_t native_nth(env_ptr_t env, list_ptr_t args) {
 		}
 		return list->as_list()->nth(n);
 	}
+	if(list->is_vector()) {
+		if(n < 0 || n >= list->as_vector()->size()) {
+			return NIL_NODE;
+		}
+		return list->as_vector()->nth(n);
+	}
 	if(list->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, list_idx);
 		return lit.nth(n);
@@ -2410,6 +2474,13 @@ static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
 			return list->as_list()->nth(n);
 		}
 	}
+	if(list->is_vector()) {
+		size_t list_size = list->as_vector()->size();
+		if(list_size > 0) {
+			int n = rand() % list_size;
+			return list->as_vector()->nth(n);
+		}
+	}
 	return NIL_NODE;
 }
 
@@ -2426,6 +2497,13 @@ static node_idx_t native_ffirst(env_ptr_t env, list_ptr_t args) {
 		}
 		first_idx = list_list->first_value();
 	}
+	if(node->is_vector()) {
+		vector_ptr_t vec = node->as_vector();
+		if(vec->size() == 0) {
+			return NIL_NODE;
+		}
+		first_idx = vec->first_value();
+	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
 		first_idx = lit.val;
@@ -2437,6 +2515,13 @@ static node_idx_t native_ffirst(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		return first_list->first_value();
+	}
+	if(first->is_vector()) {
+		vector_ptr_t first_vec = first->as_vector();
+		if(first_vec->size() == 0) {
+			return NIL_NODE;
+		}
+		return first_vec->first_value();
 	}
 	if(first->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, first_idx);
@@ -2460,7 +2545,7 @@ static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ? TRUE_NODE : FALSE_NODE;
 }
 
-// (next coll)
+// (next coll) // TODO: is this supposed to be lazy?
 // Returns a seq of the items after the first. Calls seq on its
 // argument.  If there are no more items, returns nil.
 static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
@@ -2473,6 +2558,13 @@ static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		return new_node_list(list_list->rest());
+	}
+	if(node->is_vector()) {
+		vector_ptr_t vec = node->as_vector();
+		if(vec->size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_vector(vec->rest());
 	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
@@ -2499,6 +2591,10 @@ static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) {
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		return new_node_list(list_list->rest());
+	}
+	if(node->is_vector()) {
+		vector_ptr_t vec = node->as_vector();
+		return new_node_vector(vec->rest());	
 	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
@@ -2554,6 +2650,10 @@ static node_idx_t native_apply(env_ptr_t env, list_ptr_t args) {
 		} else if(arg->is_lazy_list()) {
 			for(lazy_list_iterator_t lit(env, arg_idx); !lit.done(); lit.next()) {
 				arg_list->push_back_inplace(lit.val);
+			}
+		} else if(arg->is_vector()) {
+			for(vector_t::iterator vit = arg->as_vector()->begin(); vit; vit++) {
+				arg_list->push_back_inplace(*vit);
 			}
 		} else {
 			arg_list->push_back_inplace(arg_idx);
