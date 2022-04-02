@@ -1957,11 +1957,11 @@ static node_idx_t native_time_now(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t binding_idx = *it++;
-	if(!get_node(binding_idx)->is_list()) {
+	if(!get_node(binding_idx)->is_vector()) {
 		return NIL_NODE;
 	}
 	node_t *binding = get_node(binding_idx);
-	list_ptr_t binding_list = binding->as_list();
+	vector_ptr_t binding_list = binding->as_vector();
 	if (binding_list->size() != 2) {
 		return NIL_NODE;
 	}
