@@ -33,7 +33,7 @@
 (def closure_test2 (closure_test 'Foo))
 (when-not (= "FooBar" (closure_test2 'Bar)) (println "FAIL FooBar Closure test"))
 
-(dotimes (n 5) (println "n is " n))
+(dotimes [n 5] (println "n is " n))
 
 (def my-delay (delay (println "this only happens once") 100))
 (my-delay)
@@ -53,7 +53,7 @@
 (defn factorial-using-do-dotimes [n]
   (do
     (def a 1)
-    (dotimes (i n) ; dotimes here creates a sub environment... thus defines in here are not global
+    (dotimes [i n] ; dotimes here creates a sub environment... thus defines in here are not global
       (def a (* a (inc i))) 
       a))
   )

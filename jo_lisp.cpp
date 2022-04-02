@@ -186,8 +186,11 @@ struct env_t {
 		vars_map[name.c_str()] = fast_val_t(NIL_NODE, value);
 	}
 
-	void set_temp(list_ptr_t key_list, list_ptr_t value_list) {
-		for(list_t::iterator k = key_list->begin(), v = value_list->begin(); k && v; k++,v++) {
+	template<typename T1, typename T2>
+	void set_temp(T1 key_list, T2 value_list) {
+		auto k = key_list->begin();
+		auto v = value_list->begin();
+		for(; k && v; k++,v++) {
 			node_idx_t key_idx = *k;
 			node_idx_t value_idx = *v;
 			if(get_node_type(key_idx) == NODE_LIST && get_node_type(value_idx) == NODE_LIST) {
@@ -2068,8 +2071,8 @@ static node_idx_t native_when_let(env_ptr_t env, list_ptr_t args) {
 		if (!get_node(value_idx)->as_bool()) {
 			return NIL_NODE;
 		}
-		if(get_node_type(key_idx) == NODE_LIST && get_node_type(value_idx) == NODE_LIST) {
-			env2->set_temp(get_node_list(key_idx), get_node_list(value_idx));
+		if(get_node_type(key_idx) == NODE_VECTOR && get_node_type(value_idx) == NODE_LIST) {
+			env2->set_temp(get_node_vector(key_idx), get_node_list(value_idx));
 		} else {
 			env2->set_temp(get_node_string(key_idx), value_idx);
 		}
