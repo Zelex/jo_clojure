@@ -3086,6 +3086,18 @@ static node_idx_t native_random_sample(env_ptr_t env, list_ptr_t args) {
 	if(coll_node->is_list()) {
 		return new_node_list(coll_node->t_list->random_sample(prob));
 	}
+	if(coll_node->is_vector()) {
+		return new_node_vector(coll_node->t_vector->random_sample(prob));
+	}
+	if(coll_node->is_lazy_list()) {
+		list_ptr_t ret = new_list();
+		for(lazy_list_iterator_t lit(env, coll_idx); lit; lit.next()) {
+			if(jo_random_float() < prob) {
+				ret->push_back_inplace(lit.val);
+			}
+		}
+		return new_node_list(ret);
+	}
 	return NIL_NODE;
 }
 

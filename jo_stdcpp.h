@@ -2816,6 +2816,23 @@ struct jo_persistent_vector
         return subvec(length - n, n);
     }
 
+    jo_persistent_vector *random_sample(float prob) const {
+        if(prob <= 0.0f) {
+            return new jo_persistent_vector();
+        }
+        if(prob >= 1.0f) {
+            return new jo_persistent_vector(*this);
+        }
+
+        jo_persistent_vector *copy = new jo_persistent_vector();
+        for(size_t i = 0; i < length; ++i) {
+            if(jo_random_float() < prob) {
+                copy->push_back_inplace(nth(i));
+            }
+        }
+        return copy;
+    }
+
     T &operator[] (size_t index) {
         index += head_offset;
 
@@ -3925,6 +3942,12 @@ struct jo_persistent_list {
 
     // return items with a random probability of p
     jo_persistent_list *random_sample(float p) const { 
+        if(p <= 0.0f) {
+            return new jo_persistent_list();
+        }
+        if(p >= 1.0f) {
+            return new jo_persistent_list(*this);
+        }
         jo_persistent_list *copy = new jo_persistent_list();
         jo_shared_ptr<node> cur = head;
         while(cur) {
