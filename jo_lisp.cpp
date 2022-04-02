@@ -3069,6 +3069,9 @@ static node_idx_t native_shuffle(env_ptr_t env, list_ptr_t args) {
 	if(type == NODE_LIST) {
 		return new_node_list(get_node(coll_idx)->t_list->shuffle());
 	}
+	if(type == NODE_VECTOR) {
+		return new_node_vector(get_node(coll_idx)->t_vector->shuffle());
+	}
 	return NIL_NODE;
 }
 

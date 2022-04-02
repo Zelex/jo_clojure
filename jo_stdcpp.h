@@ -2833,6 +2833,17 @@ struct jo_persistent_vector
         return copy;
     }
 
+    jo_persistent_vector *shuffle() const {
+        jo_persistent_vector *copy = new jo_persistent_vector(*this);
+        for(size_t i = 0; i < length; ++i) {
+            size_t j = jo_random_int(i, length);
+            T tmp = copy->nth(i);
+            copy->assoc_inplace(i, copy->nth(j));
+            copy->assoc_inplace(j, tmp);
+        }
+        return copy;
+    }
+
     T &operator[] (size_t index) {
         index += head_offset;
 
