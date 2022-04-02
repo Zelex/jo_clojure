@@ -199,6 +199,7 @@ static node_idx_t native_math_tanh(env_ptr_t env, list_ptr_t args) { return new_
 static node_idx_t native_math_asin(env_ptr_t env, list_ptr_t args) { return new_node_float(asin(get_node(args->nth(0))->as_float())); }
 static node_idx_t native_math_acos(env_ptr_t env, list_ptr_t args) { return new_node_float(acos(get_node(args->nth(0))->as_float())); }
 static node_idx_t native_math_atan(env_ptr_t env, list_ptr_t args) { return new_node_float(atan(get_node(args->nth(0))->as_float())); }
+static node_idx_t native_math_atan2(env_ptr_t env, list_ptr_t args) { return new_node_float(atan2(get_node(args->nth(0))->as_float(), get_node(args->nth(1))->as_float())); }
 static node_idx_t native_math_asinh(env_ptr_t env, list_ptr_t args) { return new_node_float(asinh(get_node(args->nth(0))->as_float())); }
 static node_idx_t native_math_acosh(env_ptr_t env, list_ptr_t args) { return new_node_float(acosh(get_node(args->nth(0))->as_float())); }
 static node_idx_t native_math_atanh(env_ptr_t env, list_ptr_t args) { return new_node_float(atanh(get_node(args->nth(0))->as_float())); }
@@ -425,6 +426,20 @@ static node_idx_t native_bit_override(env_ptr_t env, list_ptr_t args) {
 	return new_node_int((dst & ~mask) | (src & mask));
 }
 
+static node_idx_t native_math_to_degrees(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	return new_node_float(node->as_float() * 180.0f / M_PI);
+}
+
+static node_idx_t native_math_to_radians(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	return new_node_float(node->as_float() * M_PI / 180.0f);
+}
+
 void jo_lisp_math_init(env_ptr_t env) {
 	env->set("+", new_node_native_function("+", &native_add, false));
 	env->set("-", new_node_native_function("-", &native_sub, false));
@@ -456,6 +471,7 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("Math/asin", new_node_native_function("Math/asin", &native_math_asin, false));
 	env->set("Math/acos", new_node_native_function("Math/acos", &native_math_acos, false));
 	env->set("Math/atan", new_node_native_function("Math/atan", &native_math_atan, false));
+	env->set("Math/atan2", new_node_native_function("Math/atan2", &native_math_atan2, false));
 	env->set("Math/sinh", new_node_native_function("Math/sinh", &native_math_sinh, false));
 	env->set("Math/cosh", new_node_native_function("Math/cosh", &native_math_cosh, false));
 	env->set("Math/tanh", new_node_native_function("Math/tanh", &native_math_tanh, false));
@@ -481,6 +497,8 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("Math/min", new_node_native_function("Math/min", &native_math_min, false));
 	env->set("Math/max", new_node_native_function("Math/max", &native_math_max, false));
 	env->set("Math/clamp", new_node_native_function("Math/clamp", &native_math_clamp, false));
+	env->set("Math/to-degrees", new_node_native_function("Math/to-degrees", &native_math_to_degrees, false));
+	env->set("Math/to-radians", new_node_native_function("Math/to-radians", &native_math_to_radians, false));
 	env->set("Math/PI", new_node_float(JO_M_PI));
 	env->set("Math/E", new_node_float(JO_M_E));
 	env->set("Math/LN2", new_node_float(JO_M_LN2));

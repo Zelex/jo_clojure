@@ -1407,6 +1407,36 @@ static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 
 	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
 		return n1->type == NODE_NIL && n2->type == NODE_NIL;
+	} else if(n1->is_func() && n2->is_func()) {
+		#if 1 // ?? is this correct?
+			return n1i == n2i;
+		#else // actual function comparison.... not spec compliant it seems
+		{ 
+			list_t::iterator i1 = n1->t_func.args->begin();
+			list_t::iterator i2 = n2->t_func.args->begin();
+			for(; i1 && i2; ++i1, ++i2) {
+				if(!node_eq(env, *i1, *i2)) {
+					return false;
+				}
+			}
+			if(i1 || i2) {
+				return false;
+			}
+		}
+		{
+			list_t::iterator i1 = n1->t_func.body->begin();
+			list_t::iterator i2 = n2->t_func.body->begin();
+			for(; i1 && i2; ++i1, ++i2) {
+				if(!node_eq(env, *i1, *i2)) {
+					return false;
+				}
+			}
+			if(i1 || i2) {
+				return false;
+			}
+		}
+		return true;
+		#endif
 	} else if(n1->is_seq() && n2->is_seq()) {
 		// in this case we want to iterate over the sequences and compare
 		// each element
