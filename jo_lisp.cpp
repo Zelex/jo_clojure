@@ -2404,7 +2404,7 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 		return new_node_list(list_list->drop(n));
 	}
 	if(list->is_vector()) {
-		return new_node_vector(list_vec->drop(n));
+		return new_node_vector(list->as_vector()->drop(n));
 	}
 	if(list->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, list_idx);
