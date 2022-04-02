@@ -1152,6 +1152,14 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 			printf(" ");
 		}
 		printf(")");
+	} else if(type == NODE_VECTOR) {
+		vector_ptr_t vector = get_node(node)->t_vector;
+		printf("[");
+		for(vector_t::iterator it = vector->begin(); it; it++) {
+			print_node(*it, depth+1, it);
+			printf(" ");
+		}
+		printf("]");
 	} else if(type == NODE_MAP) {
 		map_ptr_t map = get_node(node)->t_map;
 		if(map->size() == 0) {
@@ -2045,16 +2053,16 @@ static node_idx_t native_when(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_when_let(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t binding_idx = *it++;
-	if(!get_node(binding_idx)->is_list()) {
+	if(!get_node(binding_idx)->is_vector()) {
 		return NIL_NODE;
 	}
 	node_t *binding = get_node(binding_idx);
-	list_ptr_t binding_list = binding->as_list();
+	vector_ptr_t binding_list = binding->as_vector();
 	if (binding_list->size() & 1) {
 		return NIL_NODE;
 	}
 	env_ptr_t env2 = new_env(env);
-	for (list_t::iterator i = binding_list->begin(); i;) {
+	for (vector_t::iterator i = binding_list->begin(); i;) {
 		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
 		node_idx_t value_idx = eval_node(env2, *i++);
 		if (!get_node(value_idx)->as_bool()) {
