@@ -3334,7 +3334,6 @@ int main(int argc, char **argv) {
 	env->set("list", new_node_native_function("list", &native_list, false));
 	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false));
 	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
-	env->set("concat", new_node_native_function("concat", &native_concat, false));
 	env->set("var", new_node_native_function("var", &native_var, false));
 	env->set("def", new_node_native_function("def", &native_def, true));
 	env->set("fn", new_node_native_function("fn", &native_fn, true));
