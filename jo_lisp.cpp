@@ -2598,52 +2598,6 @@ static node_idx_t native_not(env_ptr_t env, list_ptr_t args) {
 	return !node->as_bool() ? TRUE_NODE : FALSE_NODE;
 }
 
-static node_idx_t native_bit_and(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	int n = node->as_int();
-	for(; it; it++) {
-		node_idx_t node_idx = eval_node(env, *it);
-		node_t *node = get_node(node_idx);
-		n &= node->as_int();
-	}
-	return new_node_int(n);
-}
-
-static node_idx_t native_bit_or(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	int n = node->as_int();
-	for(; it; it++) {
-		node_idx_t node_idx = eval_node(env, *it);
-		node_t *node = get_node(node_idx);
-		n |= node->as_int();
-	}
-	return new_node_int(n);
-}
-
-static node_idx_t native_bit_xor(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	int n = node->as_int();
-	for(; it; it++) {
-		node_idx_t node_idx = eval_node(env, *it);
-		node_t *node = get_node(node_idx);
-		n ^= node->as_int();
-	}
-	return new_node_int(n);
-}
-
-static node_idx_t native_bit_not(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = eval_node(env, *it++);
-	node_t *node = get_node(node_idx);
-	return new_node_int(~node->as_int());
-}
-
 static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_t *node = get_node(*it++);
@@ -3060,10 +3014,6 @@ int main(int argc, char **argv) {
 	env->set("and", new_node_native_function("and", &native_and, true));
 	env->set("or", new_node_native_function("or", &native_or, true));
 	env->set("not", new_node_native_function("not", &native_not, true));
-	env->set("bit-and", new_node_native_function("bit-and", &native_bit_and, true));
-	env->set("bit-or", new_node_native_function("bit-or", &native_bit_or, true));
-	env->set("bit-xor", new_node_native_function("bit-xor", &native_bit_xor, true));
-	env->set("bit-not", new_node_native_function("bit-not", &native_bit_not, true));
 	env->set("empty?", new_node_native_function("empty?", &native_is_empty, false));
 	env->set("zero?", new_node_native_function("zero?", &native_is_zero, false));
 	env->set("false?", new_node_native_function("false?", &native_is_false, false));
