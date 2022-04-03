@@ -3164,6 +3164,58 @@ static node_idx_t native_nthnext(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (-> x & forms)
+// Threads the expr through the forms. Inserts x as the
+// second item in the first form, making a list of it if it is not a
+// list already. If there are more forms, inserts the first form as the
+// second item in second form, etc.
+static node_idx_t native_thread(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t x_idx = eval_node(env, *it++);
+	for(; it; it++) {
+		node_idx_t form_idx = *it;
+		node_t *form_node = get_node(form_idx);
+		list_ptr_t args2;
+		if(get_node_type(*it) == NODE_LIST) {
+			list_ptr_t form_list = form_node->t_list;
+			args2 = form_list->rest();
+			args2->push_front_inplace(x_idx);
+			args2->push_front_inplace(form_list->first_value());
+		} else {
+			args2 = new_list();
+			args2->push_front_inplace(x_idx);
+			args2->push_front_inplace(*it);
+		}
+		x_idx = eval_list(env, args2);
+	}
+	return x_idx;
+}
+
+// (->> x & forms)
+// Threads the expr through the forms. Inserts x as the
+// last item in the first form, making a list of it if it is not a
+// list already. If there are more forms, inserts the first form as the
+// last item in second form, etc.
+static node_idx_t native_thread_last(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t x_idx = eval_node(env, *it++);
+	for(; it; it++) {
+		node_idx_t form_idx = *it;
+		node_t *form_node = get_node(form_idx);
+		list_ptr_t args2;
+		if(get_node_type(*it) == NODE_LIST) {
+			args2 = form_node->t_list->clone();
+			args2->push_back_inplace(x_idx);
+		} else {
+			args2 = new_list();
+			args2->push_front_inplace(x_idx);
+			args2->push_front_inplace(*it);
+		}
+		x_idx = eval_list(env, args2);
+	}
+	return x_idx;
+}
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3397,6 +3449,8 @@ int main(int argc, char **argv) {
 	env->set("reverse", new_node_native_function("reverse", &native_reverse, false));
 	env->set("nthrest", new_node_native_function("nthrest", &native_nthrest, false));
 	env->set("nthnext", new_node_native_function("nthnext", &native_nthnext, false));
+	env->set("->", new_node_native_function("->", &native_thread, true));
+	env->set("->>", new_node_native_function("->>", &native_thread_last, true));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
