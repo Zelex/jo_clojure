@@ -2596,6 +2596,17 @@ static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) {
 		}
 		return vec->rest()->first_value();
 	}
+	if(node->is_map()) {
+		map_ptr_t map = node->as_map();
+		if(map->size() == 0) {
+			return NIL_NODE;
+		}
+		map_t::iterator it = map->begin();
+		vector_ptr_t vec = new_vector();
+		vec->push_back(it->first);
+		vec->push_back(it->second);
+		return new_node_vector(vec);
+	}
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
 		if(lit.done()) {
