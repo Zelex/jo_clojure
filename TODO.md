@@ -387,7 +387,6 @@ re-pattern
 re-seq
 read
 read+string
-read-line
 read-string
 reader-conditional
 reader-conditional?
@@ -454,7 +453,6 @@ shutdown-agents
 simple-ident?
 simple-keyword?
 simple-symbol?
-slurp
 some
 some->
 some->>
@@ -467,7 +465,6 @@ sorted-set
 sorted-set-by
 sorted?
 special-symbol?
-spit
 split-at
 split-with
 StackTraceElement->vec
