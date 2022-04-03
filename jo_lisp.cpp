@@ -2576,6 +2576,53 @@ static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (nfirst x)
+// Same as (next (first x))
+static node_idx_t native_nfirst(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	node_idx_t first_idx = NIL_NODE;
+	if(node->is_list()) {
+		list_ptr_t list_list = node->as_list();
+		if(list_list->size() == 0) {
+			return NIL_NODE;
+		}
+		first_idx = list_list->first_value();
+	}
+	if(node->is_vector()) {
+		vector_ptr_t vec = node->as_vector();
+		if(vec->size() == 0) {
+			return NIL_NODE;
+		}
+		first_idx = vec->first_value();
+	}
+	if(node->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, node_idx);
+		first_idx = lit.val;
+	}
+	node_t *first = get_node(first_idx);
+	if(first->is_list()) {
+		list_ptr_t first_list = first->as_list();
+		if(first_list->size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_list(first_list->rest());
+	}
+	if(first->is_vector()) {
+		vector_ptr_t first_vec = first->as_vector();
+		if(first_vec->size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_vector(first_vec->rest());
+	}
+	if(first->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, first_idx);
+		return new_node_lazy_list(lit.next_fn());
+	}
+	return NIL_NODE;
+}
+
 // (fnext x)
 // Same as (first (next x))
 static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) {
@@ -3373,6 +3420,7 @@ int main(int argc, char **argv) {
 	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false));
 	env->set("next", new_node_native_function("next", &native_next, false));
 	env->set("fnext", new_node_native_function("fnext", &native_fnext, false));
+	env->set("nfirst", new_node_native_function("nfirst", &native_nfirst, false));
 	env->set("rest", new_node_native_function("rest", &native_rest, false));
 	env->set("list", new_node_native_function("list", &native_list, false));
 	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false));
