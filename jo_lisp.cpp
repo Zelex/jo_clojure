@@ -3350,7 +3350,7 @@ int main(int argc, char **argv) {
 	env->set("apply", new_node_native_function("apply", &native_apply, true));
 	env->set("reduce", new_node_native_function("reduce", &native_reduce, true));
 	env->set("delay", new_node_native_function("delay", &native_delay, true));
-	env->set("delay?", new_node_native_function("is_delay", &native_is_delay, false));
+	env->set("delay?", new_node_native_function("delay?", &native_is_delay, false));
 	env->set("constantly", new_node_native_function("constantly", &native_constantly, false));
 	env->set("count", new_node_native_function("count", &native_count, false));
 	env->set("dotimes", new_node_native_function("dotimes", &native_dotimes, true));
