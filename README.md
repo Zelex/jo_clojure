@@ -12,7 +12,7 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 
 # Currently:
 * Native implementation. Can be (in some cases) as fast as or faster than original Clojure (which uses Java's JVM). 
-* Parses code into native structures, then executes. Essentially interpreted. 
+* Parses code into native structures (AST), then executes. Essentially interpreted - though does some clever things here and there. 
 * Lazy sequences
 * Startup time is ridiculously fast by comparison
 * Implementations of persistent lists, vectors, maps (WIP: set, etc).
