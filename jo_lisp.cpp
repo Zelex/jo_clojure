@@ -103,6 +103,7 @@ typedef jo_shared_ptr<env_t> env_ptr_t;
 typedef node_idx_t (*native_function_t)(env_ptr_t env, list_ptr_t args);
 
 static list_ptr_t new_list() { return list_ptr_t(new list_t()); }
+static list_ptr_t new_list(node_idx_t v) { list_t *l = new list_t(); l->push_back_inplace(v); return list_ptr_t(l); }
 static vector_ptr_t new_vector() { return vector_ptr_t(new vector_t()); }
 static map_ptr_t new_map() { return map_ptr_t(new map_t()); }
 
@@ -2486,48 +2487,8 @@ static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
 
 // equivalent to (first (first x))
 static node_idx_t native_ffirst(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	node_idx_t first_idx = NIL_NODE;
-	if(node->is_list()) {
-		list_ptr_t list_list = node->as_list();
-		if(list_list->size() == 0) {
-			return NIL_NODE;
-		}
-		first_idx = list_list->first_value();
-	}
-	if(node->is_vector()) {
-		vector_ptr_t vec = node->as_vector();
-		if(vec->size() == 0) {
-			return NIL_NODE;
-		}
-		first_idx = vec->first_value();
-	}
-	if(node->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, node_idx);
-		first_idx = lit.val;
-	}
-	node_t *first = get_node(first_idx);
-	if(first->is_list()) {
-		list_ptr_t first_list = first->as_list();
-		if(first_list->size() == 0) {
-			return NIL_NODE;
-		}
-		return first_list->first_value();
-	}
-	if(first->is_vector()) {
-		vector_ptr_t first_vec = first->as_vector();
-		if(first_vec->size() == 0) {
-			return NIL_NODE;
-		}
-		return first_vec->first_value();
-	}
-	if(first->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, first_idx);
-		return lit.val;
-	}
-	return NIL_NODE;
+	return native_first(env, new_list(native_first(env, args)));
+
 }
 
 static node_idx_t native_is_fn(env_ptr_t env, list_ptr_t args) {
@@ -2579,90 +2540,19 @@ static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
 // (nfirst x)
 // Same as (next (first x))
 static node_idx_t native_nfirst(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	node_idx_t first_idx = NIL_NODE;
-	if(node->is_list()) {
-		list_ptr_t list_list = node->as_list();
-		if(list_list->size() == 0) {
-			return NIL_NODE;
-		}
-		first_idx = list_list->first_value();
-	}
-	if(node->is_vector()) {
-		vector_ptr_t vec = node->as_vector();
-		if(vec->size() == 0) {
-			return NIL_NODE;
-		}
-		first_idx = vec->first_value();
-	}
-	if(node->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, node_idx);
-		first_idx = lit.val;
-	}
-	node_t *first = get_node(first_idx);
-	if(first->is_list()) {
-		list_ptr_t first_list = first->as_list();
-		if(first_list->size() == 0) {
-			return NIL_NODE;
-		}
-		return new_node_list(first_list->rest());
-	}
-	if(first->is_vector()) {
-		vector_ptr_t first_vec = first->as_vector();
-		if(first_vec->size() == 0) {
-			return NIL_NODE;
-		}
-		return new_node_vector(first_vec->rest());
-	}
-	if(first->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, first_idx);
-		return new_node_lazy_list(lit.next_fn());
-	}
-	return NIL_NODE;
+	return native_next(env, new_list(native_first(env, args)));
+}
+
+// (nnext x)
+// Same as (next (next x))
+static node_idx_t native_nnext(env_ptr_t env, list_ptr_t args) {
+	return native_next(env, new_list(native_next(env, args)));
 }
 
 // (fnext x)
 // Same as (first (next x))
 static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	if(node->is_list()) {
-		list_ptr_t list_list = node->as_list();
-		if(list_list->size() == 0) {
-			return NIL_NODE;
-		}
-		return list_list->rest()->first_value();
-	}
-	if(node->is_vector()) {
-		vector_ptr_t vec = node->as_vector();
-		if(vec->size() == 0) {
-			return NIL_NODE;
-		}
-		return vec->rest()->first_value();
-	}
-	if(node->is_map()) {
-		map_ptr_t map = node->as_map();
-		if(map->size() == 0) {
-			return NIL_NODE;
-		}
-		map_t::iterator it = map->begin();
-		vector_ptr_t vec = new_vector();
-		vec->push_back(it->first);
-		vec->push_back(it->second);
-		return new_node_vector(vec);
-	}
-	if(node->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, node_idx);
-		if(lit.done()) {
-			return NIL_NODE;
-		}
-		lit.next();
-		return lit.val;
-	}
-	return NIL_NODE;
+	return native_first(env, new_list(native_next(env, args)));
 }
 
 // like next, but always returns a list
@@ -3419,6 +3309,7 @@ int main(int argc, char **argv) {
 	env->set("rand-nth", new_node_native_function("rand-nth", &native_rand_nth, false));
 	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false));
 	env->set("next", new_node_native_function("next", &native_next, false));
+	env->set("nnext", new_node_native_function("nnext", &native_nnext, false));
 	env->set("fnext", new_node_native_function("fnext", &native_fnext, false));
 	env->set("nfirst", new_node_native_function("nfirst", &native_nfirst, false));
 	env->set("rest", new_node_native_function("rest", &native_rest, false));
