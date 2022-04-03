@@ -1,5 +1,3 @@
-nthrest
-nthnext
 *1
 *2
 *3
