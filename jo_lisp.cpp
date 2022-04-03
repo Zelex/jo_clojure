@@ -3118,6 +3118,52 @@ static node_idx_t native_identity(env_ptr_t env, list_ptr_t args) {
 	return args->first_value();
 }
 
+// (nthrest coll n)
+// Returns the nth rest of coll, coll when n is 0.
+static node_idx_t native_nthrest(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t coll_idx = *it++;
+	node_idx_t n_idx = *it++;
+	node_t *coll_node = get_node(coll_idx);
+	node_t *n_node = get_node(n_idx);
+	int n = n_node->as_int();
+	if(n <= 0) {
+		return coll_idx;
+	}
+	if(coll_node->is_list()) {
+		return new_node_list(coll_node->t_list->drop(n));
+	}
+	if(coll_node->is_vector()) {
+		return new_node_vector(coll_node->t_vector->drop(n));
+	}
+	return NIL_NODE;
+}
+
+static node_idx_t native_nthnext(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t coll_idx = *it++;
+	node_idx_t n_idx = *it++;
+	node_t *coll_node = get_node(coll_idx);
+	node_t *n_node = get_node(n_idx);
+	int n = n_node->as_int();
+	if(n <= 0) {
+		return NIL_NODE;
+	}
+	if(coll_node->is_list()) {
+		if(n >= coll_node->t_list->size()) {
+			return NIL_NODE;
+		}
+		return new_node_list(coll_node->t_list->take(n));
+	}
+	if(coll_node->is_vector()) {
+		if(n >= coll_node->t_vector->size()) {
+			return NIL_NODE;
+		}
+		return new_node_vector(coll_node->t_vector->take(n));
+	}
+	return NIL_NODE;
+}
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3349,6 +3395,8 @@ int main(int argc, char **argv) {
 	env->set("is", new_node_native_function("is", &native_is, true));
 	env->set("identity", new_node_native_function("identity", &native_identity, false));
 	env->set("reverse", new_node_native_function("reverse", &native_reverse, false));
+	env->set("nthrest", new_node_native_function("nthrest", &native_nthrest, false));
+	env->set("nthnext", new_node_native_function("nthnext", &native_nthnext, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
