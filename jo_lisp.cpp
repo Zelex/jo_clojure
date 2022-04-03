@@ -2545,7 +2545,7 @@ static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ? TRUE_NODE : FALSE_NODE;
 }
 
-// (next coll) // TODO: is this supposed to be lazy?
+// (next coll) 
 // Returns a seq of the items after the first. Calls seq on its
 // argument.  If there are no more items, returns nil.
 static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
@@ -2572,6 +2572,37 @@ static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		return new_node_lazy_list(lit.next_fn());
+	}
+	return NIL_NODE;
+}
+
+// (fnext x)
+// Same as (first (next x))
+static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	if(node->is_list()) {
+		list_ptr_t list_list = node->as_list();
+		if(list_list->size() == 0) {
+			return NIL_NODE;
+		}
+		return list_list->rest()->first_value();
+	}
+	if(node->is_vector()) {
+		vector_ptr_t vec = node->as_vector();
+		if(vec->size() == 0) {
+			return NIL_NODE;
+		}
+		return vec->rest()->first_value();
+	}
+	if(node->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, node_idx);
+		if(lit.done()) {
+			return NIL_NODE;
+		}
+		lit.next();
+		return lit.val;
 	}
 	return NIL_NODE;
 }
@@ -3330,6 +3361,7 @@ int main(int argc, char **argv) {
 	env->set("rand-nth", new_node_native_function("rand-nth", &native_rand_nth, false));
 	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false));
 	env->set("next", new_node_native_function("next", &native_next, false));
+	env->set("fnext", new_node_native_function("fnext", &native_fnext, false));
 	env->set("rest", new_node_native_function("rest", &native_rest, false));
 	env->set("list", new_node_native_function("list", &native_list, false));
 	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false));

@@ -1,4 +1,3 @@
-fnext
 nfirst
 nnext
 nthrest
