@@ -232,7 +232,6 @@ if-some
 ifn?
 import
 in-ns
-inc
 indexed?
 init-proxy
 Inst
@@ -303,7 +302,6 @@ namespace
 namespace-munge
 nat-int?
 neg-int?
-neg?
 new
 newline
 nfirst
@@ -329,8 +327,6 @@ num
 number?
 numerator
 object-array
-odd?
-or
 parents
 partiall
 partition-all
@@ -342,7 +338,6 @@ pmap
 pop!
 pop-thread-bindings
 pos-int?
-pos?
 pr
 pr-str
 prefer-method
@@ -371,7 +366,6 @@ qualified-keyword?
 qualified-symbol?
 quot
 rand
-rand-int
 ratio?
 rational?
 rationalize
