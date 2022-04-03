@@ -195,7 +195,6 @@ float-array
 float?
 floats
 flush
-fnext
 fnil
 for
 force
@@ -302,9 +301,7 @@ nat-int?
 neg-int?
 new
 newline
-nfirst
 nil?
-nnext
 not-any?
 not-empty
 not-every?
@@ -319,8 +316,6 @@ ns-refers
 ns-resolve
 ns-unalias
 ns-unmap
-nthnext
-nthrest
 num
 number?
 numerator
