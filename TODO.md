@@ -3,7 +3,6 @@ nfirst
 nnext
 nthrest
 nthnext
-take-nth
 *1
 *2
 *3
