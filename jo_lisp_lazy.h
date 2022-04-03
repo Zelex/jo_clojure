@@ -861,6 +861,44 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret_list);
 }
 
+static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t n_idx = *it++;
+	int n = get_node(n_idx)->as_int();
+	node_idx_t list_idx = *it++;
+	if(n <= 0) {
+		return list_idx;
+	}
+	node_t *list = get_node(list_idx);
+	list_ptr_t list_list = list->as_list();
+	if(list->is_string()) {
+		jo_string &str = list->t_string;
+		if(n < 0) {
+			n = str.size() + n;
+		}
+		if(n < 0 || n >= str.size()) {
+			return new_node_string("");
+		}
+		return new_node_string(str.substr(n));
+	}
+	if(list->is_list()) {
+		return new_node_list(list_list->drop(n));
+	}
+	if(list->is_vector()) {
+		return new_node_vector(list->as_vector()->drop(n));
+	}
+	if(list->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, list_idx);
+		lit.nth(n);
+		if(lit.done()) {
+			return NIL_NODE;
+		}
+		return new_node_lazy_list(lit.next_fn());
+	}
+	return NIL_NODE;
+}
+
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, false));
@@ -887,4 +925,5 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("repeatedly-next", new_node_native_function("repeatedly-next", &native_repeatedly_next, true));
 	env->set("partition", new_node_native_function("partition", &native_partition, true));
 	env->set("partition-next", new_node_native_function("partition-next", &native_partition_next, true));
+	env->set("drop", new_node_native_function("drop", &native_drop, false));
 }

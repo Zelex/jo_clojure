@@ -2381,43 +2381,6 @@ static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t n_idx = *it++;
-	int n = get_node(n_idx)->as_int();
-	node_idx_t list_idx = *it++;
-	if(n <= 0) {
-		return list_idx;
-	}
-	node_t *list = get_node(list_idx);
-	list_ptr_t list_list = list->as_list();
-	if(list->is_string()) {
-		jo_string &str = list->t_string;
-		if(n < 0) {
-			n = str.size() + n;
-		}
-		if(n < 0 || n >= str.size()) {
-			return new_node_string("");
-		}
-		return new_node_string(str.substr(n));
-	}
-	if(list->is_list()) {
-		return new_node_list(list_list->drop(n));
-	}
-	if(list->is_vector()) {
-		return new_node_vector(list->as_vector()->drop(n));
-	}
-	if(list->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, list_idx);
-		lit.nth(n);
-		if(lit.done()) {
-			return NIL_NODE;
-		}
-		return new_node_lazy_list(lit.next_fn());
-	}
-	return NIL_NODE;
-}
-
 static node_idx_t native_nth(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t list_idx = *it++;
@@ -3130,11 +3093,29 @@ static node_idx_t native_nthrest(env_ptr_t env, list_ptr_t args) {
 	if(n <= 0) {
 		return coll_idx;
 	}
+	if(coll_node->is_string()) {
+		jo_string &str = coll_node->t_string;
+		if(n < 0) {
+			n = str.size() + n;
+		}
+		if(n < 0 || n >= str.size()) {
+			return new_node_string("");
+		}
+		return new_node_string(str.substr(n));
+	}
 	if(coll_node->is_list()) {
 		return new_node_list(coll_node->t_list->drop(n));
 	}
 	if(coll_node->is_vector()) {
 		return new_node_vector(coll_node->t_vector->drop(n));
+	}
+	if(coll_node->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, coll_idx);
+		lit.nth(n);
+		if(lit.done()) {
+			return NIL_NODE;
+		}
+		return new_node_list(lit.all());
 	}
 	return NIL_NODE;
 }
@@ -3149,6 +3130,16 @@ static node_idx_t native_nthnext(env_ptr_t env, list_ptr_t args) {
 	if(n <= 0) {
 		return NIL_NODE;
 	}
+	if(coll_node->is_string()) {
+		jo_string &str = coll_node->t_string;
+		if(n < 0) {
+			n = str.size() + n;
+		}
+		if(n < 0 || n >= str.size()) {
+			return new_node_string("");
+		}
+		return new_node_string(str.substr(n));
+	}
 	if(coll_node->is_list()) {
 		if(n >= coll_node->t_list->size()) {
 			return NIL_NODE;
@@ -3160,6 +3151,14 @@ static node_idx_t native_nthnext(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		return new_node_vector(coll_node->t_vector->take(n));
+	}
+	if(coll_node->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, coll_idx);
+		lit.nth(n);
+		if(lit.done()) {
+			return NIL_NODE;
+		}
+		return new_node_list(lit.all());
 	}
 	return NIL_NODE;
 }
@@ -3402,7 +3401,6 @@ int main(int argc, char **argv) {
 	env->set("first", new_node_native_function("first", &native_first, false));
 	env->set("second", new_node_native_function("second", &native_second, false));
 	env->set("last", new_node_native_function("last", &native_last, false));
-	env->set("drop", new_node_native_function("drop", &native_drop, false));
 	env->set("nth", new_node_native_function("nth", &native_nth, false));
 	env->set("rand-nth", new_node_native_function("rand-nth", &native_rand_nth, false));
 	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false));
