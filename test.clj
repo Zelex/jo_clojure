@@ -391,8 +391,8 @@
 (defn flatten-test []
   (is (= (list 1 2 3 4 5) (flatten (list 1 2 (list 3) 4 5)))))
 (defn number-test []
-  ;(is (= 0.5       1/2))
-  ;(is (= 0.33333   1/3))
+  ;(is (= 0.5       1/2)) ; don't support ratios yet
+  ;(is (= 0.33333   1/3)) ; don't support ratios yet
   (is (= 3501      0xDAD))
   (is (= 2748      0xABC)))
 (defn zero?-test []
@@ -552,7 +552,7 @@
 (second-test)
 (rest-test)
 (nth-test)
-;(nthrest-test)
+(nthrest-test)
 (count-test)
 (=-test)
 (true?-test)
