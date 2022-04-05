@@ -519,14 +519,8 @@
 (defn fn-test []
   (let [f1 (fn [])
         f2 (fn [])
-        m-func (fn
-                 ([a] 1)
-                 ([a b] 2)
-                 ([a b c] 3))
-        n-func (do (fn
-                     ([]    0)
-                     ([x]   1)
-                     ([x y] 2)))]
+        m-func (fn ([a] 1) ([a b] 2) ([a b c] 3))
+        n-func (do (fn ([] 0) ([x] 1) ([x y] 2)))]
     (is (= true  (= f1 f1)))
     (is (= false (= f1 f2)))
     (is (= 1 (m-func 1)))

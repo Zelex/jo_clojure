@@ -71,4 +71,26 @@
 ;(filter odd? (range 10))
 ;)
 
+;(def m-func (fn ([a] 1) ([a b] 2) ([a b c] 3)))
+;(defn m-func [] 1)
+
+;(println (m-func 0))
+;(println (m-func 0 1))
+;(println (m-func 0 1 2))
+
+(defn fn-test [] 
+  (let [
+      f1 (fn [])
+      f2 (fn [])
+      m-func (fn ([a] 1) ([a b] 2) ([a b c] 3))
+      n-func (fn ([] 0) ([x] 1) ([x y] 2))]
+  (println (m-func 1))
+  (println (m-func 1 2))
+  (println (m-func 1 2 3))
+  (println (n-func))
+  (println (n-func 1))
+  (println (n-func 1 2))
+  ))
+
+(fn-test)
 

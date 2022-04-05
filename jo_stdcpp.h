@@ -314,18 +314,12 @@ template<> struct jo_numeric_limits<int> {
 #define jo_endl ("\n")
 #define jo_string_npos ((size_t)(-1))
 
-template <class F>
-struct lambda_traits : lambda_traits<decltype(&F::operator())>
-{ };
-
+template <class F> struct lambda_traits : lambda_traits<decltype(&F::operator())> { };
 template <typename F, typename R, typename... Args>
-struct lambda_traits<R(F::*)(Args...)> : lambda_traits<R(F::*)(Args...) const>
-{ };
-
+struct lambda_traits<R(F::*)(Args...)> : lambda_traits<R(F::*)(Args...) const> { };
 template <class F, class R, class... Args>
 struct lambda_traits<R(F::*)(Args...) const> {
     using pointer = typename std::add_pointer<R(Args...)>::type;
-
     static pointer jo_cify(F&& f) {
         static F fn = std::forward<F>(f);
         return [](Args... args) {
@@ -3971,14 +3965,16 @@ struct jo_persistent_list {
     }
 
     // iterator
-    class iterator {
+    struct iterator {
         jo_shared_ptr<node> cur;
-    public:
-        iterator() : cur(NULL) {}
-        iterator(jo_shared_ptr<node> cur) : cur(cur) {}
-        iterator(const iterator &other) : cur(other.cur) {}
+        int index;
+
+        iterator() : cur(NULL), index() {}
+        iterator(jo_shared_ptr<node> cur) : cur(cur), index() {}
+        iterator(const iterator &other) : cur(other.cur), index(other.index) {}
         iterator &operator=(const iterator &other) {
             cur = other.cur;
+            index = other.index;
             return *this;
         }
         bool operator==(const iterator &other) const {
@@ -3993,6 +3989,7 @@ struct jo_persistent_list {
         iterator &operator++() {
             if(cur) {
                 cur = cur->next;
+                ++index;
             }
             return *this;
         }
@@ -4000,6 +3997,7 @@ struct jo_persistent_list {
             iterator copy = *this;
             if(cur) {
                 cur = cur->next;
+                ++index;
             }
             return copy;
         }
@@ -4007,6 +4005,7 @@ struct jo_persistent_list {
             while(cur && n > 0) {
                 cur = cur->next;
                 n--;
+                ++index;
             }
             return *this;
         }
@@ -4027,6 +4026,7 @@ struct jo_persistent_list {
         const T *operator->() const {
             return &cur->value;
         }
+
     };
 
     iterator begin() const {
@@ -4035,6 +4035,14 @@ struct jo_persistent_list {
 
     iterator end() const {
         return iterator(tail);
+    }
+
+    jo_persistent_list *rest(const iterator &it) const {
+        jo_persistent_list *copy = new jo_persistent_list();
+        copy->head = it.cur;
+        copy->tail = tail;
+        copy->length = length - it.index;
+        return copy;
     }
 
     const T &front() const {
