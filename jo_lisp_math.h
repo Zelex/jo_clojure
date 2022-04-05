@@ -430,14 +430,14 @@ static node_idx_t native_math_to_degrees(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
-	return new_node_float(node->as_float() * 180.0f / M_PI);
+	return new_node_float(node->as_float() * 180.0f / JO_M_PI);
 }
 
 static node_idx_t native_math_to_radians(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
-	return new_node_float(node->as_float() * M_PI / 180.0f);
+	return new_node_float(node->as_float() * JO_M_PI / 180.0f);
 }
 
 void jo_lisp_math_init(env_ptr_t env) {
