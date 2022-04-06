@@ -222,7 +222,6 @@ hash-unordered-coll
 ident?
 identical?
 if-let
-if-not
 if-some
 ifn?
 import
