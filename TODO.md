@@ -71,11 +71,6 @@ bigdec
 bigint
 biginteger
 binding
-bit-and-not
-bit-clear
-bit-flip
-bit-set
-bit-test
 boolean
 boolean-array
 boolean?
@@ -465,7 +460,6 @@ trampoline
 transduce
 transient
 tree-seq
-true?
 try
 type
 unchecked-add

@@ -370,6 +370,15 @@ static node_idx_t native_bit_and(env_ptr_t env, list_ptr_t args) {
 	return new_node_int(n);
 }
 
+static node_idx_t native_bit_and_not(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int n = get_node_int(*it++);
+	for(; it; it++) {
+		n &= ~get_node_int(*it);
+	}
+	return new_node_int(n);
+}
+
 static node_idx_t native_bit_or(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	int n = get_node_int(*it++);
@@ -426,6 +435,36 @@ static node_idx_t native_bit_override(env_ptr_t env, list_ptr_t args) {
 	return new_node_int((dst & ~mask) | (src & mask));
 }
 
+// (bit-clear x n)
+// Clear bit at index n
+static node_idx_t native_bit_clear(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int n = get_node_int(*it++);
+	int n2 = get_node_int(*it++);
+	return new_node_int(n & ~(1 << n2));
+}
+
+static node_idx_t native_bit_flip(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int n = get_node_int(*it++);
+	int n2 = get_node_int(*it++);
+	return new_node_int(n ^ (1 << n2));
+}
+
+static node_idx_t native_bit_set(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int n = get_node_int(*it++);
+	int n2 = get_node_int(*it++);
+	return new_node_int(n | (1 << n2));
+}
+
+static node_idx_t native_bit_test(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int n = get_node_int(*it++);
+	int n2 = get_node_int(*it++);
+	return new_node_bool((n & (1 << n2)) != 0);
+}
+
 static node_idx_t native_math_to_degrees(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -455,6 +494,7 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("pos?", new_node_native_function("pos?", &native_is_pos, false));
 	env->set("neg?", new_node_native_function("neg?", &native_is_neg, false));
 	env->set("bit-and", new_node_native_function("bit-and", &native_bit_and, false));
+	env->set("bit-and-not", new_node_native_function("bit-and-not", &native_bit_and_not, false));
 	env->set("bit-or", new_node_native_function("bit-or", &native_bit_or, false));
 	env->set("bit-xor", new_node_native_function("bit-xor", &native_bit_xor, false));
 	env->set("bit-not", new_node_native_function("bit-not", &native_bit_not, false));
@@ -462,6 +502,10 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("bit-shift-right", new_node_native_function("bit-shift-right", &native_bit_shift_right, false));
 	env->set("bit-extract", new_node_native_function("bit-extract", &native_bit_extract, false));
 	env->set("bit-override", new_node_native_function("bit-override", &native_bit_override, false));
+	env->set("bit-clear", new_node_native_function("bit-clear", &native_bit_clear, false));
+	env->set("bit-flip", new_node_native_function("bit-flip", &native_bit_flip, false));
+	env->set("bit-set", new_node_native_function("bit-set", &native_bit_set, false));
+	env->set("bit-test", new_node_native_function("bit-test", &native_bit_test, false));
 	env->set("Math/abs", new_node_native_function("Math/abs", &native_math_abs, false));
 	env->set("Math/sqrt", new_node_native_function("Math/sqrt", &native_math_sqrt, false));
 	env->set("Math/cbrt", new_node_native_function("Math/cbrt", &native_math_cbrt, false));
