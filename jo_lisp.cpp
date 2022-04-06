@@ -1763,6 +1763,17 @@ static node_idx_t native_if(env_ptr_t env, list_ptr_t args) {
 	return eval_node(env, get_node(cond)->as_bool() ? when_true : when_false);
 }
 
+static node_idx_t native_if_not(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 2) {
+		return NIL_NODE;
+	}
+	list_t::iterator i = args->begin();
+	node_idx_t cond = eval_node(env, *i++);
+	node_idx_t when_true = *i++;
+	node_idx_t when_false = i ? *i++ : NIL_NODE;
+	return eval_node(env, !get_node(cond)->as_bool() ? when_true : when_false);
+}
+
 static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator i = args->begin(); i; i++) {
 		printf("%s", get_node(*i)->as_string().c_str());
@@ -3486,6 +3497,7 @@ int main(int argc, char **argv) {
 	env->set("defn", new_node_native_function("defn", &native_defn, true));
 	env->set("*ns*", new_node_var("nil", NIL_NODE));
 	env->set("if", new_node_native_function("if", &native_if, true));
+	env->set("if-not", new_node_native_function("if-not", &native_if_not, true));
 	env->set("when", new_node_native_function("when", &native_when, true));
 	env->set("when-let", new_node_native_function("when-let", &native_when_let, true));
 	env->set("when-not", new_node_native_function("when-not", &native_when_not, true));
