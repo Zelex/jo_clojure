@@ -215,9 +215,8 @@ static node_idx_t native_math_expm1(env_ptr_t env, list_ptr_t args) { return new
 
 // Computes the minimum value of any number of arguments
 static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
-	// If there are no arguments, return nil
 	if(args->size() == 0) {
-		return NIL_NODE;
+		return ZERO_NODE;
 	}
 
 	list_t::iterator it = args->begin();
@@ -264,9 +263,8 @@ static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_math_max(env_ptr_t env, list_ptr_t args) {
-	// If there are no arguments, return nil
 	if(args->size() == 0) {
-		return NIL_NODE;
+		return ZERO_NODE;
 	}
 	
 	list_t::iterator it = args->begin();
