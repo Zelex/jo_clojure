@@ -1799,6 +1799,27 @@ static node_idx_t native_if_let(env_ptr_t env, list_ptr_t args) {
 	return eval_node(env2, !get_node(value_idx)->as_bool() ? when_true : when_false);
 }
 
+static node_idx_t native_if_some(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 2) {
+		return NIL_NODE;
+	}
+	list_t::iterator i = args->begin();
+	node_idx_t bindings = *i++;
+	node_t *bindings_node = get_node(bindings);
+	if(bindings_node->type != NODE_VECTOR || bindings_node->t_vector->size() != 2) {
+		return NIL_NODE;
+	}
+	list_ptr_t bindings_list = bindings_node->as_list();
+	env_ptr_t env2 = new_env(env);
+	node_idx_t key_idx = bindings_list->first_value(); // TODO: should this be eval'd?
+	node_idx_t value_idx = eval_node(env2, bindings_list->last_value());
+	node_t *key = get_node(key_idx);
+	env2->set_temp(key->as_string(), value_idx);
+	node_idx_t when_true = *i++;
+	node_idx_t when_false = i ? *i++ : NIL_NODE;
+	return eval_node(env2, value_idx != NIL_NODE ? when_true : when_false);
+}
+
 static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator i = args->begin(); i; i++) {
 		printf("%s", get_node(*i)->as_string().c_str());
@@ -3524,6 +3545,7 @@ int main(int argc, char **argv) {
 	env->set("if", new_node_native_function("if", &native_if, true));
 	env->set("if-not", new_node_native_function("if-not", &native_if_not, true));
 	env->set("if-let", new_node_native_function("if-let", &native_if_let, true));
+	env->set("if-some", new_node_native_function("if-some", &native_if_some, true));
 	env->set("when", new_node_native_function("when", &native_when, true));
 	env->set("when-let", new_node_native_function("when-let", &native_when_let, true));
 	env->set("when-not", new_node_native_function("when-not", &native_when_not, true));
