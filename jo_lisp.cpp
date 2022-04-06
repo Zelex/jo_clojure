@@ -2589,6 +2589,11 @@ static node_idx_t native_is_ident(env_ptr_t env, list_ptr_t args) {
 	return type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
 }
 
+static node_idx_t native_is_indexed(env_ptr_t env, list_ptr_t args) {
+	int type =  get_node_type(args->first_value());
+	return type == NODE_VECTOR ? TRUE_NODE : FALSE_NODE;
+}
+
 static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) {
 	int c = get_node_int(args->first_value());
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ? TRUE_NODE : FALSE_NODE;
@@ -3534,6 +3539,7 @@ int main(int argc, char **argv) {
 	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false));
 	env->set("ifn?", new_node_native_function("ifn?", &native_is_ifn, false));
 	env->set("ident?", new_node_native_function("ident?", &native_is_ident, false));
+	env->set("indexed?", new_node_native_function("indexed?", &native_is_indexed, false));
 	env->set("defn", new_node_native_function("defn", &native_defn, true));
 	env->set("*ns*", new_node_var("nil", NIL_NODE));
 	env->set("if", new_node_native_function("if", &native_if, true));
