@@ -92,7 +92,7 @@ static node_idx_t native_div(env_ptr_t env, list_ptr_t args) {
 
 	size_t size = args->size();
 	if(size == 0) {
-		return NIL_NODE;
+		return ONE_NODE;
 	}
 
 	// special case of 1 argument, compute 1.0 / value
@@ -130,7 +130,7 @@ static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
 	double d_sum = 0.0;
 
 	if(args->size() == 0) {
-		return NIL_NODE;
+		return ZERO_NODE;
 	}
 
 	list_t::iterator i = args->begin();
