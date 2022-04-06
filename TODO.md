@@ -227,7 +227,6 @@ Inst
 inst-ms
 inst?
 instance?
-int
 int-array
 interleave
 intern
