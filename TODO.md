@@ -221,7 +221,6 @@ hash-set
 hash-unordered-coll
 ident?
 identical?
-ifn?
 import
 in-ns
 indexed?

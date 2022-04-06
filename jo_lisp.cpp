@@ -2584,6 +2584,16 @@ static node_idx_t native_is_fn(env_ptr_t env, list_ptr_t args) {
 	return node->type == NODE_FUNC ? TRUE_NODE : FALSE_NODE;
 }
 
+// Returns true if x implements IFn. Note that many data structures
+// (e.g. sets and maps) implement IFn
+static node_idx_t native_is_ifn(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	int type = node->type;
+	return type == NODE_FUNC || type == NODE_NATIVE_FUNCTION || type == NODE_VECTOR || type == NODE_MAP || type == NODE_SET || type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
+}
+
 static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
@@ -3540,6 +3550,7 @@ int main(int argc, char **argv) {
 	env->set("def", new_node_native_function("def", &native_def, true));
 	env->set("fn", new_node_native_function("fn", &native_fn, true));
 	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false));
+	env->set("ifn?", new_node_native_function("ifn?", &native_is_ifn, false));
 	env->set("defn", new_node_native_function("defn", &native_defn, true));
 	env->set("*ns*", new_node_var("nil", NIL_NODE));
 	env->set("if", new_node_native_function("if", &native_if, true));
