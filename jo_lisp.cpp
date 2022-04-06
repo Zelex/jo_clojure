@@ -2397,24 +2397,15 @@ static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return !node->as_bool() ? TRUE_NODE : FALSE_NODE;
+	return !get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE;
 }
 
 static node_idx_t native_is_true(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return node->as_bool() ? TRUE_NODE : FALSE_NODE;
+	return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE;
 }
 
 static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return node->type != NODE_NIL ? TRUE_NODE : FALSE_NODE;
+	return get_node_type(args->first_value()) != NODE_NIL ? TRUE_NODE : FALSE_NODE;
 }
 
 // (first coll)
@@ -2578,27 +2569,25 @@ static node_idx_t native_ffirst(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_is_fn(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return node->type == NODE_FUNC ? TRUE_NODE : FALSE_NODE;
+	int type = get_node_type(args->first_value());
+	return type == NODE_FUNC ? TRUE_NODE : FALSE_NODE;
 }
 
 // Returns true if x implements IFn. Note that many data structures
 // (e.g. sets and maps) implement IFn
 static node_idx_t native_is_ifn(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	int type = node->type;
+	int type =  get_node_type(args->first_value());
 	return type == NODE_FUNC || type == NODE_NATIVE_FUNCTION || type == NODE_VECTOR || type == NODE_MAP || type == NODE_SET || type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
 }
 
+// Return true if x is a symbol or keyword
+static node_idx_t native_is_ident(env_ptr_t env, list_ptr_t args) {
+	int type =  get_node_type(args->first_value());
+	return type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
+}
+
 static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	int c = node->as_int();
+	int c = get_node_int(args->first_value());
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ? TRUE_NODE : FALSE_NODE;
 }
 
@@ -3551,6 +3540,7 @@ int main(int argc, char **argv) {
 	env->set("fn", new_node_native_function("fn", &native_fn, true));
 	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false));
 	env->set("ifn?", new_node_native_function("ifn?", &native_is_ifn, false));
+	env->set("ident?", new_node_native_function("ident?", &native_is_ident, false));
 	env->set("defn", new_node_native_function("defn", &native_defn, true));
 	env->set("*ns*", new_node_var("nil", NIL_NODE));
 	env->set("if", new_node_native_function("if", &native_if, true));

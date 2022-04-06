@@ -219,7 +219,6 @@ hash-combine
 hash-ordered-coll
 hash-set
 hash-unordered-coll
-ident?
 identical?
 import
 in-ns
