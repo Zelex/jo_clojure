@@ -1796,7 +1796,7 @@ static node_idx_t native_if_let(env_ptr_t env, list_ptr_t args) {
 	env2->set_temp(key->as_string(), value_idx);
 	node_idx_t when_true = *i++;
 	node_idx_t when_false = i ? *i++ : NIL_NODE;
-	return eval_node(env2, value_idx != NIL_NODE ? when_true : when_false);
+	return eval_node(env2, !get_node(value_idx)->as_bool() ? when_true : when_false);
 }
 
 static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
