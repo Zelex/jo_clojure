@@ -2599,6 +2599,10 @@ static node_idx_t native_is_int(env_ptr_t env, list_ptr_t args) {
 	return type == NODE_INT ? TRUE_NODE : FALSE_NODE;
 }
 
+static node_idx_t native_int(env_ptr_t env, list_ptr_t args) {
+	return new_node_int(get_node(args->first_value())->as_int());
+}
+
 static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) {
 	int c = get_node_int(args->first_value());
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ? TRUE_NODE : FALSE_NODE;
@@ -3546,6 +3550,7 @@ int main(int argc, char **argv) {
 	env->set("ident?", new_node_native_function("ident?", &native_is_ident, false));
 	env->set("indexed?", new_node_native_function("indexed?", &native_is_indexed, false));
 	env->set("int?", new_node_native_function("int?", &native_is_int, false));
+	env->set("int", new_node_native_function("int", &native_int, false));
 	env->set("integer?", new_node_native_function("integer?", &native_is_int, false));
 	env->set("defn", new_node_native_function("defn", &native_defn, true));
 	env->set("*ns*", new_node_var("nil", NIL_NODE));
