@@ -229,7 +229,6 @@ inst?
 instance?
 int
 int-array
-integer?
 interleave
 intern
 interpose
