@@ -3796,6 +3796,13 @@ struct jo_persistent_list {
         return head->next->value;
     }
 
+    T third_value() const {
+        if(!head || !head->next || !head->next->next) {
+            return T();
+        }
+        return head->next->next->value;
+    }
+
     T last_value() const {
         if(!tail) {
             return T();

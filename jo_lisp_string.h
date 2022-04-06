@@ -13,72 +13,16 @@ static node_idx_t native_str(env_ptr_t env, list_ptr_t args) {
 }
 
 // Returns the substring of ‘s’ beginning at start inclusive, and ending at end (defaults to length of string), exclusive.
-static node_idx_t native_subs(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    node_t *start = get_node(*it++);
-    node_t *end = get_node(*it++);
-    return new_node_string(node->as_string().substr(start->as_int(), end->as_int()));
-}
-
-static node_idx_t native_compare(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    node_t *other = get_node(*it++);
-    return new_node_int(node->as_string().compare(other->as_string()));
-}
-
-static node_idx_t native_lower_case(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    return new_node_string(node->as_string().lower());
-}
-
-static node_idx_t native_upper_case(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    return new_node_string(node->as_string().upper());
-}
-
-static node_idx_t native_trim(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    return new_node_string(node->as_string().trim());
-}
-
-static node_idx_t native_triml(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    return new_node_string(node->as_string().ltrim());
-}
-
-static node_idx_t native_trimr(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    return new_node_string(node->as_string().rtrim());
-}
-
-static node_idx_t native_trim_newline(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    return new_node_string(node->as_string().chomp());
-}
-
-static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    node_t *what = get_node(*it++);
-    node_t *with = get_node(*it++);
-    return new_node_string(node->as_string().replace(what->as_string().c_str(), with->as_string().c_str()));
-}
-
-static node_idx_t native_replace_first(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_t *node = get_node(*it++);
-    node_t *what = get_node(*it++);
-    node_t *with = get_node(*it++);
-    return new_node_string(node->as_string().replace_first(what->as_string().c_str(), with->as_string().c_str()));
-}
+static node_idx_t native_subs(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).substr(get_node_int(args->second_value()), get_node_int(args->third_value()))); }
+static node_idx_t native_compare(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_string(args->first_value()).compare(get_node_string(args->second_value()))); }
+static node_idx_t native_lower_case(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).lower()); }
+static node_idx_t native_upper_case(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).upper()); }
+static node_idx_t native_trim(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).trim()); }
+static node_idx_t native_triml(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).ltrim()); }
+static node_idx_t native_trimr(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).rtrim()); }
+static node_idx_t native_trim_newline(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).chomp()); }
+static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).replace(get_node_string(args->second_value()).c_str(), get_node_string(args->third_value()).c_str())); }
+static node_idx_t native_replace_first(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).replace_first(get_node_string(args->second_value()).c_str(), get_node_string(args->third_value()).c_str())); }
 
 // splits a string separated by newlines into a list of strings
 static node_idx_t native_split_lines(env_ptr_t env, list_ptr_t args) {
