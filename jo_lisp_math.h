@@ -145,7 +145,7 @@ static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
 
 
 static node_idx_t native_math_abs(env_ptr_t env, list_ptr_t args) {
-	node_t *n1 = get_node(args->nth(0));
+	node_t *n1 = get_node(args->first_value());
 	if(n1->type == NODE_INT) {
 		return new_node_int(abs(n1->t_int));
 	} else {
@@ -178,40 +178,40 @@ static node_idx_t native_rand_float(env_ptr_t env, list_ptr_t args) {
 }
 
 
-static node_idx_t native_math_sqrt(env_ptr_t env, list_ptr_t args) { return new_node_float(sqrt(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_cbrt(env_ptr_t env, list_ptr_t args) { return new_node_float(cbrt(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_ceil(env_ptr_t env, list_ptr_t args) { return new_node_int(ceil(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_floor(env_ptr_t env, list_ptr_t args) { return new_node_int(floor(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_exp(env_ptr_t env, list_ptr_t args) { return new_node_float(exp(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_exp2(env_ptr_t env, list_ptr_t args) { return new_node_float(exp2(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_hypot(env_ptr_t env, list_ptr_t args) { return new_node_float(hypot(get_node(args->nth(0))->as_float(), get_node(args->nth(1))->as_float())); }
-static node_idx_t native_math_log10(env_ptr_t env, list_ptr_t args) { return new_node_float(log10(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_log(env_ptr_t env, list_ptr_t args) { return new_node_float(log(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_log2(env_ptr_t env, list_ptr_t args) { return new_node_float(log2(get_node(args->nth(0))->as_float()));}
-static node_idx_t native_math_log1p(env_ptr_t env, list_ptr_t args) { return new_node_float(log1p(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_sin(env_ptr_t env, list_ptr_t args) { return new_node_float(sin(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_cos(env_ptr_t env, list_ptr_t args) { return new_node_float(cos(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_tan(env_ptr_t env, list_ptr_t args) { return new_node_float(tan(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_pow(env_ptr_t env, list_ptr_t args) { return new_node_float(pow(get_node(args->nth(0))->as_float(), get_node(args->nth(1))->as_float())); }
-static node_idx_t native_math_sinh(env_ptr_t env, list_ptr_t args) { return new_node_float(sinh(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_cosh(env_ptr_t env, list_ptr_t args) { return new_node_float(cosh(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_tanh(env_ptr_t env, list_ptr_t args) { return new_node_float(tanh(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_asin(env_ptr_t env, list_ptr_t args) { return new_node_float(asin(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_acos(env_ptr_t env, list_ptr_t args) { return new_node_float(acos(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_atan(env_ptr_t env, list_ptr_t args) { return new_node_float(atan(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_atan2(env_ptr_t env, list_ptr_t args) { return new_node_float(atan2(get_node(args->nth(0))->as_float(), get_node(args->nth(1))->as_float())); }
-static node_idx_t native_math_asinh(env_ptr_t env, list_ptr_t args) { return new_node_float(asinh(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_acosh(env_ptr_t env, list_ptr_t args) { return new_node_float(acosh(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_atanh(env_ptr_t env, list_ptr_t args) { return new_node_float(atanh(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_erf(env_ptr_t env, list_ptr_t args) { return new_node_float(erf(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_erfc(env_ptr_t env, list_ptr_t args) { return new_node_float(erfc(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_tgamma(env_ptr_t env, list_ptr_t args) { return new_node_float(tgamma(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_lgamma(env_ptr_t env, list_ptr_t args) { return new_node_float(lgamma(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_round(env_ptr_t env, list_ptr_t args) { return new_node_int(round(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_trunc(env_ptr_t env, list_ptr_t args) { return new_node_int(trunc(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_logb(env_ptr_t env, list_ptr_t args) { return new_node_float(logb(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_ilogb(env_ptr_t env, list_ptr_t args) { return new_node_int(ilogb(get_node(args->nth(0))->as_float())); }
-static node_idx_t native_math_expm1(env_ptr_t env, list_ptr_t args) { return new_node_float(expm1(get_node(args->nth(0))->as_float())); }
+static node_idx_t native_math_sqrt(env_ptr_t env, list_ptr_t args) { return new_node_float(sqrt(get_node_float(args->first_value()))); }
+static node_idx_t native_math_cbrt(env_ptr_t env, list_ptr_t args) { return new_node_float(cbrt(get_node_float(args->first_value()))); }
+static node_idx_t native_math_ceil(env_ptr_t env, list_ptr_t args) { return new_node_int(ceil(get_node_float(args->first_value()))); }
+static node_idx_t native_math_floor(env_ptr_t env, list_ptr_t args) { return new_node_int(floor(get_node_float(args->first_value()))); }
+static node_idx_t native_math_exp(env_ptr_t env, list_ptr_t args) { return new_node_float(exp(get_node_float(args->first_value()))); }
+static node_idx_t native_math_exp2(env_ptr_t env, list_ptr_t args) { return new_node_float(exp2(get_node_float(args->first_value()))); }
+static node_idx_t native_math_hypot(env_ptr_t env, list_ptr_t args) { return new_node_float(hypot(get_node_float(args->first_value()), get_node_float(args->second_value()))); }
+static node_idx_t native_math_log10(env_ptr_t env, list_ptr_t args) { return new_node_float(log10(get_node_float(args->first_value()))); }
+static node_idx_t native_math_log(env_ptr_t env, list_ptr_t args) { return new_node_float(log(get_node_float(args->first_value()))); }
+static node_idx_t native_math_log2(env_ptr_t env, list_ptr_t args) { return new_node_float(log2(get_node_float(args->first_value())));}
+static node_idx_t native_math_log1p(env_ptr_t env, list_ptr_t args) { return new_node_float(log1p(get_node_float(args->first_value()))); }
+static node_idx_t native_math_sin(env_ptr_t env, list_ptr_t args) { return new_node_float(sin(get_node_float(args->first_value()))); }
+static node_idx_t native_math_cos(env_ptr_t env, list_ptr_t args) { return new_node_float(cos(get_node_float(args->first_value()))); }
+static node_idx_t native_math_tan(env_ptr_t env, list_ptr_t args) { return new_node_float(tan(get_node_float(args->first_value()))); }
+static node_idx_t native_math_pow(env_ptr_t env, list_ptr_t args) { return new_node_float(pow(get_node_float(args->first_value()), get_node_float(args->second_value()))); }
+static node_idx_t native_math_sinh(env_ptr_t env, list_ptr_t args) { return new_node_float(sinh(get_node_float(args->first_value()))); }
+static node_idx_t native_math_cosh(env_ptr_t env, list_ptr_t args) { return new_node_float(cosh(get_node_float(args->first_value()))); }
+static node_idx_t native_math_tanh(env_ptr_t env, list_ptr_t args) { return new_node_float(tanh(get_node_float(args->first_value()))); }
+static node_idx_t native_math_asin(env_ptr_t env, list_ptr_t args) { return new_node_float(asin(get_node_float(args->first_value()))); }
+static node_idx_t native_math_acos(env_ptr_t env, list_ptr_t args) { return new_node_float(acos(get_node_float(args->first_value()))); }
+static node_idx_t native_math_atan(env_ptr_t env, list_ptr_t args) { return new_node_float(atan(get_node_float(args->first_value()))); }
+static node_idx_t native_math_atan2(env_ptr_t env, list_ptr_t args) { return new_node_float(atan2(get_node_float(args->first_value()), get_node_float(args->second_value()))); }
+static node_idx_t native_math_asinh(env_ptr_t env, list_ptr_t args) { return new_node_float(asinh(get_node_float(args->first_value()))); }
+static node_idx_t native_math_acosh(env_ptr_t env, list_ptr_t args) { return new_node_float(acosh(get_node_float(args->first_value()))); }
+static node_idx_t native_math_atanh(env_ptr_t env, list_ptr_t args) { return new_node_float(atanh(get_node_float(args->first_value()))); }
+static node_idx_t native_math_erf(env_ptr_t env, list_ptr_t args) { return new_node_float(erf(get_node_float(args->first_value()))); }
+static node_idx_t native_math_erfc(env_ptr_t env, list_ptr_t args) { return new_node_float(erfc(get_node_float(args->first_value()))); }
+static node_idx_t native_math_tgamma(env_ptr_t env, list_ptr_t args) { return new_node_float(tgamma(get_node_float(args->first_value()))); }
+static node_idx_t native_math_lgamma(env_ptr_t env, list_ptr_t args) { return new_node_float(lgamma(get_node_float(args->first_value()))); }
+static node_idx_t native_math_round(env_ptr_t env, list_ptr_t args) { return new_node_int(round(get_node_float(args->first_value()))); }
+static node_idx_t native_math_trunc(env_ptr_t env, list_ptr_t args) { return new_node_int(trunc(get_node_float(args->first_value()))); }
+static node_idx_t native_math_logb(env_ptr_t env, list_ptr_t args) { return new_node_float(logb(get_node_float(args->first_value()))); }
+static node_idx_t native_math_ilogb(env_ptr_t env, list_ptr_t args) { return new_node_int(ilogb(get_node_float(args->first_value()))); }
+static node_idx_t native_math_expm1(env_ptr_t env, list_ptr_t args) { return new_node_float(expm1(get_node_float(args->first_value()))); }
 
 // Computes the minimum value of any number of arguments
 static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
@@ -311,6 +311,7 @@ static node_idx_t native_math_max(env_ptr_t env, list_ptr_t args) {
 	}
 	return max_node;
 }
+
 static node_idx_t native_math_clamp(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t n1i = *it++;
@@ -334,31 +335,19 @@ static node_idx_t native_math_clamp(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_is_even(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return new_node_bool((node->as_int() & 1) == 0);
+	return new_node_bool((get_node_int(args->first_value()) & 1) == 0);
 }
 
 static node_idx_t native_is_odd(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return new_node_bool((node->as_int() & 1) == 1);
+	return new_node_bool((get_node_int(args->first_value()) & 1) == 1);
 }
 
 static node_idx_t native_is_pos(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    return new_node_bool(node->as_float() > 0);
+    return new_node_bool(get_node_float(args->first_value()) > 0);
 }
 
 static node_idx_t native_is_neg(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    return new_node_bool(node->as_float() < 0);
+    return new_node_bool(get_node_float(args->first_value()) < 0);
 }
 
 static node_idx_t native_bit_and(env_ptr_t env, list_ptr_t args) {
@@ -466,17 +455,11 @@ static node_idx_t native_bit_test(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_math_to_degrees(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return new_node_float(node->as_float() * 180.0f / JO_M_PI);
+	return new_node_float(get_node_float(args->first_value()) * 180.0f / JO_M_PI);
 }
 
 static node_idx_t native_math_to_radians(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return new_node_float(node->as_float() * JO_M_PI / 180.0f);
+	return new_node_float(get_node_float(args->first_value()) * JO_M_PI / 180.0f);
 }
 
 void jo_lisp_math_init(env_ptr_t env) {
