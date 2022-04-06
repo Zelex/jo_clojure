@@ -222,7 +222,6 @@ hash-unordered-coll
 identical?
 import
 in-ns
-indexed?
 init-proxy
 Inst
 inst-ms
@@ -230,7 +229,6 @@ inst?
 instance?
 int
 int-array
-int?
 integer?
 interleave
 intern
