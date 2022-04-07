@@ -2658,38 +2658,24 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 		if(coll->is_list()) {
 			list_ptr_t list_list = coll->as_list();
 			if(list_list->size() == 0) {
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				return eval_list(env, arg_list);
+				return eval_va(env, 1, f_idx);
 			}
 			list_t::iterator it2 = list_list->begin();
 			node_idx_t reti = *it2++;
 			while(it2) {
-				node_idx_t arg_idx = *it2++;
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				arg_list->push_back_inplace(reti);
-				arg_list->push_back_inplace(arg_idx);
-				reti = eval_list(env, arg_list);
+				reti = eval_va(env, 3, f_idx, reti, *it2++);
 			}
 			return reti;
 		}
 		if(coll->is_vector()) {
 			vector_ptr_t vector_list = coll->as_vector();
 			if(vector_list->size() == 0) {
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				return eval_list(env, arg_list);
+				return eval_va(env, 1, f_idx);
 			}
 			vector_t::iterator it2 = vector_list->begin();
 			node_idx_t reti = *it2++;
 			while(it2) {
-				node_idx_t arg_idx = *it2++;
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				arg_list->push_back_inplace(reti);
-				arg_list->push_back_inplace(arg_idx);
-				reti = eval_list(env, arg_list);
+				reti = eval_va(env, 3, f_idx, reti, *it2++);
 			}
 			return reti;
 		}
@@ -2697,12 +2683,7 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 			lazy_list_iterator_t lit(env, coll_idx);
 			node_idx_t reti = lit.val;
 			for(lit.next(); !lit.done(); lit.next()) {
-				node_idx_t arg_idx = lit.val;
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				arg_list->push_back_inplace(reti);
-				arg_list->push_back_inplace(arg_idx);
-				reti = eval_list(env, arg_list);
+				reti = eval_va(env, 3, f_idx, reti, lit.val);
 			}
 			return reti;
 		}
@@ -2724,12 +2705,7 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 			}
 			list_t::iterator it2 = list_list->begin();
 			while(it2) {
-				node_idx_t arg_idx = *it2++;
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				arg_list->push_back_inplace(reti);
-				arg_list->push_back_inplace(arg_idx);
-				reti = eval_list(env, arg_list);
+				reti = eval_va(env, 3, f_idx, reti, *it2++);
 			}
 			return reti;
 		}
@@ -2740,24 +2716,14 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 			}
 			vector_t::iterator it2 = vector_list->begin();
 			while(it2) {
-				node_idx_t arg_idx = *it2++;
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				arg_list->push_back_inplace(reti);
-				arg_list->push_back_inplace(arg_idx);
-				reti = eval_list(env, arg_list);
+				reti = eval_va(env, 3, f_idx, reti, *it2++);
 			}
 			return reti;
 		}
 		if(coll_node->is_lazy_list()) {
 			lazy_list_iterator_t lit(env, coll);
 			for(; !lit.done(); lit.next()) {
-				node_idx_t arg_idx = lit.val;
-				list_ptr_t arg_list = new_list();
-				arg_list->push_back_inplace(f_idx);
-				arg_list->push_back_inplace(reti);
-				arg_list->push_back_inplace(arg_idx);
-				reti = eval_list(env, arg_list);
+				reti = eval_va(env, 3, f_idx, reti, lit.val);
 			}
 			return reti;
 		}
