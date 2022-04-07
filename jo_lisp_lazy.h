@@ -202,11 +202,7 @@ static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
 	ret->push_back_inplace(x);
 	ret->push_back_inplace(env->get("iterate-next"));
 	ret->push_back_inplace(f);
-	list_ptr_t f_x_fn = new_list();
-	f_x_fn->push_back_inplace(f);
-	f_x_fn->push_back_inplace(x);
-	node_idx_t f_x = eval_list(env, f_x_fn);
-	ret->push_back_inplace(f_x);
+	ret->push_back_inplace(eval_va(env, 2, f, x));
 	return new_node_list(ret);
 }
 
@@ -740,11 +736,8 @@ static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n_idx = *it++;
 	int n = get_node_int(n_idx);
 	if(n > 0) {
-		list_ptr_t func = new_list();
-		func->push_back_inplace(f_idx);
-		node_idx_t ret = eval_list(env, func);
 		list_ptr_t ret_list = new_list();
-		ret_list->push_back_inplace(ret);
+		ret_list->push_back_inplace(eval_va(env, 1, f_idx));
 		ret_list->push_back_inplace(env->get("repeatedly-next"));
 		ret_list->push_back_inplace(f_idx);
 		ret_list->push_back_inplace(new_node_int(n - 1));
