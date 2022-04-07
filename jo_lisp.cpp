@@ -3251,7 +3251,7 @@ static bool IsRegistered(const char *ext) {
 
 int main(int argc, char **argv) {
 #ifdef _MSC_VER
-    {
+    if(argc == 1) {
 		GetModuleFileNameA(GetModuleHandle(NULL), real_exe_path, MAX_PATH);
 		bool register_clj = !IsRegistered("CLJ") && (MessageBoxA(0, "Do you want to register .CLJ files with this program?", "JO_LISP", MB_OKCANCEL) == 1);
 		if(register_clj) {
