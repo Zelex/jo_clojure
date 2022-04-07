@@ -572,7 +572,7 @@
 ;(take-while-test)
 (drop-test)
 ;(drop-while-test)
-;(concat-test) ; crashes?
+(concat-test)
 (apply-test)
 (conj-test)
 (reverse-test)

@@ -112,6 +112,9 @@ static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
 // (concat x y & zs)
 // Returns a lazy seq representing the concatenation of the elements in the supplied colls.
 static node_idx_t native_concat(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 0) {
+		return NIL_NODE;
+	}
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
@@ -889,7 +892,7 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 	}
 	if(list->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, list_idx);
-		lit.nth(n);
+		lit.nth(n-1);
 		if(lit.done()) {
 			return NIL_NODE;
 		}
