@@ -894,6 +894,95 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (interleave)(interleave c1)(interleave c1 c2)(interleave c1 c2 & colls)
+// Returns a lazy seq of the first item in each coll, then the second etc.
+// (interleave [:a :b :c] [1 2 3]) => (:a 1 :b 2 :c 3)
+static node_idx_t native_interleave(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 0) {
+		return NIL_NODE;
+	}
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("interleave-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(ZERO_NODE);
+	get_node(lazy_func_idx)->t_list->conj_inplace(*args.ptr);
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 0) {
+		return NIL_NODE;
+	}
+	node_idx_t coll_idx = args->first_value();
+	if(coll_idx == ZERO_NODE) {
+		// check if any of args are done
+		for(list_t::iterator it = args->begin()+1; it; ++it) {
+			node_t *n = get_node(*it);
+			int ntype = n->type;
+			if(ntype == NODE_NIL) {
+				return NIL_NODE;
+			} else if(ntype == NODE_LIST) {
+				if(n->t_list->size() == 0) {
+					return NIL_NODE;
+				}
+			} else if(ntype == NODE_VECTOR) {
+				if(n->t_vector->size() == 0) {
+					return NIL_NODE;
+				}
+			} else if(ntype == NODE_LAZY_LIST) {
+				if(eval_node(env, n->t_lazy_fn) == NIL_NODE) {
+					return NIL_NODE;
+				}
+			} else if(ntype == NODE_STRING) {
+				if(n->t_string.size() == 0) {
+					return NIL_NODE;
+				}
+			} else {
+				return NIL_NODE;
+			}
+		}
+	}
+	node_idx_t nidx = args->second_value();
+	node_idx_t val = NIL_NODE;
+	int ntype = get_node(nidx)->type;
+	args = args->rest(args->begin()+2);
+	if(ntype == NODE_LIST) {
+		list_ptr_t n = get_node(nidx)->t_list;
+		val = n->first_value();
+		args->cons_inplace(new_node_list(n->pop()));
+	} else if(ntype == NODE_VECTOR) {
+		vector_ptr_t n = get_node(nidx)->t_vector;
+		val = n->first_value();
+		args->cons_inplace(new_node_vector(n->pop_front()));
+	} else if(ntype == NODE_LAZY_LIST) {
+		// call the t_lazy_fn, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, get_node(nidx)->t_lazy_fn);
+		node_t *ret = get_node(reti);
+		if(ret->is_list()) {
+			list_ptr_t list_list = ret->as_list();
+			val = list_list->first_value();
+			args->cons_inplace(new_node_lazy_list(new_node_list(list_list->rest())));
+		}
+	} else if(ntype == NODE_STRING) {
+		// pull off the first character of the string
+		jo_string str = get_node(nidx)->t_string;
+		val = new_node_string(str.substr(0, 1));
+		args->cons_inplace(new_node_string(str.substr(1)));
+	}
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(val);
+	ret->push_back_inplace(env->get("interleave-next"));
+	int next_coll_it = get_node_int(coll_idx)+1;
+	if(args->size() == next_coll_it) {
+		ret->push_back_inplace(ZERO_NODE);
+	} else {
+		ret->push_back_inplace(new_node_int(next_coll_it));
+	}
+	ret->conj_inplace(*args->rest()->clone());
+	ret->push_back_inplace(args->first_value());
+	return new_node_list(ret);
+}
+
 
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
@@ -922,4 +1011,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("partition", new_node_native_function("partition", &native_partition, true));
 	env->set("partition-next", new_node_native_function("partition-next", &native_partition_next, true));
 	env->set("drop", new_node_native_function("drop", &native_drop, false));
+	env->set("interleave", new_node_native_function("interleave", &native_interleave, false));
+	env->set("interleave-next", new_node_native_function("interleave-next", &native_interleave_next, true));
 }
