@@ -2,6 +2,8 @@
 
 #include "jo_stdcpp.h"
 
+static double time_program_start = jo_time();
+
 // execute a shell command
 static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
 	jo_string str;
@@ -39,6 +41,8 @@ static node_idx_t native_system_file_empty(env_ptr_t env, list_ptr_t args) { ret
 static node_idx_t native_system_chdir(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_chdir(get_node_string(args->first_value()).c_str()) == 0); }
 static node_idx_t native_system_kbhit(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_kbhit() != 0); }
 static node_idx_t native_system_getch(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_getch()); }
+// returns current time since program start in seconds
+static node_idx_t native_time_now(env_ptr_t env, list_ptr_t args) {	return new_node_float(jo_time() - time_program_start); }
 
 static node_idx_t native_system_getcwd(env_ptr_t env, list_ptr_t args) {
 	char cwd[256];
@@ -93,6 +97,7 @@ static node_idx_t native_system_sleep(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+
 void jo_lisp_system_init(env_ptr_t env) {
 	env->set("System/setenv", new_node_native_function("System/setenv", &native_system_setenv, false));
 	env->set("System/getenv", new_node_native_function("System/getenv", &native_system_getenv, false));
@@ -112,4 +117,5 @@ void jo_lisp_system_init(env_ptr_t env) {
 	env->set("-w", new_node_native_function("-w", &native_system_file_writable, false));
 	env->set("-x", new_node_native_function("-x", &native_system_file_executable, false));
 	env->set("-z", new_node_native_function("-z", &native_system_file_empty, false));
+	env->set("Time/now", new_node_native_function("Time/now", &native_time_now, false));
 }

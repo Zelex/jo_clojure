@@ -17,7 +17,6 @@
 //#define warnf printf
 #define warnf sizeof
 
-static double time_program_start = jo_time();
 
 enum {
 	// hard coded nodes
@@ -343,57 +342,19 @@ static void print_node_list(list_ptr_t nodes, int depth = 0);
 static void print_node_vector(vector_ptr_t nodes, int depth = 0);
 static void print_node_map(map_ptr_t nodes, int depth = 0);
 
-static inline node_t *get_node(node_idx_t idx) {
-	return &nodes[idx];
-}
-
-static inline int get_node_type(node_idx_t idx) {
-	return get_node(idx)->type;
-}
-
-static inline int get_node_flags(node_idx_t idx) {
-	return get_node(idx)->flags;
-}
-
-static inline jo_string get_node_string(node_idx_t idx) {
-	return get_node(idx)->as_string();
-}
-
-static inline node_idx_t get_node_var(node_idx_t idx) {
-	return get_node(idx)->t_var;
-}
-
-static inline bool get_node_bool(node_idx_t idx) {
-	return get_node(idx)->as_bool();
-}
-
-static inline list_ptr_t get_node_list(node_idx_t idx) {
-	return get_node(idx)->as_list();
-}
-
-static inline vector_ptr_t get_node_vector(node_idx_t idx) {
-	return get_node(idx)->as_vector();
-}
-
-static inline int get_node_int(node_idx_t idx) {
-	return get_node(idx)->as_int();
-}
-
-static inline float get_node_float(node_idx_t idx) {
-	return get_node(idx)->as_float();
-}
-
-static inline jo_string get_node_type_string(node_idx_t idx) {
-	return get_node(idx)->type_as_string();
-}
-
-static inline vector_ptr_t get_node_func_args(node_idx_t idx) {
-	return get_node(idx)->t_func.args;
-}
-
-static inline list_ptr_t get_node_func_body(node_idx_t idx) {
-	return get_node(idx)->t_func.body;
-}
+static inline node_t *get_node(node_idx_t idx) { return &nodes[idx]; }
+static inline int get_node_type(node_idx_t idx) { return get_node(idx)->type; }
+static inline int get_node_flags(node_idx_t idx) { return get_node(idx)->flags; }
+static inline jo_string get_node_string(node_idx_t idx) { return get_node(idx)->as_string(); }
+static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_var; }
+static inline bool get_node_bool(node_idx_t idx) { return get_node(idx)->as_bool(); }
+static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->as_list(); }
+static inline vector_ptr_t get_node_vector(node_idx_t idx) { return get_node(idx)->as_vector(); }
+static inline int get_node_int(node_idx_t idx) { return get_node(idx)->as_int(); }
+static inline float get_node_float(node_idx_t idx) { return get_node(idx)->as_float(); }
+static inline jo_string get_node_type_string(node_idx_t idx) { return get_node(idx)->type_as_string(); }
+static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
+static inline list_ptr_t get_node_func_body(node_idx_t idx) { return get_node(idx)->t_func.body; }
 
 static inline node_idx_t alloc_node() {
 	if (free_nodes.size()) {
@@ -1492,13 +1453,6 @@ struct seq_iterator_t {
 };
 
 static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
-	/*
-	printf("node_eq(%d, %d)\n", n1i, n2i);
-	print_node(n1i);
-	printf("\n");
-	print_node(n2i);
-	printf("\n");
-	//*/
 	if(n1i == INV_NODE || n2i == INV_NODE) {
 		return false;
 	}
@@ -1683,12 +1637,6 @@ static node_idx_t native_neq(env_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t n1 = *i++, n2 = *i++;
-	/*
-	printf("native_neq\n");
-	print_node(n1);
-	print_node(n2);
-	printf("\n");
-	*/
 	bool ret = node_eq(env, n1, n2);
 	for(; i && ret; i++) {
 		ret = ret && node_eq(env, n1, *i);
@@ -1897,13 +1845,8 @@ static node_idx_t native_while(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
-static node_idx_t native_quote(env_ptr_t env, list_ptr_t args) {
-	return new_node_list(args);
-}
-
-static node_idx_t native_list(env_ptr_t env, list_ptr_t args) {
-	return new_node_list(args);
-}
+static node_idx_t native_quote(env_ptr_t env, list_ptr_t args) { return new_node_list(args); }
+static node_idx_t native_list(env_ptr_t env, list_ptr_t args) { return new_node_list(args); }
 
 /*
 Usage: (var symbol)
@@ -2020,9 +1963,7 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-static node_idx_t native_is_nil(env_ptr_t env, list_ptr_t args) {
-	return args->first_value() == NIL_NODE ? TRUE_NODE : FALSE_NODE;
-}
+static node_idx_t native_is_nil(env_ptr_t env, list_ptr_t args) { return args->first_value() == NIL_NODE ? TRUE_NODE : FALSE_NODE; }
 
 static node_idx_t native_is_zero(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n = args->first_value();
@@ -2076,11 +2017,6 @@ static node_idx_t native_case(env_ptr_t env, list_ptr_t args) {
 	}
 	// default: 
 	return eval_node(env, next);
-}
-
-// returns current time since program start in seconds
-static node_idx_t native_time_now(env_ptr_t env, list_ptr_t args) {
-	return new_node_float(jo_time() - time_program_start);
 }
 
 static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
@@ -2338,10 +2274,7 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 // Returns a function that takes any number of arguments and returns x.
 static node_idx_t native_constantly(env_ptr_t env, list_ptr_t args) {
 	node_idx_t x_idx = args->first_value();
-	node_idx_t reti = new_node_native_function("native_constantly_fn", [=](env_ptr_t env, list_ptr_t args) {
-		return x_idx;
-	}, false);
-	return reti;
+	return new_node_native_function("native_constantly_fn", [=](env_ptr_t env, list_ptr_t args) { return x_idx; }, false);
 }
 
 static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
@@ -2370,12 +2303,7 @@ static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
 	return ZERO_NODE;
 }
 
-static node_idx_t native_is_delay(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	return node->type == NODE_DELAY ? TRUE_NODE : FALSE_NODE;
-}
+static node_idx_t native_is_delay(env_ptr_t env, list_ptr_t args) {	return get_node_type(args->first_value()) == NODE_DELAY ? TRUE_NODE : FALSE_NODE; }
 
 static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
@@ -2400,17 +2328,9 @@ static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) {
 	return FALSE_NODE;
 }
 
-static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) {
-	return !get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_is_true(env_ptr_t env, list_ptr_t args) {
-	return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) {
-	return get_node_type(args->first_value()) != NODE_NIL ? TRUE_NODE : FALSE_NODE;
-}
+static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_true(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) != NODE_NIL ? TRUE_NODE : FALSE_NODE; }
 
 // (first coll)
 // Returns the first item in the collection. Calls seq on its argument. If coll is nil, returns nil.
@@ -2567,14 +2487,12 @@ static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
 }
 
 // equivalent to (first (first x))
-static node_idx_t native_ffirst(env_ptr_t env, list_ptr_t args) {
-	return native_first(env, new_list(native_first(env, args)));
-}
-
-static node_idx_t native_is_fn(env_ptr_t env, list_ptr_t args) {
-	int type = get_node_type(args->first_value());
-	return type == NODE_FUNC ? TRUE_NODE : FALSE_NODE;
-}
+static node_idx_t native_ffirst(env_ptr_t env, list_ptr_t args) { return native_first(env, new_list(native_first(env, args))); }
+static node_idx_t native_is_fn(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FUNC ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_int(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_INT ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_int(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node(args->first_value())->as_int()); }
+static node_idx_t native_is_indexed(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_VECTOR ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) { return jo_isletter(get_node_int(args->first_value())) ? TRUE_NODE : FALSE_NODE; }
 
 // Returns true if x implements IFn. Note that many data structures
 // (e.g. sets and maps) implement IFn
@@ -2587,25 +2505,6 @@ static node_idx_t native_is_ifn(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_is_ident(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
 	return type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_is_indexed(env_ptr_t env, list_ptr_t args) {
-	int type =  get_node_type(args->first_value());
-	return type == NODE_VECTOR ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_is_int(env_ptr_t env, list_ptr_t args) {
-	int type =  get_node_type(args->first_value());
-	return type == NODE_INT ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_int(env_ptr_t env, list_ptr_t args) {
-	return new_node_int(get_node(args->first_value())->as_int());
-}
-
-static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) {
-	int c = get_node_int(args->first_value());
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ? TRUE_NODE : FALSE_NODE;
 }
 
 // (next coll) 
@@ -2639,23 +2538,9 @@ static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-// (nfirst x)
-// Same as (next (first x))
-static node_idx_t native_nfirst(env_ptr_t env, list_ptr_t args) {
-	return native_next(env, new_list(native_first(env, args)));
-}
-
-// (nnext x)
-// Same as (next (next x))
-static node_idx_t native_nnext(env_ptr_t env, list_ptr_t args) {
-	return native_next(env, new_list(native_next(env, args)));
-}
-
-// (fnext x)
-// Same as (first (next x))
-static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) {
-	return native_first(env, new_list(native_next(env, args)));
-}
+static node_idx_t native_nfirst(env_ptr_t env, list_ptr_t args) { return native_next(env, new_list(native_first(env, args))); }
+static node_idx_t native_nnext(env_ptr_t env, list_ptr_t args) { return native_next(env, new_list(native_next(env, args))); }
+static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) { return native_first(env, new_list(native_next(env, args))); }
 
 // like next, but always returns a list
 static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) {
@@ -2687,12 +2572,7 @@ static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-static node_idx_t native_when_not(env_ptr_t env, list_ptr_t args) {
-	if(!get_node_bool(args->first_value())) {
-		return eval_node_list(env, args->rest());
-	}
-	return NIL_NODE;
-}
+static node_idx_t native_when_not(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? eval_node_list(env, args->rest()) : NIL_NODE; }
 
 // (let [a 1 b 2] (+ a b))
 static node_idx_t native_let(env_ptr_t env, list_ptr_t args) {
@@ -2892,9 +2772,7 @@ static node_idx_t native_or(env_ptr_t env, list_ptr_t args) {
 	return FALSE_NODE;
 }
 
-static node_idx_t native_not(env_ptr_t env, list_ptr_t args) {
-	return !get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE;
-}
+static node_idx_t native_not(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
 
 static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
@@ -2925,10 +2803,7 @@ static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-
-static node_idx_t native_eval(env_ptr_t env, list_ptr_t args) {
-	return eval_node(env, args->first_value());
-}
+static node_idx_t native_eval(env_ptr_t env, list_ptr_t args) { return eval_node(env, args->first_value()); }
 
 // (into) 
 // (into to)
@@ -3206,9 +3081,7 @@ static node_idx_t native_is(env_ptr_t env, list_ptr_t args) {
 
 // (identity x)
 // Returns its argument.
-static node_idx_t native_identity(env_ptr_t env, list_ptr_t args) {
-	return args->first_value();
-}
+static node_idx_t native_identity(env_ptr_t env, list_ptr_t args) { return args->first_value(); }
 
 // (nthrest coll n)
 // Returns the nth rest of coll, coll when n is 0.
@@ -3573,7 +3446,6 @@ int main(int argc, char **argv) {
 	env->set("dotimes", new_node_native_function("dotimes", &native_dotimes, true));
 	env->set("doseq", new_node_native_function("doseq", &native_doseq, true));
 	env->set("nil?", new_node_native_function("nil?", native_is_nil, false));
-	env->set("Time/now", new_node_native_function("Time/now", &native_time_now, false));
 	env->set("time", new_node_native_function("time", &native_time, true));
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
 	env->set("get", new_node_native_function("get", &native_get, false));
