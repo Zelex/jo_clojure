@@ -132,6 +132,7 @@ static bool node_lte(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
 static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
+static node_idx_t eval_va(env_ptr_t env, int num, ...);
 
 struct env_t {
 	// for iterating them all, otherwise unused.
@@ -244,11 +245,13 @@ struct node_t {
 	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
 	bool is_string() const { return type == NODE_STRING; }
 	bool is_func() const { return type == NODE_FUNC; }
+	bool is_native_func() const { return type == NODE_NATIVE_FUNCTION; }
 	bool is_macro() const { return flags & NODE_FLAG_MACRO;}
 	bool is_float() const { return type == NODE_FLOAT; }
 	bool is_int() const { return type == NODE_INT; }
 
 	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_vector(); }
+	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
 
 	list_ptr_t &as_list() { return t_list; }
 	vector_ptr_t &as_vector() { return t_vector; }
@@ -1129,6 +1132,17 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 		res = eval_node(env, *it);
 	}
 	return res;
+}
+
+static node_idx_t eval_va(env_ptr_t env, int num, ...) {
+	va_list ap;
+	va_start(ap, num);
+	list_ptr_t a = new_list();
+	for(int i = 0; i < num; i++) {
+		a->push_back_inplace(node_idx_t(va_arg(ap, int)));
+	}
+	va_end(ap);
+	return eval_list(env, a);
 }
 
 // Print the node heirarchy
@@ -2328,7 +2342,7 @@ static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) {
 	return FALSE_NODE;
 }
 
-static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? FALSE_NODE : TRUE_NODE; }
 static node_idx_t native_is_true(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) != NODE_NIL ? TRUE_NODE : FALSE_NODE; }
 
@@ -3214,6 +3228,51 @@ static node_idx_t native_thread_last(env_ptr_t env, list_ptr_t args) {
 	return x_idx;
 }
 
+// (every? pred coll)
+// Returns true if (pred x) is logical true for every x in coll, else
+// false.
+static node_idx_t native_is_every(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t pred_idx = *it++;
+	node_idx_t coll_idx = *it++;
+	node_t *pred_node = get_node(pred_idx);
+	node_t *coll_node = get_node(coll_idx);
+	if(!pred_node->can_eval()) {
+		return new_node_bool(false);
+	}
+	if(coll_node->is_list()) {
+		list_ptr_t coll_list = coll_node->t_list;
+		for(list_t::iterator it = coll_list->begin(); it; it++) {
+			if(!get_node_bool(eval_va(env, 2, pred_idx, *it))) {
+				return new_node_bool(false);
+			}
+		}
+		return new_node_bool(true);
+	}
+	if(coll_node->is_vector()) {
+		vector_ptr_t coll_vector = coll_node->t_vector;
+		for(vector_t::iterator it = coll_vector->begin(); it; it++) {
+			if(!get_node_bool(eval_va(env, 2, pred_idx, *it))) {
+				return new_node_bool(false);
+			}
+		}
+		return new_node_bool(true);
+	}
+	if(coll_node->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, coll_idx);
+		for(; !lit.done(); lit.next()) {
+			if(!get_node_bool(eval_va(env, 2, pred_idx, lit.val))) {
+				return new_node_bool(false);
+			}
+		}
+		return new_node_bool(true);
+	}
+	return new_node_bool(false);
+}
+
+
+
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3457,6 +3516,7 @@ int main(int argc, char **argv) {
 	env->set("nthnext", new_node_native_function("nthnext", &native_nthnext, false));
 	env->set("->", new_node_native_function("->", &native_thread, true));
 	env->set("->>", new_node_native_function("->>", &native_thread_last, true));
+	env->set("every?", new_node_native_function("every?", &native_is_every, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
