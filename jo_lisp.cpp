@@ -33,6 +33,7 @@ enum {
 	QUOTE_NODE,
 	EMPTY_LIST_NODE,
 	EMPTY_VECTOR_NODE,
+	EMPTY_MAP_NODE,
 	PCT_NODE,
 	PCT1_NODE,
 	PCT2_NODE,
@@ -963,6 +964,10 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.t_map = new_map();
 		node_idx_t next = parse_next(env, state, '}');
 		node_idx_t next2 = next != INV_NODE ? parse_next(env, state, '}') : INV_NODE;
+		if(next == INV_NODE || next2 == INV_NODE) {
+			debugf("map end\n");
+			return EMPTY_MAP_NODE;
+		}
 		while(next != INV_NODE && next2 != INV_NODE) {
 			n.t_map->assoc_inplace(next, next2, [env](const node_idx_t &a, const node_idx_t &b) {
 				return node_eq(env, a, b);
@@ -3377,6 +3382,7 @@ int main(int argc, char **argv) {
 		new_node_symbol("quote");
 		new_node_list(new_list());
 		new_node_vector(new_vector());
+		new_node_map(new_map());
 		new_node_symbol("%");
 		new_node_symbol("%1");
 		new_node_symbol("%2");
