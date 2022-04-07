@@ -23,6 +23,18 @@ static node_idx_t native_trimr(env_ptr_t env, list_ptr_t args) { return new_node
 static node_idx_t native_trim_newline(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).chomp()); }
 static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).replace(get_node_string(args->second_value()).c_str(), get_node_string(args->third_value()).c_str())); }
 static node_idx_t native_replace_first(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).replace_first(get_node_string(args->second_value()).c_str(), get_node_string(args->third_value()).c_str())); }
+static node_idx_t native_is_string(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node(args->first_value())->is_string()); }
+static node_idx_t native_ston(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value())); }
+static node_idx_t native_ntos(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value())); }
+static node_idx_t native_includes(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node_string(args->first_value()).includes(get_node_string(args->second_value()).c_str())); }
+static node_idx_t native_index_of(env_ptr_t env, list_ptr_t args) {  return new_node_int(get_node_string(args->first_value()).index_of(get_node_string(args->second_value()).c_str())); }
+static node_idx_t native_last_index_of(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_string(args->first_value()).last_index_of(get_node_string(args->second_value()).c_str())); }
+static node_idx_t native_starts_with(env_ptr_t env, list_ptr_t args) {  return new_node_bool(get_node_string(args->first_value()).starts_with(get_node_string(args->second_value()).c_str())); }
+static node_idx_t native_ends_with(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node_string(args->first_value()).ends_with(get_node_string(args->second_value()).c_str())); }
+// Converts first character of the string to upper-case, all other characters to lower-case.
+static node_idx_t native_capitalize(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).capitalize()); }
+// True if s is nil, empty, or contains only whitespace.
+static node_idx_t native_is_blank(env_ptr_t env, list_ptr_t args) { node_idx_t v = args->first_value(); return v != NIL_NODE ? get_node_string(v).empty() : TRUE_NODE; }
 
 // splits a string separated by newlines into a list of strings
 static node_idx_t native_split_lines(env_ptr_t env, list_ptr_t args) {
@@ -69,117 +81,6 @@ static node_idx_t native_join(env_ptr_t env, list_ptr_t args) {
     return new_node_string(str);
 }
 
-// True if s is nil, empty, or contains only whitespace.
-static node_idx_t native_is_blank(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    if(node_idx == NIL_NODE) {
-        return TRUE_NODE;
-    }
-    node_t *node = get_node(node_idx);
-    if(node->is_string()) {
-        return new_node_bool(node->as_string().empty());
-    }
-    return FALSE_NODE;
-}
-
-// Converts first character of the string to upper-case, all other characters to lower-case.
-static node_idx_t native_capitalize(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    if(!node->is_string()) {
-        return NIL_NODE;
-    }
-    return new_node_string(node->as_string().capitalize());
-}
-
-static node_idx_t native_ends_with(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    if(!node->is_string()) {
-        return NIL_NODE;
-    }
-    node_idx = *it++;
-    node_t *what = get_node(node_idx);
-    return new_node_bool(node->as_string().ends_with(what->as_string().c_str()));
-}
-
-static node_idx_t native_starts_with(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    if(!node->is_string()) {
-        return NIL_NODE;
-    }
-    node_idx = *it++;
-    node_t *what = get_node(node_idx);
-    return new_node_bool(node->as_string().starts_with(what->as_string().c_str()));
-}
-
-static node_idx_t native_includes(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    if(!node->is_string()) {
-        return NIL_NODE;
-    }
-    node_idx = *it++;
-    node_t *what = get_node(node_idx);
-    return new_node_bool(node->as_string().includes(what->as_string().c_str()));
-}
-
-static node_idx_t native_index_of(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    if(!node->is_string()) {
-        return NIL_NODE;
-    }
-    node_idx = *it++;
-    node_t *what = get_node(node_idx);
-    return new_node_int(node->as_string().index_of(what->as_string().c_str()));
-}
-
-static node_idx_t native_last_index_of(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    if(!node->is_string()) {
-        return NIL_NODE;
-    }
-    node_idx = *it++;
-    node_t *what = get_node(node_idx);
-    return new_node_int(node->as_string().last_index_of(what->as_string().c_str()));
-}
-
-static node_idx_t native_is_string(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    return new_node_bool(node->is_string());
-}
-
-static node_idx_t native_ston(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    if(!node->is_string()) {
-        return NIL_NODE;
-    }
-    return new_node_int(atoi(node->as_string().c_str()));
-}
-
-static node_idx_t native_ntos(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    if(!node->is_int()) {
-        return NIL_NODE;
-    }
-    return new_node_string(node->as_string());
-}
 
 void jo_lisp_string_init(env_ptr_t env) {
 	env->set("str", new_node_native_function("str", &native_str, false));
