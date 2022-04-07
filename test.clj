@@ -448,12 +448,12 @@
   (is (= 1          (Math/floor 1.5)))
   (is (= 1          (Math/floor 1.9))))
 (defn interp-test []
-  (is (= 100  (interp 10 0 10 0 100)))
-  (is (=  80  (interp  8 0 10 0 100)))
-  (is (=  70  (interp  7 0 10 0 100)))
-  (is (=  50  (interp  5 0 10 0 100)))
-  (is (=  20  (interp  2 0 10 0 100)))
-  (is (=   0  (interp  0 0 10 0 100))))
+  (is (= 100  (Math/interp 10 0 10 0 100)))
+  (is (=  80  (Math/interp  8 0 10 0 100)))
+  (is (=  70  (Math/interp  7 0 10 0 100)))
+  (is (=  50  (Math/interp  5 0 10 0 100)))
+  (is (=  20  (Math/interp  2 0 10 0 100)))
+  (is (=   0  (Math/interp  0 0 10 0 100))))
 (defn clip-test []
   (is (=   5 (Math/clip   10   0  5)))
   (is (=  10 (Math/clip   10   0 20)))

@@ -400,6 +400,15 @@ static node_idx_t native_bit_override(env_ptr_t env, list_ptr_t args) {
 	return new_node_int((dst & ~mask) | (src & mask));
 }
 
+static node_idx_t native_math_interp(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	float x = get_node_float(*it++);
+	float x0 = get_node_float(*it++);
+	float x1 = get_node_float(*it++);
+	float y0 = get_node_float(*it++);
+	float y1 = get_node_float(*it++);
+	return new_node_float(y0 + (y1 - y0) * (x - x0) / (x1 - x0));
+}
 
 void jo_lisp_math_init(env_ptr_t env) {
 	env->set("+", new_node_native_function("+", &native_add, false));
@@ -465,6 +474,7 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("Math/clip", new_node_native_function("Math/clip", &native_math_clip, false));
 	env->set("Math/to-degrees", new_node_native_function("Math/to-degrees", &native_math_to_degrees, false));
 	env->set("Math/to-radians", new_node_native_function("Math/to-radians", &native_math_to_radians, false));
+	env->set("Math/interp", new_node_native_function("Math/interp", &native_math_interp, false));
 	env->set("Math/PI", new_node_float(JO_M_PI));
 	env->set("Math/E", new_node_float(JO_M_E));
 	env->set("Math/LN2", new_node_float(JO_M_LN2));
