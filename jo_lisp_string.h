@@ -74,13 +74,13 @@ static node_idx_t native_is_blank(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     if(node_idx == NIL_NODE) {
-        return new_node_bool(true);
+        return TRUE_NODE;
     }
     node_t *node = get_node(node_idx);
     if(node->is_string()) {
         return new_node_bool(node->as_string().empty());
     }
-    return new_node_bool(false);
+    return FALSE_NODE;
 }
 
 // Converts first character of the string to upper-case, all other characters to lower-case.
