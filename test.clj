@@ -432,12 +432,12 @@
   (is (= 1          (/ 4 2 2)))
   (is (= 1          (/ 4 2 2.0))))
 (defn min-max-test []
-  (is (= 1          (min 1)))
-  (is (= 1          (min 2 1)))
-  (is (= 1          (min 3 5 7 1)))
-  (is (= 1          (max 1)))
-  (is (= 2          (max 2 1)))
-  (is (= 7          (max 3 5 7 1))))
+  (is (= 1          (Math/min 1)))
+  (is (= 1          (Math/min 2 1)))
+  (is (= 1          (Math/min 3 5 7 1)))
+  (is (= 1          (Math/max 1)))
+  (is (= 2          (Math/max 2 1)))
+  (is (= 7          (Math/max 3 5 7 1))))
 (defn mod-test []
   (is (= 0          (mod 2 2)))
   (is (= 0          (mod 4 2)))

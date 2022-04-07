@@ -229,13 +229,19 @@ static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
 
 	// Get the first argument
 	node_idx_t min_node = *it++;
+
+	if(args->size() == 1) {
+		return min_node;
+	}
+
 	node_t *n = get_node(min_node);
 
 	if(n->type == NODE_INT) {
 		bool is_int = true;
 		int min_int = n->t_int;
 		float min_float = min_int;
-		for(node_idx_t next = *it++; it; next = *it++) {
+		node_idx_t next = *it++;
+		while(true) {
 			n = get_node(next);
 			if(is_int && n->type == NODE_INT) {
 				if(n->t_int < min_int) {
@@ -250,11 +256,12 @@ static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
 					min_node = next;
 				}
 			}
+			if(!it) {
+				break;
+			}
+			next = *it++;
 		}
-		if(is_int) {
-			return new_node_int(min_int);
-		}
-		return new_node_float(min_int);
+		return min_node;
 	}
 
 	float min_float = n->as_float();
@@ -277,13 +284,19 @@ static node_idx_t native_math_max(env_ptr_t env, list_ptr_t args) {
 	
 	// Get the first argument
 	node_idx_t max_node = *it++;
+
+	if(args->size() == 1) {
+		return max_node;
+	}
+
 	node_t *n = get_node(max_node);
 
 	if(n->type == NODE_INT) {
 		bool is_int = true;
 		int max_int = n->t_int;
 		float max_float = max_int;
-		for(node_idx_t next = *it++; it; next = *it++) {
+		node_idx_t next = *it++;
+		while(true) {
 			n = get_node(next);
 			if(is_int && n->type == NODE_INT) {
 				if(n->t_int > max_int) {
@@ -298,11 +311,12 @@ static node_idx_t native_math_max(env_ptr_t env, list_ptr_t args) {
 					max_node = next;
 				}
 			}
+			if(!it) {
+				break;
+			}
+			next = *it++;
 		}
-		if(is_int) {
-			return new_node_int(max_int);
-		}
-		return new_node_float(max_int);
+		return max_node;
 	}
 
 	float max_float = n->as_float();
