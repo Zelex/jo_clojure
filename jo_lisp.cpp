@@ -3003,10 +3003,7 @@ static node_idx_t native_comp(env_ptr_t env, list_ptr_t args) {
 // returns a fn that takes a variable number of additional args. When
 // called, the returned function calls f with args + additional args.
 static node_idx_t native_partial(env_ptr_t env, list_ptr_t args) {
-	node_idx_t ret = new_node_native_function("partial-lambda", [=](env_ptr_t env, list_ptr_t args2) {
-		return eval_list(env, args->conj(*args2));
-	}, false);
-	return ret;
+	return new_node_native_function("partial-lambda", [=](env_ptr_t env, list_ptr_t args2) { return eval_list(env, args->conj(*args2)); }, false);
 }
 
 // (shuffle coll)
