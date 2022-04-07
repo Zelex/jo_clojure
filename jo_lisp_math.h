@@ -148,9 +148,8 @@ static node_idx_t native_math_abs(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
 	if(n1->type == NODE_INT) {
 		return new_node_int(abs(n1->t_int));
-	} else {
-		return new_node_float(fabs(n1->as_float()));
 	}
+	return new_node_float(fabs(n1->as_float()));
 }
 
 static node_idx_t native_inc(env_ptr_t env, list_ptr_t args) {
@@ -169,15 +168,8 @@ static node_idx_t native_dec(env_ptr_t env, list_ptr_t args) {
 	return new_node_float(n1->as_float() - 1.0f);
 }
 
-static node_idx_t native_rand_int(env_ptr_t env, list_ptr_t args) {
-	return new_node_int(rand() % get_node(args->first_value())->as_int());
-}
-
-static node_idx_t native_rand_float(env_ptr_t env, list_ptr_t args) {
-	return new_node_float(rand() / (float)RAND_MAX);
-}
-
-
+static node_idx_t native_rand_int(env_ptr_t env, list_ptr_t args) { return new_node_int(rand() % get_node(args->first_value())->as_int()); }
+static node_idx_t native_rand_float(env_ptr_t env, list_ptr_t args) { return new_node_float(rand() / (float)RAND_MAX); }
 static node_idx_t native_math_sqrt(env_ptr_t env, list_ptr_t args) { return new_node_float(sqrt(get_node_float(args->first_value()))); }
 static node_idx_t native_math_cbrt(env_ptr_t env, list_ptr_t args) { return new_node_float(cbrt(get_node_float(args->first_value()))); }
 static node_idx_t native_math_ceil(env_ptr_t env, list_ptr_t args) { return new_node_int(ceil(get_node_float(args->first_value()))); }
@@ -212,6 +204,20 @@ static node_idx_t native_math_trunc(env_ptr_t env, list_ptr_t args) { return new
 static node_idx_t native_math_logb(env_ptr_t env, list_ptr_t args) { return new_node_float(logb(get_node_float(args->first_value()))); }
 static node_idx_t native_math_ilogb(env_ptr_t env, list_ptr_t args) { return new_node_int(ilogb(get_node_float(args->first_value()))); }
 static node_idx_t native_math_expm1(env_ptr_t env, list_ptr_t args) { return new_node_float(expm1(get_node_float(args->first_value()))); }
+static node_idx_t native_is_even(env_ptr_t env, list_ptr_t args) { return new_node_bool((get_node_int(args->first_value()) & 1) == 0); }
+static node_idx_t native_is_odd(env_ptr_t env, list_ptr_t args) { return new_node_bool((get_node_int(args->first_value()) & 1) == 1); }
+static node_idx_t native_is_pos(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node_float(args->first_value()) > 0); }
+static node_idx_t native_is_neg(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node_float(args->first_value()) < 0); }
+static node_idx_t native_bit_not(env_ptr_t env, list_ptr_t args) { return new_node_int(~get_node_int(args->first_value())); }
+static node_idx_t native_bit_shift_left(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) << get_node_int(args->second_value())); }
+static node_idx_t native_bit_shift_right(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) >> get_node_int(args->second_value())); }
+static node_idx_t native_bit_extract(env_ptr_t env, list_ptr_t args) { return new_node_int((get_node_int(args->first_value()) >> get_node_int(args->second_value())) & ((1 << get_node_int(args->third_value())) - 1)); }
+static node_idx_t native_bit_clear(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) & ~(1 << get_node_int(args->second_value()))); }
+static node_idx_t native_bit_flip(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) ^ (1 << get_node_int(args->second_value()))); }
+static node_idx_t native_bit_set(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) | (1 << get_node_int(args->second_value()))); }
+static node_idx_t native_bit_test(env_ptr_t env, list_ptr_t args) { return new_node_bool((get_node_int(args->first_value()) & (1 << get_node_int(args->second_value()))) != 0); }
+static node_idx_t native_math_to_degrees(env_ptr_t env, list_ptr_t args) { return new_node_float(get_node_float(args->first_value()) * 180.0f / JO_M_PI); }
+static node_idx_t native_math_to_radians(env_ptr_t env, list_ptr_t args) { return new_node_float(get_node_float(args->first_value()) * JO_M_PI / 180.0f); }
 
 // Computes the minimum value of any number of arguments
 static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
@@ -332,22 +338,6 @@ static node_idx_t native_math_clamp(env_ptr_t env, list_ptr_t args) {
 	return new_node_float(val);
 }
 
-static node_idx_t native_is_even(env_ptr_t env, list_ptr_t args) {
-	return new_node_bool((get_node_int(args->first_value()) & 1) == 0);
-}
-
-static node_idx_t native_is_odd(env_ptr_t env, list_ptr_t args) {
-	return new_node_bool((get_node_int(args->first_value()) & 1) == 1);
-}
-
-static node_idx_t native_is_pos(env_ptr_t env, list_ptr_t args) {
-    return new_node_bool(get_node_float(args->first_value()) > 0);
-}
-
-static node_idx_t native_is_neg(env_ptr_t env, list_ptr_t args) {
-    return new_node_bool(get_node_float(args->first_value()) < 0);
-}
-
 static node_idx_t native_bit_and(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	int n = get_node_int(*it++);
@@ -384,32 +374,6 @@ static node_idx_t native_bit_xor(env_ptr_t env, list_ptr_t args) {
 	return new_node_int(n);
 }
 
-static node_idx_t native_bit_not(env_ptr_t env, list_ptr_t args) {
-	return new_node_int(~get_node_int(args->first_value()));
-}
-
-static node_idx_t native_bit_shift_left(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
-	int n2 = get_node_int(*it++);
-	return new_node_int(n << n2);
-}
-
-static node_idx_t native_bit_shift_right(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
-	int n2 = get_node_int(*it++);
-	return new_node_int(n >> n2);
-}
-
-static node_idx_t native_bit_extract(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
-	int n2 = get_node_int(*it++);
-	int n3 = get_node_int(*it++);
-	return new_node_int((n >> n2) & ((1 << n3) - 1));
-}
-
 // (bit-override dst src pos len)
 // Override len bits in dst starting from pos using bits from src.
 static node_idx_t native_bit_override(env_ptr_t env, list_ptr_t args) {	
@@ -422,43 +386,6 @@ static node_idx_t native_bit_override(env_ptr_t env, list_ptr_t args) {
 	return new_node_int((dst & ~mask) | (src & mask));
 }
 
-// (bit-clear x n)
-// Clear bit at index n
-static node_idx_t native_bit_clear(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
-	int n2 = get_node_int(*it++);
-	return new_node_int(n & ~(1 << n2));
-}
-
-static node_idx_t native_bit_flip(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
-	int n2 = get_node_int(*it++);
-	return new_node_int(n ^ (1 << n2));
-}
-
-static node_idx_t native_bit_set(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
-	int n2 = get_node_int(*it++);
-	return new_node_int(n | (1 << n2));
-}
-
-static node_idx_t native_bit_test(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
-	int n2 = get_node_int(*it++);
-	return new_node_bool((n & (1 << n2)) != 0);
-}
-
-static node_idx_t native_math_to_degrees(env_ptr_t env, list_ptr_t args) {
-	return new_node_float(get_node_float(args->first_value()) * 180.0f / JO_M_PI);
-}
-
-static node_idx_t native_math_to_radians(env_ptr_t env, list_ptr_t args) {
-	return new_node_float(get_node_float(args->first_value()) * JO_M_PI / 180.0f);
-}
 
 void jo_lisp_math_init(env_ptr_t env) {
 	env->set("+", new_node_native_function("+", &native_add, false));
