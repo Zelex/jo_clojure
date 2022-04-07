@@ -316,7 +316,7 @@ static node_idx_t native_math_max(env_ptr_t env, list_ptr_t args) {
 	return max_node;
 }
 
-static node_idx_t native_math_clamp(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_math_clip(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t n1i = *it++;
 	node_t *n1 = get_node(n1i);
@@ -448,7 +448,7 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("Math/trunc", new_node_native_function("Math/trunc", &native_math_trunc, false));
 	env->set("Math/min", new_node_native_function("Math/min", &native_math_min, false));
 	env->set("Math/max", new_node_native_function("Math/max", &native_math_max, false));
-	env->set("Math/clamp", new_node_native_function("Math/clamp", &native_math_clamp, false));
+	env->set("Math/clip", new_node_native_function("Math/clip", &native_math_clip, false));
 	env->set("Math/to-degrees", new_node_native_function("Math/to-degrees", &native_math_to_degrees, false));
 	env->set("Math/to-radians", new_node_native_function("Math/to-radians", &native_math_to_radians, false));
 	env->set("Math/PI", new_node_float(JO_M_PI));

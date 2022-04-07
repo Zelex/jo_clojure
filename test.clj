@@ -404,10 +404,14 @@
 (defn pos?-test []
   (is (= true  (pos? 1)))
   (is (= true  (pos? 0.2)))
-  (is (= false (pos? 0))))
+  (is (= false (pos? 0)))
+  (is (= false (pos? -1)))
+  (is (= false (pos? -0.2))))
 (defn neg?-test []
   (is (= false (neg? 1)))
-  (is (= true  (neg? -1))))
+  (is (= false (neg? 1.0)))
+  (is (= true  (neg? -1)))
+  (is (= true  (neg? -1.0))))
 (defn add-test []
   (is (= 0.6        (+ 0.3 0.3)))
   (is (= 0          (+ )))
@@ -451,10 +455,10 @@
   (is (=  20  (interp  2 0 10 0 100)))
   (is (=   0  (interp  0 0 10 0 100))))
 (defn clip-test []
-  (is (=   5 (clip   10   0  5)))
-  (is (=  10 (clip   10   0 20)))
-  (is (=   0 (clip   10 -10  0)))
-  (is (= -10 (clip -100 -10  0))))
+  (is (=   5 (Math/clip   10   0  5)))
+  (is (=  10 (Math/clip   10   0 20)))
+  (is (=   0 (Math/clip   10 -10  0)))
+  (is (= -10 (Math/clip -100 -10  0))))
 (defn abs-test []
   (is (=   42 (Math/abs -42)))
   (is (=   42 (Math/abs  42)))
