@@ -28,79 +28,17 @@ static node_idx_t native_system_setenv(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-// Get system enviorment variables
-static node_idx_t native_system_getenv(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	jo_string key = node->as_string();
-	jo_string value = getenv(key.c_str());
-	return new_node_string(value);
-}
-
-static node_idx_t native_system_dir_exists(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	jo_string path = node->as_string();
-	return new_node_bool(jo_dir_exists(path.c_str()));
-}
-
-static node_idx_t native_system_file_exists(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	jo_string path = node->as_string();
-	return new_node_bool(jo_file_exists(path.c_str()));
-}
-
-static node_idx_t native_system_file_size(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	jo_string path = node->as_string();
-	return new_node_int(jo_file_size(path.c_str()));
-}
-
-static node_idx_t native_system_file_readable(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    jo_string path = node->as_string();
-    return new_node_bool(jo_file_readable(path.c_str()));
-}
-
-static node_idx_t native_system_file_writable(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    jo_string path = node->as_string();
-    return new_node_bool(jo_file_writable(path.c_str()));
-}
-
-static node_idx_t native_system_file_executable(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    jo_string path = node->as_string();
-    return new_node_bool(jo_file_executable(path.c_str()));
-}
-
-static node_idx_t native_system_file_empty(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    jo_string path = node->as_string();
-    return new_node_bool(jo_file_empty(path.c_str()));
-}
-
-static node_idx_t native_system_chdir(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	jo_string path = node->as_string();
-	return new_node_bool(jo_chdir(path.c_str()) == 0);
-}
+static node_idx_t native_system_getenv(env_ptr_t env, list_ptr_t args) { return new_node_string(getenv(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_dir_exists(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_dir_exists(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_file_exists(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_exists(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_file_size(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_file_size(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_file_readable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_readable(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_file_writable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_writable(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_file_executable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_executable(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_file_empty(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_empty(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_chdir(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_chdir(get_node_string(args->first_value()).c_str()) == 0); }
+static node_idx_t native_system_kbhit(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_kbhit() != 0); }
+static node_idx_t native_system_getch(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_getch()); }
 
 static node_idx_t native_system_getcwd(env_ptr_t env, list_ptr_t args) {
 	char cwd[256];
@@ -109,15 +47,8 @@ static node_idx_t native_system_getcwd(env_ptr_t env, list_ptr_t args) {
 	return new_node_string(cwd);
 }
 
-static node_idx_t native_system_kbhit(env_ptr_t env, list_ptr_t args) {
-    return new_node_bool(jo_kbhit() != 0);
-}
-
-static node_idx_t native_system_getch(env_ptr_t env, list_ptr_t args) {
-    return new_node_int(jo_getch());
-}
-
 static node_idx_t native_system_slurp(env_ptr_t env, list_ptr_t args) {
+	// TODO: HTTP/HTTPS!
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
@@ -127,6 +58,7 @@ static node_idx_t native_system_slurp(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_system_spit(env_ptr_t env, list_ptr_t args) {
+	// TODO: HTTP/HTTPS!
     list_t::iterator it = args->begin();
     node_idx_t node_idx = *it++;
     node_t *node = get_node(node_idx);
