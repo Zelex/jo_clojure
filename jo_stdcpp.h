@@ -1004,13 +1004,13 @@ struct jo_vector {
 // if when push_back we hit an empty bucket, we allocte it and add to it.
 template<typename T, int k=5>
 struct jo_consistent_vector {
-    T *buckets[64];
+    T *buckets[64-k];
     size_t num_elements;
 
     jo_consistent_vector() : buckets(), num_elements(0) {}
 
     ~jo_consistent_vector() {
-        for(size_t i = 0; i < 64; ++i) {
+        for(size_t i = 0; i < 64-k; ++i) {
             if(buckets[i]) {
                 free(buckets[i]);
             }
@@ -1018,33 +1018,33 @@ struct jo_consistent_vector {
     }
 
     inline size_t bucket_size(size_t b) const { return 1ull << (64 - b); }
-    inline int index_top(size_t i) const { return jo_clz64(i + (1<<k)); }
+    inline int index_top(size_t i) const { return jo_clz64(i + (1<<k)) + 1; }
     inline size_t index_bottom(size_t i, int top) const { return i & (~0ull >> top); }
 
     void push_back(const T& val) {
         int top = index_top(num_elements);
         size_t bottom = index_bottom(num_elements, top);
-        if(buckets[top] == 0) {
-            buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
+        if(buckets[top-k] == 0) {
+            buckets[top-k] = (T*)malloc(sizeof(T)*bucket_size(top));
         }
-        buckets[top][bottom] = val;
+        buckets[top-k][bottom] = val;
         num_elements++;
     }
 
     T pop_back() {
         num_elements--;
         int top = index_top(num_elements);
-        return buckets[top][index_bottom(num_elements, top)];
+        return buckets[top-k][index_bottom(num_elements, top)];
     }
 
     T &operator[](size_t i) {
         int top = index_top(i);
-        return buckets[top][index_bottom(i, top)];
+        return buckets[top-k][index_bottom(i, top)];
     }
 
     const T &operator[](size_t i) const {
         int top = index_top(i);
-        return buckets[top][index_bottom(i, top)];
+        return buckets[top-k][index_bottom(i, top)];
     }
 
     size_t size() const {
@@ -1059,35 +1059,10 @@ struct jo_consistent_vector {
             // grow
             for(size_t i = num_elements; i < n; ++i) {
                 size_t top = index_top(i);
-                if(buckets[top] == 0) {
-                    buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
+                if(buckets[top-k] == 0) {
+                    buckets[top-k] = (T*)malloc(sizeof(T)*bucket_size(top));
                 }
-                new(buckets[top] + index_bottom(i, top)) T();
-            }
-            num_elements = n;
-        } else {
-            // shrink
-            if(!std::is_pod<T>::value) {
-                for(size_t i = n; i < num_elements; ++i) {
-                    (*this)[i].~T();
-                }
-            }
-            num_elements = n;
-        }
-    }
-
-    void resize(size_t n, const T& val) {
-        if(n == num_elements) {
-            return;
-        }
-        if(n > num_elements) {
-            // grow
-            for(size_t i = num_elements; i < n; ++i) {
-                size_t top = index_top(i);
-                if(buckets[top] == 0) {
-                    buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
-                }
-                new(buckets[top] + index_bottom(i, top)) T(val);
+                new(buckets[top-k] + index_bottom(i, top)) T();
             }
             num_elements = n;
         } else {
@@ -1108,9 +1083,9 @@ struct jo_consistent_vector {
     void shrink_to_fit() {
         int top = index_top(num_elements);
         for(int i = top-1; i >= 0; --i) {
-            if(buckets[i]) {
-                free(buckets[i]);
-                buckets[i] = 0;
+            if(buckets[i-k]) {
+                free(buckets[i-k]);
+                buckets[i-k] = 0;
             }
         }
     }
@@ -1150,10 +1125,7 @@ struct jo_consistent_vector {
 
     T& back() { return (*this)[num_elements-1]; }
     const T& back() const { return (*this)[num_elements-1]; }
-
 };
-
-
 
 template<typename T, typename TT>
 void jo_sift_down(T *begin, T *end, size_t root, TT cmp) {
