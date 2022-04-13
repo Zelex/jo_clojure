@@ -1,5 +1,7 @@
 #pragma once
 
+// TODO: redo all this stuff using native lambda functions.
+
 // (range)
 // (range end)
 // (range start end)
@@ -982,6 +984,39 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 	ret->push_back_inplace(args->first_value());
 	return new_node_list(ret);
 }
+
+// (flatten x)
+// Takes any nested combination of sequential things (lists, vectors,
+// etc.) and returns their contents as a single, flat lazy sequence.
+// (flatten nil) returns an empty sequence.
+static node_idx_t native_flatten(env_ptr_t env, list_ptr_t args) {
+	node_idx_t x = args->first_value();
+	if(x <= NIL_NODE) {
+		return EMPTY_LIST_NODE;
+	}
+	node_t *n = get_node(x);
+	if(!n->is_seq()) {
+		return x;
+	}
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	get_node(lazy_func_idx)->t_list = new_list();
+	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("flatten-next"));
+	get_node(lazy_func_idx)->t_list->push_back_inplace(ZERO_NODE);
+	get_node(lazy_func_idx)->t_list->conj_inplace(*args->rest()->clone());
+	while(n->is_seq()) {
+		auto p = n->seq_first_rest(env);
+		get_node(lazy_func_idx)->t_list->push_back_inplace(p.first);
+		n = get_node(p.first);
+	}
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+static node_idx_t native_flatten_next(env_ptr_t env, list_ptr_t args) {
+	// pull off the first element of the list without recursion
+
+}
+
+
 
 
 void jo_lisp_lazy_init(env_ptr_t env) {

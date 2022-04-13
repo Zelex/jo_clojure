@@ -77,6 +77,7 @@ enum {
 
 struct env_t;
 struct node_t;
+struct lazy_list_iterator_t;
 
 struct node_idx_t {
 	int idx;
@@ -124,7 +125,12 @@ static inline int get_node_int(node_idx_t idx);
 static inline float get_node_float(node_idx_t idx);
 static inline vector_ptr_t get_node_func_args(node_idx_t idx);
 static inline list_ptr_t get_node_func_body(node_idx_t idx);
+static inline node_idx_t get_node_lazy_fn(node_idx_t idx);
 
+static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
+static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0);
+static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0);
+static node_idx_t new_node_lazy_list(node_idx_t lazy_fn);
 static node_idx_t new_node_var(const jo_string &name, node_idx_t value);
 
 static bool node_eq(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
@@ -133,6 +139,7 @@ static bool node_lte(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
 static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
+static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
 static node_idx_t eval_va(env_ptr_t env, int num, ...);
 
 struct env_t {
@@ -213,6 +220,97 @@ struct env_t {
 
 static env_ptr_t new_env(env_ptr_t parent) { return env_ptr_t(new env_t(parent)); }
 
+struct lazy_list_iterator_t {
+	env_ptr_t env;
+	node_idx_t cur;
+	node_idx_t val;
+	jo_vector<node_idx_t> next_list;
+	int next_idx;
+
+	lazy_list_iterator_t(env_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), next_list(), next_idx() {
+		if(get_node_type(cur) == NODE_LAZY_LIST) {
+			cur = eval_node(env, get_node_lazy_fn(cur));
+			if(!done()) {
+				val = get_node_list(cur)->first_value();
+			}
+		}
+	}
+
+	bool done() const {
+		return next_idx >= next_list.size() && !get_node_list(cur);
+	}
+
+	node_idx_t next() {
+		if(next_idx < next_list.size()) {
+			val = next_list[next_idx++];
+			return val;
+		}
+		if(done()) {
+			return INV_NODE;
+		}
+		cur = eval_list(env, get_node_list(cur)->rest());
+		if(!done()) {
+			val = get_node_list(cur)->first_value();
+		} else {
+			val = INV_NODE;
+		}
+		return val;
+	}
+
+	node_idx_t next_fn() {
+		if(done()) {
+			return NIL_NODE;
+		}
+		return new_node_list(get_node_list(cur)->rest());
+	}
+
+	node_idx_t next_fn(int n) {
+		for(int i = 0; i < n; i++) {
+			next();
+		}
+		if(done()) {
+			return NIL_NODE;
+		}
+		return new_node_list(get_node_list(cur)->rest());
+	}
+
+	node_idx_t nth(int n) {
+		node_idx_t res = val;
+		while(n-- > 0 && !done()) {
+			next();
+		}
+		return val;
+	}
+
+	operator bool() const {
+		return !done();
+	}
+
+	list_ptr_t all(int n = INT_MAX) {
+		list_ptr_t res = new_list();
+		while(!done() && n-- > 0) {
+			res->push_back_inplace(val);
+			next();
+		}
+		return res;
+	}
+
+	// fetch the next N values, and put them into next_list
+	void prefetch(int n) {
+		// already prefetched at least n values?
+		if(next_list.size() > n || done()) {
+			return;
+		}
+		jo_vector<node_idx_t> res;
+		while(n-- > 0 && !done()) {
+			res.push_back(val);
+			next();
+		}
+		next_list = std::move(res);
+		next_idx = 0;
+	}
+};
+
 struct node_t {
 	int type;
 	int flags;
@@ -253,6 +351,48 @@ struct node_t {
 
 	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_vector(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
+
+	node_idx_t seq_first(env_ptr_t env) const {
+		if(is_list()) {
+			return t_list->first_value();
+		} else if(is_vector()) {
+			return t_vector->first_value();
+		} else if(is_map()) {
+			return t_map->first_value();
+		} else if(is_lazy_list()) {
+			lazy_list_iterator_t lit(env, t_lazy_fn);
+			return lit.val;
+		}
+		return NIL_NODE;
+	}
+
+	node_idx_t seq_rest(env_ptr_t env) const {
+		if(is_list()) {
+			return new_node_list(t_list->rest());
+		} else if(is_vector()) {
+			return new_node_vector(t_vector->rest());
+		} else if(is_map()) {
+			return new_node_map(t_map->rest());
+		} else if(is_lazy_list()) {
+			lazy_list_iterator_t lit(env, t_lazy_fn);
+			return new_node_lazy_list(lit.next_fn());
+		}
+		return NIL_NODE;
+	}
+
+	jo_pair<node_idx_t, node_idx_t> seq_first_rest(env_ptr_t env) const {
+		if(is_list()) {
+			return jo_pair<node_idx_t, node_idx_t>(t_list->first_value(), new_node_list(t_list->rest()));
+		} else if(is_vector()) {
+			return jo_pair<node_idx_t, node_idx_t>(t_vector->first_value(), new_node_vector(t_vector->rest()));
+		} else if(is_map()) {
+			return jo_pair<node_idx_t, node_idx_t>(t_map->first_value(), new_node_map(t_map->rest()));
+		} else if(is_lazy_list()) {
+			lazy_list_iterator_t lit(env, t_lazy_fn);
+			return jo_pair<node_idx_t, node_idx_t>(lit.val, new_node_lazy_list(lit.next_fn()));
+		}
+		return jo_pair<node_idx_t, node_idx_t>(NIL_NODE, NIL_NODE);
+	}
 
 	list_ptr_t &as_list() { return t_list; }
 	vector_ptr_t &as_vector() { return t_vector; }
@@ -337,8 +477,8 @@ struct node_t {
 	}
 };
 
-static jo_vector<node_t> nodes;
-static jo_vector<node_idx_t> free_nodes; // available for allocation...
+static jo_consistent_vector<node_t> nodes;
+static jo_consistent_vector<node_idx_t> free_nodes; // available for allocation...
 
 static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
 static void print_node_type(node_idx_t node);
@@ -359,6 +499,7 @@ static inline float get_node_float(node_idx_t idx) { return get_node(idx)->as_fl
 static inline jo_string get_node_type_string(node_idx_t idx) { return get_node(idx)->type_as_string(); }
 static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
 static inline list_ptr_t get_node_func_body(node_idx_t idx) { return get_node(idx)->t_func.body; }
+static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)->t_lazy_fn; }
 
 static inline node_idx_t alloc_node() {
 	if (free_nodes.size()) {
@@ -394,7 +535,7 @@ static node_idx_t new_node(int type) {
 	return new_node(&n);
 }
 
-static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0) {
+static node_idx_t new_node_list(list_ptr_t nodes, int flags) {
 	node_idx_t idx = new_node(NODE_LIST);
 	node_t *n = get_node(idx);
 	n->t_list = nodes;
@@ -402,7 +543,7 @@ static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0) {
 	return idx;
 }
 
-static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0) {
+static node_idx_t new_node_map(map_ptr_t nodes, int flags) {
 	node_idx_t idx = new_node(NODE_MAP);
 	node_t *n = get_node(idx);
 	n->t_map = nodes;
@@ -410,7 +551,7 @@ static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0) {
 	return idx;
 }
 
-static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0) {
+static node_idx_t new_node_vector(vector_ptr_t nodes, int flags) {
 	node_idx_t idx = new_node(NODE_VECTOR);
 	node_t *n = get_node(idx);
 	n->t_vector = nodes;
@@ -986,7 +1127,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 
 
 // eval a list of nodes
-static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0) {
+static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 	list_t::iterator it = list->begin();
 	if(!it) {
 		return EMPTY_LIST_NODE;
@@ -1279,96 +1420,6 @@ static void print_node_type(node_idx_t i) {
 	printf("%s", get_node(i)->type_as_string().c_str());
 }
 
-struct lazy_list_iterator_t {
-	env_ptr_t env;
-	node_idx_t cur;
-	node_idx_t val;
-	jo_vector<node_idx_t> next_list;
-	int next_idx;
-
-	lazy_list_iterator_t(env_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), next_list(), next_idx() {
-		if(get_node(cur)->is_lazy_list()) {
-			cur = eval_node(env, get_node(cur)->t_lazy_fn);
-			if(!done()) {
-				val = get_node(cur)->as_list()->first_value();
-			}
-		}
-	}
-
-	bool done() const {
-		return next_idx >= next_list.size() && !get_node(cur)->is_list();
-	}
-
-	node_idx_t next() {
-		if(next_idx < next_list.size()) {
-			val = next_list[next_idx++];
-			return val;
-		}
-		if(done()) {
-			return INV_NODE;
-		}
-		cur = eval_list(env, get_node(cur)->as_list()->rest());
-		if(!done()) {
-			val = get_node(cur)->as_list()->first_value();
-		} else {
-			val = INV_NODE;
-		}
-		return val;
-	}
-
-	node_idx_t next_fn() {
-		if(done()) {
-			return NIL_NODE;
-		}
-		return new_node_list(get_node(cur)->as_list()->rest());
-	}
-
-	node_idx_t next_fn(int n) {
-		for(int i = 0; i < n; i++) {
-			next();
-		}
-		if(done()) {
-			return NIL_NODE;
-		}
-		return new_node_list(get_node(cur)->as_list()->rest());
-	}
-
-	node_idx_t nth(int n) {
-		node_idx_t res = val;
-		while(n-- > 0 && !done()) {
-			next();
-		}
-		return val;
-	}
-
-	operator bool() const {
-		return !done();
-	}
-
-	list_ptr_t all(int n = INT_MAX) {
-		list_ptr_t res = new_list();
-		while(!done() && n-- > 0) {
-			res->push_back_inplace(val);
-			next();
-		}
-		return res;
-	}
-
-	// fetch the next N values, and put them into next_list
-	void prefetch(int n) {
-		// already prefetched at least n values?
-		if(next_list.size() > n || done()) {
-			return;
-		}
-		jo_vector<node_idx_t> res;
-		while(n-- > 0 && !done()) {
-			res.push_back(val);
-			next();
-		}
-		next_list = std::move(res);
-		next_idx = 0;
-	}
-};
 
 // Generic iterator... 
 struct seq_iterator_t {
