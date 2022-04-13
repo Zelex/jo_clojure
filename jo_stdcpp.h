@@ -998,7 +998,7 @@ struct jo_vector {
 };
 
 // jo_consistent_vector
-// has 64 exponentially sized buckets and a split of top = jo_clz(index), bottom = index & (~0u >> top)
+// has 64 exponentially pow2 sized buckets and a split of top = jo_clz64(index), bottom = index & (~0ull >> top)
 // this is different than a jo_vector in that the elements never move and pointers can thus be relied upon as stable.
 // In practice, bias index by (1<<k) to make the smallest alloc have that many elements.
 // if when push_back we hit an empty bucket, we allocte it and add to it.
@@ -1017,17 +1017,9 @@ struct jo_consistent_vector {
         }
     }
 
-    inline size_t bucket_size(size_t b) const {
-        return 1 << (64 - b);
-    }
-
-    inline int index_top(size_t i) const {
-        return jo_clz64(i + (1<<k));
-    }
-
-    inline size_t index_bottom(size_t i, int top) const {
-        return i & (~0ull >> top);
-    }
+    inline size_t bucket_size(size_t b) const { return 1ull << (64 - b); }
+    inline int index_top(size_t i) const { return jo_clz64(i + (1<<k)); }
+    inline size_t index_bottom(size_t i, int top) const { return i & (~0ull >> top); }
 
     void push_back(const T& val) {
         int top = index_top(num_elements);
@@ -1115,7 +1107,7 @@ struct jo_consistent_vector {
 
     void shrink_to_fit() {
         int top = index_top(num_elements);
-        for(int i = top+1; i >= 0; --i) {
+        for(int i = top-1; i >= 0; --i) {
             if(buckets[i]) {
                 free(buckets[i]);
                 buckets[i] = 0;

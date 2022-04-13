@@ -478,7 +478,7 @@ struct node_t {
 };
 
 static jo_consistent_vector<node_t> nodes;
-static jo_consistent_vector<node_idx_t> free_nodes; // available for allocation...
+static jo_vector<node_idx_t> free_nodes; // available for allocation...
 
 static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
 static void print_node_type(node_idx_t node);
