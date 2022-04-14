@@ -1024,27 +1024,27 @@ struct jo_pinned_vector {
     void push_back(const T& val) {
         int top = index_top(num_elements);
         size_t bottom = index_bottom(num_elements, top);
-        if(buckets[top-k] == 0) {
-            buckets[top-k] = (T*)malloc(sizeof(T)*bucket_size(top));
+        if(buckets[top-1] == 0) {
+            buckets[top-1] = (T*)malloc(sizeof(T)*bucket_size(top));
         }
-        buckets[top-k][bottom] = val;
+        buckets[top-1][bottom] = val;
         num_elements++;
     }
 
     T pop_back() {
         num_elements--;
         int top = index_top(num_elements);
-        return buckets[top-k][index_bottom(num_elements, top)];
+        return buckets[top-1][index_bottom(num_elements, top)];
     }
 
     T &operator[](size_t i) {
         int top = index_top(i);
-        return buckets[top-k][index_bottom(i, top)];
+        return buckets[top-1][index_bottom(i, top)];
     }
 
     const T &operator[](size_t i) const {
         int top = index_top(i);
-        return buckets[top-k][index_bottom(i, top)];
+        return buckets[top-1][index_bottom(i, top)];
     }
 
     size_t size() const {
@@ -1059,10 +1059,10 @@ struct jo_pinned_vector {
             // grow
             for(size_t i = num_elements; i < n; ++i) {
                 size_t top = index_top(i);
-                if(buckets[top-k] == 0) {
-                    buckets[top-k] = (T*)malloc(sizeof(T)*bucket_size(top));
+                if(buckets[top-1] == 0) {
+                    buckets[top-1] = (T*)malloc(sizeof(T)*bucket_size(top));
                 }
-                new(buckets[top-k] + index_bottom(i, top)) T();
+                new(buckets[top-1] + index_bottom(i, top)) T();
             }
             num_elements = n;
         } else {
@@ -1082,10 +1082,10 @@ struct jo_pinned_vector {
 
     void shrink_to_fit() {
         int top = index_top(num_elements);
-        for(int i = top-1; i >= 0; --i) {
-            if(buckets[i-k]) {
-                free(buckets[i-k]);
-                buckets[i-k] = 0;
+        for(int i = top-2; i >= 0; --i) {
+            if(buckets[i]) {
+                free(buckets[i]);
+                buckets[i] = 0;
             }
         }
     }
