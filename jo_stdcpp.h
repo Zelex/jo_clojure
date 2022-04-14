@@ -997,19 +997,19 @@ struct jo_vector {
     }
 };
 
-// jo_consistent_vector
+// jo_pinned_vector
 // has 64 exponentially pow2 sized buckets and a split of top = jo_clz64(index), bottom = index & (~0ull >> top)
 // this is different than a jo_vector in that the elements never move and pointers can thus be relied upon as stable.
 // In practice, bias index by (1<<k) to make the smallest alloc have that many elements.
 // if when push_back we hit an empty bucket, we allocte it and add to it.
 template<typename T, int k=5>
-struct jo_consistent_vector {
+struct jo_pinned_vector {
     T *buckets[64-k];
     size_t num_elements;
 
-    jo_consistent_vector() : buckets(), num_elements(0) {}
+    jo_pinned_vector() : buckets(), num_elements(0) {}
 
-    ~jo_consistent_vector() {
+    ~jo_pinned_vector() {
         for(size_t i = 0; i < 64-k; ++i) {
             if(buckets[i]) {
                 free(buckets[i]);
@@ -1092,9 +1092,9 @@ struct jo_consistent_vector {
 
     // iterator
     struct iterator {
-        jo_consistent_vector<T, k> *vec;
+        jo_pinned_vector<T, k> *vec;
         size_t index;
-        iterator(jo_consistent_vector<T, k> *v, size_t i) : vec(v), index(i) {}
+        iterator(jo_pinned_vector<T, k> *v, size_t i) : vec(v), index(i) {}
         iterator& operator++() {
             index++;
             return *this;
