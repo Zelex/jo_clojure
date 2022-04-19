@@ -1001,19 +1001,37 @@ static node_idx_t native_flatten(env_ptr_t env, list_ptr_t args) {
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
 	get_node(lazy_func_idx)->t_list = new_list();
 	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("flatten-next"));
-	get_node(lazy_func_idx)->t_list->push_back_inplace(ZERO_NODE);
-	get_node(lazy_func_idx)->t_list->conj_inplace(*args->rest()->clone());
+	get_node(lazy_func_idx)->t_list->push_back_inplace(x);
 	while(n->is_seq()) {
-		auto p = n->seq_first_rest(env);
-		get_node(lazy_func_idx)->t_list->push_back_inplace(p.first);
-		n = get_node(p.first);
+		x = n->seq_first(env);
+		get_node(lazy_func_idx)->t_list->push_back_inplace(x);
+		n = get_node(x);
 	}
+	get_node(lazy_func_idx)->t_list->push_back_inplace(x);
 	return new_node_lazy_list(lazy_func_idx);
 }
 
 static node_idx_t native_flatten_next(env_ptr_t env, list_ptr_t args) {
 	// pull off the first element of the list without recursion
-
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(args->last_value());
+	ret->push_back_inplace(env->get("flatten-next"));
+	args = args->pop_back();
+	node_idx_t last_idx = args->last_value();
+	node_t *last = get_node(last_idx);
+	assert(last->is_seq());
+	auto last_p = last->seq_first_rest(env);
+	args = args->pop_back()->push_back(last_p.second);
+	ret->conj_inplace(*args);
+	ret->push_back_inplace(last_p.first);
+	node_t *n = get_node(last_p.first);
+	while(n->is_seq()) {
+		node_idx_t p = n->seq_first(env);
+		ret->push_back_inplace(p);
+		n = get_node(p);
+	}
+	ret->push_back_inplace(args->first_value());
+	return new_node_list(ret);
 }
 
 
@@ -1048,4 +1066,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("drop", new_node_native_function("drop", &native_drop, false));
 	env->set("interleave", new_node_native_function("interleave", &native_interleave, false));
 	env->set("interleave-next", new_node_native_function("interleave-next", &native_interleave_next, true));
+	env->set("flatten", new_node_native_function("flatten", &native_flatten, false));
+	env->set("flatten-next", new_node_native_function("flatten-next", &native_flatten_next, true));
 }

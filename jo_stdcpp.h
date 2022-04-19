@@ -3979,7 +3979,7 @@ struct jo_persistent_list {
         return copy;
     }
 
-    // push_back in_place
+    // push_back 
     jo_persistent_list *push_back_inplace(const T &value) {
         if(!head) {
             head = new node(value, NULL);
@@ -3990,6 +3990,12 @@ struct jo_persistent_list {
         }
         length++;
         return this;
+    }
+
+    jo_persistent_list *push_back(const T &value) const {
+        jo_persistent_list *copy = clone();
+        copy->push_back_inplace(value);
+        return copy;
     }
 
     // push_front inplace
@@ -4040,6 +4046,30 @@ struct jo_persistent_list {
             cur = cur->next;
             end--;
         }
+        return copy;
+    }
+
+    // pop_back
+    jo_persistent_list *pop_back_inplace() {
+        if(head) {
+            if(head == tail) {
+                head = tail = NULL;
+            } else {
+                jo_shared_ptr<node> cur = head;
+                while(cur->next != tail) {
+                    cur = cur->next;
+                }
+                tail = cur;
+                tail->next = NULL;
+            }
+            length--;
+        }
+        return this;
+    }
+
+    jo_persistent_list *pop_back() const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->pop_back_inplace();
         return copy;
     }
 
