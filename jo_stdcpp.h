@@ -1027,7 +1027,11 @@ struct jo_pinned_vector {
         if(buckets[top] == 0) {
             buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
         }
-        buckets[top][bottom] = val;
+        if(std::is_pod<T>::value) {
+            memcpy(buckets[top] + bottom, &val, sizeof(T));
+        } else {
+            new(buckets[top] + bottom) T(val);
+        }
         num_elements++;
     }
 
