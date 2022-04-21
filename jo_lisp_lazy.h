@@ -999,38 +999,57 @@ static node_idx_t native_flatten(env_ptr_t env, list_ptr_t args) {
 		return x;
 	}
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
-	get_node(lazy_func_idx)->t_list = new_list();
-	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("flatten-next"));
-	get_node(lazy_func_idx)->t_list->push_back_inplace(x);
+	node_t *lazy_func = get_node(lazy_func_idx);
+	lazy_func->t_list = new_list();
+	lazy_func->t_list->push_front_inplace(get_node(x)->seq_rest(env));
 	while(n->is_seq()) {
 		x = n->seq_first(env);
-		get_node(lazy_func_idx)->t_list->push_back_inplace(x);
 		n = get_node(x);
+		if(n->is_seq()) {
+			lazy_func->t_list->push_front_inplace(get_node(x)->seq_rest(env));
+		} else {
+			lazy_func->t_list->push_front_inplace(x);
+		}
 	}
-	get_node(lazy_func_idx)->t_list->push_back_inplace(x);
+	lazy_func->t_list->push_front_inplace(env->get("flatten-next"));
 	return new_node_lazy_list(lazy_func_idx);
 }
 
 static node_idx_t native_flatten_next(env_ptr_t env, list_ptr_t args) {
-	// pull off the first element of the list without recursion
-	list_ptr_t ret = new_list();
-	ret->push_back_inplace(args->last_value());
-	ret->push_back_inplace(env->get("flatten-next"));
-	args = args->pop_back();
-	node_idx_t last_idx = args->last_value();
-	node_t *last = get_node(last_idx);
-	assert(last->is_seq());
-	auto last_p = last->seq_first_rest(env);
-	args = args->pop_back()->push_back(last_p.second);
-	ret->conj_inplace(*args);
-	ret->push_back_inplace(last_p.first);
-	node_t *n = get_node(last_p.first);
-	while(n->is_seq()) {
-		node_idx_t p = n->seq_first(env);
-		ret->push_back_inplace(p);
-		n = get_node(p);
+	if(args->size() == 0) {
+		return NIL_NODE;
 	}
-	ret->push_back_inplace(args->first_value());
+
+	list_ptr_t ret = new_list();
+	node_idx_t ret_value = NIL_NODE;
+	
+	// first value should always not be a sequence
+	ret_value = args->first_value();
+	args = args->pop_front();
+	assert(!get_node(ret_value)->is_seq());
+
+	node_idx_t seq_idx = args->first_value();
+	node_t *seq = get_node(seq_idx);
+
+	ret = ret->push_front(*args->clone());
+
+	if(!seq->is_seq()) {
+		ret->push_front_inplace(env->get("flatten-next"));
+		ret->push_front_inplace(ret_value);
+		return new_node_list(ret);
+	}
+
+	do {
+		ret = ret->pop();
+		auto seq_p = seq->seq_first_rest(env);
+		if(!get_node(seq_p.second)->seq_empty(env)) ret->push_front_inplace(seq_p.second);
+		if(seq_p.first != NIL_NODE) ret->push_front_inplace(seq_p.first);
+		seq_idx = seq_p.first;
+		seq = get_node(seq_idx);
+	} while(seq->is_seq());
+
+	ret->push_front_inplace(env->get("flatten-next"));
+	ret->push_front_inplace(ret_value);
 	return new_node_list(ret);
 }
 

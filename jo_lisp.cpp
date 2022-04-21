@@ -394,6 +394,20 @@ struct node_t {
 		return jo_pair<node_idx_t, node_idx_t>(NIL_NODE, NIL_NODE);
 	}
 
+	bool seq_empty(env_ptr_t env) const {
+		if(is_list()) {
+			return t_list->empty();
+		} else if(is_vector()) {
+			return t_vector->empty();
+		} else if(is_map()) {
+			return t_map->size() == 0;
+		} else if(is_lazy_list()) {
+			lazy_list_iterator_t lit(env, t_lazy_fn);
+			return lit.done();
+		}
+		return true;
+	}
+
 	list_ptr_t &as_list() { return t_list; }
 	vector_ptr_t &as_vector() { return t_vector; }
 	map_ptr_t &as_map() { return t_map; }

@@ -4021,8 +4021,29 @@ struct jo_persistent_list {
         return copy;
     }
 
+    jo_persistent_list *push_front(jo_persistent_list &other) const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        jo_shared_ptr<node> cur = other.head;
+        while(cur) {
+            copy->push_front_inplace(cur->value);
+            cur = cur->next;
+        }
+        return copy;
+    }
+
     jo_persistent_list *pop_front_inplace() {
         if(head) {
+            head = head->next;
+            if(!head) {
+                tail = NULL;
+            }
+            length--;
+        }
+        return this;
+    }
+
+    jo_persistent_list *pop_front_inplace(size_t num) {
+        while(num-- > 0 && head) {
             head = head->next;
             if(!head) {
                 tail = NULL;
@@ -4035,6 +4056,12 @@ struct jo_persistent_list {
     jo_persistent_list *pop_front() const {
         jo_persistent_list *copy = new jo_persistent_list(*this);
         copy->pop_front_inplace();
+        return copy;
+    }
+
+    jo_persistent_list *pop_front(size_t num) const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->pop_front_inplace(num);
         return copy;
     }
 
