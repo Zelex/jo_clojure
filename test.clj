@@ -543,6 +543,12 @@
               (cons x (recursive-range (inc x) y))))
           5 10))))
 
+(def fib-seq-iterate (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
+(is (= (fib-seq-iterate (fn [x] x) 0) 0))
+
+  
+
+
 (string-test)
 (if-test)
 (when-test)
@@ -568,7 +574,7 @@
 (<=-test)
 (and-test)
 (or-test)
-;(lazy-seq-test)
+(lazy-seq-test)
 (map-test)
 (reduce-test)
 (range-test)
@@ -622,3 +628,5 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
+
+(doall (take 30 fib-seq-iterate))

@@ -117,13 +117,7 @@ static node_idx_t native_concat(env_ptr_t env, list_ptr_t args) {
 	if(args->size() == 0) {
 		return NIL_NODE;
 	}
-	list_t::iterator it = args->begin();
-	node_idx_t x = *it++;
-	node_idx_t lazy_func_idx = new_node(NODE_LIST);
-	get_node(lazy_func_idx)->t_list = new_list();
-	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("concat-next"));
-	get_node(lazy_func_idx)->t_list->conj_inplace(*args.ptr);
-	return new_node_lazy_list(lazy_func_idx);
+	return new_node_lazy_list(new_node_list(args->push_front(env->get("concat-next"))));
 }
 
 static node_idx_t native_concat_next(env_ptr_t env, list_ptr_t args) {
@@ -1053,7 +1047,39 @@ static node_idx_t native_flatten_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
+// (lazy-seq & body)
+// Takes a body of expressions that returns an ISeq or nil, and yields
+// a Seqable object that will invoke the body only the first time seq
+// is called, and will cache the result and return it on all subsequent
+// seq calls. See also - realized?
+static node_idx_t native_lazy_seq(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 0) {
+		return NIL_NODE;
+	}
+	node_idx_t lazy_func_idx = new_node(NODE_LIST);
+	node_t *lazy_func = get_node(lazy_func_idx);
+	lazy_func->t_list = args->push_front(env->get("lazy-seq-first"));
+	return new_node_lazy_list(lazy_func_idx);
+}
 
+static node_idx_t native_lazy_seq_first(env_ptr_t env, list_ptr_t args) {
+	node_idx_t ll = eval_node_list(env, args);
+	auto fr = get_node(ll)->seq_first_rest(env);
+	list_ptr_t l = new_list();
+	l->push_front_inplace(fr.second);
+	l->push_front_inplace(env->get("lazy-seq-next"));
+	l->push_front_inplace(fr.first);
+	return new_node_list(l);
+}
+
+static node_idx_t native_lazy_seq_next(env_ptr_t env, list_ptr_t args) {
+	auto fr = get_node(args->first_value())->seq_first_rest(env);
+	list_ptr_t l = new_list();
+	l->push_front_inplace(fr.second);
+	l->push_front_inplace(env->get("lazy-seq-next"));
+	l->push_front_inplace(fr.first);
+	return new_node_list(l);
+}
 
 
 void jo_lisp_lazy_init(env_ptr_t env) {
@@ -1087,4 +1113,7 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("interleave-next", new_node_native_function("interleave-next", &native_interleave_next, true));
 	env->set("flatten", new_node_native_function("flatten", &native_flatten, false));
 	env->set("flatten-next", new_node_native_function("flatten-next", &native_flatten_next, true));
+	//env->set("lazy-seq", new_node_native_function("lazy-seq", &native_lazy_seq, true));
+	//env->set("lazy-seq-first", new_node_native_function("lazy-seq-first", &native_lazy_seq_first, true));
+	//env->set("lazy-seq-next", new_node_native_function("lazy-seq-next", &native_lazy_seq_next, true));
 }
