@@ -2002,21 +2002,46 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-static node_idx_t native_fn(env_ptr_t env, list_ptr_t args) {
-	if(get_node_type(args->first_value()) == NODE_VECTOR) {
+static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, const jo_string &private_fn_name) {
+	list_t::iterator i = args->begin();
+	if(get_node_type(*i) == NODE_VECTOR) {
 		node_idx_t reti = new_node(NODE_FUNC);
 		node_t *ret = get_node(reti);
-		ret->t_func.args = get_node(args->first_value())->t_vector;
+		ret->t_func.args = get_node(*i)->t_vector;
 		ret->t_func.body = args->rest();
-		ret->t_func.env = env;
+		if(private_fn_name.empty()) {
+			ret->t_string = jo_string("<anonymous>");
+			ret->t_func.env = env;
+		} else {
+			ret->t_string = private_fn_name;
+			env_ptr_t private_env = new_env(env);
+			private_env->set(private_fn_name, reti);
+			ret->t_func.env = private_env;
+		}
 		return reti;
 	}
-	if(get_node_type(args->first_value()) == NODE_LIST) {
+	return NIL_NODE;
+}
+
+static node_idx_t native_fn(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator i = args->begin();
+
+	jo_string private_fn_name;
+	if(get_node_type(*i) == NODE_SYMBOL) {
+		private_fn_name = get_node_string(*i++);
+		if(get_node_type(*i) == NODE_VECTOR) {
+			return native_fn_internal(env, args->rest(), private_fn_name);
+		}
+	} else if(get_node_type(*i) == NODE_VECTOR) {
+		return native_fn_internal(env, args, private_fn_name);
+	}
+
+	if(get_node_type(*i) == NODE_LIST) {
 		list_ptr_t fn_list = new_list();
-		for(list_t::iterator i = args->begin(); i; i++) {
+		for(; i; i++) {
 			node_idx_t arg = *i;
 			if(get_node_type(arg) == NODE_LIST) {
-				fn_list = fn_list->push_front(native_fn(env, get_node(arg)->t_list));
+				fn_list = fn_list->push_front(native_fn_internal(env, get_node(arg)->t_list, private_fn_name));
 			}
 		}
 		return new_node_native_function("fn_lambda", [=](env_ptr_t env, list_ptr_t args) -> node_idx_t {

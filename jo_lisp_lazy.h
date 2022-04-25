@@ -1134,9 +1134,6 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 		lazy_func_args->push_front_inplace(first_idx);
 		lazy_func_args->push_front_inplace(env->get("cons-first"));
 		return new_node_lazy_list(new_node_list(lazy_func_args));
-		//lazy_list_iterator_t lit(env, second_idx);
-		//list_ptr_t second_list = lit.all();
-		//return new_node_list(second_list->cons(first_idx));
 	}
 	list_ptr_t ret = new_list();
 	ret->cons_inplace(second_idx);
