@@ -350,7 +350,7 @@
 (defn repeatedly-test []
   (is (= 1 (first (repeatedly 3 (fn [] 1)))))
   (is (= 3 (count (repeatedly 3 (fn [] 1)))))
-  (is (= 3 (count (lazy-seq-cache (repeatedly 3 (fn [] 1))))))
+  (is (= 3 (count (lazy-seq (repeatedly 3 (fn [] 1))))))
   (is (= 2 (->> (repeatedly 3 (fn [] 1))
                 (map inc)
                 first)))
@@ -359,7 +359,7 @@
                 (map inc)
                 reverse
                 first)))
-  (let [xs (lazy-seq-cache (repeatedly #(rand)))]
+  (let [xs (lazy-seq (repeatedly #(rand)))]
     (is (= (take 5 xs) (take 5 xs)))))
 (defn partition-test []
   (is (= (list (list 0 1 2 3)
@@ -630,5 +630,3 @@
 ;(doall (range 1 6))
 
 (doall (take 30 fib-seq-iterate))
-
-(doall (take 10 (ints-from 10)))
