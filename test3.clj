@@ -78,19 +78,24 @@
 ;(println (m-func 0 1))
 ;(println (m-func 0 1 2))
 
-(defn fn-test [] 
-  (let [
-      f1 (fn [])
-      f2 (fn [])
-      m-func (fn ([a] 1) ([a b] 2) ([a b c] 3))
-      n-func (fn ([] 0) ([x] 1) ([x y] 2))]
-  (println (m-func 1))
-  (println (m-func 1 2))
-  (println (m-func 1 2 3))
-  (println (n-func))
-  (println (n-func 1))
-  (println (n-func 1 2))
-  ))
+;(defn fn-test [] 
+  ;(let [
+      ;f1 (fn [])
+      ;f2 (fn [])
+      ;m-func (fn ([a] 1) ([a b] 2) ([a b c] 3))
+      ;n-func (fn ([] 0) ([x] 1) ([x y] 2))]
+  ;(println (m-func 1))
+  ;(println (m-func 1 2))
+  ;(println (m-func 1 2 3))
+  ;(println (n-func))
+  ;(println (n-func 1))
+  ;(println (n-func 1 2))
+  ;))
+;(fn-test)
 
-(fn-test)
 
+
+(defn ints-from [n] (cons n (lazy-seq (ints-from (inc n)))))
+(doall (take 10 (ints-from 10)))
+;(doall (lazy-seq (cons 1 (lazy-seq (range 3)))))
+;(doall (lazy-seq (cons 1 (lazy-seq '(2 3)))))

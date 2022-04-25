@@ -115,6 +115,7 @@ static map_ptr_t new_map() { return map_ptr_t(new map_t()); }
 
 static inline node_t *get_node(node_idx_t idx);
 static inline int get_node_type(node_idx_t idx);
+static inline int get_node_type(const node_t *n);
 static inline int get_node_flags(node_idx_t idx);
 static inline jo_string get_node_string(node_idx_t idx);
 static inline node_idx_t get_node_var(node_idx_t idx);
@@ -126,6 +127,7 @@ static inline float get_node_float(node_idx_t idx);
 static inline vector_ptr_t get_node_func_args(node_idx_t idx);
 static inline list_ptr_t get_node_func_body(node_idx_t idx);
 static inline node_idx_t get_node_lazy_fn(node_idx_t idx);
+static inline node_idx_t get_node_lazy_fn(const node_t *n);
 
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0);
@@ -141,6 +143,13 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
 static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
 static node_idx_t eval_va(env_ptr_t env, int num, ...);
+
+static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
+static void print_node_type(node_idx_t node);
+static void print_node_list(list_ptr_t nodes, int depth = 0);
+static void print_node_vector(vector_ptr_t nodes, int depth = 0);
+static void print_node_map(map_ptr_t nodes, int depth = 0);
+
 
 struct env_t {
 	// for iterating them all, otherwise unused.
@@ -227,12 +236,25 @@ struct lazy_list_iterator_t {
 	jo_vector<node_idx_t> next_list;
 	int next_idx;
 
+	lazy_list_iterator_t(env_ptr_t env, const node_t *node) : env(env), cur(), val(NIL_NODE), next_list(), next_idx() {
+		if(get_node_type(node) == NODE_LAZY_LIST) {
+			cur = eval_node(env, get_node_lazy_fn(node));
+			if(!done()) {
+				val = get_node_list(cur)->first_value();
+			}
+		}
+	}
+
 	lazy_list_iterator_t(env_ptr_t env, node_idx_t node_idx) : env(env), cur(node_idx), val(NIL_NODE), next_list(), next_idx() {
 		if(get_node_type(cur) == NODE_LAZY_LIST) {
 			cur = eval_node(env, get_node_lazy_fn(cur));
 			if(!done()) {
 				val = get_node_list(cur)->first_value();
 			}
+		} else {
+			printf("not a lazy list: ");
+			print_node(cur);
+			printf("\n");
 		}
 	}
 
@@ -360,7 +382,7 @@ struct node_t {
 		} else if(is_map()) {
 			return t_map->first_value();
 		} else if(is_lazy_list()) {
-			lazy_list_iterator_t lit(env, t_lazy_fn);
+			lazy_list_iterator_t lit(env, this);
 			return lit.val;
 		}
 		return NIL_NODE;
@@ -374,7 +396,7 @@ struct node_t {
 		} else if(is_map()) {
 			return new_node_map(t_map->rest());
 		} else if(is_lazy_list()) {
-			lazy_list_iterator_t lit(env, t_lazy_fn);
+			lazy_list_iterator_t lit(env, this);
 			return new_node_lazy_list(lit.next_fn());
 		}
 		return NIL_NODE;
@@ -388,7 +410,7 @@ struct node_t {
 		} else if(is_map()) {
 			return jo_pair<node_idx_t, node_idx_t>(t_map->first_value(), new_node_map(t_map->rest()));
 		} else if(is_lazy_list()) {
-			lazy_list_iterator_t lit(env, t_lazy_fn);
+			lazy_list_iterator_t lit(env, this);
 			return jo_pair<node_idx_t, node_idx_t>(lit.val, new_node_lazy_list(lit.next_fn()));
 		}
 		return jo_pair<node_idx_t, node_idx_t>(NIL_NODE, NIL_NODE);
@@ -402,7 +424,7 @@ struct node_t {
 		} else if(is_map()) {
 			return t_map->size() == 0;
 		} else if(is_lazy_list()) {
-			lazy_list_iterator_t lit(env, t_lazy_fn);
+			lazy_list_iterator_t lit(env, this);
 			return lit.done();
 		}
 		return true;
@@ -494,14 +516,9 @@ struct node_t {
 static jo_pinned_vector<node_t> nodes;
 static jo_vector<node_idx_t> free_nodes; // available for allocation...
 
-static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
-static void print_node_type(node_idx_t node);
-static void print_node_list(list_ptr_t nodes, int depth = 0);
-static void print_node_vector(vector_ptr_t nodes, int depth = 0);
-static void print_node_map(map_ptr_t nodes, int depth = 0);
-
 static inline node_t *get_node(node_idx_t idx) { return &nodes[idx]; }
 static inline int get_node_type(node_idx_t idx) { return get_node(idx)->type; }
+static inline int get_node_type(const node_t *n) { return n->type; }
 static inline int get_node_flags(node_idx_t idx) { return get_node(idx)->flags; }
 static inline jo_string get_node_string(node_idx_t idx) { return get_node(idx)->as_string(); }
 static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_var; }
@@ -514,6 +531,7 @@ static inline jo_string get_node_type_string(node_idx_t idx) { return get_node(i
 static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
 static inline list_ptr_t get_node_func_body(node_idx_t idx) { return get_node(idx)->t_func.body; }
 static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)->t_lazy_fn; }
+static inline node_idx_t get_node_lazy_fn(const node_t *n) { return n->t_lazy_fn; }
 
 static inline node_idx_t alloc_node() {
 	if (free_nodes.size()) {
@@ -1171,13 +1189,8 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 
 		// get the symbol's value
 		if(sym_type == NODE_NATIVE_FUNCTION) {
+			debugf("nativefn: %s\n", get_node_string(sym_idx).c_str());
 			if((sym_flags|list_flags) & (NODE_FLAG_MACRO|NODE_FLAG_LITERAL_ARGS)) {
-				/*
-				printf("\n");
-				print_node(sym_idx);
-				print_node_list(list->rest());
-				printf("\n");
-				*/
 				return (*get_node(sym_idx)->t_native_function.ptr)(env, list->rest());
 			}
 
@@ -1266,10 +1279,6 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 }
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
-	node_idx_t n1_idx, n2_idx;
-	node_t *n, *n1, *n2;
-	node_idx_t i, n1i, n2i;
-
 	int flags = get_node_flags(root);
 	//if(flags & NODE_FLAG_LITERAL) { return root; }
 
@@ -1318,6 +1327,10 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 			printf(" ");
 		}
 		printf(")");
+	} else if(type == NODE_LAZY_LIST) {
+		printf("%*s(<lazy-list> ", depth, "");
+		print_node(get_node(node)->t_lazy_fn, depth + 1);
+		printf("%*s)", depth, "");
 	} else if(type == NODE_VECTOR) {
 		vector_ptr_t vector = get_node(node)->t_vector;
 		printf("[");
@@ -1362,7 +1375,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	} else if(type == NODE_NIL) {
 		printf("nil");
 	} else {
-		printf("<unknown>");
+		printf("<<%s>>", get_node_type_string(node).c_str());
 	}
 #else
 	node_t *n = get_node(node);
@@ -1866,11 +1879,7 @@ static node_idx_t native_println(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_do(env_ptr_t env, list_ptr_t args) {
-	node_idx_t ret = NIL_NODE;
-	for(list_t::iterator i = args->begin(); i; i++) {
-		ret = eval_node(env, *i);
-	}
-	return ret;
+	return eval_node_list(env, args);
 }
 
 // (doall coll)
@@ -2218,54 +2227,6 @@ static node_idx_t native_when_let(env_ptr_t env, list_ptr_t args) {
 		ret = eval_node(env2, *it);
 	}
 	return ret;
-}
-
-// (cons x seq)
-// Returns a new seq where x is the first element and seq is the rest.
-static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t first_idx = *it++;
-	node_idx_t second_idx = *it++;
-	if(first_idx == NIL_NODE && second_idx == NIL_NODE) {
-		list_ptr_t ret = new_list();
-		ret->cons_inplace(NIL_NODE);
-		return new_node_list(ret);
-	}
-	if(first_idx == NIL_NODE) {
-		list_ptr_t ret = new_list();
-		ret->cons_inplace(second_idx);
-		return new_node_list(ret);
-	}
-	if(second_idx == NIL_NODE) {
-		list_ptr_t ret = new_list();
-		ret->cons_inplace(first_idx);
-		return new_node_list(ret);
-	}
-	node_t *first = get_node(first_idx);
-	node_t *second = get_node(second_idx);
-	if(second->type == NODE_STRING) {
-		jo_string s = second->as_string();
-		jo_string s2 = first->as_string();
-		jo_string s3 = s2 + s;
-		return new_node_string(s3);
-	}
-	if(second->type == NODE_LIST) {
-		list_ptr_t second_list = second->as_list();
-		return new_node_list(second_list->cons(first_idx));
-	}
-	if(second->type == NODE_VECTOR) {
-		vector_ptr_t second_vector = second->as_vector();
-		return new_node_vector(second_vector->cons(first_idx));
-	}
-	if(second->type == NODE_LAZY_LIST) {
-		lazy_list_iterator_t lit(env, second_idx);
-		list_ptr_t second_list = lit.all();
-		return new_node_list(second_list->cons(first_idx));
-	}
-	list_ptr_t ret = new_list();
-	ret->cons_inplace(second_idx);
-	ret->cons_inplace(first_idx);
-	return new_node_list(ret);
 }
 
 // (conj coll x)(conj coll x & xs)
@@ -3489,7 +3450,6 @@ int main(int argc, char **argv) {
 	env->set("letter?", new_node_native_function("letter?", &native_is_letter, false));
 	env->set("do", new_node_native_function("do", &native_do, false));
 	env->set("doall", new_node_native_function("doall", &native_doall, true));
-	env->set("cons", new_node_native_function("cons", &native_cons, false));
 	env->set("conj", new_node_native_function("conj", &native_conj, false));
 	env->set("into", new_node_native_function("info", &native_into, false));
 	env->set("pop", new_node_native_function("pop", &native_pop, false));

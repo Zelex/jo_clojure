@@ -1063,8 +1063,12 @@ static node_idx_t native_lazy_seq(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_lazy_seq_first(env_ptr_t env, list_ptr_t args) {
-	node_idx_t ll = eval_node_list(env, args);
-	auto fr = get_node(ll)->seq_first_rest(env);
+	node_idx_t ll_idx = eval_node_list(env, args);
+	node_t *ll = get_node(ll_idx);
+	if(!ll->is_seq()) {
+		return NIL_NODE;
+	}
+	auto fr = ll->seq_first_rest(env);
 	list_ptr_t l = new_list();
 	l->push_front_inplace(fr.second);
 	l->push_front_inplace(env->get("lazy-seq-next"));
@@ -1073,7 +1077,12 @@ static node_idx_t native_lazy_seq_first(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_lazy_seq_next(env_ptr_t env, list_ptr_t args) {
-	auto fr = get_node(args->first_value())->seq_first_rest(env);
+	node_idx_t ll_idx = args->first_value();
+	node_t *ll = get_node(ll_idx);
+	if(!ll->is_seq() || ll->seq_empty(env)) {
+		return NIL_NODE;
+	}
+	auto fr = ll->seq_first_rest(env);
 	list_ptr_t l = new_list();
 	l->push_front_inplace(fr.second);
 	l->push_front_inplace(env->get("lazy-seq-next"));
@@ -1081,6 +1090,73 @@ static node_idx_t native_lazy_seq_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(l);
 }
 
+// (cons x seq)
+// Returns a new seq where x is the first element and seq is the rest.
+// Note: cons is not actually lazy, but I think this implementation 
+//   could benefit from that in the case of cat'ing to a lazy list.
+static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t first_idx = *it++;
+	node_idx_t second_idx = *it++;
+	if(first_idx == NIL_NODE && second_idx == NIL_NODE) {
+		list_ptr_t ret = new_list();
+		ret->cons_inplace(NIL_NODE);
+		return new_node_list(ret);
+	}
+	if(first_idx == NIL_NODE) {
+		list_ptr_t ret = new_list();
+		ret->cons_inplace(second_idx);
+		return new_node_list(ret);
+	}
+	if(second_idx == NIL_NODE) {
+		list_ptr_t ret = new_list();
+		ret->cons_inplace(first_idx);
+		return new_node_list(ret);
+	}
+	node_t *first = get_node(first_idx);
+	node_t *second = get_node(second_idx);
+	if(second->type == NODE_STRING) {
+		jo_string s = second->as_string();
+		jo_string s2 = first->as_string();
+		jo_string s3 = s2 + s;
+		return new_node_string(s3);
+	}
+	if(second->type == NODE_LIST) {
+		list_ptr_t second_list = second->as_list();
+		return new_node_list(second_list->cons(first_idx));
+	}
+	if(second->type == NODE_VECTOR) {
+		vector_ptr_t second_vector = second->as_vector();
+		return new_node_vector(second_vector->cons(first_idx));
+	}
+	if(second->type == NODE_LAZY_LIST) {
+		list_ptr_t lazy_func_args = new_list();
+		lazy_func_args->push_front_inplace(second_idx);
+		lazy_func_args->push_front_inplace(first_idx);
+		lazy_func_args->push_front_inplace(env->get("cons-first"));
+		return new_node_lazy_list(new_node_list(lazy_func_args));
+		//lazy_list_iterator_t lit(env, second_idx);
+		//list_ptr_t second_list = lit.all();
+		//return new_node_list(second_list->cons(first_idx));
+	}
+	list_ptr_t ret = new_list();
+	ret->cons_inplace(second_idx);
+	ret->cons_inplace(first_idx);
+	return new_node_list(ret);
+}
+
+static node_idx_t native_cons_first(env_ptr_t env, list_ptr_t args) {
+	list_ptr_t l = new_list();
+	l->push_front_inplace(args->second_value());
+	l->push_front_inplace(env->get("cons-next"));
+	l->push_front_inplace(args->first_value());
+	return new_node_list(l);
+}
+
+static node_idx_t native_cons_next(env_ptr_t env, list_ptr_t args) {
+	lazy_list_iterator_t lit(env, args->first_value());
+	return lit.cur;
+}
 
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
@@ -1113,7 +1189,10 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("interleave-next", new_node_native_function("interleave-next", &native_interleave_next, true));
 	env->set("flatten", new_node_native_function("flatten", &native_flatten, false));
 	env->set("flatten-next", new_node_native_function("flatten-next", &native_flatten_next, true));
-	//env->set("lazy-seq", new_node_native_function("lazy-seq", &native_lazy_seq, true));
-	//env->set("lazy-seq-first", new_node_native_function("lazy-seq-first", &native_lazy_seq_first, true));
-	//env->set("lazy-seq-next", new_node_native_function("lazy-seq-next", &native_lazy_seq_next, true));
+	env->set("lazy-seq", new_node_native_function("lazy-seq", &native_lazy_seq, true));
+	env->set("lazy-seq-first", new_node_native_function("lazy-seq-first", &native_lazy_seq_first, true));
+	env->set("lazy-seq-next", new_node_native_function("lazy-seq-next", &native_lazy_seq_next, true));
+	env->set("cons", new_node_native_function("cons", &native_cons, false));
+	env->set("cons-first", new_node_native_function("cons-first", &native_cons_first, true));
+	env->set("cons-next", new_node_native_function("cons-next", &native_cons_next, true));
 }

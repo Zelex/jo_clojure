@@ -630,3 +630,5 @@
 ;(doall (range 1 6))
 
 (doall (take 30 fib-seq-iterate))
+
+(doall (take 10 (ints-from 10)))
