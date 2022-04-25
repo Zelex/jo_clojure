@@ -130,6 +130,7 @@ static inline node_idx_t get_node_lazy_fn(node_idx_t idx);
 static inline node_idx_t get_node_lazy_fn(const node_t *n);
 
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
+static node_idx_t new_node_string(const jo_string &s);
 static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_lazy_list(node_idx_t lazy_fn);
@@ -225,6 +226,17 @@ struct env_t {
 			}
 		}
 	}
+
+	void print_map(int depth = 0) {
+		printf("%*s{", depth, "");
+		for(auto it = vars_map.begin(); it != vars_map.end(); it++) {
+			print_node(new_node_string(it->first.c_str()), depth);
+			printf(" = ");
+			print_node(it->second.value, depth);
+			printf(",\n");
+		}
+		printf("%*s}\n", depth, "");
+	}
 };
 
 static env_ptr_t new_env(env_ptr_t parent) { return env_ptr_t(new env_t(parent)); }
@@ -251,10 +263,6 @@ struct lazy_list_iterator_t {
 			if(!done()) {
 				val = get_node_list(cur)->first_value();
 			}
-		} else {
-			printf("not a lazy list: ");
-			print_node(cur);
-			printf("\n");
 		}
 	}
 
@@ -1238,7 +1246,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 					}
 				}
 			}
-			
+
 			// Evaluate all statements in the body list
 			node_idx_t last = NIL_NODE;
 			for(list_t::iterator i = proto_body->begin(); i; i++) {

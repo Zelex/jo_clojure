@@ -93,8 +93,6 @@
   ;))
 ;(fn-test)
 
-
-
 (defn ints-from [n] (cons n (lazy-seq (ints-from (inc n)))))
 (doall (take 10 (ints-from 10)))
 ;(doall (lazy-seq (cons 1 (lazy-seq (range 3)))))

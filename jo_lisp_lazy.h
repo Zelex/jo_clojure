@@ -1058,22 +1058,21 @@ static node_idx_t native_lazy_seq(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t lazy_func_idx = new_node(NODE_LIST);
 	node_t *lazy_func = get_node(lazy_func_idx);
-	lazy_func->t_list = args->push_front(env->get("lazy-seq-first"));
+	lazy_func->t_list = args->push_front(new_node_native_function("lazy-seq-first", 
+	[=](env_ptr_t sub_env, list_ptr_t args) -> node_idx_t {
+		node_idx_t ll_idx = eval_node_list(env, args);
+		node_t *ll = get_node(ll_idx);
+		if(!ll->is_seq()) {
+			return NIL_NODE;
+		}
+		auto fr = ll->seq_first_rest(env);
+		list_ptr_t l = new_list();
+		l->push_front_inplace(fr.second);
+		l->push_front_inplace(env->get("lazy-seq-next"));
+		l->push_front_inplace(fr.first);
+		return new_node_list(l);
+	}, true));
 	return new_node_lazy_list(lazy_func_idx);
-}
-
-static node_idx_t native_lazy_seq_first(env_ptr_t env, list_ptr_t args) {
-	node_idx_t ll_idx = eval_node_list(env, args);
-	node_t *ll = get_node(ll_idx);
-	if(!ll->is_seq()) {
-		return NIL_NODE;
-	}
-	auto fr = ll->seq_first_rest(env);
-	list_ptr_t l = new_list();
-	l->push_front_inplace(fr.second);
-	l->push_front_inplace(env->get("lazy-seq-next"));
-	l->push_front_inplace(fr.first);
-	return new_node_list(l);
 }
 
 static node_idx_t native_lazy_seq_next(env_ptr_t env, list_ptr_t args) {
@@ -1190,7 +1189,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("flatten", new_node_native_function("flatten", &native_flatten, false));
 	env->set("flatten-next", new_node_native_function("flatten-next", &native_flatten_next, true));
 	env->set("lazy-seq", new_node_native_function("lazy-seq", &native_lazy_seq, true));
-	env->set("lazy-seq-first", new_node_native_function("lazy-seq-first", &native_lazy_seq_first, true));
 	env->set("lazy-seq-next", new_node_native_function("lazy-seq-next", &native_lazy_seq_next, true));
 	env->set("cons", new_node_native_function("cons", &native_cons, false));
 	env->set("cons-first", new_node_native_function("cons-first", &native_cons_first, true));
