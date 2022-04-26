@@ -98,6 +98,7 @@
 ;(doall (lazy-seq (cons 1 (lazy-seq (range 3)))))
 ;(doall (lazy-seq (cons 1 (lazy-seq '(2 3)))))
 
-((fn recursive-range [x y] (if (< x y) (cons x (recursive-range (inc x) y))))
-  5 10)
+;((fn recursive-range [x y] (if (< x y) (cons x (recursive-range (inc x) y)))) 5 10)
 
+(def fib-seq-iterate (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
+(doall (take 10 fib-seq-iterate))

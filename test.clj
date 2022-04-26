@@ -544,7 +544,7 @@
           5 10))))
 
 (def fib-seq-iterate (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
-(is (= (fib-seq-iterate (fn [x] x) 0) 0))
+(is (= (take 5 fib-seq-iterate) (list 0 1 1 2 3)))
 
   
 
@@ -628,5 +628,3 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
-
-(doall (take 30 fib-seq-iterate))

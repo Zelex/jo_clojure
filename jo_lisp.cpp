@@ -1299,6 +1299,14 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 			return root;
 		}
 		return eval_node(env, sym_idx);
+	} else if(type == NODE_VECTOR) {
+		if(flags & NODE_FLAG_LITERAL) { return root; }
+		// resolve all symbols in the vector
+		vector_ptr_t new_vec = new_vector();
+		for(vector_t::iterator it = get_node(root)->t_vector->begin(); it; it++) {
+			new_vec = new_vec->push_back(eval_node(env, *it));
+		}
+		return new_node_vector(new_vec);
 	}
 	return root;
 }
