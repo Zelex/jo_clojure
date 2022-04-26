@@ -153,7 +153,6 @@ double
 double-array
 double?
 doubles
-drop-while
 eduction
 empty
 EMPTY-NODE
@@ -398,7 +397,6 @@ send-off
 send-via
 seq
 seq?
-seqable?
 seque
 sequence
 sequential?
