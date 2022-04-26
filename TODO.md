@@ -444,7 +444,6 @@ symbol?
 sync
 tagged-literal
 tagged-literal?
-take-while
 tap>
 test
 the-ns
