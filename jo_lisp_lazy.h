@@ -853,43 +853,6 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret_list);
 }
 
-static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t n_idx = *it++;
-	int n = get_node(n_idx)->as_int();
-	node_idx_t list_idx = *it++;
-	if(n <= 0) {
-		return list_idx;
-	}
-	node_t *list = get_node(list_idx);
-	list_ptr_t list_list = list->as_list();
-	if(list->is_string()) {
-		jo_string &str = list->t_string;
-		if(n < 0) {
-			n = str.size() + n;
-		}
-		if(n < 0 || n >= str.size()) {
-			return new_node_string("");
-		}
-		return new_node_string(str.substr(n));
-	}
-	if(list->is_list()) {
-		return new_node_list(list_list->drop(n));
-	}
-	if(list->is_vector()) {
-		return new_node_vector(list->as_vector()->drop(n));
-	}
-	if(list->is_lazy_list()) {
-		lazy_list_iterator_t lit(env, list_idx);
-		lit.nth(n-1);
-		if(lit.done()) {
-			return NIL_NODE;
-		}
-		return new_node_lazy_list(lit.next_fn());
-	}
-	return NIL_NODE;
-}
-
 // (interleave)(interleave c1)(interleave c1 c2)(interleave c1 c2 & colls)
 // Returns a lazy seq of the first item in each coll, then the second etc.
 // (interleave [:a :b :c] [1 2 3]) => (:a 1 :b 2 :c 3)
@@ -1299,6 +1262,77 @@ static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(list);
 }
 
+static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t n_idx = *it++;
+	int n = get_node(n_idx)->as_int();
+	node_idx_t list_idx = *it++;
+	if(n <= 0) {
+		return list_idx;
+	}
+	node_t *list = get_node(list_idx);
+	list_ptr_t list_list = list->as_list();
+	if(list->is_string()) {
+		jo_string &str = list->t_string;
+		if(n < 0) {
+			n = str.size() + n;
+		}
+		if(n < 0 || n >= str.size()) {
+			return new_node_string("");
+		}
+		return new_node_string(str.substr(n));
+	}
+	if(list->is_list()) {
+		return new_node_list(list_list->drop(n));
+	}
+	if(list->is_vector()) {
+		return new_node_vector(list->as_vector()->drop(n));
+	}
+	if(list->is_lazy_list()) {
+		node_idx_t lazy_func_idx = new_node(NODE_LIST);
+		get_node(lazy_func_idx)->t_list = new_list();
+		get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("drop-first"));
+		get_node(lazy_func_idx)->t_list->push_back_inplace(n_idx);
+		get_node(lazy_func_idx)->t_list->push_back_inplace(list_idx);
+		return new_node_lazy_list(lazy_func_idx);
+	}
+	return NIL_NODE;
+}
+
+static node_idx_t native_drop_first(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	int n = get_node_int(*it++);
+	node_idx_t coll = *it++;
+	lazy_list_iterator_t lit(env, coll);
+	for(; !lit.done(); lit.next()) {
+		if(n-- <= 0) {
+			break;
+		}
+	}
+	if(lit.done()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list = new_list();
+	list->push_back_inplace(lit.val);
+	list->push_back_inplace(env->get("drop-while-next"));
+	list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
+	return new_node_list(list);
+}
+
+static node_idx_t native_drop_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t coll = *it++;
+	lazy_list_iterator_t lit(env, coll);
+	if(lit.done()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list = new_list();
+	list->push_back_inplace(lit.val);
+	list->push_back_inplace(env->get("drop-while-next"));
+	list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
+	return new_node_list(list);
+}
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, false));
@@ -1328,6 +1362,8 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("partition", new_node_native_function("partition", &native_partition, true));
 	env->set("partition-next", new_node_native_function("partition-next", &native_partition_next, true));
 	env->set("drop", new_node_native_function("drop", &native_drop, false));
+	env->set("drop-first", new_node_native_function("drop-first", &native_drop_first, false));
+	env->set("drop-next", new_node_native_function("drop-next", &native_drop_next, false));
 	env->set("drop-while", new_node_native_function("drop-while", &native_drop_while, true));
 	env->set("drop-while-first", new_node_native_function("drop-while-first", &native_drop_while_first, true));
 	env->set("drop-while-next", new_node_native_function("drop-while-next", &native_drop_while_next, true));

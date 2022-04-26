@@ -2411,30 +2411,7 @@ static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_is_delay(env_ptr_t env, list_ptr_t args) {	return get_node_type(args->first_value()) == NODE_DELAY ? TRUE_NODE : FALSE_NODE; }
-
-static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	if(node->is_list()) {
-		list_ptr_t list_list = node->as_list();
-		return list_list->size() == 0 ? TRUE_NODE : FALSE_NODE;
-	}
-	if(node->is_vector()) {
-		vector_ptr_t list_vec = node->as_vector();
-		return list_vec->size() == 0 ? TRUE_NODE : FALSE_NODE;
-	}
-	if(node->is_map()) {
-		map_ptr_t list_map = node->as_map();
-		return list_map->size() == 0 ? TRUE_NODE : FALSE_NODE;
-	}
-	if(node->is_string()) {
-		jo_string s = node->as_string();
-		return s.size() == 0 ? TRUE_NODE : FALSE_NODE;
-	}
-	return FALSE_NODE;
-}
-
+static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_empty(env) ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? FALSE_NODE : TRUE_NODE; }
 static node_idx_t native_is_true(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) != NODE_NIL ? TRUE_NODE : FALSE_NODE; }
