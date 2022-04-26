@@ -556,7 +556,7 @@
 (when-let-test)
 ;(for-test)
 (list-test)
-;(seqable?-test)
+(seqable?-test)
 (cons-test)
 (first-test)
 (second-test)

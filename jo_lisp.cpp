@@ -3316,7 +3316,9 @@ static node_idx_t native_is_every(env_ptr_t env, list_ptr_t args) {
 	return new_node_bool(false);
 }
 
-
+static node_idx_t native_is_seqable(env_ptr_t env, list_ptr_t args) {
+	return new_node_bool(get_node(args->first_value())->is_seq());
+}
 
 
 #include "jo_lisp_math.h"
