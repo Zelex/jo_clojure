@@ -182,7 +182,6 @@ find-ns
 find-protocol-impl
 find-protocol-method
 find-var
-flatten
 float
 float-array
 float?
@@ -223,7 +222,6 @@ inst-ms
 inst?
 instance?
 int-array
-interleave
 intern
 interpose
 into-array
@@ -238,7 +236,6 @@ keys
 keyword
 keyword?
 lazy-cat
-lazy-seq
 letfn
 line-seq
 list*
