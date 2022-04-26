@@ -3306,9 +3306,8 @@ static node_idx_t native_is_every(env_ptr_t env, list_ptr_t args) {
 	return new_node_bool(false);
 }
 
-static node_idx_t native_is_seqable(env_ptr_t env, list_ptr_t args) {
-	return new_node_bool(get_node(args->first_value())->is_seq());
-}
+static node_idx_t native_is_seqable(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node(args->first_value())->is_seq()); }
+static node_idx_t native_is_any(env_ptr_t env, list_ptr_t args) { return TRUE_NODE; }
 
 
 #include "jo_lisp_math.h"
@@ -3555,6 +3554,7 @@ int main(int argc, char **argv) {
 	env->set("->", new_node_native_function("->", &native_thread, true));
 	env->set("->>", new_node_native_function("->>", &native_thread_last, true));
 	env->set("every?", new_node_native_function("every?", &native_is_every, false));
+	env->set("any?", new_node_native_function("any?", &native_is_any, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
