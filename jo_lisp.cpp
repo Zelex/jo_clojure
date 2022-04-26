@@ -1304,9 +1304,17 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 		// resolve all symbols in the vector
 		vector_ptr_t new_vec = new_vector();
 		for(vector_t::iterator it = get_node(root)->t_vector->begin(); it; it++) {
-			new_vec = new_vec->push_back(eval_node(env, *it));
+			new_vec->push_back_inplace(eval_node(env, *it));
 		}
 		return new_node_vector(new_vec);
+	} else if(type == NODE_MAP) {
+		if(flags & NODE_FLAG_LITERAL) { return root; }
+		// resolve all symbols in the vector
+		map_ptr_t newmap = new_map();
+		for(map_t::iterator it = get_node(root)->t_map->begin(); it; it++) {
+			newmap->assoc_inplace(eval_node(env, it->first), eval_node(env, it->second));
+		}
+		return new_node_map(newmap);
 	}
 	return root;
 }
