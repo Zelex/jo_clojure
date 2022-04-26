@@ -1202,15 +1202,98 @@ static node_idx_t native_take_while_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t pred = *it++;
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(env, coll);
-	if(lit.done()) {
-		return NIL_NODE;
-	}
-	if (eval_va(env, 2, pred, coll) != TRUE_NODE){
+	if(lit.done() || eval_va(env, 2, pred, coll) != TRUE_NODE) {
 		return NIL_NODE;
 	}
 	list_ptr_t list = new_list();
 	list->push_back_inplace(lit.val);
 	list->push_back_inplace(env->get("take-while-next"));
+	list->push_back_inplace(pred);
+	list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
+	return new_node_list(list);
+}
+
+// (drop-while pred)(drop-while pred coll)
+// Returns a lazy sequence of the items in coll starting from the
+// first item for which (pred item) returns logical false.  Returns a
+// stateful transducer when no collection is provided.
+static node_idx_t native_drop_while(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t pred = eval_node(env, *it++);
+	node_idx_t coll = eval_node(env, *it++);
+	if(get_node_type(coll) == NODE_LIST) {
+		// don't do it lazily if not given lazy inputs... thats dumb
+		list_ptr_t coll_list = get_node(coll)->as_list();
+		list_ptr_t out_list = new_list();
+		list_t::iterator it = coll_list->begin();
+		for(; it; ++it) {
+			if(eval_va(env, 2, pred, *it) != TRUE_NODE) {
+				break;
+			}
+		}
+		for(; it; ++it) {
+			out_list->push_back_inplace(*it);
+		}
+		return new_node_list(out_list);
+	}
+	if(get_node_type(coll) == NODE_VECTOR) {
+		// don't do it lazily if not given lazy inputs... thats dumb
+		vector_ptr_t coll_vec = get_node(coll)->as_vector();
+		vector_ptr_t out_vec = new_vector();
+		vector_t::iterator it = coll_vec->begin();
+		for(; it; ++it) {
+			if(eval_va(env, 2, pred, *it) != TRUE_NODE) {
+				break;
+			}
+		}
+		for(; it; ++it) {
+			out_vec->push_back_inplace(*it);
+		}
+		return new_node_vector(out_vec);
+	}
+	if(get_node_type(coll) == NODE_LAZY_LIST) {
+		node_idx_t lazy_func_idx = new_node(NODE_LIST);
+		get_node(lazy_func_idx)->t_list = new_list();
+		get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("drop-while-first"));
+		get_node(lazy_func_idx)->t_list->push_back_inplace(pred);
+		get_node(lazy_func_idx)->t_list->push_back_inplace(coll);
+		return new_node_lazy_list(lazy_func_idx);
+	}
+	return coll;
+}
+
+static node_idx_t native_drop_while_first(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t pred = *it++;
+	node_idx_t coll = *it++;
+	lazy_list_iterator_t lit(env, coll);
+	for(; !lit.done(); lit.next()) {
+		if(eval_va(env, 2, pred, lit.val) != TRUE_NODE) {
+			break;
+		}
+	}
+	if(lit.done()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list = new_list();
+	list->push_back_inplace(lit.val);
+	list->push_back_inplace(env->get("drop-while-next"));
+	list->push_back_inplace(pred);
+	list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
+	return new_node_list(list);
+}
+
+static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t pred = *it++;
+	node_idx_t coll = *it++;
+	lazy_list_iterator_t lit(env, coll);
+	if(lit.done()) {
+		return NIL_NODE;
+	}
+	list_ptr_t list = new_list();
+	list->push_back_inplace(lit.val);
+	list->push_back_inplace(env->get("drop-while-next"));
 	list->push_back_inplace(pred);
 	list->push_back_inplace(new_node_lazy_list(lit.next_fn()));
 	return new_node_list(list);
@@ -1245,6 +1328,9 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("partition", new_node_native_function("partition", &native_partition, true));
 	env->set("partition-next", new_node_native_function("partition-next", &native_partition_next, true));
 	env->set("drop", new_node_native_function("drop", &native_drop, false));
+	env->set("drop-while", new_node_native_function("drop-while", &native_drop_while, true));
+	env->set("drop-while-first", new_node_native_function("drop-while-first", &native_drop_while_first, true));
+	env->set("drop-while-next", new_node_native_function("drop-while-next", &native_drop_while_next, true));
 	env->set("interleave", new_node_native_function("interleave", &native_interleave, false));
 	env->set("interleave-next", new_node_native_function("interleave-next", &native_interleave_next, true));
 	env->set("flatten", new_node_native_function("flatten", &native_flatten, false));
