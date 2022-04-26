@@ -2333,6 +2333,16 @@ static node_idx_t native_pop(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_vector(list_vec->pop());
 	}
+	if(list->is_string()) {
+		jo_string list_str = list->as_string();
+		if(list_str.size() == 0) {
+			return NIL_NODE;
+		}
+		return new_node_string(list_str.substr(1));
+	}
+	if(list->is_lazy_list()) {
+		return list->seq_rest(env);
+	}
 	return NIL_NODE;
 }
 
@@ -2360,6 +2370,9 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		return new_node_int(s.c_str()[0]);
+	}
+	if(list->is_lazy_list()) {
+		return list->seq_first(env);
 	}
 	return NIL_NODE;
 }

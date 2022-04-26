@@ -281,7 +281,6 @@ nat-int?
 neg-int?
 new
 newline
-nil?
 not-any?
 not-empty
 not-every?
