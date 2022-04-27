@@ -3335,14 +3335,13 @@ static node_idx_t native_is_every(env_ptr_t env, list_ptr_t args) {
 	return new_node_bool(false);
 }
 
-static node_idx_t native_is_seqable(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node(args->first_value())->is_seq()); }
+static node_idx_t native_is_seqable(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->is_seq() ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_any(env_ptr_t env, list_ptr_t args) { return TRUE_NODE; }
+static node_idx_t native_boolean(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
 
 // (array-map)(array-map & keyvals)
 // Constructs an array-map. If any keys are equal, they are handled as
 // if by repeated uses of assoc.
-// user=> (array-map :a 10 :b 20)
-// {:a 10 :b 20}
 static node_idx_t native_array_map(env_ptr_t env, list_ptr_t args) {
 	if(args->size() & 1) {
 		warnf("(array-map) requires an even number of arguments");
@@ -3605,6 +3604,7 @@ int main(int argc, char **argv) {
 	env->set("every?", new_node_native_function("every?", &native_is_every, false));
 	env->set("any?", new_node_native_function("any?", &native_is_any, false));
 	env->set("array-map", new_node_native_function("array-map", &native_array_map, false));
+	env->set("boolean", new_node_native_function("boolean", &native_boolean, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
