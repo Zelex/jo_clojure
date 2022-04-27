@@ -46,7 +46,6 @@ amap
 ancestors
 areduce
 array-map
-as->
 aset
 aset-boolean
 aset-byte
@@ -56,7 +55,6 @@ aset-float
 aset-int
 aset-long
 aset-short
-assert
 assoc!
 assoc-in
 associative?

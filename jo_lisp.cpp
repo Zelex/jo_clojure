@@ -3576,6 +3576,7 @@ int main(int argc, char **argv) {
 	env->set("shuffle", new_node_native_function("shuffle", &native_shuffle, false));
 	env->set("random-sample", new_node_native_function("random-sample", &native_random_sample, false));
 	env->set("is", new_node_native_function("is", &native_is, true));
+	env->set("assert", new_node_native_function("assert", &native_is, true));
 	env->set("identity", new_node_native_function("identity", &native_identity, false));
 	env->set("reverse", new_node_native_function("reverse", &native_reverse, false));
 	env->set("nthrest", new_node_native_function("nthrest", &native_nthrest, false));
