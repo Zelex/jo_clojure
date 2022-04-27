@@ -3408,6 +3408,20 @@ static node_idx_t native_butlast(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (complement f)
+// Takes a fn f and returns a fn that takes the same arguments as f,
+// has the same effects, if any, and returns the opposite truth value.
+static node_idx_t native_complement(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f_idx = args->first_value();
+	node_t *f_node = get_node(f_idx);
+	if(!f_node->is_func() && !f_node->is_native_func()) {
+		warnf("(complement) requires a function");
+		return NIL_NODE;
+	}
+	return new_node_native_function( "native_complement_fn", [f_idx](env_ptr_t env, list_ptr_t args) -> node_idx_t {
+		return get_node_bool(eval_list(env, args->push_front(f_idx))) ? FALSE_NODE : TRUE_NODE;
+	}, false);
+}
 
 
 #include "jo_lisp_math.h"
@@ -3661,6 +3675,7 @@ int main(int argc, char **argv) {
 	env->set("boolean", new_node_native_function("boolean", &native_boolean, false));
 	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false));
 	env->set("butlast", new_node_native_function("butlast", &native_butlast, false));
+	env->set("complement", new_node_native_function("complement", &native_complement, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
