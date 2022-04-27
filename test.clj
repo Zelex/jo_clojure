@@ -546,7 +546,7 @@
 (def fib-seq-iterate (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
 (is (= (take 5 fib-seq-iterate) (list 0 1 1 2 3)))
 
-  
+(is (= (as-> 0 n (inc n) (inc n)) 2))
 
 
 (string-test)

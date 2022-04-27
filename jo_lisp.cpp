@@ -3264,6 +3264,35 @@ static node_idx_t native_thread_last(env_ptr_t env, list_ptr_t args) {
 	return x_idx;
 }
 
+
+// (as-> expr name & forms)
+// Binds name to expr, evaluates the first form in the lexical context
+// of that binding, then binds name to that result, repeating for each
+// successive form, returning the result of the last form.
+static node_idx_t native_as_thread(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t expr_idx = eval_node(env, *it++);
+	node_idx_t name_idx = eval_node(env, *it++);
+	jo_string name = get_node(name_idx)->t_string;
+	env_ptr_t env2 = new_env(env);
+	for(; it; it++) {
+		node_idx_t form_idx = *it;
+		node_t *form_node = get_node(form_idx);
+		list_ptr_t args2;
+		if(get_node_type(*it) == NODE_LIST) {
+			list_ptr_t form_list = form_node->t_list;
+			args2 = form_list->rest();
+			args2->push_front_inplace(form_list->first_value());
+		} else {
+			args2 = new_list();
+			args2->push_front_inplace(*it);
+		}
+		env2->set_temp(name, expr_idx);
+		expr_idx = eval_list(env2, args2);
+	}
+	return expr_idx;
+}
+
 // (every? pred coll)
 // Returns true if (pred x) is logical true for every x in coll, else
 // false.
@@ -3553,6 +3582,7 @@ int main(int argc, char **argv) {
 	env->set("nthnext", new_node_native_function("nthnext", &native_nthnext, false));
 	env->set("->", new_node_native_function("->", &native_thread, true));
 	env->set("->>", new_node_native_function("->>", &native_thread_last, true));
+	env->set("as->", new_node_native_function("as->", &native_as_thread, true));
 	env->set("every?", new_node_native_function("every?", &native_is_every, false));
 	env->set("any?", new_node_native_function("any?", &native_is_any, false));
 

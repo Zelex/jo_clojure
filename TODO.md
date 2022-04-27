@@ -44,7 +44,6 @@ alter-meta!
 alter-var-root
 amap
 ancestors
-any?
 areduce
 array-map
 as->
