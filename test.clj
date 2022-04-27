@@ -547,6 +547,7 @@
 (is (= (take 5 fib-seq-iterate) (list 0 1 1 2 3)))
 
 (is (= (as-> 0 n (inc n) (inc n)) 2))
+(is (= (array-map :a 1 :b 2) {:a 1 :b 2}))
 
 
 (string-test)

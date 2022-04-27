@@ -45,7 +45,6 @@ alter-var-root
 amap
 ancestors
 areduce
-array-map
 aset
 aset-boolean
 aset-byte
