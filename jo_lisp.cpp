@@ -3357,6 +3357,59 @@ static node_idx_t native_array_map(env_ptr_t env, list_ptr_t args) {
 	return new_node_map(map);
 }
 
+// (butlast coll)
+// Return a seq of all but the last item in coll, in linear time
+static node_idx_t native_butlast(env_ptr_t env, list_ptr_t args) {
+	node_idx_t coll_idx = args->first_value();
+	node_t *coll_node = get_node(coll_idx);
+	if(coll_node->is_list()) {
+		list_ptr_t coll_list = coll_node->t_list;
+		if(coll_list->size() < 2) {
+			return NIL_NODE;
+		}
+		list_ptr_t ret = new_list();
+		for(list_t::iterator it = coll_list->begin(); it; ) {
+			node_idx_t item_idx = *it++;
+			if(!it) {
+				break;
+			}
+			ret->push_back_inplace(*it);
+		}
+		return new_node_list(ret);
+	}
+	if(coll_node->is_vector()) {
+		vector_ptr_t coll_vector = coll_node->t_vector;
+		if(coll_vector->size() < 2) {
+			return NIL_NODE;
+		}
+		vector_ptr_t ret = new_vector();
+		for(vector_t::iterator it = coll_vector->begin(); it; ) {
+			node_idx_t item_idx = *it++;
+			if(!it) {
+				break;
+			}
+			ret->push_back_inplace(*it);
+		}
+		return new_node_vector(ret);
+	}
+	if(coll_node->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, coll_idx);
+		list_ptr_t ret = new_list();
+		for(; !lit.done(); ) {
+			node_idx_t item_idx = lit.val;
+			lit.next();
+			if(lit.done()) {
+				break;
+			}
+			ret->push_back_inplace(lit.val);
+		}
+		return new_node_list(ret);
+	}
+	return NIL_NODE;
+}
+
+
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3607,6 +3660,7 @@ int main(int argc, char **argv) {
 	env->set("array-map", new_node_native_function("array-map", &native_array_map, false));
 	env->set("boolean", new_node_native_function("boolean", &native_boolean, false));
 	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false));
+	env->set("butlast", new_node_native_function("butlast", &native_butlast, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

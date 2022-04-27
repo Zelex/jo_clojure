@@ -68,13 +68,11 @@ bigint
 biginteger
 binding
 boolean-array
-boolean?
 booleans
 bound-fn
 bound-fn*
 bound?
 bounded-count
-butlast
 byte
 byte-array
 bytes
