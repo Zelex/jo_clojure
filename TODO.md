@@ -67,7 +67,6 @@ bigdec
 bigint
 biginteger
 binding
-boolean
 boolean-array
 boolean?
 booleans
