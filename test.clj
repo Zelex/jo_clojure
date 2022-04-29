@@ -558,6 +558,11 @@
 (is (= (contains? {:a nil} :a) true))
 (is (= (contains? {:a 1} :b) false))
 
+(is (= (counted? [:a :b :c]) true))
+(is (= (counted? (:a :b :c)) true))
+(is (= (counted? {:a :b :c}) true))
+(is (= (counted? "test") false))
+
 (string-test)
 (if-test)
 (when-test)

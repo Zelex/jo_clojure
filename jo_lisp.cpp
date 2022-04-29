@@ -3580,6 +3580,21 @@ static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (counted? coll)
+// Returns true if coll implements count in constant time
+static node_idx_t native_is_counted(env_ptr_t env, list_ptr_t args) {
+	node_idx_t coll_idx = eval_node(env, args->first_value());
+	int coll_type = get_node_type(coll_idx);
+	if(coll_type == NODE_LIST) {
+		return TRUE_NODE;
+	} else if(coll_type == NODE_VECTOR) {
+		return TRUE_NODE;
+	} else if(coll_type == NODE_MAP) {
+		return TRUE_NODE;
+	}
+	return FALSE_NODE;
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -3837,6 +3852,7 @@ int main(int argc, char **argv) {
 	env->set("butlast", new_node_native_function("butlast", &native_butlast, false));
 	env->set("complement", new_node_native_function("complement", &native_complement, false));
 	env->set("contains?", new_node_native_function("contains?", &native_is_contains, false));
+	env->set("counted?", new_node_native_function("counted?", &native_is_counted, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

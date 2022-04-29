@@ -105,7 +105,6 @@ compile
 completing
 conj!
 construct-proxy
-counted?
 create-ns
 create-struct
 cycle
