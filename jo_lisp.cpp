@@ -14,8 +14,8 @@
 //#define debugf printf
 #define debugf sizeof
 
-//#define warnf printf
-#define warnf sizeof
+#define warnf printf
+//#define warnf sizeof
 
 
 enum {
@@ -62,7 +62,7 @@ enum {
 	NODE_VECTOR,
 	NODE_SET,
 	NODE_MAP,
-	NODE_NATIVE_FUNCTION,
+	NODE_NATIVE_FUNC,
 	NODE_FUNC,
 	NODE_VAR,
 	NODE_DELAY,
@@ -374,7 +374,7 @@ struct node_t {
 	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
 	bool is_string() const { return type == NODE_STRING; }
 	bool is_func() const { return type == NODE_FUNC; }
-	bool is_native_func() const { return type == NODE_NATIVE_FUNCTION; }
+	bool is_native_func() const { return type == NODE_NATIVE_FUNC; }
 	bool is_macro() const { return flags & NODE_FLAG_MACRO;}
 	bool is_float() const { return type == NODE_FLOAT; }
 	bool is_int() const { return type == NODE_INT; }
@@ -512,7 +512,7 @@ struct node_t {
 		case NODE_VECTOR:  return "vector";
 		case NODE_SET:     return "set";
 		case NODE_MAP:     return "map";
-		case NODE_NATIVE_FUNCTION: return "native_function";
+		case NODE_NATIVE_FUNC: return "native_function";
 		case NODE_VAR:	   return "var";
 		case NODE_SYMBOL:  return "symbol";
 		case NODE_KEYWORD: return "keyword";
@@ -608,7 +608,7 @@ static node_idx_t new_node_lazy_list(node_idx_t lazy_fn) {
 
 static node_idx_t new_node_native_function(std::function<node_idx_t(env_ptr_t,list_ptr_t)> f, bool is_macro) {
 	node_t n;
-	n.type = NODE_NATIVE_FUNCTION;
+	n.type = NODE_NATIVE_FUNC;
 	n.t_native_function = new native_func_t(f);
 	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
 	n.flags |= NODE_FLAG_LITERAL;
@@ -617,7 +617,7 @@ static node_idx_t new_node_native_function(std::function<node_idx_t(env_ptr_t,li
 
 static node_idx_t new_node_native_function(const char *name, std::function<node_idx_t(env_ptr_t,list_ptr_t)> f, bool is_macro) {
 	node_t n;
-	n.type = NODE_NATIVE_FUNCTION;
+	n.type = NODE_NATIVE_FUNC;
 	n.t_native_function = new native_func_t(f);
 	n.t_string = name;
 	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
@@ -1094,7 +1094,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.type = NODE_LIST;
 		n.t_list = new_list();
 		int common_flags = ~0;
-		bool is_native_fn = get_node_type(next) == NODE_NATIVE_FUNCTION;
+		bool is_native_fn = get_node_type(next) == NODE_NATIVE_FUNC;
 		while(next != INV_NODE) {
 			common_flags &= get_node_flags(next);
 			n.t_list->push_back_inplace(next);
@@ -1179,7 +1179,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 	|| n1_type == NODE_SYMBOL 
 	|| n1_type == NODE_KEYWORD 
 	|| n1_type == NODE_STRING 
-	|| n1_type == NODE_NATIVE_FUNCTION
+	|| n1_type == NODE_NATIVE_FUNC
 	|| n1_type == NODE_FUNC
 	|| n1_type == NODE_MAP
 	) {
@@ -1196,7 +1196,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 		sym_flags = get_node(sym_idx)->flags;
 
 		// get the symbol's value
-		if(sym_type == NODE_NATIVE_FUNCTION) {
+		if(sym_type == NODE_NATIVE_FUNC) {
 			debugf("nativefn: %s\n", get_node_string(sym_idx).c_str());
 			if((sym_flags|list_flags) & (NODE_FLAG_MACRO|NODE_FLAG_LITERAL_ARGS)) {
 				return (*get_node(sym_idx)->t_native_function.ptr)(env, list->rest());
@@ -1383,7 +1383,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf(":%s", get_node_string(node).c_str());
 	} else if(type == NODE_STRING) {
 		printf("\"%s\"", get_node_string(node).c_str());
-	} else if(type == NODE_NATIVE_FUNCTION) {
+	} else if(type == NODE_NATIVE_FUNC) {
 		printf("%s", get_node_string(node).c_str());
 	} else if(type == NODE_FUNC) {
 		print_node_vector(get_node_func_args(node), depth+1);
@@ -1423,7 +1423,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf("%*s%f\n", depth, "", n->t_float);
 	} else if(n->type == NODE_BOOL) {
 		printf("%*s%s\n", depth, "", n->t_bool ? "true" : "false");
-	} else if(n->type == NODE_NATIVE_FUNCTION) {
+	} else if(n->type == NODE_NATIVE_FUNC) {
 		printf("%*s<%s>\n", depth, "", n->t_string.c_str());
 	} else if(n->type == NODE_FUNC) {
 		printf("%*s(fn \n", depth, "");
@@ -2582,7 +2582,7 @@ static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) { return jo_i
 // (e.g. sets and maps) implement IFn
 static node_idx_t native_is_ifn(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return type == NODE_FUNC || type == NODE_NATIVE_FUNCTION || type == NODE_VECTOR || type == NODE_MAP || type == NODE_SET || type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
+	return type == NODE_FUNC || type == NODE_NATIVE_FUNC || type == NODE_VECTOR || type == NODE_MAP || type == NODE_SET || type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
 }
 
 // Return true if x is a symbol or keyword
@@ -3423,6 +3423,77 @@ static node_idx_t native_complement(env_ptr_t env, list_ptr_t args) {
 	}, false);
 }
 
+// (cond-> 1         ; we start with 1
+//    true inc       ; the condition is true so (inc 1) => 2
+//    false (* 42)   ; the condition is false so the operation is skipped
+//    (= 2 2) (* 3)) ; (= 2 2) is true so (* 2 3) => 6 
+//;;=> 6
+//;; notice that the threaded value gets used in 
+//;; only the form and not the test part of the clause.
+static node_idx_t native_cond_thread(env_ptr_t env, list_ptr_t args) {
+	if((args->size() & 1) == 0) {
+		warnf("(cond->) requires an odd number of arguments");
+		return NIL_NODE;
+	}
+
+	list_t::iterator it = args->begin();
+	node_idx_t value_idx = eval_node(env, *it++);
+	while(it) {
+		node_idx_t test_idx = eval_node(env, *it++);
+		node_idx_t form_idx = *it++;
+		if(test_idx == TRUE_NODE) {
+			int form_type = get_node_type(form_idx);
+			if(form_type == NODE_SYMBOL || form_type == NODE_FUNC || form_type == NODE_NATIVE_FUNC) {
+				list_ptr_t form_args = new_list();
+				form_args->push_front_inplace(value_idx);
+				form_args->push_front_inplace(form_idx);
+				value_idx = eval_list(env, form_args);
+			} else if(form_type == NODE_LIST) {
+				list_ptr_t form_args = get_node(form_idx)->t_list;
+				node_idx_t sym = form_args->first_value();
+				form_args = form_args->pop_front();
+				form_args->push_front_inplace(value_idx);
+				form_args->push_front_inplace(sym);
+				value_idx = eval_list(env, form_args);
+			} else {
+				warnf("(cond->) requires a symbol or list");
+				return NIL_NODE;
+			}
+		}
+	}
+	return value_idx;
+}
+
+static node_idx_t native_cond_thread_last(env_ptr_t env, list_ptr_t args) {
+	if((args->size() & 1) == 0) {
+		warnf("(cond->>) requires an odd number of arguments");
+		return NIL_NODE;
+	}
+
+	list_t::iterator it = args->begin();
+	node_idx_t value_idx = eval_node(env, *it++);
+	while(it) {
+		node_idx_t test_idx = eval_node(env, *it++);
+		node_idx_t form_idx = *it++;
+		if(test_idx == TRUE_NODE) {
+			int form_type = get_node_type(form_idx);
+			if(form_type == NODE_SYMBOL || form_type == NODE_FUNC || form_type == NODE_NATIVE_FUNC) {
+				list_ptr_t form_args = new_list();
+				form_args->push_front_inplace(value_idx);
+				form_args->push_front_inplace(form_idx);
+				value_idx = eval_list(env, form_args);
+			} else if(form_type == NODE_LIST) {
+				list_ptr_t form_args = get_node_list(form_idx);
+				form_args = form_args->push_back(value_idx);
+				value_idx = eval_list(env, form_args);
+			} else {
+				warnf("(cond->>) requires a symbol or list");
+				return NIL_NODE;
+			}
+		}
+	}
+	return value_idx;
+}
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -3669,6 +3740,8 @@ int main(int argc, char **argv) {
 	env->set("->", new_node_native_function("->", &native_thread, true));
 	env->set("->>", new_node_native_function("->>", &native_thread_last, true));
 	env->set("as->", new_node_native_function("as->", &native_as_thread, true));
+	env->set("cond->", new_node_native_function("cond->", &native_cond_thread, true));
+	env->set("cond->>", new_node_native_function("cond->>", &native_cond_thread_last, true));
 	env->set("every?", new_node_native_function("every?", &native_is_every, false));
 	env->set("any?", new_node_native_function("any?", &native_is_any, false));
 	env->set("array-map", new_node_native_function("array-map", &native_array_map, false));

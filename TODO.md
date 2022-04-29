@@ -102,10 +102,7 @@ commute
 comparator
 compare-and-set!
 compile
-complement
 completing
-cond->
-cond->>
 condp
 conj!
 construct-proxy
