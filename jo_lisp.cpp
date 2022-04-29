@@ -122,6 +122,7 @@ static inline node_idx_t get_node_var(node_idx_t idx);
 static inline bool get_node_bool(node_idx_t idx);
 static inline list_ptr_t get_node_list(node_idx_t idx);
 static inline vector_ptr_t get_node_vector(node_idx_t idx);
+static inline map_ptr_t get_node_map(node_idx_t idx);
 static inline int get_node_int(node_idx_t idx);
 static inline float get_node_float(node_idx_t idx);
 static inline vector_ptr_t get_node_func_args(node_idx_t idx);
@@ -533,6 +534,7 @@ static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_
 static inline bool get_node_bool(node_idx_t idx) { return get_node(idx)->as_bool(); }
 static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->as_list(); }
 static inline vector_ptr_t get_node_vector(node_idx_t idx) { return get_node(idx)->as_vector(); }
+static inline map_ptr_t get_node_map(node_idx_t idx) { return get_node(idx)->as_map(); }
 static inline int get_node_int(node_idx_t idx) { return get_node(idx)->as_int(); }
 static inline float get_node_float(node_idx_t idx) { return get_node(idx)->as_float(); }
 static inline jo_string get_node_type_string(node_idx_t idx) { return get_node(idx)->type_as_string(); }
@@ -3547,6 +3549,38 @@ static node_idx_t native_condp(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (contains? coll key)
+// Returns true if key is present in the given collection, otherwise
+// returns false.  Note that for numerically indexed collections like
+// vectors and Java arrays, this tests if the numeric key is within the
+// range of indexes. 'contains?' operates constant or logarithmic time;
+// it will not perform a linear search for a value.  See also 'some'.
+static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
+	if(args->size() != 2) {
+		warnf("(contains?) requires 2 arguments\n");
+		return NIL_NODE;
+	}
+
+	node_idx_t coll_idx = eval_node(env, args->first_value());
+	node_idx_t key_idx = eval_node(env, args->second_value());
+	int coll_type = get_node_type(coll_idx);
+	if(coll_type == NODE_LIST) {
+		list_ptr_t coll = get_node_list(coll_idx);
+		return coll->contains(key_idx) ? TRUE_NODE : FALSE_NODE;
+	} else if(coll_type == NODE_VECTOR) {
+		vector_ptr_t coll = get_node_vector(coll_idx);
+		return coll->contains(key_idx) ? TRUE_NODE : FALSE_NODE;
+	} else if(coll_type == NODE_MAP) {
+		map_ptr_t coll = get_node_map(coll_idx);
+		return coll->contains(key_idx, [env](node_idx_t a, node_idx_t b) {
+			return node_eq(env, a, b);
+		}) ? TRUE_NODE : FALSE_NODE;
+	}
+	warnf("(contains?) requires a collection\n");
+	return NIL_NODE;
+}
+
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3802,6 +3836,7 @@ int main(int argc, char **argv) {
 	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false));
 	env->set("butlast", new_node_native_function("butlast", &native_butlast, false));
 	env->set("complement", new_node_native_function("complement", &native_complement, false));
+	env->set("contains?", new_node_native_function("contains?", &native_is_contains, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

@@ -554,6 +554,9 @@
   = "eq"
   < "lt"
   > "gt") "lt"))
+(is (= (contains? {:a 1} :a) true))
+(is (= (contains? {:a nil} :a) true))
+(is (= (contains? {:a 1} :b) false))
 
 (string-test)
 (if-test)
@@ -634,3 +637,5 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
+
+

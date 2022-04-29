@@ -4562,6 +4562,16 @@ public:
         return entry_t();
     }
 
+    bool contains(const K &key) {
+        return find(key).third;
+    }
+     
+    // contains using lambda
+    template<typename F>
+    bool contains(const K &key, const F &f) {
+        return find(key, f).third;
+    }
+
     V get(const K &key) const {
         size_t index = jo_hash_value(key) % vec.size();
         auto it = vec.begin() + index;

@@ -105,7 +105,6 @@ compile
 completing
 conj!
 construct-proxy
-contains?
 counted?
 create-ns
 create-struct
