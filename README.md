@@ -6,7 +6,7 @@ A Fast, Embeddable Clojure language implementation in C.
 
 Just started the project, nothing is done, everything is messy. Will clean up before version 1.0.
 
-The near-term goal is to re-make clojure in an embedable form which is as fast or faster than the JVM implementation. 
+The near-term goal is to re-make clojure in an embedable form which is as fast as or hopefully approaches JVM hosted speeds. 
 
 The long-term goal is to add types/functions for machine learning, matrices, tensors, etc... And specifically try to do automatic parallelization. 
 
