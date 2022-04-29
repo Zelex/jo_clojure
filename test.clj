@@ -550,6 +550,10 @@
 (is (= (array-map :a 1 :b 2) {:a 1 :b 2}))
 (is (= (cond-> 1, true inc, false (* 42), (= 2 2) (* 3)) 6))
 (is (= (cond->> 1, true inc, false (* 42), (= 2 2) (* 3)) 6))
+(is (= (condp apply [2 3]
+  = "eq"
+  < "lt"
+  > "gt") "lt"))
 
 (string-test)
 (if-test)
@@ -630,4 +634,3 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
-

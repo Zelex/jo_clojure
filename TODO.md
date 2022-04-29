@@ -103,7 +103,6 @@ comparator
 compare-and-set!
 compile
 completing
-condp
 conj!
 construct-proxy
 contains?

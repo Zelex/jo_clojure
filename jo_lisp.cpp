@@ -3495,6 +3495,58 @@ static node_idx_t native_cond_thread_last(env_ptr_t env, list_ptr_t args) {
 	return value_idx;
 }
 
+// (condp pred expr & clauses)
+// Takes a binary predicate, an expression, and a set of clauses.
+// Each clause can take the form of either:
+//  test-expr result-expr
+// test-expr :>> result-fn
+// Note :>> is an ordinary keyword.
+// For each clause, (pred test-expr expr) is evaluated. If it returns
+// logical true, the clause is a match. If a binary clause matches, the
+// result-expr is returned, if a ternary clause matches, its result-fn,
+// which must be a unary function, is called with the result of the
+// predicate as its argument, the result of that call being the return
+// value of condp. A single default expression can follow the clauses,
+// and its value will be returned if no clause matches. If no default
+// expression is provided and no clause matches, an
+// IllegalArgumentException is thrown.
+static node_idx_t native_condp(env_ptr_t env, list_ptr_t args) {
+	int num_args = args->size();
+	if(num_args < 3) {
+		warnf("(condp) requires at least 3 arguments\n");
+		return NIL_NODE;
+	}
+
+	list_t::iterator it = args->begin();
+	node_idx_t pred_idx = eval_node(env, *it++);
+	node_idx_t expr_idx = eval_node(env, *it++);
+	int pred_type = get_node_type(pred_idx);
+	if(pred_type != NODE_FUNC && pred_type != NODE_NATIVE_FUNC) {
+		warnf("(condp) requires a function as its first argument\n");
+		return NIL_NODE;
+	}
+
+	int num_clauses = (num_args - 2) / 2;
+	for(int i = 0; i < num_clauses; i++) {
+		node_idx_t test_idx = eval_node(env, *it++);
+		node_idx_t form_idx = *it++;
+		list_ptr_t test_args = new_list();
+		test_args->push_front_inplace(expr_idx);
+		test_args->push_front_inplace(test_idx);
+		test_args->push_front_inplace(pred_idx);
+		if(eval_list(env, test_args) == TRUE_NODE) {
+			return eval_node(env, form_idx);
+		}
+	}
+
+	if(num_clauses * 2 + 2 != num_args) {
+		return eval_node(env, *it++);
+	}
+
+	warnf("(condp) no clause matched\n");
+	return NIL_NODE;
+}
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -3714,6 +3766,7 @@ int main(int argc, char **argv) {
 	env->set("when-not", new_node_native_function("when-not", &native_when_not, true));
 	env->set("while", new_node_native_function("while", &native_while, true));
 	env->set("cond", new_node_native_function("cond", &native_cond, true));
+	env->set("condp", new_node_native_function("condp", &native_condp, true));
 	env->set("case", new_node_native_function("case", &native_case, true));
 	env->set("apply", new_node_native_function("apply", &native_apply, true));
 	env->set("reduce", new_node_native_function("reduce", &native_reduce, true));
