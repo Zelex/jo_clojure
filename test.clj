@@ -563,6 +563,8 @@
 (is (= (counted? {:a :b :c}) true))
 (is (= (counted? "test") false))
 
+(is (= (take 5 (cycle ["a" "b"]))) (list "a" "b" "a" "b" "a"))
+
 (string-test)
 (if-test)
 (when-test)
@@ -642,5 +644,4 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
-
 

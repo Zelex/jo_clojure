@@ -1509,6 +1509,10 @@ struct seq_iterator_t {
 		}
 	}
 
+	// copy
+	seq_iterator_t(const seq_iterator_t &other) : type(other.type), val(other.val), is_done(other.is_done), it(other.it), vit(other.vit), mit(other.mit), lit(other.lit) {
+	}
+
 	bool done() const {
 		if(type == NODE_LIST) {
 			return !it;

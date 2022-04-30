@@ -107,7 +107,6 @@ conj!
 construct-proxy
 create-ns
 create-struct
-cycle
 declare
 dedupe
 default-data-readers
