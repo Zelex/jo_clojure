@@ -565,6 +565,8 @@
 
 (is (= (take 5 (cycle ["a" "b"]))) (list "a" "b" "a" "b" "a"))
 
+(is (= (dedupe [1 2 3 3 3 1 1 6])) (list 1 2 3 6))
+
 (string-test)
 (if-test)
 (when-test)

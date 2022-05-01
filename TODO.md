@@ -107,7 +107,6 @@ conj!
 construct-proxy
 create-ns
 create-struct
-dedupe
 default-data-readers
 definline
 definterface

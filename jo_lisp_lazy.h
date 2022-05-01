@@ -1355,6 +1355,37 @@ static node_idx_t native_cycle(env_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(new_node_list(list));
 }
 
+// (dedupe)(dedupe coll)
+// Returns a lazy sequence removing consecutive duplicates in coll.
+// Returns a transducer when no collection is provided.
+static node_idx_t native_dedupe(env_ptr_t env, list_ptr_t args) {
+	node_idx_t coll_idx = args->first_value();
+	jo_shared_ptr<seq_iterator_t> seq = new seq_iterator_t(env, coll_idx);
+	node_idx_t func_idx = new_node(NODE_NATIVE_FUNC);
+	node_t *func = get_node(func_idx);
+	func->t_native_function = new native_func_t([seq,func_idx,coll_idx](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
+		if(seq->done()) {
+			return NIL_NODE; 
+		}
+		node_idx_t val = seq->val;
+		list_ptr_t list = new_list();
+		list->push_front_inplace(func_idx);
+		list->push_front_inplace(val);
+		do {
+			seq.ptr->next();
+			if(seq->done()) {
+				if(node_eq(env2, seq->val, val)) {
+					return NIL_NODE;
+				}
+			}
+		} while(node_eq(env2, seq->val, val));
+		return new_node_list(list);
+	});
+	list_ptr_t list = new_list();
+	list->push_front_inplace(func_idx);
+	return new_node_lazy_list(new_node_list(list));
+}
+
 
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
@@ -1400,4 +1431,5 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("cons-first", new_node_native_function("cons-first", &native_cons_first, true));
 	env->set("cons-next", new_node_native_function("cons-next", &native_cons_next, true));
 	env->set("cycle", new_node_native_function("cycle", &native_cycle, false));
+	env->set("dedupe", new_node_native_function("dedupe", &native_dedupe, false));
 }
