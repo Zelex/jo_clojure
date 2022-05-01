@@ -2019,8 +2019,19 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_idx_t value = eval_node(env, init);
-	env->set(sym_node, value);
+	env->set(sym_node, eval_node(env, init));
+	return NIL_NODE;
+}
+
+// (declare & names)
+// defs the supplied var names with no bindings, useful for making forward declarations.
+static node_idx_t native_declare(env_ptr_t env, list_ptr_t args) {
+	for(list_t::iterator i = args->begin(); i; i++) {
+		node_t *n = get_node(*i);
+		if(n->is_symbol()) {
+			env->set(n->as_string(), NIL_NODE);
+		}
+	}
 	return NIL_NODE;
 }
 
@@ -3799,6 +3810,7 @@ int main(int argc, char **argv) {
 	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false));
 	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
 	env->set("var", new_node_native_function("var", &native_var, false));
+	env->set("declare", new_node_native_function("declare", &native_declare, false));
 	env->set("def", new_node_native_function("def", &native_def, true));
 	env->set("fn", new_node_native_function("fn", &native_fn, true));
 	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false));
