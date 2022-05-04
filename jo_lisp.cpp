@@ -3818,6 +3818,24 @@ static node_idx_t native_is_counted(env_ptr_t env, list_ptr_t args) {
 	return FALSE_NODE;
 }
 
+// (distinct? x)(distinct? x y)(distinct? x y & more)
+// Returns true if no two of the arguments are =
+static node_idx_t native_is_distinct(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 2) {
+		warnf("(distinct?) requires at least 2 arguments\n");
+		return NIL_NODE;
+	}
+
+	for(auto it = args->begin(); it; it++) {
+		for(auto it2 = it+1; it2; it2++) {
+			if(node_eq(env, *it, *it2)) {
+				return FALSE_NODE;
+			}
+		}
+	}
+	return TRUE_NODE;
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -4086,6 +4104,7 @@ int main(int argc, char **argv) {
 	env->set("complement", new_node_native_function("complement", &native_complement, false));
 	env->set("contains?", new_node_native_function("contains?", &native_is_contains, false));
 	env->set("counted?", new_node_native_function("counted?", &native_is_counted, false));
+	env->set("distinct?", new_node_native_function("distinct?", &native_is_distinct, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

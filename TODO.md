@@ -126,7 +126,6 @@ destructure
 disj
 disj!
 dissoc!
-distinct?
 dorun
 dosync
 doto
