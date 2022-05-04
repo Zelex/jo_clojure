@@ -100,5 +100,10 @@
 
 ;((fn recursive-range [x y] (if (< x y) (cons x (recursive-range (inc x) y)))) 5 10)
 
-(def fib-seq-iterate (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
-(doall (take 10 fib-seq-iterate))
+;(def fib-seq-iterate (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
+;(doall (take 10 fib-seq-iterate))
+
+(def x 5)
+(def lst '(a b c))
+`(fred x ~x lst ~@lst 7 8 :nine)
+

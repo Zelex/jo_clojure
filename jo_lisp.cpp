@@ -31,6 +31,9 @@ enum {
 	FALSE_NODE,
 	TRUE_NODE,
 	QUOTE_NODE,
+	UNQUOTE_NODE,
+	UNQUOTE_SPLICE_NODE,
+	QUASIQUOTE_NODE,
 	EMPTY_LIST_NODE,
 	EMPTY_VECTOR_NODE,
 	EMPTY_MAP_NODE,
@@ -804,6 +807,27 @@ static token_t get_token(parse_state_t *state) {
 		debugf("token: %s\n", tok.str.c_str());
 		return tok;
 	}
+	if(c == '`') {
+		tok.type = TOK_SEPARATOR;
+		tok.str = "quasiquote";
+		debugf("token: %s\n", tok.str.c_str());
+		return tok;
+	}
+	if(c == '~') {
+		tok.type = TOK_SEPARATOR;
+		int C = state->getc();
+		if(C == '@') {
+			// shorthand for inline function
+			tok.str = "unquote-splice";
+			debugf("token: %s\n", tok.str.c_str());
+			return tok;
+		} else {
+			state->ungetc(C);
+		}
+		tok.str = "unquote";
+		debugf("token: %s\n", tok.str.c_str());
+		return tok;
+	}
 	if(c == ':') {
 		tok.type = TOK_KEYWORD;
 		// string literal of a keyword
@@ -1038,6 +1062,47 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			next = parse_next(env, state, ')');
 		}
 		debugf("list end\n");
+		return new_node(&n);
+	}
+
+	// parse unquote shorthand
+	if(tok.type == TOK_SEPARATOR && tok.str == "unquote") {
+		node_idx_t inner = parse_next(env, state, stop_on_sep);
+		if(inner == INV_NODE) {
+			return INV_NODE;
+		}
+		node_t n;
+		n.type = NODE_LIST;
+		n.t_list = new_list();
+		n.t_list->push_back_inplace(UNQUOTE_NODE);
+		n.t_list->push_back_inplace(inner);
+		return new_node(&n);
+	}
+
+	// parse unquote shorthand
+	if(tok.type == TOK_SEPARATOR && tok.str == "unquote-splice") {
+		node_idx_t inner = parse_next(env, state, stop_on_sep);
+		if(inner == INV_NODE) {
+			return INV_NODE;
+		}
+		node_t n;
+		n.type = NODE_LIST;
+		n.t_list = new_list();
+		n.t_list->push_back_inplace(UNQUOTE_SPLICE_NODE);
+		n.t_list->push_back_inplace(inner);
+		return new_node(&n);
+	}
+
+	if(tok.type == TOK_SEPARATOR && tok.str == "quasiquote") {
+		node_idx_t inner = parse_next(env, state, stop_on_sep);
+		if(inner == INV_NODE) {
+			return INV_NODE;
+		}
+		node_t n;
+		n.type = NODE_LIST;
+		n.t_list = new_list();
+		n.t_list->push_back_inplace(env->get("quasiquote"));
+		n.t_list->push_back_inplace(inner);
 		return new_node(&n);
 	}
 
@@ -1968,8 +2033,80 @@ static node_idx_t native_while(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
-static node_idx_t native_quote(env_ptr_t env, list_ptr_t args) { return new_node_list(args); }
-static node_idx_t native_list(env_ptr_t env, list_ptr_t args) { return new_node_list(args); }
+static node_idx_t native_quote(env_ptr_t env, list_ptr_t args) { 
+	return new_node_list(args);
+}
+
+static node_idx_t native_list(env_ptr_t env, list_ptr_t args) { 
+	return new_node_list(args); 
+}
+
+static node_idx_t native_unquote(env_ptr_t env, list_ptr_t args) { 
+	return args->first_value(); 
+}
+
+static node_idx_t native_quasiquote_1(env_ptr_t env, node_idx_t arg) {
+	node_t *n = get_node(arg);
+	if(n->type == NODE_VECTOR) {
+		vector_ptr_t ret = new_vector();
+		for(auto i = n->t_vector->begin(); i; i++) {
+			node_t *n2 = get_node(*i);
+			if(n2->type == NODE_LIST && n2->t_list->first_value() == UNQUOTE_SPLICE_NODE) {
+				node_idx_t n3_idx = n2->t_list->second_value();
+				node_t *n3 = get_node(n3_idx);
+				if(n3->is_seq()) {
+					seq_iterator_t it(env, n3_idx);
+					for(; it; it.next()) {
+						ret->push_back_inplace(it.val);
+					}
+				} else {
+					ret->push_back_inplace(n3_idx);
+				}
+			} else {
+				ret->push_back_inplace(native_quasiquote_1(env, *i));
+			}
+		}
+		return new_node_vector(ret);
+	}
+	if(n->type == NODE_LIST) {
+		list_ptr_t args = n->as_list();
+		node_idx_t first_arg = args->first_value();
+		if(first_arg == UNQUOTE_NODE || first_arg == UNQUOTE_SPLICE_NODE) {
+			return eval_node(env, args->second_value());
+		}
+		list_ptr_t ret = new_list();
+		for(auto i = n->as_list()->begin(); i; i++) {
+			node_t *n2 = get_node(*i);
+			if(n2->type == NODE_LIST && n2->t_list->first_value() == UNQUOTE_SPLICE_NODE) {
+				node_idx_t n3_idx = eval_node(env, n2->t_list->second_value());
+				node_t *n3 = get_node(n3_idx);
+				if(n3->is_seq()) {
+					seq_iterator_t it(env, n3_idx);
+					for(; it; it.next()) {
+						ret->push_back_inplace(it.val);
+					}
+				} else {
+					ret->push_back_inplace(n3_idx);
+				}
+			} else {
+				ret->push_back_inplace(native_quasiquote_1(env, *i));
+			}
+		}
+		return new_node_list(ret);
+	}
+	if(n->type == NODE_MAP) {
+		map_ptr_t ret = new_map();
+		for(auto i = n->t_map->begin(); i; i++) {
+			ret->assoc_inplace(i->first, native_quasiquote_1(env, i->second));
+		}
+		return new_node_map(ret);
+	}
+	return arg;
+}
+
+static node_idx_t native_quasiquote(env_ptr_t env, list_ptr_t args) {
+	return native_quasiquote_1(env, args->first_value());
+}
 
 /*
 Usage: (var symbol)
@@ -2035,11 +2172,12 @@ static node_idx_t native_declare(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, const jo_string &private_fn_name) {
+static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, const jo_string &private_fn_name, int flags) {
 	list_t::iterator i = args->begin();
 	if(get_node_type(*i) == NODE_VECTOR) {
 		node_idx_t reti = new_node(NODE_FUNC);
 		node_t *ret = get_node(reti);
+		ret->flags |= flags;
 		ret->t_func.args = get_node(*i)->t_vector;
 		ret->t_func.body = args->rest();
 		if(private_fn_name.empty()) {
@@ -2056,17 +2194,18 @@ static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, const jo_st
 	return NIL_NODE;
 }
 
-static node_idx_t native_fn(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_fn_macro(env_ptr_t env, list_ptr_t args, bool macro) {
 	list_t::iterator i = args->begin();
+	int flags = macro ? NODE_FLAG_MACRO : 0;
 
 	jo_string private_fn_name;
 	if(get_node_type(*i) == NODE_SYMBOL) {
 		private_fn_name = get_node_string(*i++);
 		if(get_node_type(*i) == NODE_VECTOR) {
-			return native_fn_internal(env, args->rest(), private_fn_name);
+			return native_fn_internal(env, args->rest(), private_fn_name, flags);
 		}
 	} else if(get_node_type(*i) == NODE_VECTOR) {
-		return native_fn_internal(env, args, private_fn_name);
+		return native_fn_internal(env, args, private_fn_name, flags);
 	}
 
 	if(get_node_type(*i) == NODE_LIST) {
@@ -2074,7 +2213,7 @@ static node_idx_t native_fn(env_ptr_t env, list_ptr_t args) {
 		for(; i; i++) {
 			node_idx_t arg = *i;
 			if(get_node_type(arg) == NODE_LIST) {
-				fn_list = fn_list->push_front(native_fn_internal(env, get_node(arg)->t_list, private_fn_name));
+				fn_list = fn_list->push_front(native_fn_internal(env, get_node(arg)->t_list, private_fn_name, flags));
 			}
 		}
 		return new_node_native_function("fn_lambda", [=](env_ptr_t env, list_ptr_t args) -> node_idx_t {
@@ -2090,9 +2229,17 @@ static node_idx_t native_fn(env_ptr_t env, list_ptr_t args) {
 				}
 			}
 			return NIL_NODE;
-		}, false);
+		}, macro);
 	}
 	return NIL_NODE;
+}
+
+static node_idx_t native_fn(env_ptr_t env, list_ptr_t args) {
+	return native_fn_macro(env, args, false);
+}
+
+static node_idx_t native_macro(env_ptr_t env, list_ptr_t args) {
+	return native_fn_macro(env, args, true);
 }
 
 // (defn name doc-string? attr-map? [params*] prepost-map? body)
@@ -2119,6 +2266,32 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 	}
 
 	env->set(sym_node, native_fn(env, args->rest(i)));
+	return NIL_NODE;
+}
+
+// (defmacro name doc-string? attr-map? [params*] body)
+// (defmacro name doc-string? attr-map? ([params*] body) + attr-map?)
+// Like defn, but the resulting function name is declared as a
+// macro and will be used as a macro by the compiler when it is
+// called.
+static node_idx_t native_defmacro(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator i = args->begin();
+	node_idx_t sym_node_idx = *i++;
+	jo_string sym_node = get_node(sym_node_idx)->as_string();
+	node_idx_t doc_string = NIL_NODE;
+	if(get_node_type(*i) == NODE_STRING) {
+		doc_string = *i++;
+	}
+	if(get_node_type(*i) == NODE_MAP) { // attribute map
+		i++; // skip for now, TODO
+	}
+
+	if(get_node_type(sym_node_idx) != NODE_SYMBOL) {
+		fprintf(stderr, "defmacro: expected symbol");
+		return NIL_NODE;
+	}
+
+	env->set(sym_node, native_macro(env, args->rest(i)));
 	return NIL_NODE;
 }
 
@@ -3747,6 +3920,9 @@ int main(int argc, char **argv) {
 			n->flags |= NODE_FLAG_LITERAL;
 		}
 		new_node_symbol("quote");
+		new_node_symbol("unquote");
+		new_node_symbol("unquote-splice");
+		new_node_symbol("quasiquote");
 		new_node_list(new_list());
 		new_node_vector(new_vector());
 		new_node_map(new_map());
@@ -3770,6 +3946,9 @@ int main(int argc, char **argv) {
 	env->set("false", FALSE_NODE);
 	env->set("true", TRUE_NODE);
 	env->set("quote", new_node_native_function("quote", &native_quote, true));
+	env->set("unquote", UNQUOTE_NODE);
+	env->set("unquote-splice", UNQUOTE_SPLICE_NODE);
+	env->set("quasiquote", new_node_native_function("quasiquote", &native_quasiquote, true));
 	env->set("let", new_node_native_function("let", &native_let, true));
 	env->set("eval", new_node_native_function("eval", &native_eval, false));
 	env->set("print", new_node_native_function("print", &native_print, false));
