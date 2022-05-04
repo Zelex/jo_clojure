@@ -567,6 +567,11 @@
 
 (is (= (dedupe [1 2 3 3 3 1 1 6])) (list 1 2 3 6))
 
+(defonce foo 5)
+(is (= foo 5))
+(defonce foo 10)
+(is (= foo 5))
+
 (string-test)
 (if-test)
 (when-test)

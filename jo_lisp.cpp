@@ -2161,6 +2161,16 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (defonce name expr)
+// defs name to have the root value of the expr if the named var has no root value,
+// else expr is unevaluated
+static node_idx_t native_defonce(env_ptr_t env, list_ptr_t args) {
+	if(env->has(get_node_string(args->first_value()))) {
+		return NIL_NODE;
+	}
+	return native_def(env, args);
+}
+
 // (declare & names)
 // defs the supplied var names with no bindings, useful for making forward declarations.
 static node_idx_t native_declare(env_ptr_t env, list_ptr_t args) {
@@ -3995,6 +4005,7 @@ int main(int argc, char **argv) {
 	env->set("var", new_node_native_function("var", &native_var, false));
 	env->set("declare", new_node_native_function("declare", &native_declare, false));
 	env->set("def", new_node_native_function("def", &native_def, true));
+	env->set("defonce", new_node_native_function("defonce", &native_defonce, true));
 	env->set("fn", new_node_native_function("fn", &native_fn, true));
 	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false));
 	env->set("ifn?", new_node_native_function("ifn?", &native_is_ifn, false));

@@ -113,7 +113,6 @@ definterface
 defmethod
 defmulti
 defn-
-defonce
 defprotocol
 defrecord
 defstruct
