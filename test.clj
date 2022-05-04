@@ -642,10 +642,6 @@
 (random-test)
 (fn-test)
 
-(def x 5)
-(def lst '(a b c))
-`(fred x ~x lst ~lst 8 9 :nine)
-
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))

@@ -1287,6 +1287,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			}
 
 			if(proto_args.ptr) {
+				int is_macro = (sym_flags|list_flags) & NODE_FLAG_MACRO;
 				// For each argument in arg_symbols, 
 				// grab the corresponding argument in args1
 				// and evaluate it
@@ -1294,19 +1295,18 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				// and insert it to the head of env
 				vector_t::iterator i = proto_args->begin();
 				list_t::iterator i2 = args1->begin();
-				for (; i && i2; i++, i2++)
-				{
+				for (; i && i2; i++, i2++) {
 					int i_type = get_node_type(*i);
 					int i2_type = get_node_type(*i2);
 					if(i_type == NODE_SYMBOL) {
-						fn_env->set_temp(get_node_string(*i), eval_node(env, *i2));
+						fn_env->set_temp(get_node_string(*i), is_macro ? *i2 : eval_node(env, *i2));
 					} else if(i_type == NODE_VECTOR && i2_type == NODE_VECTOR) {
 						for(vector_t::iterator i3 = get_node(*i)->t_vector->begin(), i4 = get_node(*i2)->t_vector->begin(); i3 && i4; i3++, i4++) {
-							fn_env->set_temp(get_node_string(*i3), eval_node(env, *i4));
+							fn_env->set_temp(get_node_string(*i3), is_macro ? *i4 : eval_node(env, *i4));
 						}
 					} else if(i_type == NODE_LIST && i2_type == NODE_LIST) {
 						for(list_t::iterator i3 = get_node(*i)->t_list->begin(), i4 = get_node(*i2)->t_list->begin(); i3 && i4; i3++, i4++) {
-							fn_env->set_temp(get_node_string(*i3), eval_node(env, *i4));
+							fn_env->set_temp(get_node_string(*i3), is_macro ? *i4 : eval_node(env, *i4));
 						}
 					} else {
 						fn_env->set_temp(get_node_string(*i), *i2);
@@ -1365,7 +1365,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 		if(sym_idx == NIL_NODE) {
 			return root;
 		}
-		return eval_node(env, sym_idx);
+		return sym_idx;//eval_node(env, sym_idx);
 	} else if(type == NODE_VECTOR) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the vector
@@ -2078,6 +2078,7 @@ static node_idx_t native_quasiquote_1(env_ptr_t env, node_idx_t arg) {
 		for(auto i = n->as_list()->begin(); i; i++) {
 			node_t *n2 = get_node(*i);
 			if(n2->type == NODE_LIST && n2->t_list->first_value() == UNQUOTE_SPLICE_NODE) {
+				//node_idx_t n3_idx = n2->t_list->second_value();
 				node_idx_t n3_idx = eval_node(env, n2->t_list->second_value());
 				node_t *n3 = get_node(n3_idx);
 				if(n3->is_seq()) {
@@ -2291,7 +2292,10 @@ static node_idx_t native_defmacro(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	env->set(sym_node, native_macro(env, args->rest(i)));
+	node_idx_t m = native_macro(env, args->rest(i));
+	env->set(sym_node, new_node_native_function("defmacro__inner", [m](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
+		return eval_node(env2, eval_list(env2, args2->push_front(m)));
+	}, true));
 	return NIL_NODE;
 }
 
@@ -4000,6 +4004,7 @@ int main(int argc, char **argv) {
 	env->set("int", new_node_native_function("int", &native_int, false));
 	env->set("integer?", new_node_native_function("integer?", &native_is_int, false));
 	env->set("defn", new_node_native_function("defn", &native_defn, true));
+	env->set("defmacro", new_node_native_function("defmacro", &native_defmacro, true));
 	env->set("*ns*", new_node_var("nil", NIL_NODE));
 	env->set("if", new_node_native_function("if", &native_if, true));
 	env->set("if-not", new_node_native_function("if-not", &native_if_not, true));
