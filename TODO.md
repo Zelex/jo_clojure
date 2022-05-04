@@ -110,7 +110,6 @@ create-struct
 default-data-readers
 definline
 definterface
-defmacro
 defmethod
 defmulti
 defn-
