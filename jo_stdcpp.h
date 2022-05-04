@@ -2777,6 +2777,86 @@ struct jo_persistent_vector
         return this;
     }
 
+    // dissoc
+    jo_persistent_vector *dissoc(size_t index) const {
+        index += head_offset;
+
+        int shift = 5 * depth;
+        size_t tail_offset = length + head_offset - tail_length;
+
+        if(index >= length + head_offset) {
+            return clone();
+        }
+
+        // Create a copy of our root node from which we will base our append
+        jo_persistent_vector *copy = new jo_persistent_vector(*this);
+
+        // traverse duplicating the way down.
+        if(shift == 0) {
+            copy->head = new node(copy->head);
+            copy->head->elements[index] = T();
+            copy->tail = copy->head;
+            return copy;
+        }
+
+        jo_shared_ptr<node> cur = NULL;
+        jo_shared_ptr<node> prev = copy->head;
+        size_t key = index;
+        for (int level = shift; level > 0; level -= 5) {
+            size_t i = (key >> level) & 31;
+            // copy nodes as we traverse
+            cur = new node(prev->children[i]);
+            prev->children[i] = cur;
+            prev = cur;
+        }
+        prev->elements[key & 31] = T();
+
+        // if we modified the tail, set it
+        if(index >= tail_offset) {
+            copy->tail = prev;
+        }
+
+        return copy;
+    }
+
+    jo_persistent_vector *dissoc_inplace(size_t index) {
+        index += head_offset;
+
+        int shift = 5 * depth;
+        size_t tail_offset = length + head_offset - tail_length;
+
+        if(index >= length + head_offset) {
+            return this;
+        }
+
+        // traverse duplicating the way down.
+        if(shift == 0) {
+            head = new node(head);
+            head->elements[index] = T();
+            tail = head;
+            return this;
+        }
+
+        jo_shared_ptr<node> cur = NULL;
+        jo_shared_ptr<node> prev = head;
+        size_t key = index;
+        for (int level = shift; level > 0; level -= 5) {
+            size_t i = (key >> level) & 31;
+            // copy nodes as we traverse
+            cur = new node(prev->children[i]);
+            prev->children[i] = cur;
+            prev = cur;
+        }
+        prev->elements[key & 31] = T();
+
+        // if we modified the tail, set it
+        if(index >= tail_offset) {
+            tail = prev;
+        }
+
+        return this;
+    }
+
     jo_persistent_vector *set(size_t index, const T &value) const {
         return assoc(index, value);
     }
@@ -4535,6 +4615,71 @@ public:
     // remove a value from the map
     jo_persistent_unordered_map *erase(const iterator &it) const {
         return erase(it.cur->first);
+    }
+
+    // dissoc
+    jo_persistent_unordered_map *dissoc(const K &key) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        int index = jo_hash_value(key) % vec.size();
+        while(copy->vec[index].third) {
+            if(copy->vec[index].first == key) {
+                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, V(), false));
+                --copy->length;
+                return copy;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        return copy;
+    }
+
+    // dissoc_inplace
+    jo_persistent_unordered_map *dissoc_inplace(const K &key) {
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(vec[index].first == key) {
+                vec.assoc_inplace(index, entry_t(vec[index].first, V(), false));
+                --length;
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        return this;
+    }
+
+    // dissoc_inplace
+    jo_persistent_unordered_map *dissoc_inplace(const iterator &it) {
+        return dissoc_inplace(it.cur->first);
+    }
+
+    // dissoc with lambda for equality
+    template<typename F>
+    jo_persistent_unordered_map *dissoc(const K &key, F eq) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        int index = jo_hash_value(key) % vec.size();
+        while(copy->vec[index].third) {
+            if(eq(copy->vec[index].first, key)) {
+                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, V(), false));
+                --copy->length;
+                return copy;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        return copy;
+    }
+
+    // dissoc_inplace with lambda for equality
+    template<typename F>
+    jo_persistent_unordered_map *dissoc_inplace(const K &key, F eq) {
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(eq(vec[index].first, key)) {
+                vec.assoc_inplace(index, entry_t(vec[index].first, V(), false));
+                --length;
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        return this;
     }
 
     // find a value in the map

@@ -572,6 +572,9 @@
 (defonce foo 10)
 (is (= foo 5))
 
+(is (= (dissoc {:a 1 :b 2 :c 3} :a) {:b 2 :c 3}))
+(is (= (dissoc [1 2 3] 1) [1 nil 3]))
+
 (string-test)
 (if-test)
 (when-test)
@@ -650,4 +653,3 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
-

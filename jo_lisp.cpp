@@ -3200,6 +3200,27 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (dissoc map)(dissoc map key)(dissoc map key & ks)
+// dissoc[iate]. Returns a new map of the same (hashed/sorted) type,
+// that does not contain a mapping for key(s).
+static node_idx_t native_dissoc(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t map_idx = *it++;
+	node_idx_t key_idx = *it++;
+	node_t *map_node = get_node(map_idx);
+	if(map_node->is_map()) {
+		map_ptr_t map = map_node->t_map->dissoc(key_idx, [env](node_idx_t k, node_idx_t v) {
+			return node_eq(env, k, v);
+		});
+		return new_node_map(map);
+	} 
+	if(map_node->is_vector()) {
+		vector_ptr_t vector = map_node->t_vector->dissoc(get_node_int(key_idx));
+		return new_node_vector(vector);
+	}
+	return NIL_NODE;
+}
+
 // (get map key)(get map key not-found)
 // Returns the value mapped to key, not-found or nil if key not present.
 static node_idx_t native_get(env_ptr_t env, list_ptr_t args) {
@@ -4039,6 +4060,7 @@ int main(int argc, char **argv) {
 	env->set("nil?", new_node_native_function("nil?", native_is_nil, false));
 	env->set("time", new_node_native_function("time", &native_time, true));
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
+	env->set("dissoc", new_node_native_function("dissoc", &native_dissoc, false));
 	env->set("get", new_node_native_function("get", &native_get, false));
 	env->set("comp", new_node_native_function("comp", &native_comp, false));
 	env->set("partial", new_node_native_function("partial", &native_partial, false));

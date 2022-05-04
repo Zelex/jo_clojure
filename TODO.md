@@ -125,7 +125,6 @@ descendants
 destructure
 disj
 disj!
-dissoc
 dissoc!
 distinct?
 dorun
