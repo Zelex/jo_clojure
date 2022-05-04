@@ -39,6 +39,9 @@
 (my-delay)
 (my-delay)
 
+(dorun 2 (repeatedly #(println "hi")))
+(doall 2 (repeatedly #(println "lo")))
+
 (when-not (= "Hello world!" ((fn [message] (str message))  "Hello world!")) (println "FAIL Hello world! 1"))
 (when-not (= "Hello world!" (#(str %)  "Hello world!")) (println "FAIL Hello world! 2"))
 

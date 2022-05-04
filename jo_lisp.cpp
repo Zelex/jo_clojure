@@ -2007,13 +2007,48 @@ static node_idx_t native_doall(env_ptr_t env, list_ptr_t args) {
 		}
 		list_ptr_t ret = new list_t();
 		seq_iterator_t it(env, coll);
-		for(; it && n; it.next(), n--) {
+		for(--n; it && n; it.next(), n--) {
 			ret->push_back_inplace(it.val);
 		}
 		if(it.val != NIL_NODE && n) {
 			ret->push_back_inplace(it.val);
 		}
 		return new_node_list(ret);
+	}
+
+	return NIL_NODE;
+}
+
+// (dorun coll)(dorun n coll)
+// When lazy sequences are produced via functions that have side
+// effects, any effects other than those needed to produce the first
+// element in the seq do not occur until the seq is consumed. dorun can
+// be used to force any effects. Walks through the successive nexts of
+// the seq, does not retain the head and returns nil.
+static node_idx_t native_dorun(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator i = args->begin();
+
+	if(args->size() == 1) {
+		node_idx_t coll = eval_node(env, args->first_value());
+		node_t *n = get_node(coll);
+		if(!n->is_seq()) {
+			return NIL_NODE;
+		}
+		seq_iterator_t it(env, coll);
+		for(; it; it.next()) {}
+		return NIL_NODE;
+	}
+
+	if(args->size() == 2) {
+		int n = get_node(eval_node(env, *i++))->as_int();
+		node_idx_t coll = eval_node(env, *i++);
+		node_t *n4 = get_node(coll);
+		if(!n4->is_seq()) {
+			return NIL_NODE;
+		}
+		seq_iterator_t it(env, coll);
+		for(--n; it && n; it.next(), n--) {}
+		return NIL_NODE;
 	}
 
 	return NIL_NODE;
@@ -4023,6 +4058,7 @@ int main(int argc, char **argv) {
 	env->set("letter?", new_node_native_function("letter?", &native_is_letter, false));
 	env->set("do", new_node_native_function("do", &native_do, false));
 	env->set("doall", new_node_native_function("doall", &native_doall, true));
+	env->set("dorun", new_node_native_function("dorun", &native_dorun, true));
 	env->set("conj", new_node_native_function("conj", &native_conj, false));
 	env->set("into", new_node_native_function("info", &native_into, false));
 	env->set("pop", new_node_native_function("pop", &native_pop, false));
