@@ -139,7 +139,6 @@ ensure-reduced
 enumeration-seq
 error-handler
 error-mode
-every?
 ex-cause
 ex-data
 ex-info
