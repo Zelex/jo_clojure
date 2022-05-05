@@ -3909,6 +3909,7 @@ static node_idx_t native_every_pred(env_ptr_t env, list_ptr_t args) {
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
 #include "jo_lisp_lazy.h"
+#include "jo_lisp_io.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -4181,6 +4182,7 @@ int main(int argc, char **argv) {
 	jo_lisp_string_init(env);
 	jo_lisp_system_init(env);
 	jo_lisp_lazy_init(env);
+	jo_lisp_io_init(env);
 	
 	FILE *fp = fopen(argv[1], "r");
 	if(!fp) {
