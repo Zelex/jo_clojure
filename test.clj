@@ -587,6 +587,8 @@
 (is (= (empty {a: 1  b: 2 c: 3}) {}))
 (is (= (empty "test") nil))
 
+(is ((every-pred number? odd?) 3 9 11))
+
 (string-test)
 (if-test)
 (when-test)

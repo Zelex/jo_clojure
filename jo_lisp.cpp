@@ -3883,6 +3883,27 @@ static node_idx_t native_empty(env_ptr_t env, list_ptr_t args) {
 	}
 }
 
+// (every-pred p)(every-pred p1 p2)(every-pred p1 p2 p3)(every-pred p1 p2 p3 & ps)
+// Takes a set of predicates and returns a function f that returns true if all of its
+// composing predicates return a logical true value against all of its arguments, else it returns
+// false. Note that f is short-circuiting in that it will stop execution on the first
+// argument that triggers a logical false result against the original predicates.
+static node_idx_t native_every_pred(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 1) {
+		warnf("(every-pred) requires at least 1 arguments\n");
+		return NIL_NODE;
+	}
+
+	return new_node_native_function("every-pred-lambda", [args](env_ptr_t env, list_ptr_t args2) {
+		for(auto it = args->begin(); it; it++) {
+			if(!eval_node_list(env, args2->push_front(*it))) {
+				return FALSE_NODE;
+			}
+		}
+		return TRUE_NODE;
+	}, false);
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -4154,6 +4175,7 @@ int main(int argc, char **argv) {
 	env->set("counted?", new_node_native_function("counted?", &native_is_counted, false));
 	env->set("distinct?", new_node_native_function("distinct?", &native_is_distinct, false));
 	env->set("empty", new_node_native_function("empty", &native_empty, false));
+	env->set("every-pred", new_node_native_function("every-pred", &native_every_pred, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
