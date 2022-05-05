@@ -582,6 +582,11 @@
 (is (not (distinct? 1 2 3 3)))
 (is (not (distinct? 1 2 3 1)))
 
+(is (= (empty (1 2 3)) ()))
+(is (= (empty [1 2 3]) []))
+(is (= (empty {a: 1  b: 2 c: 3}) {}))
+(is (= (empty "test") nil))
+
 (string-test)
 (if-test)
 (when-test)

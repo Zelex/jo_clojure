@@ -3871,6 +3871,18 @@ static node_idx_t native_is_distinct(env_ptr_t env, list_ptr_t args) {
 	return TRUE_NODE;
 }
 
+// (empty coll)
+// Returns an empty collection of the same category as coll, or nil
+// if coll is not a collection.
+static node_idx_t native_empty(env_ptr_t env, list_ptr_t args) {
+	switch(get_node_type(args->first_value())) {
+		case NODE_LIST: return EMPTY_LIST_NODE;
+		case NODE_VECTOR: return EMPTY_VECTOR_NODE;
+		case NODE_MAP: return EMPTY_MAP_NODE;
+		default: return NIL_NODE;
+	}
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -4141,6 +4153,7 @@ int main(int argc, char **argv) {
 	env->set("contains?", new_node_native_function("contains?", &native_is_contains, false));
 	env->set("counted?", new_node_native_function("counted?", &native_is_counted, false));
 	env->set("distinct?", new_node_native_function("distinct?", &native_is_distinct, false));
+	env->set("empty", new_node_native_function("empty", &native_empty, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

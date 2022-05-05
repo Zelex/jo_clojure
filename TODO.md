@@ -133,7 +133,6 @@ double-array
 double?
 doubles
 eduction
-empty
 EMPTY-NODE
 ensure
 ensure-reduced
