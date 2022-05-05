@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdio.h>
-
 // (file-seq dir)
 // A tree seq on java.io.Files
 static node_idx_t native_io_file_seq(env_ptr_t env, list_ptr_t args) {
