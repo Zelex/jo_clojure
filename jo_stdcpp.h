@@ -135,6 +135,26 @@ static bool jo_file_empty(const char *path)
     return size == 0;
 }
 
+// copy file 16k at a time
+static bool jo_file_copy(const char *src, const char *dst)
+{
+    FILE *fsrc = fopen(src, "rb");
+    if(!fsrc) return false;
+    FILE *fdst = fopen(dst, "wb");
+    if(!fdst) {
+        fclose(fsrc);
+        return false;
+    }
+    char buf[16384];
+    size_t nread = 0;
+    while((nread = fread(buf, 1, sizeof(buf), fsrc))) {
+        fwrite(buf, 1, nread, fdst);
+    }
+    fclose(fsrc);
+    fclose(fdst);
+    return true;
+}
+
 static int jo_kbhit()
 {
 #ifdef _WIN32

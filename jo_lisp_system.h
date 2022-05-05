@@ -51,28 +51,6 @@ static node_idx_t native_system_getcwd(env_ptr_t env, list_ptr_t args) {
 	return new_node_string(cwd);
 }
 
-static node_idx_t native_system_slurp(env_ptr_t env, list_ptr_t args) {
-	// TODO: HTTP/HTTPS!
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    jo_string path = node->as_string();
-    jo_string contents = (char*)jo_slurp_file(path.c_str());
-    return new_node_string(contents);
-}
-
-static node_idx_t native_system_spit(env_ptr_t env, list_ptr_t args) {
-	// TODO: HTTP/HTTPS!
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
-    node_t *node = get_node(node_idx);
-    jo_string path = node->as_string();
-    node_idx_t contents_idx = *it++;
-    node_t *contents = get_node(contents_idx);
-    jo_string contents_str = contents->as_string();
-    return new_node_bool(jo_spit_file(path.c_str(), contents_str.c_str()) == 0);
-}
-
 static node_idx_t native_system_date(env_ptr_t env, list_ptr_t args) {
     time_t t = time(NULL);
     struct tm *tm = localtime(&t);
@@ -107,8 +85,6 @@ void jo_lisp_system_init(env_ptr_t env) {
 	env->set("System/getch", new_node_native_function("System/getch", &native_system_getch, false));
 	env->set("System/date", new_node_native_function("System/date", &native_system_date, false));
 	env->set("System/sleep", new_node_native_function("System/sleep", &native_system_sleep, false));
-	env->set("slurp", new_node_native_function("slurp", &native_system_slurp, false));
-	env->set("spit", new_node_native_function("spit", &native_system_spit, false));
 	env->set("read-line", new_node_native_function("read-line", &native_system_read_line, false));
 	env->set("-d", new_node_native_function("-d", &native_system_dir_exists, false));
 	env->set("-e", new_node_native_function("-e", &native_system_file_exists, false));
