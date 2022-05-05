@@ -4,7 +4,7 @@
 
 // (file-seq dir)
 // A tree seq on java.io.Files
-static node_idx_t native_file_seq(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_io_file_seq(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
@@ -79,7 +79,7 @@ static node_idx_t native_io_copy(env_ptr_t env, list_ptr_t args) {
 }
 
 void jo_lisp_io_init(env_ptr_t env) {
-	env->set("file-seq", new_node_native_function("file-seq", &native_file_seq, false));
+	env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false));
 	env->set("slurp", new_node_native_function("slurp", &native_io_slurp, false));
 	env->set("spit", new_node_native_function("spit", &native_io_spit, false));
 	env->set("io/file", new_node_native_function("io/file", &native_io_file, false));
