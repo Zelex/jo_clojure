@@ -96,19 +96,6 @@ static node_idx_t native_io_read_line(env_ptr_t env, list_ptr_t args) {
     return new_node_string(buf);
 }
 
-static node_idx_t native_io_write(env_ptr_t env, list_ptr_t args) {
-    node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
-        return NIL_NODE;
-    }
-    jo_string str = get_node_string(args->second_value());
-    fputs(str.c_str(), n->t_file);
-    return NIL_NODE;
-}
-
 // (io/write-line file str)
 // Writes a line to the file.
 static node_idx_t native_io_write_line(env_ptr_t env, list_ptr_t args) {
@@ -288,6 +275,71 @@ static node_idx_t native_io_close_proc(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
+static node_idx_t native_io_write_str(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    jo_string str = get_node_string(args->second_value());
+    fputs(str.c_str(), n->t_file);
+    return NIL_NODE;
+}
+
+static node_idx_t native_io_write_int(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    int i = get_node_int(args->second_value());
+    fwrite(&i, sizeof(int), 1, n->t_file);
+    return NIL_NODE;
+}
+
+static node_idx_t native_io_write_float(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    float f = get_node_float(args->second_value());
+    fwrite(&f, sizeof(float), 1, n->t_file);
+    return NIL_NODE;
+}
+
+static node_idx_t native_io_write_short(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    int s = get_node_int(args->second_value());
+    fwrite(&s, sizeof(short), 1, n->t_file);
+    return NIL_NODE;
+}
+
+static node_idx_t native_io_write_byte(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    int b = get_node_int(args->second_value());
+    fwrite(&b, sizeof(char), 1, n->t_file);
+    return NIL_NODE;
+}
+
 void jo_lisp_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false));
     env->set("slurp", new_node_native_function("slurp", &native_io_slurp, false));
@@ -296,9 +348,13 @@ void jo_lisp_io_init(env_ptr_t env) {
     env->set("io/close-proc", new_node_native_function("io/close-proc", &native_io_close_proc, false));
     env->set("io/open-file", new_node_native_function("io/open-file", &native_io_open_file, false));
     env->set("io/close-file", new_node_native_function("io/close-file", &native_io_close_file, false));
-    env->set("io/write", new_node_native_function("io/write", &native_io_write, false));
     env->set("io/read-line", new_node_native_function("io/read-line", &native_io_read_line, false));
     env->set("io/write-line", new_node_native_function("io/write-line", &native_io_write_line, false));
+    env->set("io/write-str", new_node_native_function("io/write-str", &native_io_write_str, false));
+    env->set("io/write-int", new_node_native_function("io/write-int", &native_io_write_int, false));
+    env->set("io/write-float", new_node_native_function("io/write-float", &native_io_write_float, false));
+    env->set("io/write-short", new_node_native_function("io/write-short", &native_io_write_short, false));
+    env->set("io/write-byte", new_node_native_function("io/write-byte", &native_io_write_byte, false));
     env->set("io/flush", new_node_native_function("io/flush", &native_io_flush, false));
     env->set("io/seek", new_node_native_function("io/seek", &native_io_seek, false));
     env->set("io/tell", new_node_native_function("io/tell", &native_io_tell, false));
