@@ -160,7 +160,6 @@ float
 float-array
 float?
 floats
-flush
 fnil
 for
 force
