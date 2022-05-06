@@ -1,6 +1,6 @@
-lazy read-dir-all and the like
-REPL (not sure I would ever use this?)
-sets
+* lazy read-dir-all and the like
+* REPL (not sure I would ever use this?)
+* sets
 
 
 *1
