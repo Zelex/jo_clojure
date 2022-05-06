@@ -410,10 +410,7 @@ static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
     int i = 0;
     while(1) {
         int c = fgetc(n->t_file);
-        if(c == EOF) {
-            break;
-        }
-        if(c == term) {
+        if(c == EOF || c == term) {
             break;
         }
         buf[i] = c;
@@ -422,8 +419,6 @@ static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
     buf[i] = 0;
     return new_node_string(buf);
 }
-
-
 
 void jo_lisp_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false));
