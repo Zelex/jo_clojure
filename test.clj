@@ -589,6 +589,10 @@
 
 (is ((every-pred number? odd?) 3 9 11))
 
+(is (= (find {:a 1 :b 2 :c 3} :a) [:a 1]))
+(is (= (find {:a nil} :a) [:a nil]))
+(is (= (find {:a 1 :b 2 :c 3} :d) nil))
+
 (string-test)
 (if-test)
 (when-test)

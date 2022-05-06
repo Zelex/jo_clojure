@@ -153,8 +153,6 @@ extend-protocol
 extend-type
 extenders
 extends?
-file-seq
-filterv
 finally
 find
 find-keyword

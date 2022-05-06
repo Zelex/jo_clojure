@@ -1407,6 +1407,7 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("take-last", new_node_native_function("take-last", &native_take_last, true));
 	env->set("distinct", new_node_native_function("distinct", &native_distinct, false));
 	env->set("filter", new_node_native_function("filter", &native_filter, true));
+	env->set("filterv", new_node_native_function("filterv", &native_filter, true));  // same thing as filter?
 	env->set("filter-next", new_node_native_function("filter-next", &native_filter_next, true));
 	env->set("constantly-next", new_node_native_function("constantly-next", &native_constantly_next, true));
 	env->set("keep", new_node_native_function("keep", &native_keep, true));

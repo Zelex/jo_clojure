@@ -3926,6 +3926,27 @@ static node_idx_t native_every_pred(env_ptr_t env, list_ptr_t args) {
 	}, false);
 }
 
+// (find map key)
+// Returns the map entry for key, or nil if key not present.
+static node_idx_t native_find(env_ptr_t env, list_ptr_t args) {
+	if(args->size() != 2) {
+		warnf("(find) requires 2 arguments\n");
+		return NIL_NODE;
+	}
+	
+	node_idx_t map_idx = eval_node(env, args->first_value());
+	node_idx_t key_idx = eval_node(env, args->second_value());
+	map_ptr_t map = get_node_map(map_idx);
+	auto kv = map->find(key_idx, [env](const node_idx_t &a, const node_idx_t &b) { return node_eq(env, a, b); });
+	if(!kv.third) {
+		return NIL_NODE;
+	}
+	vector_ptr_t vec = new_vector();
+	vec->push_back_inplace(kv.first);
+	vec->push_back_inplace(kv.second);
+	return new_node_vector(vec);
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -4199,6 +4220,7 @@ int main(int argc, char **argv) {
 	env->set("distinct?", new_node_native_function("distinct?", &native_is_distinct, false));
 	env->set("empty", new_node_native_function("empty", &native_empty, false));
 	env->set("every-pred", new_node_native_function("every-pred", &native_every_pred, false));
+	env->set("find", new_node_native_function("find", &native_find, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
