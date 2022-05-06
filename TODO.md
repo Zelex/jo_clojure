@@ -160,7 +160,6 @@ float
 float-array
 float?
 floats
-fnil
 for
 force
 format

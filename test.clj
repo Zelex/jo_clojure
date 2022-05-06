@@ -593,6 +593,8 @@
 (is (= (find {:a nil} :a) [:a nil]))
 (is (= (find {:a 1 :b 2 :c 3} :d) nil))
 
+(is (= ((fnil inc 0) nil) 1))
+
 (string-test)
 (if-test)
 (when-test)

@@ -3947,6 +3947,39 @@ static node_idx_t native_find(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(vec);
 }
 
+// (fnil f x)(fnil f x y)(fnil f x y z)
+// Takes a function f, and returns a function that calls f, replacing
+// a nil first argument to f with the supplied value x. Higher arity
+// versions can replace arguments in the second and third
+// positions (y, z). Note that the function f can take any number of
+// arguments, not just the one(s) being nil-patched.
+static node_idx_t native_fnil(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 2) {
+		warnf("(fnil) requires at least 2 arguments\n");
+		return NIL_NODE;
+	}
+
+	return new_node_native_function("fnil-lambda", [args](env_ptr_t env, list_ptr_t args2) {
+		auto it = args->begin();
+		auto it2 = args2->begin();
+		node_idx_t f_idx = *it++;
+		list_ptr_t new_args = new_list();
+		new_args->push_back_inplace(f_idx);
+		for(; it && it2; it++, it2++) {
+			if(*it2 == NIL_NODE) {
+				new_args->push_back_inplace(*it);
+			} else {
+				new_args->push_back_inplace(*it2);
+			}
+		}
+		for(; it2; it2++) {
+			new_args->push_back_inplace(*it2);
+		}
+		return eval_list(env, new_args);
+	}, false);
+}
+
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -4221,6 +4254,7 @@ int main(int argc, char **argv) {
 	env->set("empty", new_node_native_function("empty", &native_empty, false));
 	env->set("every-pred", new_node_native_function("every-pred", &native_every_pred, false));
 	env->set("find", new_node_native_function("find", &native_find, false));
+	env->set("fnil", new_node_native_function("fnil", &native_fnil, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
