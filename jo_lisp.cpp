@@ -370,7 +370,7 @@ struct node_t {
 		node_idx_t t_delay; // cached result
 		node_idx_t t_lazy_fn;
 		FILE *t_file;
-		DIR *t_dir;
+		void *t_dir;
 	};
 
 	node_t() : type(), flags(), t_string(), t_list(), t_vector(), t_map(), t_native_function(), t_func(), t_int() {}
@@ -700,7 +700,7 @@ static node_idx_t new_node_file(FILE *fp) {
 	return new_node(&n);
 }
 
-static node_idx_t new_node_dir(DIR *dp) {
+static node_idx_t new_node_dir(void *dp) {
 	node_t n;
 	n.type = NODE_DIR;
 	n.t_dir = dp;

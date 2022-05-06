@@ -2,6 +2,27 @@
 
 #include "jo_stdcpp.h"
 
+// for popen and pclose
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#define popen _popen
+#define pclose _pclose
+#else
+#include <unistd.h>
+#endif
+
+// for opendir and closedir
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#define opendir _opendir
+#define closedir _closedir
+#else
+#include <dirent.h>
+#endif
+
+
 // This functionality deviates from clojure's IO library, cause in my personal opinion, 
 // clojure's IO library is not great. I assume because Rich was trying to be purist.
 // However, IMO, side-effects are side-effects and you can't avoid them with files.
@@ -357,11 +378,19 @@ static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_open_dir(env_ptr_t env, list_ptr_t args) {
     jo_string str = get_node_string(args->first_value());
+#ifdef _WIN32
+    HANDLE h = FindFirstFile(str.c_str(), NULL);
+    if(h == INVALID_HANDLE_VALUE) {
+        return NIL_NODE;
+    }
+    return new_node_dir(h);
+#else
     DIR *dir = opendir(str.c_str());
     if(!dir) {
         return NIL_NODE;
     }
     return new_node_dir(dir);
+#endif
 }
 
 static node_idx_t native_io_close_dir(env_ptr_t env, list_ptr_t args) {
@@ -369,8 +398,14 @@ static node_idx_t native_io_close_dir(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_DIR || !n->t_dir) {
         return NIL_NODE;
     }
-    closedir(n->t_dir);
-    n->t_dir = NULL;
+    if(n->t_dir != 0) {
+#ifdef _WIN32
+        FindClose(n->t_dir);
+#else
+        closedir(n->t_dir);
+#endif
+        n->t_dir = NULL;
+    }
     return NIL_NODE;
 }
 
@@ -381,11 +416,19 @@ static node_idx_t native_io_read_dir(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_DIR || !n->t_dir) {
         return NIL_NODE;
     }
+#ifdef _WIN32
+    WIN32_FIND_DATA fd;
+    if(!FindNextFile(n->t_dir, &fd)) {
+        return NIL_NODE;
+    }
+    return new_node_string(fd.cFileName);
+#else
     struct dirent *ent = readdir(n->t_dir);
     if(!ent) {
         return NIL_NODE;
     }
     return new_node_string(ent->d_name);
+#endif
 }
 
 // (io/read-dir-all dir)
@@ -397,11 +440,19 @@ static node_idx_t native_io_read_dir_all(env_ptr_t env, list_ptr_t args) {
     }
     list_ptr_t list = new_list();
     while(1) {
+#ifdef _WIN32
+        WIN32_FIND_DATA fd;
+        if(!FindNextFile(n->t_dir, &fd)) {
+            break;
+        }
+        list->push_back_inplace(new_node_string(fd.cFileName));
+#else
         struct dirent *ent = readdir(n->t_dir);
         if(!ent) {
             break;
         }
         list->push_back_inplace(new_node_string(ent->d_name));
+#endif
     }
     return new_node_list(list);
 }
@@ -415,6 +466,16 @@ static node_idx_t native_io_read_dir_files(env_ptr_t env, list_ptr_t args) {
     }
     list_ptr_t list = new_list();
     while(1) {
+#ifdef _WIN32
+        WIN32_FIND_DATA fd;
+        if(!FindNextFile(n->t_dir, &fd)) {
+            break;
+        }
+        if(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            continue;
+        }
+        list->push_back_inplace(new_node_string(fd.cFileName));
+#else
         struct dirent *ent = readdir(n->t_dir);
         if(!ent) {
             break;
@@ -422,6 +483,7 @@ static node_idx_t native_io_read_dir_files(env_ptr_t env, list_ptr_t args) {
         if(ent->d_type == DT_REG) {
             list->push_back_inplace(new_node_string(ent->d_name));
         }
+#endif
     }
     return new_node_list(list);
 }
@@ -435,6 +497,15 @@ static node_idx_t native_io_read_dir_dirs(env_ptr_t env, list_ptr_t args) {
     }
     list_ptr_t list = new_list();
     while(1) {
+#ifdef _WIN32
+        WIN32_FIND_DATA fd;
+        if(!FindNextFile(n->t_dir, &fd)) {
+            break;
+        }
+        if(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            list->push_back_inplace(new_node_string(fd.cFileName));
+        }
+#else
         struct dirent *ent = readdir(n->t_dir);
         if(!ent) {
             break;
@@ -442,6 +513,7 @@ static node_idx_t native_io_read_dir_dirs(env_ptr_t env, list_ptr_t args) {
         if(ent->d_type == DT_DIR) {
             list->push_back_inplace(new_node_string(ent->d_name));
         }
+#endif
     }
     return new_node_list(list);
 }
@@ -453,7 +525,11 @@ static node_idx_t native_io_rewind_dir(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_DIR || !n->t_dir) {
         return NIL_NODE;
     }
+#ifdef _WIN32
+    FindClose(n->t_dir);
+#else
     rewinddir(n->t_dir);
+#endif
     return NIL_NODE;
 }
 
@@ -464,7 +540,11 @@ static node_idx_t native_io_tell_dir(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_DIR || !n->t_dir) {
         return NIL_NODE;
     }
+#ifdef _WIN32
+    return new_node_int(0);
+#else
     return new_node_int(telldir(n->t_dir));
+#endif
 }
 
 
