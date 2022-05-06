@@ -340,6 +340,91 @@ static node_idx_t native_io_write_byte(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
+static node_idx_t native_io_read_int(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    int i;
+    fread(&i, sizeof(int), 1, n->t_file);
+    return new_node_int(i);
+}
+
+static node_idx_t native_io_read_float(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    float f;
+    fread(&f, sizeof(float), 1, n->t_file);
+    return new_node_float(f);
+}
+
+static node_idx_t native_io_read_short(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    short s;
+    fread(&s, sizeof(short), 1, n->t_file);
+    return new_node_int(s);
+}
+
+static node_idx_t native_io_read_byte(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    char b;
+    fread(&b, sizeof(char), 1, n->t_file);
+    return new_node_int(b);
+}
+
+// (io/read-str file terminator)
+// Reads a string from the file.
+static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_FILE) {
+        return NIL_NODE;
+    }
+    if(!n->t_file) {
+        return NIL_NODE;
+    }
+    char buf[1024];
+    int term = '\n';
+    if(args->size() == 2) {
+        term = get_node_int(args->second_value());
+    }
+    int i = 0;
+    while(1) {
+        int c = fgetc(n->t_file);
+        if(c == EOF) {
+            break;
+        }
+        if(c == term) {
+            break;
+        }
+        buf[i] = c;
+        i++;
+    }
+    buf[i] = 0;
+    return new_node_string(buf);
+}
+
+
+
 void jo_lisp_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false));
     env->set("slurp", new_node_native_function("slurp", &native_io_slurp, false));
@@ -349,6 +434,11 @@ void jo_lisp_io_init(env_ptr_t env) {
     env->set("io/open-file", new_node_native_function("io/open-file", &native_io_open_file, false));
     env->set("io/close-file", new_node_native_function("io/close-file", &native_io_close_file, false));
     env->set("io/read-line", new_node_native_function("io/read-line", &native_io_read_line, false));
+    env->set("io/read-str", new_node_native_function("io/read-str", &native_io_read_str, false));
+    env->set("io/read-int", new_node_native_function("io/read-int", &native_io_read_int, false));
+    env->set("io/read-float", new_node_native_function("io/read-float", &native_io_read_float, false));
+    env->set("io/read-short", new_node_native_function("io/read-short", &native_io_read_short, false));
+    env->set("io/read-byte", new_node_native_function("io/read-byte", &native_io_read_byte, false));
     env->set("io/write-line", new_node_native_function("io/write-line", &native_io_write_line, false));
     env->set("io/write-str", new_node_native_function("io/write-str", &native_io_write_str, false));
     env->set("io/write-int", new_node_native_function("io/write-int", &native_io_write_int, false));
