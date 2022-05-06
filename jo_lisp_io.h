@@ -508,5 +508,8 @@ void jo_lisp_io_init(env_ptr_t env) {
     env->set("io/file-executable?", new_node_native_function("io/file-executable?", &native_io_file_executable, false));
     env->set("io/delete-file", new_node_native_function("io/delete-file", &native_io_delete_file, false));
     env->set("io/copy", new_node_native_function("io/copy", &native_io_copy, false));
+    env->set("*in*", new_node_file(stdin));
+    env->set("*out*", new_node_file(stdout));
+    env->set("*err*", new_node_file(stderr));
 
 }

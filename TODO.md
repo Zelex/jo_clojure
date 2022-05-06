@@ -14,14 +14,11 @@ sets
 *compiler-options*
 *data-readers*
 *e
-*err*
 *file*
 *flush-on-newline*
 *fn-loader*
-*in*
 *math-context*
 *ns*
-*out*
 *print-dup*
 *print-length*
 *print-level*
@@ -154,7 +151,6 @@ extend-type
 extenders
 extends?
 finally
-find
 find-keyword
 find-ns
 find-protocol-impl
