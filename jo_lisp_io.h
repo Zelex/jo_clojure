@@ -262,9 +262,9 @@ static node_idx_t native_io_copy(env_ptr_t env, list_ptr_t args) {
     return new_node_bool(jo_file_copy(input.c_str(), output.c_str()) == 0);
 }
 
-// (io/popen cmd opts)
+// (io/proc-open cmd opts)
 // Opens a pipe to cmd.
-static node_idx_t native_io_popen(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_io_open_proc(env_ptr_t env, list_ptr_t args) {
     jo_string cmd = get_node_string(args->first_value());
     jo_string opts = get_node_string(args->second_value());
     FILE *fp = popen(cmd.c_str(), opts.c_str());
@@ -274,9 +274,9 @@ static node_idx_t native_io_popen(env_ptr_t env, list_ptr_t args) {
     return new_node_file(fp);
 }
 
-// (io/pclose file)
+// (io/proc-close file)
 // Closes the file and frees the node.
-static node_idx_t native_io_pclose(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_io_close_proc(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
     if(n->type != NODE_FILE) {
         return NIL_NODE;
@@ -292,6 +292,8 @@ void jo_lisp_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false));
     env->set("slurp", new_node_native_function("slurp", &native_io_slurp, false));
     env->set("spit", new_node_native_function("spit", &native_io_spit, false));
+    env->set("io/open-proc", new_node_native_function("io/open-proc", &native_io_open_proc, false));
+    env->set("io/close-proc", new_node_native_function("io/close-proc", &native_io_close_proc, false));
     env->set("io/open-file", new_node_native_function("io/open-file", &native_io_open_file, false));
     env->set("io/close-file", new_node_native_function("io/close-file", &native_io_close_file, false));
     env->set("io/write-file", new_node_native_function("io/write-file", &native_io_write_file, false));
