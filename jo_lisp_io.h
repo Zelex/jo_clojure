@@ -83,10 +83,7 @@ static node_idx_t native_io_close_file(env_ptr_t env, list_ptr_t args) {
 // Reads a line from the file.
 static node_idx_t native_io_read_line(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     char buf[1024]; // TODO: not sure I like this fixed size, but its better to have a limit than no limit... right?
@@ -100,10 +97,7 @@ static node_idx_t native_io_read_line(env_ptr_t env, list_ptr_t args) {
 // Writes a line to the file.
 static node_idx_t native_io_write_line(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     jo_string str = get_node_string(args->second_value());
@@ -116,10 +110,7 @@ static node_idx_t native_io_write_line(env_ptr_t env, list_ptr_t args) {
 // Flushes the file.
 static node_idx_t native_io_flush(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     fflush(n->t_file);
@@ -130,10 +121,7 @@ static node_idx_t native_io_flush(env_ptr_t env, list_ptr_t args) {
 // Seeks to the specified position in the file.
 static node_idx_t native_io_seek(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     int pos = get_node_int(args->second_value());
@@ -145,10 +133,7 @@ static node_idx_t native_io_seek(env_ptr_t env, list_ptr_t args) {
 // Returns the current position in the file.
 static node_idx_t native_io_tell(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     return new_node_int(ftell(n->t_file));
@@ -158,10 +143,7 @@ static node_idx_t native_io_tell(env_ptr_t env, list_ptr_t args) {
 // Returns the size of the file.
 static node_idx_t native_io_size(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     long pos = ftell(n->t_file);
@@ -175,10 +157,7 @@ static node_idx_t native_io_size(env_ptr_t env, list_ptr_t args) {
 // Returns true if the file is at the end.
 static node_idx_t native_io_eof(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     return new_node_bool(feof(n->t_file));
@@ -187,41 +166,25 @@ static node_idx_t native_io_eof(env_ptr_t env, list_ptr_t args) {
 // (io/file-exists? file)
 // Returns true if the file exists.
 static node_idx_t native_io_file_exists(env_ptr_t env, list_ptr_t args) {
-    node_t *n = get_node(args->first_value());
-    if(n->type != NODE_STRING) {
-        return NIL_NODE;
-    }
-    return new_node_bool(jo_file_exists(n->as_string().c_str()));
+    return new_node_bool(jo_file_exists(get_node_string(args->first_value()).c_str()));
 }
 
 // (io/file-readable? file)
 // Returns true if the file is readable.
 static node_idx_t native_io_file_readable(env_ptr_t env, list_ptr_t args) {
-    node_t *n = get_node(args->first_value());
-    if(n->type != NODE_STRING) {
-        return NIL_NODE;
-    }
-    return new_node_bool(jo_file_readable(n->as_string().c_str()));
+    return new_node_bool(jo_file_readable(get_node_string(args->first_value()).c_str()));
 }
 
 // (io/file-writable? file)
 // Returns true if the file is writable.
 static node_idx_t native_io_file_writable(env_ptr_t env, list_ptr_t args) {
-    node_t *n = get_node(args->first_value());
-    if(n->type != NODE_STRING) {
-        return NIL_NODE;
-    }
-    return new_node_bool(jo_file_writable(n->as_string().c_str()));
+    return new_node_bool(jo_file_writable(get_node_string(args->first_value()).c_str()));
 }
 
 // (io/file-executable? file)
 // Returns true if the file is executable.
 static node_idx_t native_io_file_executable(env_ptr_t env, list_ptr_t args) {
-    node_t *n = get_node(args->first_value());
-    if(n->type != NODE_STRING) {
-        return NIL_NODE;
-    }
-    return new_node_bool(jo_file_executable(n->as_string().c_str()));
+    return new_node_bool(jo_file_executable(get_node_string(args->first_value()).c_str()));
 }
 
 // (io/delete-file f & [silently])
@@ -277,10 +240,7 @@ static node_idx_t native_io_close_proc(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_write_str(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     jo_string str = get_node_string(args->second_value());
@@ -290,10 +250,7 @@ static node_idx_t native_io_write_str(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_write_int(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     int i = get_node_int(args->second_value());
@@ -303,10 +260,7 @@ static node_idx_t native_io_write_int(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_write_float(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     float f = get_node_float(args->second_value());
@@ -316,10 +270,7 @@ static node_idx_t native_io_write_float(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_write_short(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     int s = get_node_int(args->second_value());
@@ -329,10 +280,7 @@ static node_idx_t native_io_write_short(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_write_byte(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     int b = get_node_int(args->second_value());
@@ -342,10 +290,7 @@ static node_idx_t native_io_write_byte(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_read_int(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     int i;
@@ -355,10 +300,7 @@ static node_idx_t native_io_read_int(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_read_float(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     float f;
@@ -368,10 +310,7 @@ static node_idx_t native_io_read_float(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_read_short(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     short s;
@@ -381,10 +320,7 @@ static node_idx_t native_io_read_short(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_io_read_byte(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     char b;
@@ -396,10 +332,7 @@ static node_idx_t native_io_read_byte(env_ptr_t env, list_ptr_t args) {
 // Reads a string from the file.
 static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE) {
-        return NIL_NODE;
-    }
-    if(!n->t_file) {
+    if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
     char buf[1024];
@@ -419,6 +352,120 @@ static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
     buf[i] = 0;
     return new_node_string(buf);
 }
+
+static node_idx_t native_io_open_dir(env_ptr_t env, list_ptr_t args) {
+    jo_string str = get_node_string(args->first_value());
+    DIR *dir = opendir(str.c_str());
+    if(!dir) {
+        return NIL_NODE;
+    }
+    return new_node_dir(dir);
+}
+
+static node_idx_t native_io_close_dir(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_DIR || !n->t_dir) {
+        return NIL_NODE;
+    }
+    closedir(n->t_dir);
+    n->t_dir = NULL;
+    return NIL_NODE;
+}
+
+// (io/read-dir dir)
+// Reads a directory entry from the directory.
+static node_idx_t native_io_read_dir(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_DIR || !n->t_dir) {
+        return NIL_NODE;
+    }
+    struct dirent *ent = readdir(n->t_dir);
+    if(!ent) {
+        return NIL_NODE;
+    }
+    return new_node_string(ent->d_name);
+}
+
+// (io/read-dir-all dir)
+// Reads all directory entries from the directory.
+static node_idx_t native_io_read_dir_all(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_DIR || !n->t_dir) {
+        return NIL_NODE;
+    }
+    list_ptr_t list = new_list();
+    while(1) {
+        struct dirent *ent = readdir(n->t_dir);
+        if(!ent) {
+            break;
+        }
+        list->push_back_inplace(new_node_string(ent->d_name));
+    }
+    return new_node_list(list);
+}
+
+// (io/read-dir-files dir)
+// Reads all files from the directory.
+static node_idx_t native_io_read_dir_files(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_DIR || !n->t_dir) {
+        return NIL_NODE;
+    }
+    list_ptr_t list = new_list();
+    while(1) {
+        struct dirent *ent = readdir(n->t_dir);
+        if(!ent) {
+            break;
+        }
+        if(ent->d_type == DT_REG) {
+            list->push_back_inplace(new_node_string(ent->d_name));
+        }
+    }
+    return new_node_list(list);
+}
+
+// (io/read-dir-dirs dir)
+// Reads all directories from the directory.
+static node_idx_t native_io_read_dir_dirs(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_DIR || !n->t_dir) {
+        return NIL_NODE;
+    }
+    list_ptr_t list = new_list();
+    while(1) {
+        struct dirent *ent = readdir(n->t_dir);
+        if(!ent) {
+            break;
+        }
+        if(ent->d_type == DT_DIR) {
+            list->push_back_inplace(new_node_string(ent->d_name));
+        }
+    }
+    return new_node_list(list);
+}
+
+// (io/rewind-dir dir)
+// Rewinds the directory.
+static node_idx_t native_io_rewind_dir(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_DIR || !n->t_dir) {
+        return NIL_NODE;
+    }
+    rewinddir(n->t_dir);
+    return NIL_NODE;
+}
+
+// (io/tell-dir dir)
+// Returns the current position in the directory.
+static node_idx_t native_io_tell_dir(env_ptr_t env, list_ptr_t args) {
+    node_t *n = get_node(args->first_value());
+    if(n->type != NODE_DIR || !n->t_dir) {
+        return NIL_NODE;
+    }
+    return new_node_int(telldir(n->t_dir));
+}
+
+
 
 void jo_lisp_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false));

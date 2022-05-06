@@ -70,6 +70,7 @@ enum {
 	NODE_VAR,
 	NODE_DELAY,
 	NODE_FILE,
+	NODE_DIR,
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
@@ -369,6 +370,7 @@ struct node_t {
 		node_idx_t t_delay; // cached result
 		node_idx_t t_lazy_fn;
 		FILE *t_file;
+		DIR *t_dir;
 	};
 
 	node_t() : type(), flags(), t_string(), t_list(), t_vector(), t_map(), t_native_function(), t_func(), t_int() {}
@@ -386,6 +388,7 @@ struct node_t {
 	bool is_float() const { return type == NODE_FLOAT; }
 	bool is_int() const { return type == NODE_INT; }
 	bool is_file() const { return type == NODE_FILE; }
+	bool is_dir() const { return type == NODE_DIR; }
 
 	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_vector(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
@@ -694,6 +697,13 @@ static node_idx_t new_node_file(FILE *fp) {
 	node_t n;
 	n.type = NODE_FILE;
 	n.t_file = fp;
+	return new_node(&n);
+}
+
+static node_idx_t new_node_dir(DIR *dp) {
+	node_t n;
+	n.type = NODE_DIR;
+	n.t_dir = dp;
 	return new_node(&n);
 }
 
