@@ -471,6 +471,14 @@ void jo_lisp_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false));
     env->set("slurp", new_node_native_function("slurp", &native_io_slurp, false));
     env->set("spit", new_node_native_function("spit", &native_io_spit, false));
+    env->set("io/open-dir", new_node_native_function("io/open-dir", &native_io_open_dir, false));
+    env->set("io/close-dir", new_node_native_function("io/close-dir", &native_io_close_dir, false));
+    env->set("io/read-dir", new_node_native_function("io/read-dir", &native_io_read_dir, false));
+    env->set("io/read-dir-all", new_node_native_function("io/read-dir-all", &native_io_read_dir_all, false));
+    env->set("io/read-dir-files", new_node_native_function("io/read-dir-files", &native_io_read_dir_files, false));
+    env->set("io/read-dir-dirs", new_node_native_function("io/read-dir-dirs", &native_io_read_dir_dirs, false));
+    env->set("io/rewind-dir", new_node_native_function("io/rewind-dir", &native_io_rewind_dir, false));
+    env->set("io/tell-dir", new_node_native_function("io/tell-dir", &native_io_tell_dir, false));
     env->set("io/open-proc", new_node_native_function("io/open-proc", &native_io_open_proc, false));
     env->set("io/close-proc", new_node_native_function("io/close-proc", &native_io_close_proc, false));
     env->set("io/open-file", new_node_native_function("io/open-file", &native_io_open_file, false));
@@ -498,4 +506,5 @@ void jo_lisp_io_init(env_ptr_t env) {
     env->set("io/file-executable?", new_node_native_function("io/file-executable?", &native_io_file_executable, false));
     env->set("io/delete-file", new_node_native_function("io/delete-file", &native_io_delete_file, false));
     env->set("io/copy", new_node_native_function("io/copy", &native_io_copy, false));
+
 }
