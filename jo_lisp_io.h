@@ -402,7 +402,7 @@ static node_idx_t native_io_close_dir(env_ptr_t env, list_ptr_t args) {
 #ifdef _WIN32
         FindClose(n->t_dir);
 #else
-        closedir(n->t_dir);
+        closedir((DIR*)n->t_dir);
 #endif
         n->t_dir = NULL;
     }
@@ -423,7 +423,7 @@ static node_idx_t native_io_read_dir(env_ptr_t env, list_ptr_t args) {
     }
     return new_node_string(fd.cFileName);
 #else
-    struct dirent *ent = readdir(n->t_dir);
+    struct dirent *ent = readdir((DIR*)n->t_dir);
     if(!ent) {
         return NIL_NODE;
     }
@@ -447,7 +447,7 @@ static node_idx_t native_io_read_dir_all(env_ptr_t env, list_ptr_t args) {
         }
         list->push_back_inplace(new_node_string(fd.cFileName));
 #else
-        struct dirent *ent = readdir(n->t_dir);
+        struct dirent *ent = readdir((DIR*)n->t_dir);
         if(!ent) {
             break;
         }
@@ -476,7 +476,7 @@ static node_idx_t native_io_read_dir_files(env_ptr_t env, list_ptr_t args) {
         }
         list->push_back_inplace(new_node_string(fd.cFileName));
 #else
-        struct dirent *ent = readdir(n->t_dir);
+        struct dirent *ent = readdir((DIR*)n->t_dir);
         if(!ent) {
             break;
         }
@@ -506,7 +506,7 @@ static node_idx_t native_io_read_dir_dirs(env_ptr_t env, list_ptr_t args) {
             list->push_back_inplace(new_node_string(fd.cFileName));
         }
 #else
-        struct dirent *ent = readdir(n->t_dir);
+        struct dirent *ent = readdir((DIR*)n->t_dir);
         if(!ent) {
             break;
         }
@@ -528,7 +528,7 @@ static node_idx_t native_io_rewind_dir(env_ptr_t env, list_ptr_t args) {
 #ifdef _WIN32
     FindClose(n->t_dir);
 #else
-    rewinddir(n->t_dir);
+    rewinddir((DIR*)n->t_dir);
 #endif
     return NIL_NODE;
 }
@@ -543,7 +543,7 @@ static node_idx_t native_io_tell_dir(env_ptr_t env, list_ptr_t args) {
 #ifdef _WIN32
     return new_node_int(0);
 #else
-    return new_node_int(telldir(n->t_dir));
+    return new_node_int(telldir((DIR*)n->t_dir));
 #endif
 }
 
