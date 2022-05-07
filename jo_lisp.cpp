@@ -922,6 +922,12 @@ static token_t get_token(parse_state_t *state) {
 		debugf("token: %s\n", tok.str.c_str());
 		return tok;
 	}
+	if(c == '@') {
+		tok.type = TOK_SEPARATOR;
+		tok.str = "deref";
+		debugf("token: %s\n", tok.str.c_str());
+		return tok;
+	}
 	if(c == ':') {
 		tok.type = TOK_KEYWORD;
 		// string literal of a keyword
@@ -1196,6 +1202,19 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.type = NODE_LIST;
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(env->get("quasiquote"));
+		n.t_list->push_back_inplace(inner);
+		return new_node(&n);
+	}
+
+	if(tok.type == TOK_SEPARATOR && tok.str == "deref") {
+		node_idx_t inner = parse_next(env, state, stop_on_sep);
+		if(inner == INV_NODE) {
+			return INV_NODE;
+		}
+		node_t n;
+		n.type = NODE_LIST;
+		n.t_list = new_list();
+		n.t_list->push_back_inplace(env->get("deref"));
 		n.t_list->push_back_inplace(inner);
 		return new_node(&n);
 	}
