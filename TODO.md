@@ -59,7 +59,6 @@ aset-short
 assoc!
 assoc-in
 associative?
-atom
 await
 await-for
 await1
@@ -102,7 +101,6 @@ clojure-version
 coll?
 commute
 comparator
-compare-and-set!
 compile
 completing
 conj!
@@ -121,7 +119,6 @@ defstruct
 deftype
 deliver
 denominator
-deref
 derive
 descendants
 destructure
@@ -352,9 +349,7 @@ replace
 replicate
 require
 requiring-resolve
-reset!
 reset-meta!
-reset-vals!
 resolve
 restart-agent
 resultset-seq
@@ -407,8 +402,6 @@ struct-map
 subseq
 subvec
 supers
-swap!
-swap-vals!
 symbol
 symbol?
 sync
