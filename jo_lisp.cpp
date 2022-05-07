@@ -8,6 +8,7 @@
 #include <map>
 #include <unordered_map>
 #include <functional>
+#include <atomic>
 #include "debugbreak.h"
 #include "jo_stdcpp.h"
 
