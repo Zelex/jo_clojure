@@ -71,6 +71,10 @@ enum {
 	NODE_DELAY,
 	NODE_FILE,
 	NODE_DIR,
+	NODE_ATOM,
+	NODE_AGENT,
+	NODE_FUTURE,
+	NODE_PROMISE,
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
@@ -356,6 +360,7 @@ struct node_t {
 	vector_ptr_t t_vector;
 	map_ptr_t t_map;
 	native_func_ptr_t t_native_function;
+	std::atomic<node_idx_t> t_atom;
 	struct {
 		vector_ptr_t args;
 		list_ptr_t body;
@@ -373,7 +378,65 @@ struct node_t {
 		void *t_dir;
 	};
 
-	node_t() : type(), flags(), t_string(), t_list(), t_vector(), t_map(), t_native_function(), t_func(), t_int() {}
+	node_t() 
+	: type()
+	, flags()
+	, t_string()
+	, t_list()
+	, t_vector()
+	, t_map()
+	, t_native_function()
+	, t_atom()
+	, t_func()
+	, t_int() 
+	{
+	}
+
+	// copy constructor
+	node_t(const node_t &other) 
+	: type(other.type)
+	, flags(other.flags)
+	, t_string(other.t_string)
+	, t_list(other.t_list)
+	, t_vector(other.t_vector)
+	, t_map(other.t_map)
+	, t_native_function(other.t_native_function)
+	, t_func(other.t_func)
+	, t_float(other.t_float) 
+	{
+		t_atom.store(other.t_atom.load());
+	}
+
+	// move constructor
+	node_t(node_t &&other)
+	: type(other.type)
+	, flags(other.flags)
+	, t_string(std::move(other.t_string))
+	, t_list(std::move(other.t_list))
+	, t_vector(std::move(other.t_vector))
+	, t_map(std::move(other.t_map))
+	, t_native_function(other.t_native_function)
+	, t_func(std::move(other.t_func))
+	, t_float(other.t_float)
+	{
+		t_atom.store(other.t_atom.load());
+	}
+
+	// copy assignment operator
+	node_t &operator=(const node_t &other) {
+		type = other.type;
+		flags = other.flags;
+		t_string = other.t_string;
+		t_list = other.t_list;
+		t_vector = other.t_vector;
+		t_map = other.t_map;
+		t_native_function = other.t_native_function;
+		t_func = other.t_func;
+		t_float = other.t_float;
+		t_atom.store(other.t_atom.load());
+		return *this;
+	}
+
 
 	bool is_symbol() const { return type == NODE_SYMBOL; }
 	bool is_keyword() const { return type == NODE_KEYWORD; }
@@ -389,6 +452,7 @@ struct node_t {
 	bool is_int() const { return type == NODE_INT; }
 	bool is_file() const { return type == NODE_FILE; }
 	bool is_dir() const { return type == NODE_DIR; }
+	bool is_atom() const { return type == NODE_ATOM; }
 
 	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_vector(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
@@ -704,6 +768,13 @@ static node_idx_t new_node_dir(void *dp) {
 	node_t n;
 	n.type = NODE_DIR;
 	n.t_dir = dp;
+	return new_node(&n);
+}
+
+static node_idx_t new_node_atom(node_idx_t atom) {
+	node_t n;
+	n.type = NODE_ATOM;
+	n.t_atom = atom;
 	return new_node(&n);
 }
 
@@ -3981,11 +4052,13 @@ static node_idx_t native_fnil(env_ptr_t env, list_ptr_t args) {
 
 
 
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
 #include "jo_lisp_lazy.h"
 #include "jo_lisp_io.h"
+#include "jo_lisp_async.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -4261,6 +4334,7 @@ int main(int argc, char **argv) {
 	jo_lisp_system_init(env);
 	jo_lisp_lazy_init(env);
 	jo_lisp_io_init(env);
+	jo_lisp_async_init(env);
 	
 	FILE *fp = fopen(argv[1], "r");
 	if(!fp) {
