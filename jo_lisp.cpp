@@ -171,8 +171,9 @@ struct env_t {
 	struct fast_val_t {
 		node_idx_t var;
 		node_idx_t value;
-		fast_val_t() : var(NIL_NODE), value(NIL_NODE) {}
-		fast_val_t(node_idx_t var, node_idx_t value) : var(var), value(value) {}
+		bool valid;
+		fast_val_t() : var(NIL_NODE), value(NIL_NODE), valid() {}
+		fast_val_t(node_idx_t var, node_idx_t value) : var(var), value(value), valid(true) {}
 	};
 	std::unordered_map<std::string, fast_val_t> vars_map;
 	env_ptr_t parent;
@@ -190,12 +191,12 @@ struct env_t {
 		return fast_val_t();
 	}
 
-	node_idx_t get(const jo_string &name) const {
-		return find(name.c_str()).value;
+	fast_val_t &get(const jo_string &name) const {
+		return find(name.c_str());
 	}
 
 	bool has(const jo_string &name) const {
-		return find(name).var != NIL_NODE;
+		return find(name).valid;
 	}
 
 	void remove(const jo_string &name) {
@@ -1131,7 +1132,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		debugf("symbol: %s\n", tok.str.c_str());
 		if(env->has(tok.str.c_str())) {
 			//debugf("pre-resolve symbol: %s\n", tok.str.c_str());
-			return env->get(tok.str.c_str());
+			return env->get(tok.str.c_str()).value;
 		}
 		// fixed symbols
 		if(tok.str == "%") return PCT_NODE;
@@ -1156,7 +1157,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_t n;
 		n.type = NODE_LIST;
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(env->get("quote"));
+		n.t_list->push_back_inplace(env->get("quote").value);
 		while(next != INV_NODE) {
 			n.t_list->push_back_inplace(next);
 			next = parse_next(env, state, ')');
@@ -1201,7 +1202,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_t n;
 		n.type = NODE_LIST;
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(env->get("quasiquote"));
+		n.t_list->push_back_inplace(env->get("quasiquote").value);
 		n.t_list->push_back_inplace(inner);
 		return new_node(&n);
 	}
@@ -1214,7 +1215,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_t n;
 		n.type = NODE_LIST;
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(env->get("deref"));
+		n.t_list->push_back_inplace(env->get("deref").value);
 		n.t_list->push_back_inplace(inner);
 		return new_node(&n);
 	}
@@ -1230,7 +1231,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_t n;
 		n.type = NODE_LIST;
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(env->get("fn"));
+		n.t_list->push_back_inplace(env->get("fn").value);
 		list_ptr_t body = new_list();
 		while(next != INV_NODE) {
 			body->push_back_inplace(next);
@@ -1370,7 +1371,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
 			sym_type = get_node_type(sym_idx);
 		} else if(n1_flags & NODE_FLAG_STRING) {
-			sym_idx = env->get(get_node_string(n1i));
+			sym_idx = env->get(get_node_string(n1i)).value;
 			sym_type = get_node_type(sym_idx);
 		}
 		sym_flags = get_node(sym_idx)->flags;
@@ -1474,11 +1475,11 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 	if(type == NODE_LIST) {
 		return eval_list(env, get_node(root)->t_list, flags);
 	} else if(type == NODE_SYMBOL) {
-		node_idx_t sym_idx = env->get(get_node_string(root));
-		if(sym_idx == NIL_NODE) {
+		auto sym = env->get(get_node_string(root));
+		if(!sym.valid) {
 			return root;
 		}
-		return sym_idx;//eval_node(env, sym_idx);
+		return sym.value;//eval_node(env, sym_idx);
 	} else if(type == NODE_VECTOR) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the vector
@@ -2598,7 +2599,7 @@ static node_idx_t native_delay(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_when(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t ret = NIL_NODE;
-	if(get_node_bool(*it++)) {
+	if(get_node_bool(eval_node(env, *it++))) {
 		for(; it; it++) {
 			ret = eval_node(env, *it);
 		}
