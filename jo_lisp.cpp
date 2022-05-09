@@ -2574,12 +2574,11 @@ static node_idx_t native_doseq(env_ptr_t env, list_ptr_t args) {
 	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
 	jo_string name = get_node(name_idx)->as_string();
 	node_t *value = get_node(value_idx);
-	list_ptr_t value_list = value->as_list();
 	node_idx_t ret = NIL_NODE;
 	env_ptr_t env2 = new_env(env);
-	for(list_t::iterator it2 = value_list->begin(); it2; it2++) {
-		env2->set_temp(name, *it2);
-		for(list_t::iterator it3 = it; it3; it3++) { 
+	for(seq_iterator_t it2(env, value_idx); it2; it2.next()) {
+		env2->set_temp(name, it2.val);
+		for(auto it3 = it; it3; it3++) { 
 			ret = eval_node(env2, *it3);
 		}
 	}

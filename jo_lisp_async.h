@@ -95,14 +95,14 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_t *f = get_node(f_idx);
-	if(f->can_eval()) {
+	if(!f->is_func() && !f->is_native_func()) {
 		warnf("(swap!) requires a function\n");
 		return NIL_NODE;
 	}
 
 	node_idx_t old_val, new_val;
 	do {
-		old_val = atom->t_atom;
+		old_val = atom->t_atom.load();
 		new_val = eval_list(env, args2->push_front(old_val)->push_front(f_idx));
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
 	return new_val;
@@ -174,14 +174,14 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_t *f = get_node(f_idx);
-	if(f->can_eval()) {
+	if(!f->is_func() && !f->is_native_func()) {
 		warnf("(swap-vals!) requires a function\n");
 		return NIL_NODE;
 	}
 
 	node_idx_t old_val, new_val;
 	do {
-		old_val = atom->t_atom;
+		old_val = atom->t_atom.load();
 		new_val = eval_list(env, args2->push_front(old_val)->push_front(f_idx));
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
 	vector_ptr_t ret = new_vector();
