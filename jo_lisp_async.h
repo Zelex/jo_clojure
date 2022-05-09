@@ -100,8 +100,11 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_idx_t new_val = eval_list(env, args2->push_front(atom->t_atom)->push_front(f_idx));
-	atom->t_atom = new_val;
+	node_idx_t old_val, new_val;
+	do {
+		old_val = atom->t_atom;
+		new_val = eval_list(env, args2->push_front(old_val)->push_front(f_idx));
+	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
 	return new_val;
 }
 
@@ -176,8 +179,15 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_idx_t new_val = eval_list(env, args2->push_front(atom->t_atom)->push_front(f_idx));
-	return atom->t_atom.exchange(new_val);
+	node_idx_t old_val, new_val;
+	do {
+		old_val = atom->t_atom;
+		new_val = eval_list(env, args2->push_front(old_val)->push_front(f_idx));
+	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
+	vector_ptr_t ret = new_vector();
+	ret->push_back_inplace(old_val);
+	ret->push_back_inplace(new_val);
+	return new_node_vector(ret);
 }
 
 // (reset-vals! atom newval)
