@@ -191,7 +191,7 @@ struct env_t {
 		return fast_val_t();
 	}
 
-	fast_val_t &get(const jo_string &name) const {
+	const fast_val_t &get(const jo_string &name) const {
 		return find(name.c_str());
 	}
 
