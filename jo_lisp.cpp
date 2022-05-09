@@ -191,11 +191,11 @@ struct env_t {
 		return fast_val_t();
 	}
 
-	const fast_val_t &get(const jo_string &name) const {
+	inline fast_val_t get(const jo_string &name) const {
 		return find(name.c_str());
 	}
 
-	bool has(const jo_string &name) const {
+	inline bool has(const jo_string &name) const {
 		return find(name).valid;
 	}
 
