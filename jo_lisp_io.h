@@ -581,7 +581,7 @@ void jo_lisp_io_init(env_ptr_t env) {
     env->set("io/seek", new_node_native_function("io/seek", &native_io_seek, false));
     env->set("io/tell", new_node_native_function("io/tell", &native_io_tell, false));
     env->set("io/size", new_node_native_function("io/size", &native_io_size, false));
-    env->set("io/eof", new_node_native_function("io/eof", &native_io_eof, false));
+    env->set("io/eof?", new_node_native_function("io/eof?", &native_io_eof, false));
     env->set("io/file-exists?", new_node_native_function("io/file-exists?", &native_io_file_exists, false));
     env->set("io/file-readable?", new_node_native_function("io/file-readable?", &native_io_file_readable, false));
     env->set("io/file-writable?", new_node_native_function("io/file-writable?", &native_io_file_writable, false));

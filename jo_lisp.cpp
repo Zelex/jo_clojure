@@ -2170,13 +2170,23 @@ static node_idx_t native_dorun(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_while(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
 	node_idx_t cond_idx = *i++;
-	node_idx_t cond = eval_node(env, cond_idx);
 	node_idx_t ret = NIL_NODE;
-	while(get_node(cond)->as_bool()) {
+	while(get_node_bool(eval_node(env, cond_idx))) {
 		for(list_t::iterator j = i; j; j++) {
 			ret = eval_node(env, *j);
 		}
-		cond = eval_node(env, cond_idx);
+	}
+	return ret;
+}
+
+static node_idx_t native_while_not(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator i = args->begin();
+	node_idx_t cond_idx = *i++;
+	node_idx_t ret = NIL_NODE;
+	while(!get_node_bool(eval_node(env, cond_idx))) {
+		for(list_t::iterator j = i; j; j++) {
+			ret = eval_node(env, *j);
+		}
 	}
 	return ret;
 }
@@ -4303,6 +4313,7 @@ int main(int argc, char **argv) {
 	env->set("when-let", new_node_native_function("when-let", &native_when_let, true));
 	env->set("when-not", new_node_native_function("when-not", &native_when_not, true));
 	env->set("while", new_node_native_function("while", &native_while, true));
+	env->set("while-not", new_node_native_function("while-not", &native_while_not, true));
 	env->set("cond", new_node_native_function("cond", &native_cond, true));
 	env->set("condp", new_node_native_function("condp", &native_condp, true));
 	env->set("case", new_node_native_function("case", &native_case, true));
