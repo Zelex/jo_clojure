@@ -16,13 +16,13 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 * Lazy sequences
 * Startup time is ridiculously fast by comparison
 * Implementations of persistent lists, vectors, maps (WIP: set, etc).
-* STM
+* Software Transactional Memory (STM)
 * Atoms
 * IO
 
 # Differences:
 * IO is very different than clojure's IO cause I didn't like the clojure IO functions AT ALL.
-* Softwre Transactional Memory (STM) now works seamlessly with Atoms - thus refs are kinda pointless - not sure if I'll implement them.
+* Software Transactional Memory (STM) now works seamlessly with Atoms - thus refs are kinda pointless - not sure if I'll implement them.
 * Not entirely complete implementation (yet). There is a LOT to do.
 * See TODO.md for information on what is left to do.
 
