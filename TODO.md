@@ -125,7 +125,6 @@ destructure
 disj
 disj!
 dissoc!
-dosync
 doto
 double
 double-array

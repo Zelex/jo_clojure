@@ -471,6 +471,20 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
+// (dosync & exprs)
+// Runs the exprs (in an implicit do) in a transaction that encompasses
+// exprs and any nested calls.  Starts a transaction if none is already
+// running on this thread. Any uncaught exception will abort the
+// transaction and flow out of dosync. The exprs may be run more than
+// once, but any effects on Refs will be atomic.
+static node_idx_t native_dosync(env_ptr_t env, list_ptr_t args) {
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
+	node_idx_t ret = eval_list(env2, args);
+	env2->end_transaction();
+	return ret;
+}
+
 void jo_lisp_async_init(env_ptr_t env) {
     env->set("atom", new_node_native_function("atom", &native_atom, true));
     env->set("deref", new_node_native_function("deref", &native_deref, false));
@@ -485,5 +499,6 @@ void jo_lisp_async_init(env_ptr_t env) {
     env->set("multi-reset!", new_node_native_function("multi-reset!", &native_multi_reset_e, false));
     env->set("multi-swap-vals!", new_node_native_function("multi-swap-vals!", &native_multi_swap_vals_e, false));
     env->set("multi-reset-vals!", new_node_native_function("multi-reset-vals!", &native_multi_reset_vals_e, false));
+	env->set("dosync", new_node_native_function("dosync", &native_dosync, true));
 
 }
