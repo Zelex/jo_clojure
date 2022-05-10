@@ -271,7 +271,9 @@ struct env_t {
 	}
 
 	bool end_transaction() {
-		return tx->commit();
+		bool ret = tx->commit();
+		tx = nullptr;
+		return ret;
 	}
 
 	fast_val_t find(const jo_string &name) const {
