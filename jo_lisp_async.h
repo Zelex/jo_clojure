@@ -484,6 +484,6 @@ void jo_lisp_async_init(env_ptr_t env) {
     env->set("multi-swap!", new_node_native_function("multi-swap!", &native_multi_swap_e, false));
     env->set("multi-reset!", new_node_native_function("multi-reset!", &native_multi_reset_e, false));
     env->set("multi-swap-vals!", new_node_native_function("multi-swap-vals!", &native_multi_swap_vals_e, false));
-    env->set("multu-reset-vals!", new_node_native_function("multu-reset-vals!", &native_multi_reset_vals_e, false));
+    env->set("multi-reset-vals!", new_node_native_function("multi-reset-vals!", &native_multi_reset_vals_e, false));
 
 }
