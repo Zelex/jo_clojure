@@ -186,8 +186,12 @@ static node_idx_t native_compare_and_set_e(env_ptr_t env, list_ptr_t args) {
 	}
 
 	if(env->tx.ptr) {
-		env->tx->write(atom_idx, new_val_idx);
-		return TRUE_NODE;
+		node_idx_t old_val = env->tx->read(atom_idx);
+		if(old_val == old_val_idx) {
+			env->tx->write(atom_idx, new_val_idx);
+			return TRUE_NODE;
+		}
+		return FALSE_NODE;
 	}
 
 	return atom->t_atom.compare_exchange_strong(old_val_idx, new_val_idx) ? TRUE_NODE : FALSE_NODE;
