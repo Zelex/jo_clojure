@@ -272,7 +272,9 @@ struct env_t {
 
 	bool end_transaction() {
 		bool ret = tx->commit();
-		tx = nullptr;
+		if(ret) {
+			tx = nullptr;
+		}
 		return ret;
 	}
 
