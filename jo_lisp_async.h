@@ -67,8 +67,8 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 	int type = ref->type;
 	if(type == NODE_VAR || type == NODE_AGENT) {
 	} else if(type == NODE_ATOM) {
-		if(env->in_tx) {
-			env->tx.read(ref_idx);
+		if(env->tx.ptr) {
+			env->tx->read(ref_idx);
 		} else {
 			node_idx_t ret = ref->t_atom;
 			while(ret == TX_HOLD_NODE) {
@@ -114,10 +114,10 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 
 	node_idx_t old_val, new_val;
 
-	if(env->in_tx) {
-		old_val = env->tx.read(atom_idx);
+	if(env->tx.ptr) {
+		old_val = env->tx->read(atom_idx);
 		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
-		env->tx.write(atom_idx, new_val);
+		env->tx->write(atom_idx, new_val);
 		return new_val;
 	}
 
@@ -150,8 +150,8 @@ static node_idx_t native_reset_e(env_ptr_t env, list_ptr_t args) {
 
 	node_idx_t old_val, new_val = args->second_value();
 
-	if(env->in_tx) {
-		env->tx.write(atom_idx, new_val);
+	if(env->tx.ptr) {
+		env->tx->write(atom_idx, new_val);
 		return new_val;
 	}
 
@@ -185,8 +185,8 @@ static node_idx_t native_compare_and_set_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	if(env->in_tx) {
-		env->tx.write(atom_idx, new_val_idx);
+	if(env->tx.ptr) {
+		env->tx->write(atom_idx, new_val_idx);
 		return TRUE_NODE;
 	}
 
@@ -223,10 +223,10 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 
 	node_idx_t old_val, new_val;
 
-	if(env->in_tx) {
-		old_val = env->tx.read(atom_idx);
+	if(env->tx.ptr) {
+		old_val = env->tx->read(atom_idx);
 		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
-		env->tx.write(atom_idx, new_val);
+		env->tx->write(atom_idx, new_val);
 		vector_ptr_t ret = new_vector();
 		ret->push_back_inplace(old_val);
 		ret->push_back_inplace(new_val);
@@ -265,9 +265,9 @@ static node_idx_t native_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 
 	node_idx_t old_val, new_val = args->second_value();
 
-	if(env->in_tx) {
-		old_val = env->tx.read(atom_idx);
-		env->tx.write(atom_idx, new_val);
+	if(env->tx.ptr) {
+		old_val = env->tx->read(atom_idx);
+		env->tx->write(atom_idx, new_val);
 		return new_node_vector(new_vector()->push_back_inplace(old_val)->push_back_inplace(new_val));
 	}
 
@@ -294,9 +294,6 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 
 	lists.reserve(args->size());
 	
-	env_ptr_t env2 = new_env(env);
-	env2->begin_transaction();
-
 	// Gather lists
 	for(auto it = args->begin(); it; it++) {
 		list_ptr_t list = get_node_list(*it);
@@ -317,6 +314,9 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 		lists.push_back(list);
 	}
 
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
+
 	do {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
@@ -325,11 +325,11 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 			node_idx_t atom_idx = *it2++;
 			node_idx_t f_idx = *it2++;
 			list_ptr_t args2 = list->rest(it2);
-			node_idx_t old_val = env2->tx.read(atom_idx);
+			node_idx_t old_val = env2->tx->read(atom_idx);
 			node_idx_t new_val = eval_list(env2, args2->push_front2(f_idx, old_val));
 			old_vals[i] = old_val;
 			new_vals[i] = new_val;
-			env2->tx.write(atom_idx, new_val);
+			env2->tx->write(atom_idx, new_val);
 		}
 	} while(!env2->end_transaction());
 
@@ -351,9 +351,6 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 	jo_vector<node_idx_t> new_vals(args->size());
 
 	lists.reserve(args->size());
-	
-	env_ptr_t env2 = new_env(env);
-	env2->begin_transaction();
 
 	// Gather lists
 	for(auto it = args->begin(); it; it++) {
@@ -369,6 +366,9 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 		}
 		lists.push_back(list);
 	}
+	
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
 
 	do {
 		// First get the old values and calc new values
@@ -377,8 +377,8 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 			auto it2 = list->begin();
 			node_idx_t atom_idx = *it2++;
 			node_idx_t new_val = *it2++;
-			node_idx_t old_val = env2->tx.read(atom_idx);
-			env2->tx.write(atom_idx, new_val);
+			node_idx_t old_val = env2->tx->read(atom_idx);
+			env2->tx->write(atom_idx, new_val);
 			old_vals[i] = old_val;
 			new_vals[i] = new_val;
 		}
@@ -399,9 +399,6 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 	jo_vector<node_idx_t> new_vals(args->size());
 
 	lists.reserve(args->size());
-	
-	env_ptr_t env2 = new_env(env);
-	env2->begin_transaction();
 
 	// Gather lists
 	for(auto it = args->begin(); it; it++) {
@@ -422,6 +419,9 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 		}
 		lists.push_back(list);
 	}
+	
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
 
 	do {
 		// First get the old values and calc new values
@@ -431,11 +431,11 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 			node_idx_t atom_idx = *it2++;
 			node_idx_t f_idx = *it2++;
 			list_ptr_t args2 = list->rest(it2);
-			node_idx_t old_val = env2->tx.read(atom_idx);
+			node_idx_t old_val = env2->tx->read(atom_idx);
 			node_idx_t new_val = eval_list(env2, args2->push_front2(f_idx, old_val));
 			old_vals[i] = old_val;
 			new_vals[i] = new_val;
-			env2->tx.write(atom_idx, new_val);
+			env2->tx->write(atom_idx, new_val);
 		}
 	} while(!env2->end_transaction());
 
@@ -461,9 +461,6 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 
 	lists.reserve(args->size());
 	
-	env_ptr_t env2 = new_env(env);
-	env2->begin_transaction();
-
 	// Gather lists
 	for(auto it = args->begin(); it; it++) {
 		list_ptr_t list = get_node_list(*it);
@@ -479,6 +476,9 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 		lists.push_back(list);
 	}
 
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
+
 	do {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
@@ -486,8 +486,8 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 			auto it2 = list->begin();
 			node_idx_t atom_idx = *it2++;
 			node_idx_t new_val = *it2++;
-			node_idx_t old_val = env2->tx.read(atom_idx);
-			env2->tx.write(atom_idx, new_val);
+			node_idx_t old_val = env2->tx->read(atom_idx);
+			env2->tx->write(atom_idx, new_val);
 			old_vals[i] = old_val;
 			new_vals[i] = new_val;
 		}

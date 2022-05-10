@@ -113,6 +113,7 @@ typedef jo_shared_ptr<vector_t> vector_ptr_t;
 typedef jo_persistent_unordered_map<node_idx_t, node_idx_t> map_t;
 typedef jo_shared_ptr<map_t> map_ptr_t;
 
+typedef jo_shared_ptr<transaction_t> transaction_ptr_t;
 typedef jo_shared_ptr<env_t> env_ptr_t;
 
 typedef std::function<node_idx_t(env_ptr_t, list_ptr_t)> native_func_t;
@@ -124,6 +125,7 @@ static list_ptr_t new_list() { return list_ptr_t(new list_t()); }
 static list_ptr_t new_list(node_idx_t v) { list_t *l = new list_t(); l->push_back_inplace(v); return list_ptr_t(l); }
 static vector_ptr_t new_vector() { return vector_ptr_t(new vector_t()); }
 static map_ptr_t new_map() { return map_ptr_t(new map_t()); }
+static transaction_ptr_t new_transaction();
 
 static inline node_t *get_node(node_idx_t idx);
 static inline int get_node_type(node_idx_t idx);
@@ -202,6 +204,10 @@ struct transaction_t {
 
 	// return false if failed and tx must be retried 
 	bool commit() {
+		if(!tx_map.size()) {
+			return true;
+		}
+
 		// Transition all values to hold
 		for(auto tx = tx_map.begin(); tx != tx_map.end(); tx++) {
 			node_idx_t old_val = tx->second.old_val;
@@ -233,6 +239,8 @@ struct transaction_t {
 	}
 };
 
+static transaction_ptr_t new_transaction() { return transaction_ptr_t(new transaction_t()); }
+
 struct env_t {
 	// for iterating them all, otherwise unused.
 	list_ptr_t vars;
@@ -247,23 +255,23 @@ struct env_t {
 	std::unordered_map<std::string, fast_val_t> vars_map;
 	env_ptr_t parent;
 
-	int in_tx;
-	transaction_t tx;
+	transaction_ptr_t tx;
 
-	env_t(env_ptr_t p) : vars(new_list()), vars_map(), parent(p), in_tx(), tx() {}
+	env_t() : vars(new_list()), vars_map(), parent(), tx() {}
+	env_t(env_ptr_t p) : vars(new_list()), vars_map(), parent(p) {
+		if(p) {
+			tx = p->tx;
+		}
+	}
 
 	void begin_transaction() {
-		++in_tx;
+		if(!tx) {
+			tx = new_transaction();
+		}
 	}
 
 	bool end_transaction() {
-		if(--in_tx == 0) {
-			if(!tx.commit()) {
-				++in_tx;
-				return false;
-			}
-		}
-		return true;
+		return tx->commit();
 	}
 
 	fast_val_t find(const jo_string &name) const {
