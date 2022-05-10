@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 // (atom x)(atom x & options)
 // Creates and returns an Atom with an initial value of x and zero or
 // more options (in any order):
@@ -63,8 +65,18 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 
 	node_t *ref = get_node(ref_idx);
 	int type = ref->type;
-	if(type == NODE_VAR || type == NODE_AGENT || type == NODE_ATOM) {
-		return ref->t_atom;
+	if(type == NODE_VAR || type == NODE_AGENT) {
+	} else if(type == NODE_ATOM) {
+		if(env->in_tx) {
+			env->tx.read(ref_idx);
+		} else {
+			node_idx_t ret = ref->t_atom;
+			while(ret == TX_HOLD_NODE) {
+				jo_yield();
+				ret = ref->t_atom;
+			}
+			return ret;
+		}
 	} else if(type == NODE_DELAY) {
 		return eval_node(env, ref_idx);
 	}
@@ -103,7 +115,11 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 	node_idx_t old_val, new_val;
 	do {
 		old_val = atom->t_atom.load();
-		new_val = eval_list(env, args2->push_front(old_val)->push_front(f_idx));
+		while(old_val == TX_HOLD_NODE) {
+			jo_yield();
+			old_val = atom->t_atom.load();
+		}
+		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
 	return new_val;
 }
@@ -123,8 +139,15 @@ static node_idx_t native_reset_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
+	node_idx_t old_val;
     node_idx_t new_val = args->second_value();
-	atom->t_atom = new_val;
+	do {
+		old_val = atom->t_atom.load();
+		while(old_val == TX_HOLD_NODE) {
+			jo_yield();
+			old_val = atom->t_atom.load();
+		}
+	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
 	return new_val;
 }
 
@@ -182,7 +205,11 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 	node_idx_t old_val, new_val;
 	do {
 		old_val = atom->t_atom.load();
-		new_val = eval_list(env, args2->push_front(old_val)->push_front(f_idx));
+		while(old_val == TX_HOLD_NODE) {
+			jo_yield();
+			old_val = atom->t_atom.load();
+		}
+		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
 	vector_ptr_t ret = new_vector();
 	ret->push_back_inplace(old_val);
@@ -200,15 +227,248 @@ static node_idx_t native_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_idx_t atom_idx = args->first_value();
-	node_idx_t new_val_idx = args->second_value();
-
 	node_t *atom = get_node(atom_idx);
 	if(atom->type != NODE_ATOM) {
 		warnf("(reset-vals!) requires an atom\n");
 		return NIL_NODE;
 	}
 
-	return atom->t_atom.exchange(new_val_idx);
+	node_idx_t old_val;
+    node_idx_t new_val = args->second_value();
+	do {
+		old_val = atom->t_atom.load();
+		while(old_val == TX_HOLD_NODE) {
+			jo_yield();
+			old_val = atom->t_atom.load();
+		}
+	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
+	vector_ptr_t ret = new_vector();
+	ret->push_back_inplace(old_val);
+	ret->push_back_inplace(new_val);
+	return new_node_vector(ret);
+}
+
+// (multi-swap! (atom f args) (atom f args) (atom f args) ...)
+// Atomically swaps the values of atoms to be:
+// (apply f current-value-of-atom args). Note that f may be called
+// multiple times, and thus should be free of side effects.  Returns
+// the values that were swapped in.
+// atoms are updated in the order they are specified.
+static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
+	jo_vector<list_ptr_t> lists;
+	jo_vector<node_idx_t> old_vals(args->size());
+	jo_vector<node_idx_t> new_vals(args->size());
+
+	lists.reserve(args->size());
+	
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
+
+	// Gather lists
+	for(auto it = args->begin(); it; it++) {
+		list_ptr_t list = get_node_list(*it);
+		if(list->size() < 2) {
+			warnf("(multi-swap!) requires at least 2 arguments\n");
+			return NIL_NODE;
+		}	
+		node_idx_t atom = list->first_value();
+		node_idx_t f = list->second_value();
+		if(get_node_type(atom) != NODE_ATOM) {
+			warnf("(multi-swap!) requires an atom\n");
+			return NIL_NODE;
+		}
+		if(!get_node(f)->is_func() && !get_node(f)->is_native_func()) {
+			warnf("(multi-swap!) requires a function\n");
+			return NIL_NODE;
+		}
+		lists.push_back(list);
+	}
+
+	do {
+		// First get the old values and calc new values
+		for(size_t i = 0; i < lists.size(); i++) {
+			list_ptr_t list = lists[i];
+			auto it2 = list->begin();
+			node_idx_t atom_idx = *it2++;
+			node_idx_t f_idx = *it2++;
+			list_ptr_t args2 = list->rest(it2);
+			node_idx_t old_val = env2->tx.read(atom_idx);
+			node_idx_t new_val = eval_list(env2, args2->push_front2(f_idx, old_val));
+			old_vals[i] = old_val;
+			new_vals[i] = new_val;
+			env2->tx.write(atom_idx, new_val);
+		}
+	} while(!env2->end_transaction());
+
+	// return a list of new values
+	list_ptr_t ret = new_list();
+	for(size_t i = 0; i < lists.size(); i++) {
+		ret->push_back_inplace(new_vals[i]);
+	}
+	return new_node_list(ret);
+}
+
+// (multi-reset! (atom new-val) (atom new-val) (atom new-val) ...)
+// Atomically resets the values of atoms to be new-vals. Returns the
+// values that were reset.
+// atoms are updated in the order they are specified.
+static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
+	jo_vector<list_ptr_t> lists;
+	jo_vector<node_idx_t> old_vals(args->size());
+	jo_vector<node_idx_t> new_vals(args->size());
+
+	lists.reserve(args->size());
+	
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
+
+	// Gather lists
+	for(auto it = args->begin(); it; it++) {
+		list_ptr_t list = get_node_list(*it);
+		if(list->size() < 2) {
+			warnf("(multi-reset!) requires at least 2 arguments\n");
+			return NIL_NODE;
+		}	
+		node_idx_t atom = list->first_value();
+		if(get_node_type(atom) != NODE_ATOM) {
+			warnf("(multi-swap!) requires an atom\n");
+			return NIL_NODE;
+		}
+		lists.push_back(list);
+	}
+
+	do {
+		// First get the old values and calc new values
+		for(size_t i = 0; i < lists.size(); i++) {
+			list_ptr_t list = lists[i];
+			auto it2 = list->begin();
+			node_idx_t atom_idx = *it2++;
+			node_idx_t new_val = *it2++;
+			node_idx_t old_val = env2->tx.read(atom_idx);
+			env2->tx.write(atom_idx, new_val);
+			old_vals[i] = old_val;
+			new_vals[i] = new_val;
+		}
+	} while(!env2->end_transaction());
+
+	// return a list of new values
+	list_ptr_t ret = new_list();
+	for(size_t i = 0; i < lists.size(); i++) {
+		ret->push_back_inplace(new_vals[i]);
+	}
+	return new_node_list(ret);
+}
+
+// (multi-swap-vals! (atom f args) (atom f args) (atom f args) ...)
+static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
+	jo_vector<list_ptr_t> lists;
+	jo_vector<node_idx_t> old_vals(args->size());
+	jo_vector<node_idx_t> new_vals(args->size());
+
+	lists.reserve(args->size());
+	
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
+
+	// Gather lists
+	for(auto it = args->begin(); it; it++) {
+		list_ptr_t list = get_node_list(*it);
+		if(list->size() < 2) {
+			warnf("(multi-swap!) requires at least 2 arguments\n");
+			return NIL_NODE;
+		}	
+		node_idx_t atom = list->first_value();
+		node_idx_t f = list->second_value();
+		if(get_node_type(atom) != NODE_ATOM) {
+			warnf("(multi-swap!) requires an atom\n");
+			return NIL_NODE;
+		}
+		if(!get_node(f)->is_func() && !get_node(f)->is_native_func()) {
+			warnf("(multi-swap!) requires a function\n");
+			return NIL_NODE;
+		}
+		lists.push_back(list);
+	}
+
+	do {
+		// First get the old values and calc new values
+		for(size_t i = 0; i < lists.size(); i++) {
+			list_ptr_t list = lists[i];
+			auto it2 = list->begin();
+			node_idx_t atom_idx = *it2++;
+			node_idx_t f_idx = *it2++;
+			list_ptr_t args2 = list->rest(it2);
+			node_idx_t old_val = env2->tx.read(atom_idx);
+			node_idx_t new_val = eval_list(env2, args2->push_front2(f_idx, old_val));
+			old_vals[i] = old_val;
+			new_vals[i] = new_val;
+			env2->tx.write(atom_idx, new_val);
+		}
+	} while(!env2->end_transaction());
+
+	// return a list of new values
+	list_ptr_t ret = new_list();
+	for(size_t i = 0; i < lists.size(); i++) {
+		vector_ptr_t ret2 = new_vector();
+		ret2->push_back_inplace(old_vals[i]);
+		ret2->push_back_inplace(new_vals[i]);
+		ret->push_back_inplace(new_node_vector(ret2));
+	}
+	return new_node_list(ret);
+}
+
+// (multi-reset-vals! (atom new-val) (atom new-val) (atom new-val) ...)
+// Atomically resets the values of atoms to be new-vals. Returns the
+// values that were reset.
+// atoms are updated in the order they are specified.
+static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
+	jo_vector<list_ptr_t> lists;
+	jo_vector<node_idx_t> old_vals(args->size());
+	jo_vector<node_idx_t> new_vals(args->size());
+
+	lists.reserve(args->size());
+	
+	env_ptr_t env2 = new_env(env);
+	env2->begin_transaction();
+
+	// Gather lists
+	for(auto it = args->begin(); it; it++) {
+		list_ptr_t list = get_node_list(*it);
+		if(list->size() < 2) {
+			warnf("(multi-reset!) requires at least 2 arguments\n");
+			return NIL_NODE;
+		}	
+		node_idx_t atom = list->first_value();
+		if(get_node_type(atom) != NODE_ATOM) {
+			warnf("(multi-swap!) requires an atom\n");
+			return NIL_NODE;
+		}
+		lists.push_back(list);
+	}
+
+	do {
+		// First get the old values and calc new values
+		for(size_t i = 0; i < lists.size(); i++) {
+			list_ptr_t list = lists[i];
+			auto it2 = list->begin();
+			node_idx_t atom_idx = *it2++;
+			node_idx_t new_val = *it2++;
+			node_idx_t old_val = env2->tx.read(atom_idx);
+			env2->tx.write(atom_idx, new_val);
+			old_vals[i] = old_val;
+			new_vals[i] = new_val;
+		}
+	} while(!env2->end_transaction());
+
+	// return a list of new values
+	list_ptr_t ret = new_list();
+	for(size_t i = 0; i < lists.size(); i++) {
+		vector_ptr_t ret2 = new_vector();
+		ret2->push_back_inplace(old_vals[i]);
+		ret2->push_back_inplace(new_vals[i]);
+		ret->push_back_inplace(new_node_vector(ret2));
+	}
+	return new_node_list(ret);
 }
 
 void jo_lisp_async_init(env_ptr_t env) {
@@ -219,5 +479,11 @@ void jo_lisp_async_init(env_ptr_t env) {
     env->set("compare-and-set!", new_node_native_function("compare-and-set!", &native_compare_and_set_e, false));
     env->set("swap-vals!", new_node_native_function("swap-vals!", &native_swap_vals_e, false));
     env->set("reset-vals!", new_node_native_function("reset-vals!", &native_reset_vals_e, false));
+
+    // STM like stuff
+    env->set("multi-swap!", new_node_native_function("multi-swap!", &native_multi_swap_e, false));
+    env->set("multi-reset!", new_node_native_function("multi-reset!", &native_multi_reset_e, false));
+    env->set("multi-swap-vals!", new_node_native_function("multi-swap-vals!", &native_multi_swap_vals_e, false));
+    env->set("multu-reset-vals!", new_node_native_function("multu-reset-vals!", &native_multi_reset_vals_e, false));
 
 }

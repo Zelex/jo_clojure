@@ -305,6 +305,16 @@ void jo_sleep(float seconds) {
 #endif
 }
 
+// yield
+static void jo_yield()
+{
+#ifdef _WIN32
+    Sleep(0);
+#else
+    sched_yield();
+#endif
+}
+
 // 
 // Simple C++std replacements...
 //
@@ -1015,6 +1025,26 @@ struct jo_vector {
         ptr = newptr;
         ptr_capacity = ptr_size;
     }
+
+    // reserve
+    void reserve(size_t n) {
+        if(n > ptr_capacity) {
+            T *newptr = (T*)malloc(n*sizeof(T));
+            if(!newptr) {
+                // malloc failed!
+                return;
+            }
+
+            if(ptr) {
+                memcpy(newptr, ptr, ptr_size*sizeof(T));
+                //memset(ptr, 0xFE, ptr_size*sizeof(T));
+                free(ptr);
+            }
+            ptr = newptr;
+            ptr_capacity = n;
+        }
+    }
+    
 };
 
 // jo_pinned_vector
@@ -4118,6 +4148,63 @@ struct jo_persistent_list {
     jo_persistent_list *push_front(const T &value) const {
         jo_persistent_list *copy = new jo_persistent_list(*this);
         copy->push_front_inplace(value);
+        return copy;
+    }
+
+    jo_persistent_list *push_front2_inplace(const T &value1, const T &value2) {
+        if(!head) {
+            head = new node(value1, NULL);
+            tail = head;
+        } else {
+            jo_shared_ptr<node> new_head = new node(value1, head);
+            head = new_head;
+        }
+        if(!head->next) {
+            head->next = new node(value2, NULL);
+            tail = head->next;
+        } else {
+            head->next->next = new node(value2, NULL);
+            tail = head->next->next;
+        }
+        length+=2;
+        return this;
+    }
+
+    jo_persistent_list *push_front2(const T &value1, const T &value2) const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->push_front2_inplace(value1, value2);
+        return copy;
+    }
+
+    jo_persistent_list *push_front3_inplace(const T &value1, const T &value2, const T &value3) {
+        if(!head) {
+            head = new node(value1, NULL);
+            tail = head;
+        } else {
+            jo_shared_ptr<node> new_head = new node(value1, head);
+            head = new_head;
+        }
+        if(!head->next) {
+            head->next = new node(value2, NULL);
+            tail = head->next;
+        } else {
+            head->next->next = new node(value2, NULL);
+            tail = head->next->next;
+        }
+        if(!head->next->next) {
+            head->next->next = new node(value3, NULL);
+            tail = head->next->next;
+        } else {
+            head->next->next->next = new node(value3, NULL);
+            tail = head->next->next->next;
+        }
+        length+=3;
+        return this;
+    }
+
+    jo_persistent_list *push_front3(const T &value1, const T &value2, const T &value3) const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->push_front3_inplace(value1, value2, value3);
         return copy;
     }
 

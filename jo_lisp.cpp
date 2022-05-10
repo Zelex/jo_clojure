@@ -21,6 +21,7 @@
 
 enum {
 	// hard coded nodes
+	TX_HOLD_NODE = -4, // Set to this value if in the middle of a transaction commit. Don't touch while in this state!
 	EOL_NODE = -3,
 	TMP_NODE = -2,
 	INV_NODE = -1,
@@ -86,6 +87,7 @@ enum {
 };
 
 struct env_t;
+struct transaction_t;
 struct node_t;
 struct lazy_list_iterator_t;
 
@@ -140,6 +142,8 @@ static inline list_ptr_t get_node_func_body(node_idx_t idx);
 static inline node_idx_t get_node_lazy_fn(node_idx_t idx);
 static inline node_idx_t get_node_lazy_fn(const node_t *n);
 static inline FILE *get_node_file(node_idx_t idx);
+static inline void *get_node_dir(node_idx_t idx);
+static inline std::atomic<node_idx_t> &get_node_atom(node_idx_t idx);
 
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_string(const jo_string &s);
@@ -163,6 +167,71 @@ static void print_node_list(list_ptr_t nodes, int depth = 0);
 static void print_node_vector(vector_ptr_t nodes, int depth = 0);
 static void print_node_map(map_ptr_t nodes, int depth = 0);
 
+struct transaction_t {
+	struct tx_t {
+		node_idx_t old_val;
+		node_idx_t new_val;
+		tx_t() : old_val(NIL_NODE), new_val(INV_NODE) {}
+	};
+	std::map<node_idx_t, tx_t> tx_map;
+
+	transaction_t() : tx_map() {}
+
+	node_idx_t read(node_idx_t atom_idx) {
+		if(tx_map.find(atom_idx) != tx_map.end()) {
+			return tx_map[atom_idx].old_val;
+		}
+		auto &atom = get_node_atom(atom_idx);
+		node_idx_t old_val = atom.load();
+		while(old_val == TX_HOLD_NODE) {
+			jo_yield();
+			old_val = atom.load();
+		}
+		tx_t &tx = tx_map[atom_idx];
+		tx.old_val = old_val;
+		return old_val;
+	}
+
+	void write(node_idx_t atom_idx, node_idx_t new_val) {
+		if(tx_map.find(atom_idx) == tx_map.end()) {
+			read(atom_idx);
+		}
+		tx_t &tx = tx_map[atom_idx];
+		tx.new_val = new_val;
+	}
+
+	// return false if failed and tx must be retried 
+	bool commit() {
+		// Transition all values to hold
+		for(auto tx = tx_map.begin(); tx != tx_map.end(); tx++) {
+			node_idx_t old_val = tx->second.old_val;
+			auto &atom = get_node_atom(tx->first);
+			if(!atom.compare_exchange_strong(old_val, TX_HOLD_NODE)) {
+				// restore old values... we failed
+				 for(auto tx2 = tx_map.begin(); tx2 != tx; tx2++) {
+					auto &atom2 = get_node_atom(tx2->first);
+					atom2.store(tx2->second.old_val);
+				}
+				tx_map.clear();
+				return false;
+			}
+		}
+
+		// Set new values
+		for(auto tx = tx_map.begin(); tx != tx_map.end(); tx++) {
+			auto &atom = get_node_atom(tx->first);
+			if(tx->second.new_val == INV_NODE) {
+				atom.store(tx->second.old_val);
+			} else {
+				atom.store(tx->second.new_val);
+			}
+		}
+
+		// TX success!
+		tx_map.clear();
+		return true;
+	}
+};
 
 struct env_t {
 	// for iterating them all, otherwise unused.
@@ -178,7 +247,24 @@ struct env_t {
 	std::unordered_map<std::string, fast_val_t> vars_map;
 	env_ptr_t parent;
 
-	env_t(env_ptr_t p) : vars(new_list()), vars_map(), parent(p) {}
+	int in_tx;
+	transaction_t tx;
+
+	env_t(env_ptr_t p) : vars(new_list()), vars_map(), parent(p), in_tx(), tx() {}
+
+	void begin_transaction() {
+		++in_tx;
+	}
+
+	bool end_transaction() {
+		if(--in_tx == 0) {
+			if(!tx.commit()) {
+				++in_tx;
+				return false;
+			}
+		}
+		return true;
+	}
 
 	fast_val_t find(const jo_string &name) const {
 		auto it = vars_map.find(name.c_str());
@@ -619,6 +705,8 @@ static inline list_ptr_t get_node_func_body(node_idx_t idx) { return get_node(id
 static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)->t_lazy_fn; }
 static inline node_idx_t get_node_lazy_fn(const node_t *n) { return n->t_lazy_fn; }
 static inline FILE *get_node_file(node_idx_t idx) { return get_node(idx)->t_file; }
+static inline void *get_node_dir(node_idx_t idx) { return get_node(idx)->t_dir; }
+static inline std::atomic<node_idx_t> &get_node_atom(node_idx_t idx) { return get_node(idx)->t_atom; }
 
 static inline node_idx_t alloc_node() {
 	if (free_nodes.size()) {
@@ -3610,12 +3698,10 @@ static node_idx_t native_thread(env_ptr_t env, list_ptr_t args) {
 		if(get_node_type(*it) == NODE_LIST) {
 			list_ptr_t form_list = form_node->t_list;
 			args2 = form_list->rest();
-			args2->push_front_inplace(x_idx);
-			args2->push_front_inplace(form_list->first_value());
+			args2->push_front2_inplace(form_list->first_value(), x_idx);
 		} else {
 			args2 = new_list();
-			args2->push_front_inplace(x_idx);
-			args2->push_front_inplace(*it);
+			args2->push_front2_inplace(*it, x_idx);
 		}
 		x_idx = eval_list(env, args2);
 	}
@@ -3639,8 +3725,7 @@ static node_idx_t native_thread_last(env_ptr_t env, list_ptr_t args) {
 			args2->push_back_inplace(x_idx);
 		} else {
 			args2 = new_list();
-			args2->push_front_inplace(x_idx);
-			args2->push_front_inplace(*it);
+			args2->push_front2_inplace(*it, x_idx);
 		}
 		x_idx = eval_list(env, args2);
 	}
@@ -3828,15 +3913,13 @@ static node_idx_t native_cond_thread(env_ptr_t env, list_ptr_t args) {
 			int form_type = get_node_type(form_idx);
 			if(form_type == NODE_SYMBOL || form_type == NODE_FUNC || form_type == NODE_NATIVE_FUNC) {
 				list_ptr_t form_args = new_list();
-				form_args->push_front_inplace(value_idx);
-				form_args->push_front_inplace(form_idx);
+				form_args->push_front2_inplace(form_idx, value_idx);
 				value_idx = eval_list(env, form_args);
 			} else if(form_type == NODE_LIST) {
 				list_ptr_t form_args = get_node(form_idx)->t_list;
 				node_idx_t sym = form_args->first_value();
 				form_args = form_args->pop_front();
-				form_args->push_front_inplace(value_idx);
-				form_args->push_front_inplace(sym);
+				form_args->push_front2_inplace(sym, value_idx);
 				value_idx = eval_list(env, form_args);
 			} else {
 				warnf("(cond->) requires a symbol or list");
@@ -3862,8 +3945,7 @@ static node_idx_t native_cond_thread_last(env_ptr_t env, list_ptr_t args) {
 			int form_type = get_node_type(form_idx);
 			if(form_type == NODE_SYMBOL || form_type == NODE_FUNC || form_type == NODE_NATIVE_FUNC) {
 				list_ptr_t form_args = new_list();
-				form_args->push_front_inplace(value_idx);
-				form_args->push_front_inplace(form_idx);
+				form_args->push_front2_inplace(form_idx, value_idx);
 				value_idx = eval_list(env, form_args);
 			} else if(form_type == NODE_LIST) {
 				list_ptr_t form_args = get_node_list(form_idx);
@@ -3914,9 +3996,7 @@ static node_idx_t native_condp(env_ptr_t env, list_ptr_t args) {
 		node_idx_t test_idx = eval_node(env, *it++);
 		node_idx_t form_idx = *it++;
 		list_ptr_t test_args = new_list();
-		test_args->push_front_inplace(expr_idx);
-		test_args->push_front_inplace(test_idx);
-		test_args->push_front_inplace(pred_idx);
+		test_args->push_front3_inplace(pred_idx, test_idx, expr_idx);
 		if(eval_list(env, test_args) == TRUE_NODE) {
 			return eval_node(env, form_idx);
 		}
