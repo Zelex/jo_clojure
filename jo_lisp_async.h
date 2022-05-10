@@ -113,6 +113,14 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_idx_t old_val, new_val;
+
+	if(env->in_tx) {
+		old_val = env->tx.read(atom_idx);
+		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
+		env->tx.write(atom_idx, new_val);
+		return new_val;
+	}
+
 	do {
 		old_val = atom->t_atom.load();
 		while(old_val == TX_HOLD_NODE) {
@@ -133,14 +141,20 @@ static node_idx_t native_reset_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_t *atom = get_node(args->first_value());
+	node_idx_t atom_idx = args->first_value();
+	node_t *atom = get_node(atom_idx);
 	if(atom->type != NODE_ATOM) {
 		warnf("(reset!) requires an atom\n");
 		return NIL_NODE;
 	}
 
-	node_idx_t old_val;
-    node_idx_t new_val = args->second_value();
+	node_idx_t old_val, new_val = args->second_value();
+
+	if(env->in_tx) {
+		env->tx.write(atom_idx, new_val);
+		return new_val;
+	}
+
 	do {
 		old_val = atom->t_atom.load();
 		while(old_val == TX_HOLD_NODE) {
@@ -169,6 +183,11 @@ static node_idx_t native_compare_and_set_e(env_ptr_t env, list_ptr_t args) {
 	if(atom->type != NODE_ATOM) {
 		warnf("(compare-and-set!) requires an atom\n");
 		return NIL_NODE;
+	}
+
+	if(env->in_tx) {
+		env->tx.write(atom_idx, new_val_idx);
+		return TRUE_NODE;
 	}
 
 	return atom->t_atom.compare_exchange_strong(old_val_idx, new_val_idx) ? TRUE_NODE : FALSE_NODE;
@@ -203,6 +222,17 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_idx_t old_val, new_val;
+
+	if(env->in_tx) {
+		old_val = env->tx.read(atom_idx);
+		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
+		env->tx.write(atom_idx, new_val);
+		vector_ptr_t ret = new_vector();
+		ret->push_back_inplace(old_val);
+		ret->push_back_inplace(new_val);
+		return new_node_vector(ret);
+	}
+
 	do {
 		old_val = atom->t_atom.load();
 		while(old_val == TX_HOLD_NODE) {
@@ -233,8 +263,14 @@ static node_idx_t native_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_idx_t old_val;
-    node_idx_t new_val = args->second_value();
+	node_idx_t old_val, new_val = args->second_value();
+
+	if(env->in_tx) {
+		old_val = env->tx.read(atom_idx);
+		env->tx.write(atom_idx, new_val);
+		return new_node_vector(new_vector()->push_back_inplace(old_val)->push_back_inplace(new_val));
+	}
+
 	do {
 		old_val = atom->t_atom.load();
 		while(old_val == TX_HOLD_NODE) {
@@ -242,10 +278,7 @@ static node_idx_t native_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 			old_val = atom->t_atom.load();
 		}
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
-	vector_ptr_t ret = new_vector();
-	ret->push_back_inplace(old_val);
-	ret->push_back_inplace(new_val);
-	return new_node_vector(ret);
+	return new_node_vector(new_vector()->push_back_inplace(old_val)->push_back_inplace(new_val));
 }
 
 // (multi-swap! (atom f args) (atom f args) (atom f args) ...)
@@ -480,8 +513,10 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_dosync(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	env2->begin_transaction();
-	node_idx_t ret = eval_list(env2, args);
-	env2->end_transaction();
+	node_idx_t ret;
+	do {
+		ret = eval_list(env2, args);
+	} while(!env2->end_transaction());
 	return ret;
 }
 
