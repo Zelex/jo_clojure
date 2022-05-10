@@ -509,7 +509,7 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 // exprs and any nested calls.  Starts a transaction if none is already
 // running on this thread. Any uncaught exception will abort the
 // transaction and flow out of dosync. The exprs may be run more than
-// once, but any effects on Refs will be atomic.
+// once, but any effects on Atoms will be atomic.
 static node_idx_t native_dosync(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	env2->begin_transaction();
