@@ -3519,26 +3519,37 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator it = args->begin();
 	node_idx_t map_idx = *it++;
-	node_idx_t key_idx = *it++;
-	node_idx_t val_idx = *it++;
 	if(map_idx == NIL_NODE) {
 		map_ptr_t map = new_map();
-		map->assoc_inplace(key_idx, val_idx, [env](node_idx_t k, node_idx_t v) {
-			return node_eq(env, k, v);
-		});
+		while(it) {
+			node_idx_t key_idx = *it++;
+			node_idx_t val_idx = *it++;
+			map->assoc_inplace(key_idx, val_idx, [env](node_idx_t k, node_idx_t v) {
+				return node_eq(env, k, v);
+			});
+		}
 		return new_node_map(map);
 	}
 	node_t *map_node = get_node(map_idx);
 	if(map_node->is_map()) {
-		map_ptr_t map = map_node->t_map->assoc(key_idx, val_idx, [env](node_idx_t k, node_idx_t v) {
-			return node_eq(env, k, v);
-		});
+		map_ptr_t map = map_node->t_map;
+		while(it) {
+			node_idx_t key_idx = *it++;
+			node_idx_t val_idx = *it++;
+			map = map->assoc(key_idx, val_idx, [env](node_idx_t k, node_idx_t v) {
+				return node_eq(env, k, v);
+			});
+		}
 		return new_node_map(map);
 	} 
 	if(map_node->is_vector()) {
-		node_t *key_node = get_node(key_idx);
-		vector_ptr_t vector = map_node->t_vector->assoc(key_node->as_int(), val_idx);
-		return new_node_vector(vector);
+		vector_ptr_t vec = map_node->t_vector;
+		while(it) {
+			node_idx_t key_idx = *it++;
+			node_idx_t val_idx = *it++;
+			vec = vec->assoc(get_node_int(key_idx), val_idx);
+		}
+		return new_node_vector(vec);
 	}
 	warnf("assoc: not a map or vector\n");
 	return NIL_NODE;

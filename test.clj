@@ -601,6 +601,14 @@
 (is (= ((fnil inc 0) nil) 1))
 
 (is (= (assoc nil :a :b) {:a :b}))
+(is (= (assoc {} :key1 "value" :key2 "another value") {:key1 "value" :key2 "another value"}))
+(is (= (assoc {:key1 "old value1" :key2 "value2"}  :key1 "value1" :key3 "value3") {:key1 "value1" :key2 "value2" :key3 "value3"}))
+(is (= (assoc nil :key1 4) {:key1 4}))
+(is (= (assoc [1 2 3] 0 10) [10 2 3]))
+(is (= (assoc [1 2 3] 2 '(4 6)) [1 2 (4 6)]))
+(is (= (assoc [1 2 3] 3 10) [1 2 3 10]))
+(is (= (assoc [1 2 3] 4 10) [1 2 3 10]))
+
 (is (= (assoc-in {:person {:name "Mike"}} [:person :name] "Violet") {:person {:name "Violet"}}))
 
 (is (= (update [1 2 3] 0 inc) [2 2 3]))
