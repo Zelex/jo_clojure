@@ -4,16 +4,16 @@
 (println "time to fac(10) x 100 (apply-list):       " (time (dotimes [i 100] (apply * '(2 3 4 5 6 7 8 9 10)))))
 
 (println "Hello World...")
-(println "Hello " "World...")
-(println "Math " (+ 1 2 3))
-(println "Math " (- 1 2 3))
-(println "Math " (/ 1 2 3))
-(println "Math " (- 1))
-(println "Math " (- 1 2))
-(println "Math " (-))
-(println (* 1 2 3) " " (- 1 2 3) " " (/ 1 2 3) " " (- 1) " " (- 1 2) " " (-))
-(println "Hello Again, World. " (= 2,2,2,2))
-(println "neq? " (not= 2,1,2))
+(println "Hello" "World...")
+(println "Math" (+ 1 2 3))
+(println "Math" (- 1 2 3))
+(println "Math" (/ 1 2 3))
+(println "Math" (- 1))
+(println "Math" (- 1 2))
+(println "Math" (-))
+(println (* 1 2 3) (- 1 2 3) (/ 1 2 3) (- 1) (- 1 2) (-))
+(println "Hello Again, World." (= 2,2,2,2))
+(println "neq?" (not= 2,1,2))
 (if (= 1 1) (println "A") (println "B"))
 (def x 5)
 (when-not (= 5 x) (println "x is not 5"))
@@ -33,7 +33,7 @@
 (def closure_test2 (closure_test 'Foo))
 (when-not (= "FooBar" (closure_test2 'Bar)) (println "FAIL FooBar Closure test"))
 
-(dotimes [n 5] (println "n is " n))
+(dotimes [n 5] (println "n is" n))
 
 (def my-delay (delay (println "this only happens once") 100))
 (my-delay)
@@ -595,6 +595,7 @@
 
 (is (= ((fnil inc 0) nil) 1))
 
+(is (= (assoc nil :a :b) {:a :b}))
 (is (= (assoc-in {:person {:name "Mike"}} [:person :name] "Violet") {:person {:name "Violet"}}))
 
 (is (= (update [1 2 3] 0 inc) [2 2 3]))
@@ -677,6 +678,5 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
-
 
 
