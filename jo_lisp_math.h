@@ -5,6 +5,7 @@
 // o cross product
 // o matrix type
 // o tensor type
+// o check for divide by 0!
 
 // native function to add any number of arguments
 static node_idx_t native_add(env_ptr_t env, list_ptr_t args) { 
@@ -21,6 +22,19 @@ static node_idx_t native_add(env_ptr_t env, list_ptr_t args) {
 		}
 	}
 	return d == 0.0 ? new_node_int(i) : new_node_float(d+i);
+}
+
+static node_idx_t native_add_int(env_ptr_t env, list_ptr_t args) { 
+	int i = 0;
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_t *n = get_node(*it);
+		if(n->type == NODE_INT) {
+			i += n->t_int;
+		} else {
+			i += n->as_int();
+		}
+	}
+	return new_node_int(i);
 }
 
 // subtract any number of arguments from the first argument
@@ -61,14 +75,49 @@ static node_idx_t native_sub(env_ptr_t env, list_ptr_t args) {
 	return d_sum == 0.0 ? new_node_int(i_sum) : new_node_float(d_sum + i_sum);
 }
 
-static node_idx_t native_mul(env_ptr_t env, list_ptr_t args) {
-	int i = 1;
-	double d = 1.0;
+static node_idx_t native_sub_int(env_ptr_t env, list_ptr_t args) {
+	int i_sum = 0;
 
+	size_t size = args->size();
+	if(size == 0) {
+		return ZERO_NODE;
+	}
+
+	// Special case. 1 argument return the negative of that argument
+	if(size == 1) {
+		node_t *n = get_node(*args->begin());
+		if(n->type == NODE_INT) {
+			return new_node_int(-n->t_int);
+		}
+		return new_node_int(-n->as_int());
+	}
+
+	list_t::iterator i = args->begin();
+	node_t *n = get_node(*i++);
+	if(n->type == NODE_INT) {
+		i_sum = n->t_int;
+	} else {
+		i_sum = n->as_int();
+	}
+
+	for(; i; i++) {
+		n = get_node(*i);
+		if(n->type == NODE_INT) {
+			i_sum -= n->t_int;
+		} else {
+			i_sum -= n->as_int();
+		}
+	}
+	return new_node_int(i_sum);
+}
+
+static node_idx_t native_mul(env_ptr_t env, list_ptr_t args) {
 	if(args->size() == 0) {
 		return ONE_NODE; 
 	}
 
+	int i = 1;
+	double d = 1.0;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
 		int type = n->type;
@@ -80,8 +129,25 @@ static node_idx_t native_mul(env_ptr_t env, list_ptr_t args) {
 			d *= n->as_float();
 		}
 	}
-
 	return d == 1.0 ? new_node_int(i) : new_node_float(d * i);
+}
+
+static node_idx_t native_mul_int(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 0) {
+		return ONE_NODE; 
+	}
+
+	int i = 1;
+	for(list_t::iterator it = args->begin(); it; it++) {
+		node_t *n = get_node(*it);
+		int type = n->type;
+		if(type == NODE_INT) {
+			i *= n->t_int;
+		} else {
+			i *= n->as_int();
+		}
+	}
+	return new_node_int(i);
 }
 
 // divide any number of arguments from the first argument
@@ -124,25 +190,77 @@ static node_idx_t native_div(env_ptr_t env, list_ptr_t args) {
 	return is_int ? new_node_int(i_sum) : new_node_float(d_sum);
 }
 
-// modulo the first argument by the second
-static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
-	int i_sum = 0;
-	double d_sum = 0.0;
+static node_idx_t native_div_int(env_ptr_t env, list_ptr_t args) {
+	int i_sum = 1;
 
-	if(args->size() == 0) {
-		return ZERO_NODE;
+	size_t size = args->size();
+	if(size == 0) {
+		return ONE_NODE;
+	}
+
+	// special case of 1 argument, compute 1.0 / value
+	if(size == 1) {
+		node_t *n = get_node(*args->begin());
+		i_sum = n->as_int();
+		return i_sum == 1 ? ONE_NODE : i_sum == -1 ? new_node_int(-1) : ZERO_NODE;
 	}
 
 	list_t::iterator i = args->begin();
 	node_t *n = get_node(*i++);
 	if(n->type == NODE_INT) {
-		i_sum = n->t_int % get_node(*i)->as_int();
-		return new_node_int(i_sum);
+		i_sum = n->t_int;
+	} else {
+		i_sum = n->as_int();
 	}
-	d_sum = fmod(n->as_float(), get_node(*i)->as_float());
-	return new_node_float(d_sum);
+
+	for(; i; i++) {
+		n = get_node(*i);
+		if(n->type == NODE_INT) {
+			i_sum /= n->t_int;
+		} else {
+			i_sum /= n->as_int();
+		}
+	}
+
+	return new_node_int(i_sum);
 }
 
+
+// modulo the first argument by the second
+static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 0) {
+		return ZERO_NODE;
+	}
+
+	node_t *n = get_node(args->first_value());
+	if(n->type == NODE_INT) {
+		return new_node_int(n->t_int % get_node(args->second_value())->as_int());
+	}
+	return new_node_float(fmod(n->as_float(), get_node(args->second_value())->as_float()));
+}
+
+static node_idx_t native_remainder(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 0) {
+		return ZERO_NODE;
+	}
+
+	node_t *n = get_node(args->first_value());
+	if(n->type == NODE_INT) {
+		return new_node_int(n->t_int % get_node(args->second_value())->as_int());
+	}
+	return new_node_float(remainder(n->as_float(), get_node(args->second_value())->as_float()));
+}
+
+static node_idx_t native_remainder_int(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 0) {
+		return ZERO_NODE;
+	}
+	node_t *n = get_node(args->first_value());
+	if(n->type == NODE_INT) {
+		return new_node_int(n->t_int % get_node(args->second_value())->as_int());
+	}
+	return new_node_int(n->as_int() % get_node(args->second_value())->as_int());
+}
 
 static node_idx_t native_math_abs(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
@@ -160,12 +278,28 @@ static node_idx_t native_inc(env_ptr_t env, list_ptr_t args) {
 	return new_node_float(n1->as_float() + 1.0f);
 }
 
+static node_idx_t native_inc_int(env_ptr_t env, list_ptr_t args) {
+	node_t *n1 = get_node(args->first_value());
+	if(n1->type == NODE_INT) {
+		return new_node_int(n1->t_int + 1);
+	}
+	return new_node_int(n1->as_int() + 1);
+}
+
 static node_idx_t native_dec(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
 	if(n1->type == NODE_INT) {
 		return new_node_int(n1->t_int - 1);
 	}
 	return new_node_float(n1->as_float() - 1.0f);
+}
+
+static node_idx_t native_dec_int(env_ptr_t env, list_ptr_t args) {
+	node_t *n1 = get_node(args->first_value());
+	if(n1->type == NODE_INT) {
+		return new_node_int(n1->t_int - 1);
+	}
+	return new_node_int(n1->as_int() - 1);
 }
 
 static node_idx_t native_rand_int(env_ptr_t env, list_ptr_t args) { return new_node_int(rand() % get_node(args->first_value())->as_int()); }
@@ -208,9 +342,12 @@ static node_idx_t native_is_even(env_ptr_t env, list_ptr_t args) { return new_no
 static node_idx_t native_is_odd(env_ptr_t env, list_ptr_t args) { return new_node_bool((get_node_int(args->first_value()) & 1) == 1); }
 static node_idx_t native_is_pos(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node_float(args->first_value()) > 0); }
 static node_idx_t native_is_neg(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node_float(args->first_value()) < 0); }
+static node_idx_t native_is_pos_int(env_ptr_t env, list_ptr_t args) { node_t *n = get_node(args->first_value()); return new_node_bool(n->is_int() && n->as_int() > 0); }
+static node_idx_t native_is_neg_int(env_ptr_t env, list_ptr_t args) { node_t *n = get_node(args->first_value()); return new_node_bool(n->is_int() && n->as_int() < 0); }
 static node_idx_t native_bit_not(env_ptr_t env, list_ptr_t args) { return new_node_int(~get_node_int(args->first_value())); }
 static node_idx_t native_bit_shift_left(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) << get_node_int(args->second_value())); }
 static node_idx_t native_bit_shift_right(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) >> get_node_int(args->second_value())); }
+static node_idx_t native_unsigned_bit_shift_right(env_ptr_t env, list_ptr_t args) { return new_node_int((unsigned)get_node_int(args->first_value()) >> get_node_int(args->second_value())); }
 static node_idx_t native_bit_extract(env_ptr_t env, list_ptr_t args) { return new_node_int((get_node_int(args->first_value()) >> get_node_int(args->second_value())) & ((1 << get_node_int(args->third_value())) - 1)); }
 static node_idx_t native_bit_clear(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) & ~(1 << get_node_int(args->second_value()))); }
 static node_idx_t native_bit_flip(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value()) ^ (1 << get_node_int(args->second_value()))); }
@@ -424,6 +561,9 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("odd?", new_node_native_function("odd?", &native_is_odd, false));
 	env->set("pos?", new_node_native_function("pos?", &native_is_pos, false));
 	env->set("neg?", new_node_native_function("neg?", &native_is_neg, false));
+	env->set("pos-int?", new_node_native_function("pos-int?", &native_is_pos_int, false));
+	env->set("neg-int?", new_node_native_function("neg-int?", &native_is_neg_int, false));
+	env->set("nat-int?", new_node_native_function("nat-int?", &native_is_pos_int, false));
 	env->set("bit-and", new_node_native_function("bit-and", &native_bit_and, false));
 	env->set("bit-and-not", new_node_native_function("bit-and-not", &native_bit_and_not, false));
 	env->set("bit-or", new_node_native_function("bit-or", &native_bit_or, false));
@@ -431,6 +571,7 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("bit-not", new_node_native_function("bit-not", &native_bit_not, false));
 	env->set("bit-shift-left", new_node_native_function("bit-shift-left", &native_bit_shift_left, false));
 	env->set("bit-shift-right", new_node_native_function("bit-shift-right", &native_bit_shift_right, false));
+	env->set("unsigned-bit-shift-right", new_node_native_function("unsigned-bit-shift-right", &native_unsigned_bit_shift_right, false));
 	env->set("bit-extract", new_node_native_function("bit-extract", &native_bit_extract, false));
 	env->set("bit-override", new_node_native_function("bit-override", &native_bit_override, false));
 	env->set("bit-clear", new_node_native_function("bit-clear", &native_bit_clear, false));
@@ -490,4 +631,22 @@ void jo_lisp_math_init(env_ptr_t env) {
 	//new_node_var("Math/isFinite", new_node_native_function(&native_math_isfinite, false)));
 	//new_node_var("Math/isInteger", new_node_native_function(&native_math_isinteger, false)));
 	//new_node_var("Math/isSafeInteger", new_node_native_function(&native_math_issafeinteger, false)));
+
+	// These are the same in this lisp...
+	env->set("unchecked-add", new_node_native_function("unchecked-add", &native_add, false));
+	env->set("unchecked-add-int", new_node_native_function("unchecked-add-int", &native_add_int, false));
+	env->set("unchecked-subtract", new_node_native_function("unchecked-subtract", &native_sub, false));
+	env->set("unchecked-subtract-int", new_node_native_function("unchecked-subtract-int", &native_sub_int, false));
+	env->set("unchecked-negate", new_node_native_function("unchecked-negate", &native_sub, false)); // TODO: This is the same, right?
+	env->set("unchecked-negate-int", new_node_native_function("unchecked-negate-int", &native_sub_int, false));
+	env->set("unchecked-multiply", new_node_native_function("unchecked-multiply", &native_mul, false));
+	env->set("unchecked-multiply-int", new_node_native_function("unchecked-multiply-int", &native_mul_int, false));
+	env->set("unchecked-divide", new_node_native_function("unchecked-divide", &native_div, false));
+	env->set("unchecked-divide-int", new_node_native_function("unchecked-divide-int", &native_div_int, false));
+	env->set("unchecked-inc", new_node_native_function("unchecked-inc", &native_inc, false));
+	env->set("unchecked-inc-int", new_node_native_function("unchecked-inc-int", &native_inc_int, false));
+	env->set("unchecked-dec", new_node_native_function("unchecked-dec", &native_dec, false));
+	env->set("unchecked-dec-int", new_node_native_function("unchecked-dec-int", &native_dec_int, false));
+	env->set("unchecked-remainder", new_node_native_function("unchecked-remainder", &native_remainder, false));
+	env->set("unchecked-remainder-int", new_node_native_function("unchecked-remainder-int", &native_remainder_int, false));
 }

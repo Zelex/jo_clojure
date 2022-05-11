@@ -664,7 +664,7 @@ struct node_t {
 		return 0;
 	}
 
-	jo_string as_string() const {
+	jo_string as_string(bool pretty = false) const {
 		switch(type) {
 		case NODE_BOOL:   return t_bool ? "true" : "false";
 		case NODE_INT:    
@@ -679,7 +679,7 @@ struct node_t {
 				jo_string s;
 				s += '(';
 				for(auto it = t_list->begin(); it;) {
-					s += get_node(*it)->as_string();
+					s += get_node(*it)->as_string(pretty);
 					++it;
 					if(it) {
 						s += " ";
@@ -693,7 +693,7 @@ struct node_t {
 				jo_string s;
 				s += '[';
 				for(auto it = t_vector->begin(); it;) {
-					s += get_node(*it)->as_string();
+					s += get_node(*it)->as_string(pretty);
 					++it;
 					if(it) {
 						s += " ";
@@ -707,9 +707,9 @@ struct node_t {
 				jo_string s;
 				s += '{';
 				for(auto it = t_map->begin(); it;) {
-					s += get_node(it->first)->as_string();
-					s += ": ";
-					s += get_node(it->second)->as_string();
+					s += get_node(it->first)->as_string(pretty);
+					s += " ";
+					s += get_node(it->second)->as_string(pretty);
 					++it;
 					if(it) {
 						s += ", ";
@@ -717,6 +717,11 @@ struct node_t {
 				}
 				s += '}';
 				return s;
+			}
+		}
+		if(pretty) {
+			if(type == NODE_KEYWORD) {
+				return ":" + t_string;
 			}
 		}
 		return t_string;
@@ -2242,9 +2247,9 @@ static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator i = args->begin(); i;) {
 		node_idx_t n = *i++;
 		if(i) {
-			printf("%s ", get_node(n)->as_string().c_str());
+			printf("%s ", get_node(n)->as_string(true).c_str());
 		} else {
-			printf("%s", get_node(n)->as_string().c_str());
+			printf("%s", get_node(n)->as_string(true).c_str());
 		}
 	}
 	return NIL_NODE;
