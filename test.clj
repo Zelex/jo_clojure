@@ -597,6 +597,8 @@
 
 (is (= (assoc-in {:person {:name "Mike"}} [:person :name] "Violet") {:person {:name "Violet"}}))
 
+(is (= (update [1 2 3] 0 inc) [2 2 3]))
+
 (string-test)
 (if-test)
 (when-test)
@@ -675,4 +677,6 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
+
+
 

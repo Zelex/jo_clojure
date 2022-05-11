@@ -3452,6 +3452,10 @@ static node_idx_t native_hash_map(env_ptr_t env, list_ptr_t args) {
 // val(s). When applied to a vector, returns a new vector that
 // contains val at index. Note - index must be <= (count vector).
 static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 3) {
+		warnf("(assoc) requires at least 3 arguments\n");
+		return NIL_NODE;
+	}
 	list_t::iterator it = args->begin();
 	node_idx_t map_idx = *it++;
 	node_idx_t key_idx = *it++;
@@ -3468,9 +3472,9 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 		vector_ptr_t vector = map_node->t_vector->assoc(key_node->as_int(), val_idx);
 		return new_node_vector(vector);
 	}
+	warnf("assoc: not a map or vector\n");
 	return NIL_NODE;
 }
-	
 
 // (dissoc map)(dissoc map key)(dissoc map key & ks)
 // dissoc[iate]. Returns a new map of the same (hashed/sorted) type,
@@ -3543,6 +3547,25 @@ static node_idx_t native_assoc_in(env_ptr_t env, list_ptr_t args) {
 		return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), val2));
 	}
 	return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), val_idx));
+}
+
+// (update m k f)(update m k f x)(update m k f x y)(update m k f x y z)(update m k f x y z & more)
+// 'Updates' a value in an associative structure, where k is a
+// key and f is a function that will take the old value
+// and any supplied args and return the new value, and returns a new
+// structure.  If the key does not exist, nil is passed as the old value.
+static node_idx_t native_update(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 3) {
+		warnf("update: at least 3 arguments required");
+		return NIL_NODE;
+	}
+	list_t::iterator it = args->begin();
+	node_idx_t map_idx = *it++;
+	node_idx_t key_idx = *it++;
+	node_idx_t f_idx = *it++;
+	list_ptr_t rest = args->rest(it);
+	node_idx_t val_idx = eval_va(env, 2, f_idx, native_get(env, list_va(2, map_idx, key_idx)));
+	return native_assoc(env, rest->push_front3(map_idx, key_idx, val_idx));
 }
 
 // (comp)(comp f)(comp f g)(comp f g & fs)
@@ -4459,6 +4482,7 @@ int main(int argc, char **argv) {
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
 	env->set("assoc-in", new_node_native_function("assoc-in", &native_assoc_in, false));
 	env->set("dissoc", new_node_native_function("dissoc", &native_dissoc, false));
+	env->set("update", new_node_native_function("update", &native_update, false));
 	env->set("get", new_node_native_function("get", &native_get, false));
 	env->set("comp", new_node_native_function("comp", &native_comp, false));
 	env->set("partial", new_node_native_function("partial", &native_partial, false));

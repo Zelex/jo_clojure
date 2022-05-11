@@ -4208,6 +4208,45 @@ struct jo_persistent_list {
         return copy;
     }
 
+    jo_persistent_list *push_front4_inplace(const T &value1, const T &value2, const T &value3, const T &value4) {
+        if(!head) {
+            head = new node(value1, NULL);
+            tail = head;
+        } else {
+            jo_shared_ptr<node> new_head = new node(value1, head);
+            head = new_head;
+        }
+        if(!head->next) {
+            head->next = new node(value2, NULL);
+            tail = head->next;
+        } else {
+            head->next->next = new node(value2, NULL);
+            tail = head->next->next;
+        }
+        if(!head->next->next) {
+            head->next->next = new node(value3, NULL);
+            tail = head->next->next;
+        } else {
+            head->next->next->next = new node(value3, NULL);
+            tail = head->next->next->next;
+        }
+        if(!head->next->next->next) {
+            head->next->next->next = new node(value4, NULL);
+            tail = head->next->next->next;
+        } else {
+            head->next->next->next->next = new node(value4, NULL);
+            tail = head->next->next->next->next;
+        }
+        length+=4;
+        return this;
+    }
+
+    jo_persistent_list *push_front4(const T &value1, const T &value2, const T &value3, const T &value4) const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->push_front4_inplace(value1, value2, value3, value4);
+        return copy;
+    }
+
     jo_persistent_list *push_front(jo_persistent_list &other) const {
         jo_persistent_list *copy = new jo_persistent_list(*this);
         jo_shared_ptr<node> cur = other.head;
