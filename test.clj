@@ -610,6 +610,15 @@
 (is (= (assoc [1 2 3] 4 10) [1 2 3 10]))
 
 (is (= (assoc-in {:person {:name "Mike"}} [:person :name] "Violet") {:person {:name "Violet"}}))
+(is (= (assoc-in {:person {:name "Mike"}} [:person] "Violet") {:person "Violet"}))
+(is (= (assoc-in [{:person {:name "Mike"}}] [0 :person :name] "Violet") [{:person {:name "Violet"}}]))
+(is (= (assoc-in [{:person {:name ["Mike"]}}] [0 :person :name 1] "Smith") [{:person {:name ["Mike" "Smith"]}}]))
+(is (= (assoc-in [{:person {:name ["Mike"]}}] [0 :person :name 2] "Smith") [{:person {:name ["Mike" "Smith"]}}]))
+(is (= (assoc-in {} [] {:k :v}) {nil {:k :v}}))
+(is (= (assoc-in {} [:cookie :monster :vocals] "Finntroll") {:cookie {:monster {:vocals "Finntroll"}}}))
+(is (= (assoc-in {} [1 :connections 4] 2) {1 {:connections {4 2}}}))
+(is (= (assoc-in [[1 1 1] [1 1 1] [1 1 1]] [0 0] 0) [[0 1 1] [1 1 1] [1 1 1]]))
+
 
 (is (= (update [1 2 3] 0 inc) [2 2 3]))
 
