@@ -3,6 +3,10 @@
 (println "time to fac(10) x 100 (apply-range):      " (time (dotimes [i 100] (apply * (range 2 11)))))
 (println "time to fac(10) x 100 (apply-list):       " (time (dotimes [i 100] (apply * '(2 3 4 5 6 7 8 9 10)))))
 
+(println "Test print of lists:" '(1 2 3 4 5 6 (7 8 9)))
+(println "Test print of vector:" [1 2 3 4 5 6 [7 8 9]])
+(println "Test print of map:" {:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g {:h 7 :i 8 :j 9}})
+
 (println "Hello World...")
 (println "Hello" "World...")
 (println "Math" (+ 1 2 3))

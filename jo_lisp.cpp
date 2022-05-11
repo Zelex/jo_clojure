@@ -674,12 +674,57 @@ struct node_t {
 			}
 			return va("%i", t_int);
 		case NODE_FLOAT:  return va("%f", t_float);
+		case NODE_LIST: 
+			{
+				jo_string s;
+				s += '(';
+				for(auto it = t_list->begin(); it;) {
+					s += get_node(*it)->as_string();
+					++it;
+					if(it) {
+						s += " ";
+					}
+				}
+				s += ')';
+				return s;
+			}
+		case NODE_VECTOR:
+			{
+				jo_string s;
+				s += '[';
+				for(auto it = t_vector->begin(); it;) {
+					s += get_node(*it)->as_string();
+					++it;
+					if(it) {
+						s += " ";
+					}
+				}
+				s += ']';
+				return s;
+			}
+		case NODE_MAP:
+			{
+				jo_string s;
+				s += '{';
+				for(auto it = t_map->begin(); it;) {
+					s += get_node(it->first)->as_string();
+					s += ": ";
+					s += get_node(it->second)->as_string();
+					++it;
+					if(it) {
+						s += ", ";
+					}
+				}
+				s += '}';
+				return s;
+			}
 		}
 		return t_string;
 	}
 
 	jo_string type_as_string() const {
 		switch(type) {
+		case NODE_NIL:	   return "nil";
 		case NODE_BOOL:    return "bool";
 		case NODE_INT:     return "int";
 		case NODE_FLOAT:   return "float";
@@ -689,10 +734,16 @@ struct node_t {
 		case NODE_VECTOR:  return "vector";
 		case NODE_SET:     return "set";
 		case NODE_MAP:     return "map";
+		case NODE_FUNC:	   return "function";
 		case NODE_NATIVE_FUNC: return "native_function";
 		case NODE_VAR:	   return "var";
 		case NODE_SYMBOL:  return "symbol";
 		case NODE_KEYWORD: return "keyword";
+		case NODE_ATOM:	   return "atom";
+		case NODE_DELAY:   return "delay";
+		case NODE_FILE:	   return "file";
+		case NODE_DIR:     return "dir";	
+		case NODE_PROMISE: return "promise";
 		}
 		return "unknown";		
 	}

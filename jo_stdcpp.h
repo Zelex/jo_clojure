@@ -4638,7 +4638,15 @@ public:
         return iterator(vec.begin());
     }
 
+    iterator begin() const {
+        return iterator(vec.begin());
+    }
+
     iterator end() {
+        return iterator(vec.end());
+    }
+
+    iterator end() const {
         return iterator(vec.end());
     }
 
