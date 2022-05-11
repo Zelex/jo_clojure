@@ -595,6 +595,8 @@
 
 (is (= ((fnil inc 0) nil) 1))
 
+(is (= (assoc-in {:person {:name "Mike"}} [:person :name] "Violet") {:person {:name "Violet"}}))
+
 (string-test)
 (if-test)
 (when-test)
@@ -673,3 +675,4 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
+

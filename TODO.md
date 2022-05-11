@@ -57,7 +57,6 @@ aset-int
 aset-long
 aset-short
 assoc!
-assoc-in
 associative?
 await
 await-for

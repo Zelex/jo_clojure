@@ -163,6 +163,8 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
 static node_idx_t eval_va(env_ptr_t env, int num, ...);
 
+static list_ptr_t list_va(int num, ...);
+
 static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
 static void print_node_type(node_idx_t node);
 static void print_node_list(list_ptr_t nodes, int depth = 0);
@@ -1617,6 +1619,17 @@ static node_idx_t eval_va(env_ptr_t env, int num, ...) {
 	}
 	va_end(ap);
 	return eval_list(env, a);
+}
+
+static list_ptr_t list_va(int num, ...) {
+	va_list ap;
+	va_start(ap, num);
+	list_ptr_t a = new_list();
+	for(int i = 0; i < num; i++) {
+		a->push_back_inplace(node_idx_t(va_arg(ap, int)));
+	}
+	va_end(ap);
+	return a;
 }
 
 // Print the node heirarchy
@@ -3457,6 +3470,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 	}
 	return NIL_NODE;
 }
+	
 
 // (dissoc map)(dissoc map key)(dissoc map key & ks)
 // dissoc[iate]. Returns a new map of the same (hashed/sorted) type,
@@ -3506,6 +3520,29 @@ static node_idx_t native_get(env_ptr_t env, list_ptr_t args) {
 		return map_node->t_vector->nth(key_node->as_int());
 	}
 	return NIL_NODE;
+}
+
+// (assoc-in m [k & ks] v)
+// Associates a value in a nested associative structure, where ks is a
+// sequence of keys and v is the new value and returns a new nested structure.
+// If any levels do not exist, hash-maps will be created.
+static node_idx_t native_assoc_in(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t map_idx = *it++;
+	node_idx_t key_idx = *it++;
+	node_idx_t val_idx = *it++;
+	node_t *key_node = get_node(key_idx);
+	if(!key_node->is_vector()) {
+		warnf("assoc-in: key must be a vector");
+		return NIL_NODE;
+	}
+	vector_ptr_t key_vector = key_node->t_vector;
+	if(key_vector->size() > 1) {
+		node_idx_t map2 = native_get(env, list_va(2, map_idx, key_vector->first_value()));
+		node_idx_t val2 = native_assoc_in(env, list_va(3, map2, new_node_vector(key_vector->rest()), val_idx));
+		return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), val2));
+	}
+	return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), val_idx));
 }
 
 // (comp)(comp f)(comp f g)(comp f g & fs)
@@ -4420,6 +4457,7 @@ int main(int argc, char **argv) {
 	env->set("nil?", new_node_native_function("nil?", native_is_nil, false));
 	env->set("time", new_node_native_function("time", &native_time, true));
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
+	env->set("assoc-in", new_node_native_function("assoc-in", &native_assoc_in, false));
 	env->set("dissoc", new_node_native_function("dissoc", &native_dissoc, false));
 	env->set("get", new_node_native_function("get", &native_get, false));
 	env->set("comp", new_node_native_function("comp", &native_comp, false));
