@@ -2927,6 +2927,10 @@ struct jo_persistent_vector
         return append_inplace(value);
     }
 
+    jo_persistent_vector *disj(const T &value) const {
+        return dissoc(value);
+    }
+
     jo_persistent_vector *conj(const jo_persistent_vector &other) const {
         jo_persistent_vector *copy = new jo_persistent_vector(*this);
         // loop through other, and append to copy
@@ -3963,6 +3967,65 @@ struct jo_persistent_list {
         }
         length++;
         return this;
+    }
+
+    jo_persistent_list *disj_inplace(const jo_persistent_list &other) {
+        jo_shared_ptr<node> cur = head;
+        jo_shared_ptr<node> prev = NULL;
+        while(cur) {
+            if(other.contains(cur->value)) {
+                if(prev) {
+                    prev->next = cur->next;
+                } else {
+                    head = cur->next;
+                }
+                length--;
+                if(!cur->next) {
+                    tail = prev;
+                }
+            } else {
+                prev = cur;
+            }
+            cur = cur->next;
+        }
+        return this;
+    }
+
+    jo_persistent_list *disj(const jo_persistent_list &other) const {
+        jo_persistent_list *copy = clone();
+        copy->disj_inplace(other);
+        return copy;
+    }
+
+    // disj with lambda
+    template<typename F>
+    jo_persistent_list *disj_inplace(F f) {
+        jo_shared_ptr<node> cur = head;
+        jo_shared_ptr<node> prev = NULL;
+        while(cur) {
+            if(f(cur->value)) {
+                if(prev) {
+                    prev->next = cur->next;
+                } else {
+                    head = cur->next;
+                }
+                length--;
+                if(!cur->next) {
+                    tail = prev;
+                }
+            } else {
+                prev = cur;
+            }
+            cur = cur->next;
+        }
+        return this;
+    }
+
+    template<typename F>
+    jo_persistent_list *disj(F f) const {
+        jo_persistent_list *copy = clone();
+        copy->disj_inplace(f);
+        return copy;
     }
 
     jo_persistent_list *assoc(size_t index, const T &value) const {

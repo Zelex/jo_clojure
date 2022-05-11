@@ -3550,18 +3550,17 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_dissoc(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t map_idx = *it++;
-	node_idx_t key_idx = *it++;
 	node_t *map_node = get_node(map_idx);
 	if(map_node->is_map()) {
-		map_ptr_t map = map_node->t_map->dissoc(key_idx, [env](node_idx_t k, node_idx_t v) {
-			return node_eq(env, k, v);
-		});
+		map_ptr_t map = map_node->t_map;
+		for(; it; it++) {
+			node_idx_t key_idx = *it;
+			map = map->dissoc(key_idx, [env](node_idx_t k, node_idx_t v) {
+				return node_eq(env, k, v);
+			});
+		}
 		return new_node_map(map);
 	} 
-	if(map_node->is_vector()) {
-		vector_ptr_t vector = map_node->t_vector->dissoc(get_node_int(key_idx));
-		return new_node_vector(vector);
-	}
 	return NIL_NODE;
 }
 

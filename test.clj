@@ -580,7 +580,8 @@
 (is (= foo 5))
 
 (is (= (dissoc {:a 1 :b 2 :c 3} :a) {:b 2 :c 3}))
-(is (= (dissoc [1 2 3] 1) [1 nil 3]))
+(is (= (dissoc {:a 1 :b 2 :c 3} :a :b) {:c 3}))
+(is (= (dissoc {:a 1 :b 2 :c 3} :a :b :c) {}))
 
 (is (distinct? 1 2 3))
 (is (not (distinct? 1 2 3 3)))
