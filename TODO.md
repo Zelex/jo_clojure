@@ -201,7 +201,6 @@ keep-indexed
 key
 keys
 keyword
-keyword?
 lazy-cat
 letfn
 line-seq
@@ -290,9 +289,6 @@ proxy-name
 proxy-super
 push-thread-bindings
 pvalues
-qualified-ident?
-qualified-keyword?
-qualified-symbol?
 quot
 rand
 ratio?
@@ -366,9 +362,6 @@ short
 short-array
 shorts
 shutdown-agents
-simple-ident?
-simple-keyword?
-simple-symbol?
 some
 some->
 some->>
@@ -388,7 +381,6 @@ subseq
 subvec
 supers
 symbol
-symbol?
 sync
 tagged-literal
 tagged-literal?

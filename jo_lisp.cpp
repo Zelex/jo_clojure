@@ -3150,9 +3150,44 @@ static node_idx_t native_is_ifn(env_ptr_t env, list_ptr_t args) {
 }
 
 // Return true if x is a symbol or keyword
-static node_idx_t native_is_ident(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_is_ident(env_ptr_t env, list_ptr_t args) { int type =  get_node_type(args->first_value());	return type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_symbol(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_SYMBOL ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_keyword(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE; }
+
+// Return true if x is a symbol or keyword without a namespace
+static node_idx_t native_is_simple_ident(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
+	return (type == NODE_SYMBOL || type == NODE_KEYWORD) && get_node(args->first_value())->t_string.find('/') == jo_string_npos ? TRUE_NODE : FALSE_NODE;
+}
+
+// Return true if x is a symbol or keyword with a namespace
+static node_idx_t native_is_qualified_ident(env_ptr_t env, list_ptr_t args) {
+	int type =  get_node_type(args->first_value());
+	return (type == NODE_SYMBOL || type == NODE_KEYWORD) && get_node(args->first_value())->t_string.find('/') != jo_string_npos ? TRUE_NODE : FALSE_NODE;
+}
+
+// Return true if x is a symbol without a namespace
+static node_idx_t native_is_simple_symbol(env_ptr_t env, list_ptr_t args) {
+	int type =  get_node_type(args->first_value());
+	return type == NODE_SYMBOL && get_node(args->first_value())->t_string.find('/') == jo_string_npos ? TRUE_NODE : FALSE_NODE;
+}
+
+// Return true if x is a symbol with a namespace
+static node_idx_t native_is_qualified_symbol(env_ptr_t env, list_ptr_t args) {
+	int type =  get_node_type(args->first_value());
+	return type == NODE_SYMBOL && get_node(args->first_value())->t_string.find('/') != jo_string_npos ? TRUE_NODE : FALSE_NODE;
+}
+
+// Return true if x is a keyword without a namespace
+static node_idx_t native_is_simple_keyword(env_ptr_t env, list_ptr_t args) {
+	int type =  get_node_type(args->first_value());
+	return type == NODE_KEYWORD && get_node(args->first_value())->t_string.find('/') == jo_string_npos ? TRUE_NODE : FALSE_NODE;
+}
+
+// Return true if x is a keyword with a namespace
+static node_idx_t native_is_qualified_keyword(env_ptr_t env, list_ptr_t args) {
+	int type =  get_node_type(args->first_value());
+	return type == NODE_KEYWORD && get_node(args->first_value())->t_string.find('/') != jo_string_npos ? TRUE_NODE : FALSE_NODE;
 }
 
 // (next coll) 
@@ -4782,6 +4817,14 @@ int main(int argc, char **argv) {
 	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false));
 	env->set("ifn?", new_node_native_function("ifn?", &native_is_ifn, false));
 	env->set("ident?", new_node_native_function("ident?", &native_is_ident, false));
+	env->set("simple-ident?", new_node_native_function("simple-ident?", &native_is_simple_ident, false));
+	env->set("qualified-ident?", new_node_native_function("qualified-ident?", &native_is_qualified_ident, false));
+	env->set("symbol?", new_node_native_function("symbol?", &native_is_symbol, false));
+	env->set("simple-symbol?", new_node_native_function("simple-symbol?", &native_is_simple_symbol, false));
+	env->set("qualified-symbol?", new_node_native_function("qualified-symbol?", &native_is_qualified_symbol, false));
+	env->set("keyword?", new_node_native_function("keyword?", &native_is_keyword, false));
+	env->set("simple-keyword?", new_node_native_function("simple-keyword?", &native_is_simple_keyword, false));
+	env->set("qualified-keyword?", new_node_native_function("qualified-keyword?", &native_is_qualified_keyword, false));
 	env->set("indexed?", new_node_native_function("indexed?", &native_is_indexed, false));
 	env->set("int?", new_node_native_function("int?", &native_is_int, false));
 	env->set("int", new_node_native_function("int", &native_int, false));
