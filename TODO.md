@@ -226,7 +226,6 @@ map-indexed
 map?
 mapcat
 mapv
-max
 max-key
 memfn
 memoize
@@ -235,10 +234,8 @@ merge-with
 meta
 method-sig
 methods
-min
 min-key
 mix-collection-hash
-mod
 monitor-enter
 monitor-exit
 munge
