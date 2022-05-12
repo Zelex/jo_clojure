@@ -635,6 +635,15 @@
 (is (= (not-every? odd? '(1 2 3)) true))
 (is (= (not-every? odd? '(1 3)) false))
 
+(is (= (not-empty [1]) [1]))
+(is (= (not-empty [1 3 5]) [1 3 5]))
+(is (= (not-empty []) nil))
+(is (= (not-empty '()) nil))
+(is (= (not-empty {}) nil))
+(is (= (not-empty nil) nil))
+(is (= (not-empty "hello") "hello"))
+(is (= (not-empty "") nil))
+
 (string-test)
 (if-test)
 (when-test)

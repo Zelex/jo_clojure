@@ -245,7 +245,6 @@ namespace-munge
 new
 newline
 not-empty
-not-every?
 ns
 ns-aliases
 ns-imports

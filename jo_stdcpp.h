@@ -4651,6 +4651,10 @@ public:
         return length;
     }
 
+    bool empty() const {
+        return !length;
+    }
+
     // iterator
     class iterator {
         typename jo_persistent_vector< entry_t >::iterator cur;
