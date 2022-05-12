@@ -2256,10 +2256,35 @@ static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+static node_idx_t native_print_str(env_ptr_t env, list_ptr_t args) {
+	jo_string s;
+	for(list_t::iterator i = args->begin(); i;) {
+		node_idx_t n = *i++;
+		s += get_node(n)->as_string(true);
+		if(i) {
+			s += " ";
+		}
+	}
+	return new_node_string(s);
+}
+
 static node_idx_t native_println(env_ptr_t env, list_ptr_t args) {
 	native_print(env, args);
 	printf("\n");
 	return NIL_NODE;	
+}
+
+static node_idx_t native_println_str(env_ptr_t env, list_ptr_t args) {
+	jo_string s;
+	for(list_t::iterator i = args->begin(); i;) {
+		node_idx_t n = *i++;
+		s += get_node(n)->as_string(true);
+		if(i) {
+			s += " ";
+		}
+	}
+	s += "\n";
+	return new_node_string(s);
 }
 
 static node_idx_t native_do(env_ptr_t env, list_ptr_t args) {
@@ -4517,6 +4542,8 @@ int main(int argc, char **argv) {
 	env->set("eval", new_node_native_function("eval", &native_eval, false));
 	env->set("print", new_node_native_function("print", &native_print, false));
 	env->set("println", new_node_native_function("println", &native_println, false));
+	env->set("print-str", new_node_native_function("print-str", &native_print_str, false));
+	env->set("println-str", new_node_native_function("println-str", &native_println_str, false));
 	env->set("=", new_node_native_function("=", &native_eq, false));
 	env->set("not=", new_node_native_function("not=", &native_neq, false));
 	env->set("<", new_node_native_function("<", &native_lt, false));
