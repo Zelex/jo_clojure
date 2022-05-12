@@ -4011,6 +4011,13 @@ static node_idx_t native_is_every(env_ptr_t env, list_ptr_t args) {
 	return new_node_bool(false);
 }
 
+// (not-every? pred coll)
+// Returns false if (pred x) is logical true for every x in
+// coll, else true.
+static node_idx_t native_is_not_every(env_ptr_t env, list_ptr_t args) {
+	return native_is_every(env, args) == TRUE_NODE ? FALSE_NODE : TRUE_NODE;
+}
+
 static node_idx_t native_is_seqable(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->is_seq() ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_any(env_ptr_t env, list_ptr_t args) { return TRUE_NODE; }
 static node_idx_t native_boolean(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
@@ -4681,6 +4688,7 @@ int main(int argc, char **argv) {
 	env->set("cond->", new_node_native_function("cond->", &native_cond_thread, true));
 	env->set("cond->>", new_node_native_function("cond->>", &native_cond_thread_last, true));
 	env->set("every?", new_node_native_function("every?", &native_is_every, false));
+	env->set("not-every?", new_node_native_function("not-every?", &native_is_not_every, false));
 	env->set("any?", new_node_native_function("any?", &native_is_any, false));
 	env->set("not-any?", new_node_native_function("not-any?", &native_is_not_any, false));
 	env->set("array-map", new_node_native_function("array-map", &native_array_map, false));

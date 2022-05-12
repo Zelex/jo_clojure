@@ -244,7 +244,6 @@ namespace
 namespace-munge
 new
 newline
-not-any?
 not-empty
 not-every?
 ns

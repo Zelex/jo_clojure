@@ -632,6 +632,9 @@
 (is (= (not-any? nil? [true false false]) true))
 (is (= (not-any? nil? [true false nil]) false))
 
+(is (= (not-every? odd? '(1 2 3)) true))
+(is (= (not-every? odd? '(1 3)) false))
+
 (string-test)
 (if-test)
 (when-test)
