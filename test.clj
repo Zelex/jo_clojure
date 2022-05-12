@@ -619,7 +619,6 @@
 (is (= (assoc-in {} [1 :connections 4] 2) {1 {:connections {4 2}}}))
 (is (= (assoc-in [[1 1 1] [1 1 1] [1 1 1]] [0 0] 0) [[0 1 1] [1 1 1] [1 1 1]]))
 
-
 (is (= (update [1 2 3] 0 inc) [2 2 3]))
 
 (string-test)

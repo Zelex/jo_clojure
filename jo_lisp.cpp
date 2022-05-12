@@ -666,6 +666,7 @@ struct node_t {
 
 	jo_string as_string(bool pretty = false) const {
 		switch(type) {
+		case NODE_NIL:    return "nil";
 		case NODE_BOOL:   return t_bool ? "true" : "false";
 		case NODE_INT:    
 			// only letter? TODO
@@ -4620,7 +4621,7 @@ int main(int argc, char **argv) {
 	debugf("Evaluating...\n");
 
 	node_idx_t res_idx = eval_node_list(env, main_list);
-	print_node(res_idx, 0);
+	native_println(env, list_va(1, res_idx));
 	printf("\n");
 
 	debugf("nodes.size() = %zu\n", nodes.size());
