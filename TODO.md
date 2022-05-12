@@ -284,9 +284,7 @@ print-ctor
 print-dup
 print-method
 print-simple
-print-str
 printf
-println-str
 PrintWriter-on
 prn
 prn-str
