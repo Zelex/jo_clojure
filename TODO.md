@@ -125,9 +125,7 @@ disj
 disj!
 dissoc!
 doto
-double
 double-array
-double?
 doubles
 eduction
 EMPTY-NODE
