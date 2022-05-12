@@ -244,7 +244,6 @@ namespace
 namespace-munge
 new
 newline
-not-empty
 ns
 ns-aliases
 ns-imports
