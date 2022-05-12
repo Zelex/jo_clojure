@@ -4475,40 +4475,94 @@ static node_idx_t native_split_at(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	int coll_type = get_node_type(coll_idx);
+	vector_ptr_t vec = new_vector();
 	if(coll_type == NODE_LIST) {
 		list_ptr_t coll = get_node_list(coll_idx);
 		if(n > coll->size()) {
 			n = coll->size();
 		}
-		vector_ptr_t vec = new_vector();
 		vec->push_back_inplace(new_node_list(coll->take(n)));
 		vec->push_back_inplace(new_node_list(coll->drop(n)));
-		return new_node_vector(vec);
 	} else if(coll_type == NODE_STRING) {
 		jo_string coll = get_node_string(coll_idx);
 		if(n > coll.size()) {
 			n = coll.size();
 		}
 		jo_string coll2 = coll;
-		vector_ptr_t vec = new_vector();
 		vec->push_back_inplace(new_node_string(coll.take(n)));
 		vec->push_back_inplace(new_node_string(coll2.drop(n)));
-		return new_node_vector(vec);
 	} else if(coll_type == NODE_VECTOR) {
 		vector_ptr_t coll = get_node_vector(coll_idx);
 		if(n > coll->size()) {
 			n = coll->size();
 		}
-		vector_ptr_t vec = new_vector();
 		vec->push_back_inplace(new_node_vector(coll->take(n)));
 		vec->push_back_inplace(new_node_vector(coll->drop(n)));
-		return new_node_vector(vec);
 	} else {
 		warnf("(split-at) requires a list or string\n");
 		return NIL_NODE;
 	}
+	return new_node_vector(vec);
 }
 
+// (split-with pred coll)
+// Returns a vector of [(take-while pred coll) (drop-while pred coll)]
+static node_idx_t native_split_with(env_ptr_t env, list_ptr_t args) {
+	if(args->size() != 2) {
+		warnf("(split-with) requires 2 arguments\n");
+		return NIL_NODE;
+	}
+	node_idx_t pred_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	int coll_type = get_node_type(coll_idx);
+	list_ptr_t A = new_list();
+	list_ptr_t B = new_list();
+	vector_ptr_t vec = new_vector();
+	if(coll_type == NODE_LIST) {
+		list_ptr_t coll = get_node_list(coll_idx);
+		auto it = coll->begin();
+		for(; it; it++) {
+			if(!get_node_bool(eval_va(env, 2, pred_idx, *it))) {
+				break;
+			}
+			A->push_back_inplace(*it);
+		}
+		for(; it; it++) {
+			B->push_back_inplace(*it);
+		}
+	} else if(coll_type == NODE_STRING) {
+		jo_string coll = get_node_string(coll_idx);
+		auto it = coll.begin();
+		auto it_end = coll.end();
+		for(; it != it_end; it++) {
+			if(!get_node_bool(eval_va(env, 2, pred_idx, *it))) {
+				break;
+			}
+			A->push_back_inplace(*it);
+		}
+		for(; it != it_end; it++) {
+			B->push_back_inplace(*it);
+		}
+	} else if(coll_type == NODE_VECTOR) {
+		vector_ptr_t coll = get_node_vector(coll_idx);
+		auto it = coll->begin();
+		for(; it; it++) {
+			if(!get_node_bool(eval_va(env, 2, pred_idx, *it))) {
+				break;
+			}
+			A->push_back_inplace(*it);
+		}
+		for(; it; it++) {
+			B->push_back_inplace(*it);
+		}
+	} else {
+		warnf("(split-with) requires a list or string\n");
+		return NIL_NODE;
+	}
+	vec->push_back_inplace(new_node_list(A));
+	vec->push_back_inplace(new_node_list(B));
+	return new_node_vector(vec);
+}
 
 
 #include "jo_lisp_math.h"
@@ -4796,6 +4850,7 @@ int main(int argc, char **argv) {
 	env->set("find", new_node_native_function("find", &native_find, false));
 	env->set("fnil", new_node_native_function("fnil", &native_fnil, false));
 	env->set("split-at", new_node_native_function("split-at", &native_split_at, false));
+	env->set("split-with", new_node_native_function("split-with", &native_split_with, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

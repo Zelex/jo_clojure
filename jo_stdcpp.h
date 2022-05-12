@@ -844,6 +844,45 @@ struct jo_string {
         str = tmp;
         return *this;
     }
+
+    // iterator
+    class iterator {
+    public:
+        iterator(const char *s) : str(s) {
+        }
+        char operator*() const {
+            return *str;
+        }
+        iterator &operator++() {
+            str++;
+            return *this;
+        }
+        iterator operator++(int) {
+            iterator tmp = *this;
+            str++;
+            return tmp;
+        }
+        bool operator==(const iterator &other) const {
+            return str == other.str;
+        }
+        bool operator!=(const iterator &other) const {
+            return str != other.str;
+        }
+    private:
+        const char *str;
+    };
+
+    iterator begin() const {
+        return iterator(str);
+    }
+
+    iterator end() const {
+        return iterator(str+size());
+    }
+
+
+
+
 };
 
 static inline jo_string operator+(const jo_string &lhs, const jo_string &rhs) { jo_string ret(lhs); ret += rhs; return ret; }

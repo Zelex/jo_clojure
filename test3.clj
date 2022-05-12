@@ -17,9 +17,6 @@
 
 ;(filter (comp not zero?) [0 1 0 2 0 3 0 4])
 
-;((partial + 100) 5)
-;((partial - 100) 5)
-
 ;(filter (comp #{2 3} last) {:x 1 :y 2 :z 3}) ; don't support sets yet
 
 ;(filter some? '(1 nil [] :a nil))
@@ -106,4 +103,6 @@
 ;(defmacro unless [pred a b] `(if (not ~pred) ~a ~b))
 ;(unless false (println "Will print") (println "Will not print"))
 
-(split-at 1 [1 2 3 4 5])
+;(split-at 1 [1 2 3 4 5])
+
+(split-with (partial > 3) [1 2 3 2 1])

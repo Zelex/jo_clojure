@@ -650,6 +650,13 @@
 
 (is (= (split-at 3 [1 2]) [[1 2] []]))
 
+(is (= ((partial + 100) 50) 150))
+(is (= ((partial - 100) 50) 50))
+
+(is (= (split-with (partial >= 3) [1 2 3 4 5]) [(1 2 3) (4 5)]))
+(is (= (split-with (partial > 3) [1 2 3 2 1]) [(1 2) (3 2 1)]))
+
+
 (string-test)
 (if-test)
 (when-test)
@@ -728,5 +735,4 @@
 ;(println "All done!")
 ;(while (not (System/kbhit)) (System/sleep 0.1))
 ;(doall (range 1 6))
-
 
