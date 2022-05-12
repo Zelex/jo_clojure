@@ -3647,6 +3647,38 @@ static node_idx_t native_update(env_ptr_t env, list_ptr_t args) {
 	return native_assoc(env, rest->push_front3(map_idx, key_idx, val_idx));
 }
 
+// (update-in m ks f & args)
+// 'Updates' a value in a nested associative structure, where ks is a
+// sequence of keys and f is a function that will take the old value
+// and any supplied args and return the new value, and returns a new
+// nested structure.  If any levels do not exist, hash-maps will be
+// created.
+static node_idx_t native_update_in(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 3) {
+		warnf("update-in: at least 3 arguments required");
+		return NIL_NODE;
+	}
+	list_t::iterator it = args->begin();
+	node_idx_t map_idx = *it++;
+	node_idx_t key_idx = *it++;
+	node_idx_t f_idx = *it++;
+	node_t *key_node = get_node(key_idx);
+	if(!key_node->is_vector()) {
+		warnf("assoc-in: key must be a vector");
+		return NIL_NODE;
+	}
+	vector_ptr_t key_vector = key_node->t_vector;
+	if(key_vector->size() > 1) {
+		node_idx_t map2 = native_get(env, list_va(2, map_idx, key_vector->first_value()));
+		node_idx_t val2 = native_update_in(env, list_va(3, map2, new_node_vector(key_vector->rest()), f_idx));
+		return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), val2));
+	} else {
+		list_ptr_t rest = args->rest(it);
+		node_idx_t map2 = native_get(env, list_va(2, map_idx, key_vector->first_value()));
+		return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), eval_list(env, rest->push_front2(f_idx, map2))));
+	}
+}
+
 // (comp)(comp f)(comp f g)(comp f g & fs)
 // Takes a set of functions and returns a fn that is the composition
 // of those fns.  The returned fn takes a variable number of args,
@@ -4562,6 +4594,7 @@ int main(int argc, char **argv) {
 	env->set("assoc-in", new_node_native_function("assoc-in", &native_assoc_in, false));
 	env->set("dissoc", new_node_native_function("dissoc", &native_dissoc, false));
 	env->set("update", new_node_native_function("update", &native_update, false));
+	env->set("update-in", new_node_native_function("update-in", &native_update_in, false));
 	env->set("get", new_node_native_function("get", &native_get, false));
 	env->set("comp", new_node_native_function("comp", &native_comp, false));
 	env->set("partial", new_node_native_function("partial", &native_partial, false));

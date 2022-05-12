@@ -621,6 +621,12 @@
 
 (is (= (update [1 2 3] 0 inc) [2 2 3]))
 
+(is (= (update-in {} [] (constantly {:k :v})) {nil {:k :v}}))
+(is (= (update-in {:a {:b 3}} [:a :b] inc) {:a {:b 4}}))
+(is (= (update-in [1 2 [1 2 3]] [2 0] inc) [1 2 [2 2 3]]))
+(is (= (update-in [1 {:a 2 :b 3 :c 4}] [1 :c] (fnil inc 5)) [1 {:a 2, :b 3, :c 5}]))
+(is (= (update-in [1 {:a 2 :b 3 :c 4}] [1 :d] (fnil inc 5)) [1 {:a 2, :b 3, :c 4, :d 6}]))
+
 (string-test)
 (if-test)
 (when-test)

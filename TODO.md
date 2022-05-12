@@ -424,8 +424,6 @@ unchecked-int
 unchecked-long
 unchecked-short
 underive
-unquote
-unquote-splicing
 unreduced
 update-in
 update-proxy
