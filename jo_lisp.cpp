@@ -4622,7 +4622,6 @@ int main(int argc, char **argv) {
 
 	node_idx_t res_idx = eval_node_list(env, main_list);
 	native_println(env, list_va(1, res_idx));
-	printf("\n");
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());
