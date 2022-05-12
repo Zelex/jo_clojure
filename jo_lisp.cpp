@@ -4016,6 +4016,48 @@ static node_idx_t native_is_any(env_ptr_t env, list_ptr_t args) { return TRUE_NO
 static node_idx_t native_boolean(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_boolean(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_BOOL ? TRUE_NODE : FALSE_NODE; }
 
+// (not-any? pred coll)
+// Returns false if (pred x) is logical true for any x in coll,
+// else true.
+static node_idx_t native_is_not_any(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t pred_idx = *it++;
+	node_idx_t coll_idx = *it++;
+	node_t *pred_node = get_node(pred_idx);
+	node_t *coll_node = get_node(coll_idx);
+	if(!pred_node->can_eval()) {
+		return new_node_bool(false);
+	}
+	if(coll_node->is_list()) {
+		list_ptr_t coll_list = coll_node->t_list;
+		for(list_t::iterator it = coll_list->begin(); it; it++) {
+			if(get_node_bool(eval_va(env, 2, pred_idx, *it))) {
+				return new_node_bool(false);
+			}
+		}
+		return new_node_bool(true);
+	}
+	if(coll_node->is_vector()) {
+		vector_ptr_t coll_vector = coll_node->t_vector;
+		for(vector_t::iterator it = coll_vector->begin(); it; it++) {
+			if(get_node_bool(eval_va(env, 2, pred_idx, *it))) {
+				return new_node_bool(false);
+			}
+		}
+		return new_node_bool(true);
+	}
+	if(coll_node->is_lazy_list()) {
+		lazy_list_iterator_t lit(env, coll_idx);
+		for(; !lit.done(); lit.next()) {
+			if(get_node_bool(eval_va(env, 2, pred_idx, lit.val))) {
+				return new_node_bool(false);
+			}
+		}
+		return new_node_bool(true);
+	}
+	return new_node_bool(false);
+}
+
 // (array-map)(array-map & keyvals)
 // Constructs an array-map. If any keys are equal, they are handled as
 // if by repeated uses of assoc.
@@ -4640,6 +4682,7 @@ int main(int argc, char **argv) {
 	env->set("cond->>", new_node_native_function("cond->>", &native_cond_thread_last, true));
 	env->set("every?", new_node_native_function("every?", &native_is_every, false));
 	env->set("any?", new_node_native_function("any?", &native_is_any, false));
+	env->set("not-any?", new_node_native_function("not-any?", &native_is_not_any, false));
 	env->set("array-map", new_node_native_function("array-map", &native_array_map, false));
 	env->set("boolean", new_node_native_function("boolean", &native_boolean, false));
 	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false));
