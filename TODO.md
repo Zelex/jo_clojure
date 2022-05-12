@@ -151,9 +151,7 @@ find-ns
 find-protocol-impl
 find-protocol-method
 find-var
-float
 float-array
-float?
 floats
 for
 force

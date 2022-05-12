@@ -547,7 +547,14 @@ static node_idx_t native_math_interp(env_ptr_t env, list_ptr_t args) {
 	return new_node_float(y0 + (y1 - y0) * (x - x0) / (x1 - x0));
 }
 
+static node_idx_t native_float(env_ptr_t env, list_ptr_t args) { return new_node_float(get_node_float(args->first_value())); }
+static node_idx_t native_is_float(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FLOAT ? TRUE_NODE : FALSE_NODE; }
+
+
 void jo_lisp_math_init(env_ptr_t env) {
+	env->set("float", new_node_native_function("float", &native_float, false));
+	env->set("float?", new_node_native_function("float?", &native_is_float, false));
+
 	env->set("+", new_node_native_function("+", &native_add, false));
 	env->set("-", new_node_native_function("-", &native_sub, false));
 	env->set("*", new_node_native_function("*", &native_mul, false));
