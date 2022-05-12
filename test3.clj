@@ -103,6 +103,7 @@
 ;(def fib-seq-iterate (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1])))
 ;(doall (take 10 fib-seq-iterate))
 
-(defmacro unless [pred a b] `(if (not ~pred) ~a ~b))
-(unless false (println "Will print") (println "Will not print"))
+;(defmacro unless [pred a b] `(if (not ~pred) ~a ~b))
+;(unless false (println "Will print") (println "Will not print"))
 
+(split-at 1 [1 2 3 4 5])

@@ -810,6 +810,40 @@ struct jo_string {
         insert(pos, r);
         return *this;
     }
+
+    jo_string &take(size_t n) {
+        size_t l = size();
+        if(n > l) {
+            n = l;
+        }
+        char *tmp = (char*)malloc(n+1);
+        if(!tmp) {
+            // malloc failed!
+            return *this;
+        }
+        memcpy(tmp, str, n);
+        tmp[n] = 0;
+        free(str);
+        str = tmp;
+        return *this;
+    }
+
+    jo_string &drop(size_t n) {
+        size_t l = size();
+        if(n > l) {
+            n = l;
+        }
+        char *tmp = (char*)malloc(l-n+1);
+        if(!tmp) {
+            // malloc failed!
+            return *this;
+        }
+        memcpy(tmp, str+n, l-n);
+        tmp[l-n] = 0;
+        free(str);
+        str = tmp;
+        return *this;
+    }
 };
 
 static inline jo_string operator+(const jo_string &lhs, const jo_string &rhs) { jo_string ret(lhs); ret += rhs; return ret; }
@@ -2962,7 +2996,7 @@ struct jo_persistent_vector
         }
 
         if(new_size < length) {
-            return subvec(0, new_size);
+            return take(new_size);
         }
 
         // This could be faster...
@@ -3089,14 +3123,18 @@ struct jo_persistent_vector
         if(n >= length) {
             return new jo_persistent_vector(*this);
         }
-        return subvec(0, n);
+        jo_persistent_vector *copy = new jo_persistent_vector();
+        for(size_t i = 0; i < n; ++i) {
+            copy->append_inplace((*this)[i]);
+        }
+        return copy;
     }
 
     jo_persistent_vector *take_last(size_t n) const {
         if(n >= length) {
             return new jo_persistent_vector(*this);
         }
-        return subvec(length - n, n);
+        return drop(length - n);
     }
 
     jo_persistent_vector *random_sample(float prob) const {
@@ -3295,9 +3333,16 @@ struct jo_persistent_vector
     }
 
     jo_persistent_vector *subvec(size_t start, size_t end) const {
-        jo_persistent_vector *copy = new jo_persistent_vector(*this);
-        copy->head_offset += start;
-        copy->length = end - start;
+        if(start == 0) {
+            return take(end);
+        }
+        if(end == length) {
+            return drop(start);
+        }
+        jo_persistent_vector *copy = new jo_persistent_vector();
+        for(size_t i = start; i < end; ++i) {
+            copy->push_back((*this)[i]);
+        }
         return copy;
     }
 
@@ -4442,7 +4487,7 @@ struct jo_persistent_list {
     }
 
     jo_persistent_list *take_last(int N) const {
-        return subvec(length - N, length);
+        return drop(length - N);
     }
 
     // return a random permutation of the elements of the list

@@ -644,6 +644,12 @@
 (is (= (not-empty "hello") "hello"))
 (is (= (not-empty "") nil))
 
+(is (= (split-at 2 (1 2 3 4 5)) [(1 2) (3 4 5)]))
+(is (= (split-at 2 [1 2 3 4 5]) [[1 2] [3 4 5]]))
+(is (= (split-at 2 "hello") ["he" "llo"]))
+
+(is (= (split-at 3 [1 2]) [[1 2] []]))
+
 (string-test)
 (if-test)
 (when-test)

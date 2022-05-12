@@ -381,7 +381,6 @@ sorted-set
 sorted-set-by
 sorted?
 special-symbol?
-split-at
 split-with
 StackTraceElement->vec
 struct
