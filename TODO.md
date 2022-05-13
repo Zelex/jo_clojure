@@ -201,7 +201,6 @@ lazy-cat
 letfn
 line-seq
 list*
-list?
 load
 load-file
 load-reader

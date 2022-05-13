@@ -3153,6 +3153,7 @@ static node_idx_t native_is_ifn(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_is_ident(env_ptr_t env, list_ptr_t args) { int type =  get_node_type(args->first_value());	return type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_symbol(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_SYMBOL ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_keyword(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_list(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_LIST ? TRUE_NODE : FALSE_NODE; }
 
 // Return true if x is a symbol or keyword without a namespace
 static node_idx_t native_is_simple_ident(env_ptr_t env, list_ptr_t args) {
@@ -4807,6 +4808,7 @@ int main(int argc, char **argv) {
 	env->set("nfirst", new_node_native_function("nfirst", &native_nfirst, false));
 	env->set("rest", new_node_native_function("rest", &native_rest, false));
 	env->set("list", new_node_native_function("list", &native_list, false));
+	env->set("list?", new_node_native_function("list?", &native_is_list, false));
 	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false));
 	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
 	env->set("var", new_node_native_function("var", &native_var, false));
