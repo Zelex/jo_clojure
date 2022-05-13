@@ -217,7 +217,6 @@ make-array
 make-hierarchy
 map-entry?
 map-indexed
-map?
 mapcat
 mapv
 max-key
