@@ -105,4 +105,7 @@
 
 ;(split-at 1 [1 2 3 4 5])
 
-(split-with (partial > 3) [1 2 3 2 1])
+;(split-with (partial > 3) [1 2 3 2 1])
+
+#{:a :b :c :d}
+
