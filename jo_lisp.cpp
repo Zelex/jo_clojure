@@ -3155,6 +3155,7 @@ static node_idx_t native_is_symbol(env_ptr_t env, list_ptr_t args) { return get_
 static node_idx_t native_is_keyword(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_list(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_LIST ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_map(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_MAP ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_vector(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_VECTOR ? TRUE_NODE : FALSE_NODE; }
 
 // Return true if x is a symbol or keyword without a namespace
 static node_idx_t native_is_simple_ident(env_ptr_t env, list_ptr_t args) {
@@ -4898,6 +4899,7 @@ int main(int argc, char **argv) {
 	env->set("split-at", new_node_native_function("split-at", &native_split_at, false));
 	env->set("split-with", new_node_native_function("split-with", &native_split_with, false));
 	env->set("map?", new_node_native_function("map?", &native_is_map, false));
+	env->set("vector?", new_node_native_function("vector?", &native_is_vector, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

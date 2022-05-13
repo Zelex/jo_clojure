@@ -414,7 +414,6 @@ vary-meta
 vec
 vector
 vector-of
-vector?
 volatile!
 volatile?
 vreset!
