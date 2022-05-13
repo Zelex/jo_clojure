@@ -15,7 +15,7 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 * Parses code into native structures (AST), then executes. Essentially interpreted - though does some clever things here and there. 
 * Lazy sequences
 * Startup time is ridiculously fast by comparison
-* Implementations of persistent lists, vectors, maps (WIP: set, etc).
+* Implementations of persistent lists, vectors, maps, hash-set.
 * Software Transactional Memory (STM)
 * Atoms
 * IO
