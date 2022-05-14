@@ -1366,7 +1366,9 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		int common_flags = ~0;
 		while(next != INV_NODE) {
 			common_flags &= get_node_flags(next);
-			n.t_set->assoc_inplace(next);
+			n.t_set->assoc_inplace(next, [env](node_idx_t a, node_idx_t b) {
+				return node_eq(env, a, b);
+			});
 			next = parse_next(env, state, '}');
 		}
 		if(common_flags & NODE_FLAG_LITERAL) {
