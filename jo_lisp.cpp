@@ -745,8 +745,9 @@ struct node_t {
 				int left = 256;
 				jo_string s;
 				s = '(';
-				for(lazy_list_iterator_t lit(env, this); !lit.done() && left; lit.next(), --left) {
+				for(lazy_list_iterator_t lit(env, this); !lit.done() && left; --left) {
 					s += get_node(lit.val)->as_string(env, 2);
+					lit.next();
 					if(!lit.done()) {
 						s += " ";
 					}
