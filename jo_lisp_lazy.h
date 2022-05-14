@@ -580,7 +580,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 			key_val->push_back_inplace(it->second);
 			node_idx_t comp = eval_list(env, args->conj(new_node_list(key_val)));
 			if(get_node_bool(comp)) {
-				ret->assoc_inplace(it->first, it->second);
+				ret->assoc_inplace(it->first, it->second, [env](node_idx_t a, node_idx_t b) { return node_eq(env, a, b); });
 			}
 		}
 		return new_node_map(ret);
@@ -594,7 +594,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		for(auto it = list_list->begin(); it; it++) {
 			node_idx_t comp = eval_list(env, args->conj(it->first));
 			if(get_node_bool(comp)) {
-				ret->assoc_inplace(it->first);
+				ret->assoc_inplace(it->first, [env](node_idx_t a, node_idx_t b) { return node_eq(env, a, b); });
 			}
 		}
 		return new_node_hash_set(ret);

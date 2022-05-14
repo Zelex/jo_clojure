@@ -4984,6 +4984,18 @@ public:
         return copy;
     }
 
+    // conj with lambda
+    template<typename F>
+    jo_persistent_unordered_map *conj(jo_persistent_unordered_map *other, F eq) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        for(auto it = other->vec.begin(); it != other->vec.end(); ++it) {
+            if(it->third) {
+                copy->assoc_inplace(it->first, it->second, eq);
+            }
+        }
+        return copy;
+    }
+
     jo_persistent_vector<V> *to_vector() const {
         jo_persistent_vector<V> *vec = new jo_persistent_vector<V>();
         for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
