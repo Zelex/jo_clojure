@@ -3482,25 +3482,25 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 		vector_ptr_t ret = new vector_t(*get_node(to)->t_vector);
 		if(get_node_type(from) == NODE_LIST) {
 			for(auto it = get_node(from)->t_list->begin(); it; it++) {
-				ret->push_front_inplace(*it);
+				ret->push_back_inplace(*it);
 			}
 		} else if(get_node_type(from) == NODE_VECTOR) {
 			for(auto it = get_node(from)->t_vector->begin(); it; it++) {
-				ret->push_front_inplace(*it);
+				ret->push_back_inplace(*it);
 			}
 		} else if(get_node_type(from) == NODE_LAZY_LIST) {
 			for(lazy_list_iterator_t lit(env, from); !lit.done(); lit.next()) {
-				ret->push_front_inplace(lit.val);
+				ret->push_back_inplace(lit.val);
 			}
 		} else if(get_node_type(from) == NODE_MAP) {
 			map_ptr_t from_map = get_node(from)->t_map;
 			for(auto it = from_map->begin(); it != from_map->end(); it++) {
-				ret->push_front_inplace(it->second);
+				ret->push_back_inplace(it->second);
 			}
 		} else if(get_node_type(from) == NODE_HASH_SET) {
 			hash_set_ptr_t from_set = get_node(from)->t_set;
 			for(auto it = from_set->begin(); it != from_set->end(); it++) {
-				ret->push_front_inplace(it->first);
+				ret->push_back_inplace(it->first);
 			}
 		}
 		return new_node_vector(ret);
