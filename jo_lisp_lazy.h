@@ -1066,6 +1066,47 @@ static node_idx_t native_lazy_seq_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(l);
 }
 
+// (seq coll)
+// Returns a seq on the collection. If the collection is
+// empty, returns nil.  (seq nil) returns nil. seq also works on
+// Strings, native Java arrays (of reference types) and any objects
+// that implement Iterable. Note that seqs cache values, thus seq
+// should not be used on any Iterable whose iterator repeatedly
+// returns the same mutable object.
+static node_idx_t native_seq(env_ptr_t env, list_ptr_t args) {
+	node_idx_t x = args->first_value();
+	if(x <= NIL_NODE) {
+		return NIL_NODE;
+	}
+	node_t *n = get_node(x);
+	if(!n->is_seq()) {
+		return NIL_NODE;
+	}
+	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
+	node_t *lazy_func = get_node(lazy_func_idx);
+	lazy_func->t_list = new_list();
+	lazy_func->t_list->push_front_inplace(x);
+	lazy_func->t_list->push_front_inplace(env->get("seq-next").value);
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+static node_idx_t native_seq_next(env_ptr_t env, list_ptr_t args) {
+	node_idx_t x = args->first_value();
+	if(x <= NIL_NODE) {
+		return NIL_NODE;
+	}
+	node_t *n = get_node(x);
+	if(!n->is_seq() || n->seq_empty(env)) {
+		return NIL_NODE;
+	}
+	auto fr = n->seq_first_rest(env);
+	list_ptr_t l = new_list();
+	l->push_front_inplace(fr.second);
+	l->push_front_inplace(env->get("seq-next").value);
+	l->push_front_inplace(fr.first);
+	return new_node_list(l);
+}
+
 // (cons x seq)
 // Returns a new seq where x is the first element and seq is the rest.
 // Note: cons is not actually lazy, but I think this implementation 
@@ -1092,8 +1133,8 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 	node_t *first = get_node(first_idx);
 	node_t *second = get_node(second_idx);
 	if(second->type == NODE_STRING) {
-		jo_string s = second->as_string();
-		jo_string s2 = first->as_string();
+		jo_string s = second->as_string(env);
+		jo_string s2 = first->as_string(env);
 		jo_string s3 = s2 + s;
 		return new_node_string(s3);
 	}
@@ -1440,6 +1481,8 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("interleave-next", new_node_native_function("interleave-next", &native_interleave_next, true));
 	env->set("flatten", new_node_native_function("flatten", &native_flatten, false));
 	env->set("flatten-next", new_node_native_function("flatten-next", &native_flatten_next, true));
+	env->set("seq", new_node_native_function("seq", &native_seq, true));
+	env->set("seq-next", new_node_native_function("seq-next", &native_seq_next, true));
 	env->set("lazy-seq", new_node_native_function("lazy-seq", &native_lazy_seq, true));
 	env->set("lazy-seq-next", new_node_native_function("lazy-seq-next", &native_lazy_seq_next, true));
 	env->set("cons", new_node_native_function("cons", &native_cons, false));

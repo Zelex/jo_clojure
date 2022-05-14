@@ -136,7 +136,7 @@ static inline node_t *get_node(node_idx_t idx);
 static inline int get_node_type(node_idx_t idx);
 static inline int get_node_type(const node_t *n);
 static inline int get_node_flags(node_idx_t idx);
-static inline jo_string get_node_string(node_idx_t idx);
+static inline jo_string get_node_string(env_ptr_t env, node_idx_t idx);
 static inline node_idx_t get_node_var(node_idx_t idx);
 static inline bool get_node_bool(node_idx_t idx);
 static inline list_ptr_t get_node_list(node_idx_t idx);
@@ -343,7 +343,7 @@ struct env_t {
 			if(get_node_type(key_idx) == NODE_LIST && get_node_type(value_idx) == NODE_LIST) {
 				set_temp(get_node_list(key_idx), get_node_list(value_idx));
 			} else {
-				set_temp(get_node_string(key_idx), value_idx);
+				set_temp(get_node_string(this, key_idx), value_idx);
 			}
 		}
 	}
@@ -671,7 +671,7 @@ struct node_t {
 		return 0;
 	}
 
-	jo_string as_string(int pretty = 0) const {
+	jo_string as_string(env_ptr_t env, int pretty = 0) const {
 		switch(type) {
 		case NODE_NIL:    return "nil";
 		case NODE_BOOL:   return t_bool ? "true" : "false";
@@ -687,7 +687,7 @@ struct node_t {
 				jo_string s;
 				s = '(';
 				for(auto it = t_list->begin(); it;) {
-					s += get_node(*it)->as_string(2);
+					s += get_node(*it)->as_string(env, 2);
 					++it;
 					if(it) {
 						s += " ";
@@ -701,7 +701,7 @@ struct node_t {
 				jo_string s;
 				s = '[';
 				for(auto it = t_vector->begin(); it;) {
-					s += get_node(*it)->as_string(2);
+					s += get_node(*it)->as_string(env, 2);
 					++it;
 					if(it) {
 						s += " ";
@@ -715,9 +715,9 @@ struct node_t {
 				jo_string s;
 				s = '{';
 				for(auto it = t_map->begin(); it;) {
-					s += get_node(it->first)->as_string(2);
+					s += get_node(it->first)->as_string(env, 2);
 					s += " ";
-					s += get_node(it->second)->as_string(2);
+					s += get_node(it->second)->as_string(env, 2);
 					++it;
 					if(it) {
 						s += ", ";
@@ -731,13 +731,27 @@ struct node_t {
 				jo_string s;
 				s = "#{";
 				for(auto it = t_set->begin(); it;) {
-					s += get_node(it->first)->as_string(2);
+					s += get_node(it->first)->as_string(env, 2);
 					++it;
 					if(it) {
 						s += " ";
 					}
 				}
 				s += '}';
+				return s;
+			}
+		case NODE_LAZY_LIST:
+			{
+				int left = 256;
+				jo_string s;
+				s = '(';
+				for(lazy_list_iterator_t lit(env, this); !lit.done() && left; lit.next(), --left) {
+					s += get_node(lit.val)->as_string(env, 2);
+					if(!lit.done()) {
+						s += " ";
+					}
+				}
+				s += ')';
 				return s;
 			}
 		}
@@ -780,7 +794,7 @@ static inline node_t *get_node(node_idx_t idx) { return &nodes[idx]; }
 static inline int get_node_type(node_idx_t idx) { return get_node(idx)->type; }
 static inline int get_node_type(const node_t *n) { return n->type; }
 static inline int get_node_flags(node_idx_t idx) { return get_node(idx)->flags; }
-static inline jo_string get_node_string(node_idx_t idx) { return get_node(idx)->as_string(); }
+static inline jo_string get_node_string(env_ptr_t env, node_idx_t idx) { return get_node(idx)->as_string(env); }
 static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_var; }
 static inline bool get_node_bool(node_idx_t idx) { return get_node(idx)->as_bool(); }
 static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->as_list(); }
@@ -1451,7 +1465,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		vector_ptr_t arg_list = new_vector();
 		int num_args_used = 0;
 		for(list_t::iterator it = symbol_list->begin(); it; ++it) {
-			jo_string sym = get_node_string(*it);
+			jo_string sym = get_node_string(env, *it);
 			if(sym == "%") {
 				num_args_used = jo_max(num_args_used, 1);
 			} else if(sym.substr(0, 1) == "%") {
@@ -1579,14 +1593,14 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
 			sym_type = get_node_type(sym_idx);
 		} else if(n1_flags & NODE_FLAG_STRING) {
-			sym_idx = env->get(get_node_string(n1i)).value;
+			sym_idx = env->get(get_node_string(env, n1i)).value;
 			sym_type = get_node_type(sym_idx);
 		}
 		sym_flags = get_node(sym_idx)->flags;
 
 		// get the symbol's value
 		if(sym_type == NODE_NATIVE_FUNC) {
-			debugf("nativefn: %s\n", get_node_string(sym_idx).c_str());
+			debugf("nativefn: %s\n", get_node_string(env, sym_idx).c_str());
 			if((sym_flags|list_flags) & (NODE_FLAG_MACRO|NODE_FLAG_LITERAL_ARGS)) {
 				return (*get_node(sym_idx)->t_native_function.ptr)(env, list->rest());
 			}
@@ -1621,17 +1635,17 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 					int i_type = get_node_type(*i);
 					int i2_type = get_node_type(*i2);
 					if(i_type == NODE_SYMBOL) {
-						fn_env->set_temp(get_node_string(*i), is_macro ? *i2 : eval_node(env, *i2));
+						fn_env->set_temp(get_node_string(env, *i), is_macro ? *i2 : eval_node(env, *i2));
 					} else if(i_type == NODE_VECTOR && i2_type == NODE_VECTOR) {
 						for(vector_t::iterator i3 = get_node(*i)->t_vector->begin(), i4 = get_node(*i2)->t_vector->begin(); i3 && i4; i3++, i4++) {
-							fn_env->set_temp(get_node_string(*i3), is_macro ? *i4 : eval_node(env, *i4));
+							fn_env->set_temp(get_node_string(env, *i3), is_macro ? *i4 : eval_node(env, *i4));
 						}
 					} else if(i_type == NODE_LIST && i2_type == NODE_LIST) {
 						for(list_t::iterator i3 = get_node(*i)->t_list->begin(), i4 = get_node(*i2)->t_list->begin(); i3 && i4; i3++, i4++) {
-							fn_env->set_temp(get_node_string(*i3), is_macro ? *i4 : eval_node(env, *i4));
+							fn_env->set_temp(get_node_string(env, *i3), is_macro ? *i4 : eval_node(env, *i4));
 						}
 					} else {
-						fn_env->set_temp(get_node_string(*i), *i2);
+						fn_env->set_temp(get_node_string(env, *i), *i2);
 					}
 				}
 			}
@@ -1683,7 +1697,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 	if(type == NODE_LIST) {
 		return eval_list(env, get_node(root)->t_list, flags);
 	} else if(type == NODE_SYMBOL) {
-		auto sym = env->get(get_node_string(root));
+		auto sym = env->get(get_node_string(env, root));
 		if(!sym.valid) {
 			return root;
 		}
@@ -1798,13 +1812,13 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		}
 		printf("}");
 	} else if(type == NODE_SYMBOL) {
-		printf("%s", get_node_string(node).c_str());
+		printf("%s", get_node(node)->t_string.c_str());
 	} else if(type == NODE_KEYWORD) {
-		printf(":%s", get_node_string(node).c_str());
+		printf(":%s", get_node(node)->t_string.c_str());
 	} else if(type == NODE_STRING) {
-		printf("\"%s\"", get_node_string(node).c_str());
+		printf("\"%s\"", get_node(node)->t_string.c_str());
 	} else if(type == NODE_NATIVE_FUNC) {
-		printf("%s", get_node_string(node).c_str());
+		printf("%s", get_node(node)->t_string.c_str());
 	} else if(type == NODE_FUNC) {
 		print_node_vector(get_node_func_args(node), depth+1);
 		print_node_list(get_node_func_body(node), depth+1);
@@ -1832,11 +1846,11 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		print_node(n->t_lazy_fn, depth + 1);
 		printf("%*s)\n", depth, "");
 	} else if(n->type == NODE_STRING) {
-		printf("%*s\"%s\"\n", depth, "", get_node_string(node).c_str());
+		printf("%*s\"%s\"\n", depth, "", get_node(node).t_string.c_str());
 	} else if(n->type == NODE_SYMBOL) {
-		printf("%*s%s\n", depth, "", get_node_string(node).c_str());
+		printf("%*s%s\n", depth, "", get_node(node).t_string.c_str());
 	} else if(n->type == NODE_KEYWORD) {
-		printf("%*s:%s\n", depth, "", get_node_string(node).c_str());
+		printf("%*s:%s\n", depth, "", get_node(node).t_string.c_str());
 	} else if(n->type == NODE_INT) {
 		printf("%*s%d\n", depth, "", n->t_int);
 	} else if(n->type == NODE_FLOAT) {
@@ -1855,7 +1869,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		print_node_list(n->t_func.body, depth + 1);
 		printf("%*s)\n", depth, "");
 	} else if(n->type == NODE_VAR) {
-		printf("%*s%s = ", depth, "", get_node_string(node).c_str());
+		printf("%*s%s = ", depth, "", get_node(node).t_string.c_str());
 		print_node(n->t_var, depth + 1);
 	} else if(n->type == NODE_MAP) {
 		printf("%*s<map>\n", depth, "");
@@ -2297,7 +2311,7 @@ static node_idx_t native_if_let(env_ptr_t env, list_ptr_t args) {
 	node_idx_t key_idx = bindings_list->first_value(); // TODO: should this be eval'd?
 	node_idx_t value_idx = eval_node(env2, bindings_list->last_value());
 	node_t *key = get_node(key_idx);
-	env2->set_temp(key->as_string(), value_idx);
+	env2->set_temp(key->as_string(env2), value_idx);
 	node_idx_t when_true = *i++;
 	node_idx_t when_false = i ? *i++ : NIL_NODE;
 	return eval_node(env2, !get_node(value_idx)->as_bool() ? when_true : when_false);
@@ -2318,7 +2332,7 @@ static node_idx_t native_if_some(env_ptr_t env, list_ptr_t args) {
 	node_idx_t key_idx = bindings_list->first_value(); // TODO: should this be eval'd?
 	node_idx_t value_idx = eval_node(env2, bindings_list->last_value());
 	node_t *key = get_node(key_idx);
-	env2->set_temp(key->as_string(), value_idx);
+	env2->set_temp(key->as_string(env2), value_idx);
 	node_idx_t when_true = *i++;
 	node_idx_t when_false = i ? *i++ : NIL_NODE;
 	return eval_node(env2, value_idx != NIL_NODE ? when_true : when_false);
@@ -2327,7 +2341,7 @@ static node_idx_t native_if_some(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator i = args->begin(); i;) {
 		node_idx_t n = *i++;
-		printf(i ? "%s " : "%s", get_node(n)->as_string(true).c_str());
+		printf(i ? "%s " : "%s", get_node(n)->as_string(env, true).c_str());
 	}
 	return NIL_NODE;
 }
@@ -2336,7 +2350,7 @@ static node_idx_t native_print_str(env_ptr_t env, list_ptr_t args) {
 	jo_string s;
 	for(list_t::iterator i = args->begin(); i;) {
 		node_idx_t n = *i++;
-		s += get_node(n)->as_string(true);
+		s += get_node(n)->as_string(env, true);
 		if(i) {
 			s += " ";
 		}
@@ -2354,7 +2368,7 @@ static node_idx_t native_println_str(env_ptr_t env, list_ptr_t args) {
 	jo_string s;
 	for(list_t::iterator i = args->begin(); i;) {
 		node_idx_t n = *i++;
-		s += get_node(n)->as_string(true);
+		s += get_node(n)->as_string(env, true);
 		if(i) {
 			s += " ";
 		}
@@ -2552,8 +2566,8 @@ expands to (var x).
 static node_idx_t native_var(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
 	node_t *n = get_node(*i++);
-	if(env->has(n->as_string())) {
-		return env->find(n->as_string()).var;
+	if(env->has(n->as_string(env))) {
+		return env->find(n->as_string(env)).var;
 	}
 	return NIL_NODE;
 }
@@ -2574,7 +2588,7 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i = args->begin();
 	node_idx_t sym_node_idx = *i++;
-	jo_string sym_node = get_node(sym_node_idx)->as_string();
+	jo_string sym_node = get_node(sym_node_idx)->as_string(env);
 	node_idx_t init = NIL_NODE;
 	if(i) {
 		node_idx_t doc_string = *i++; // ignored for eval purposes if present
@@ -2599,7 +2613,7 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 // defs name to have the root value of the expr if the named var has no root value,
 // else expr is unevaluated
 static node_idx_t native_defonce(env_ptr_t env, list_ptr_t args) {
-	if(env->has(get_node_string(args->first_value()))) {
+	if(env->has(get_node_string(env, args->first_value()))) {
 		return NIL_NODE;
 	}
 	return native_def(env, args);
@@ -2611,7 +2625,7 @@ static node_idx_t native_declare(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator i = args->begin(); i; i++) {
 		node_t *n = get_node(*i);
 		if(n->is_symbol()) {
-			env->set(n->as_string(), NIL_NODE);
+			env->set(n->as_string(env), NIL_NODE);
 		}
 	}
 	return NIL_NODE;
@@ -2645,7 +2659,7 @@ static node_idx_t native_fn_macro(env_ptr_t env, list_ptr_t args, bool macro) {
 
 	jo_string private_fn_name;
 	if(get_node_type(*i) == NODE_SYMBOL) {
-		private_fn_name = get_node_string(*i++);
+		private_fn_name = get_node_string(env, *i++);
 		if(get_node_type(*i) == NODE_VECTOR) {
 			return native_fn_internal(env, args->rest(), private_fn_name, flags);
 		}
@@ -2691,7 +2705,7 @@ static node_idx_t native_macro(env_ptr_t env, list_ptr_t args) { return native_f
 static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
 	node_idx_t sym_node_idx = *i++;
-	jo_string sym_node = get_node(sym_node_idx)->as_string();
+	jo_string sym_node = get_node(sym_node_idx)->as_string(env);
 	node_idx_t doc_string = NIL_NODE;
 	if(get_node_type(*i) == NODE_STRING) {
 		doc_string = *i++;
@@ -2717,7 +2731,7 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_defmacro(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i = args->begin();
 	node_idx_t sym_node_idx = *i++;
-	jo_string sym_node = get_node(sym_node_idx)->as_string();
+	jo_string sym_node = get_node(sym_node_idx)->as_string(env);
 	node_idx_t doc_string = NIL_NODE;
 	if(get_node_type(*i) == NODE_STRING) {
 		doc_string = *i++;
@@ -2807,7 +2821,7 @@ static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
 	node_idx_t name_idx = binding_list->first_value();
 	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
 	int times = get_node(value_idx)->as_int();
-	jo_string name = get_node(name_idx)->as_string();
+	jo_string name = get_node(name_idx)->as_string(env);
 	env_ptr_t env2 = new_env(env);
 	node_idx_t ret = NIL_NODE;
 	for(int i = 0; i < times; ++i) {
@@ -2841,7 +2855,7 @@ static node_idx_t native_doseq(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t name_idx = binding_list->first_value();
 	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
-	jo_string name = get_node(name_idx)->as_string();
+	jo_string name = get_node(name_idx)->as_string(env);
 	node_t *value = get_node(value_idx);
 	node_idx_t ret = NIL_NODE;
 	env_ptr_t env2 = new_env(env);
@@ -2899,7 +2913,7 @@ static node_idx_t native_when_let(env_ptr_t env, list_ptr_t args) {
 		if(get_node_type(key_idx) == NODE_VECTOR && get_node_type(value_idx) == NODE_LIST) {
 			env2->set_temp(get_node_vector(key_idx), get_node_list(value_idx));
 		} else {
-			env2->set_temp(get_node_string(key_idx), value_idx);
+			env2->set_temp(get_node_string(env, key_idx), value_idx);
 		}
 	}
 	node_idx_t ret = NIL_NODE;
@@ -2961,7 +2975,7 @@ static node_idx_t native_pop(env_ptr_t env, list_ptr_t args) {
 		return new_node_vector(list_vec->pop());
 	}
 	if(list->is_string()) {
-		jo_string list_str = list->as_string();
+		jo_string list_str = list->as_string(env);
 		if(list_str.size() == 0) return NIL_NODE;
 		return new_node_string(list_str.substr(1));
 	}
@@ -2984,7 +2998,7 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 		return list_vec->first_value();
 	}
 	if(list->is_string()) {
-		jo_string s = list->as_string();
+		jo_string s = list->as_string(env);
 		if(s.size() == 0) return NIL_NODE;
 		return new_node_int(s.c_str()[0]);
 	}
@@ -3027,7 +3041,7 @@ static node_idx_t native_first(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
-	if(node->is_string()) return new_node_int(node->as_string().c_str()[0]);
+	if(node->is_string()) return new_node_int(node->as_string(env).c_str()[0]);
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		if(list_list->size() == 0) return NIL_NODE;
@@ -3049,7 +3063,7 @@ static node_idx_t native_second(env_ptr_t env, list_ptr_t args) {
 	if(node->is_string()) {
 		jo_string &str = node->t_string;
 		if(str.size() < 2) return NIL_NODE;
-		return new_node_int(node->as_string().c_str()[1]);
+		return new_node_int(node->as_string(env).c_str()[1]);
 	}
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
@@ -3074,7 +3088,7 @@ static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
 	if(node->is_string()) {
 		jo_string &str = node->t_string;
 		if(str.size() < 1) return NIL_NODE;
-		return new_node_int(node->as_string().c_str()[str.size() - 1]);
+		return new_node_int(node->as_string(env).c_str()[str.size() - 1]);
 	}
 	if(node->is_list()) return node->as_list()->last_value();
 	if(node->is_vector()) return node->as_vector()->last_value();
@@ -3270,7 +3284,7 @@ static node_idx_t native_let(env_ptr_t env, list_ptr_t args) {
 		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
 		node_idx_t value_idx = eval_node(env2, *i++);
 		node_t *key = get_node(key_idx);
-		env2->set_temp(key->as_string(), value_idx);
+		env2->set_temp(key->as_string(env), value_idx);
 	}
 	return eval_node_list(env2, args->rest());
 }
@@ -3421,7 +3435,7 @@ static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it = args->begin();
 	int node_idx = *it++;
     node_t *node = get_node(node_idx);
-	if(node->is_string()) return new_node_string(node->as_string().reverse());
+	if(node->is_string()) return new_node_string(node->as_string(env).reverse());
 	if(node->is_list()) return new_node_list(node->as_list()->reverse());
 	if(node->is_vector()) return new_node_vector(node->as_vector()->reverse());
 	if(node->is_map()) return node_idx; // nonsensical to reverse an "unordered" map. just give back the input.
@@ -4426,7 +4440,7 @@ static node_idx_t native_not_empty(env_ptr_t env, list_ptr_t args) {
 		}
 		return coll_idx;
 	} else if(coll_type == NODE_STRING) {
-		jo_string coll = get_node_string(coll_idx);
+		jo_string coll = get_node_string(env, coll_idx);
 		if(coll.empty()) {
 			return NIL_NODE;
 		}
@@ -4533,7 +4547,7 @@ static node_idx_t native_split_at(env_ptr_t env, list_ptr_t args) {
 		vec->push_back_inplace(new_node_list(coll->take(n)));
 		vec->push_back_inplace(new_node_list(coll->drop(n)));
 	} else if(coll_type == NODE_STRING) {
-		jo_string coll = get_node_string(coll_idx);
+		jo_string coll = get_node_string(env, coll_idx);
 		if(n > coll.size()) {
 			n = coll.size();
 		}
@@ -4580,7 +4594,7 @@ static node_idx_t native_split_with(env_ptr_t env, list_ptr_t args) {
 			B->push_back_inplace(*it);
 		}
 	} else if(coll_type == NODE_STRING) {
-		jo_string coll = get_node_string(coll_idx);
+		jo_string coll = get_node_string(env, coll_idx);
 		auto it = coll.begin();
 		auto it_end = coll.end();
 		for(; it != it_end; it++) {

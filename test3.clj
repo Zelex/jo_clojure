@@ -114,4 +114,7 @@
 ;#{:a :b :c :b}
 ;(into [] #{:a :b :a :c})
 
-(into #{} [:a :b :a :c])
+;(into #{} [:a :b :a :c])
+
+(seq [:c :b :a])
+

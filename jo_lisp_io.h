@@ -39,7 +39,7 @@ static node_idx_t native_io_file_seq(env_ptr_t env, list_ptr_t args) {
 // this API is OK
 static node_idx_t native_io_slurp(env_ptr_t env, list_ptr_t args) {
 	// TODO: HTTP/HTTPS!
-    jo_string path = get_node_string(args->first_value());
+    jo_string path = get_node_string(env, args->first_value());
     char *c = (char*)jo_slurp_file(path.c_str());
     node_idx_t ret = new_node_string(c);
     free(c);
@@ -49,8 +49,8 @@ static node_idx_t native_io_slurp(env_ptr_t env, list_ptr_t args) {
 // this API is OK
 static node_idx_t native_io_spit(env_ptr_t env, list_ptr_t args) {
 	// TODO: HTTP/HTTPS!
-    jo_string path = get_node_string(args->first_value());
-    jo_string contents_str = get_node_string(args->second_value());
+    jo_string path = get_node_string(env, args->first_value());
+    jo_string contents_str = get_node_string(env, args->second_value());
     return new_node_bool(jo_spit_file(path.c_str(), contents_str.c_str()) == 0);
 }
 
@@ -63,21 +63,21 @@ static node_idx_t native_io_open_file(env_ptr_t env, list_ptr_t args) {
         return NIL_NODE;
     }
     list_t::iterator it = args->begin();
-    jo_string opts = get_node_string(*it++);
+    jo_string opts = get_node_string(env, *it++);
     jo_string str;
     for(; it; it++) {
 		node_t *n = get_node(*it);
         #ifdef _WIN32
             if(str.empty()) {
-                str += n->as_string().replace("/", "\\");
+                str += n->as_string(env).replace("/", "\\");
             } else {
-                str += "\\" + n->as_string().replace("/", "\\");
+                str += "\\" + n->as_string(env).replace("/", "\\");
             }
         #else
             if(str.empty()) {
-                str += n->as_string().replace("\\", "/");
+                str += n->as_string(env).replace("\\", "/");
             } else {
-                str += "/" + n->as_string().replace("\\", "/");
+                str += "/" + n->as_string(env).replace("\\", "/");
             }
         #endif
 	}
@@ -123,7 +123,7 @@ static node_idx_t native_io_write_line(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
-    jo_string str = get_node_string(args->second_value());
+    jo_string str = get_node_string(env, args->second_value());
     fputs(str.c_str(), n->t_file);
     fputs("\n", n->t_file);
     return NIL_NODE;
@@ -189,32 +189,32 @@ static node_idx_t native_io_eof(env_ptr_t env, list_ptr_t args) {
 // (io/file-exists? file)
 // Returns true if the file exists.
 static node_idx_t native_io_file_exists(env_ptr_t env, list_ptr_t args) {
-    return new_node_bool(jo_file_exists(get_node_string(args->first_value()).c_str()));
+    return new_node_bool(jo_file_exists(get_node_string(env, args->first_value()).c_str()));
 }
 
 // (io/file-readable? file)
 // Returns true if the file is readable.
 static node_idx_t native_io_file_readable(env_ptr_t env, list_ptr_t args) {
-    return new_node_bool(jo_file_readable(get_node_string(args->first_value()).c_str()));
+    return new_node_bool(jo_file_readable(get_node_string(env, args->first_value()).c_str()));
 }
 
 // (io/file-writable? file)
 // Returns true if the file is writable.
 static node_idx_t native_io_file_writable(env_ptr_t env, list_ptr_t args) {
-    return new_node_bool(jo_file_writable(get_node_string(args->first_value()).c_str()));
+    return new_node_bool(jo_file_writable(get_node_string(env, args->first_value()).c_str()));
 }
 
 // (io/file-executable? file)
 // Returns true if the file is executable.
 static node_idx_t native_io_file_executable(env_ptr_t env, list_ptr_t args) {
-    return new_node_bool(jo_file_executable(get_node_string(args->first_value()).c_str()));
+    return new_node_bool(jo_file_executable(get_node_string(env, args->first_value()).c_str()));
 }
 
 // (io/delete-file f & [silently])
 // Delete file f. If silently is nil or false, raise an exception on failure, 
 // else return the value of silently.
 static node_idx_t native_io_delete_file(env_ptr_t env, list_ptr_t args) {
-    jo_string path = get_node_string(args->first_value());
+    jo_string path = get_node_string(env, args->first_value());
 #ifdef _WIN32
     if(!DeleteFile(path.c_str())) {
 #else
@@ -230,16 +230,16 @@ static node_idx_t native_io_delete_file(env_ptr_t env, list_ptr_t args) {
 // (copy input output)
 // Copies input to output.
 static node_idx_t native_io_copy(env_ptr_t env, list_ptr_t args) {
-    jo_string input = get_node_string(args->first_value());
-    jo_string output = get_node_string(args->second_value());
+    jo_string input = get_node_string(env, args->first_value());
+    jo_string output = get_node_string(env, args->second_value());
     return new_node_bool(jo_file_copy(input.c_str(), output.c_str()) == 0);
 }
 
 // (io/proc-open cmd opts)
 // Opens a pipe to cmd.
 static node_idx_t native_io_open_proc(env_ptr_t env, list_ptr_t args) {
-    jo_string cmd = get_node_string(args->first_value());
-    jo_string opts = get_node_string(args->second_value());
+    jo_string cmd = get_node_string(env, args->first_value());
+    jo_string opts = get_node_string(env, args->second_value());
     FILE *fp = popen(cmd.c_str(), opts.c_str());
     if(!fp) {
         return NIL_NODE;
@@ -266,7 +266,7 @@ static node_idx_t native_io_write_str(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
-    jo_string str = get_node_string(args->second_value());
+    jo_string str = get_node_string(env, args->second_value());
     fputs(str.c_str(), n->t_file);
     return NIL_NODE;
 }
@@ -377,7 +377,7 @@ static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_io_open_dir(env_ptr_t env, list_ptr_t args) {
-    jo_string str = get_node_string(args->first_value());
+    jo_string str = get_node_string(env, args->first_value());
 #ifdef _WIN32
     HANDLE h = FindFirstFile(str.c_str(), NULL);
     if(h == INVALID_HANDLE_VALUE) {

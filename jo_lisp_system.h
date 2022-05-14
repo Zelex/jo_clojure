@@ -10,7 +10,7 @@ static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
 		str += " ";
-		str += n->as_string();
+		str += n->as_string(env);
 	}
 	//printf("system_exec: %s\n", str.c_str());
 	int ret = system(str.c_str());
@@ -22,23 +22,23 @@ static node_idx_t native_system_setenv(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
-	jo_string key = node->as_string();
+	jo_string key = node->as_string(env);
 	node_idx_t value_idx = *it++;
 	node_t *value = get_node(value_idx);
-	jo_string value_str = value->as_string();
+	jo_string value_str = value->as_string(env);
 	jo_setenv(key.c_str(), value_str.c_str(), 1);
 	return NIL_NODE;
 }
 
-static node_idx_t native_system_getenv(env_ptr_t env, list_ptr_t args) { return new_node_string(getenv(get_node_string(args->first_value()).c_str())); }
-static node_idx_t native_system_dir_exists(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_dir_exists(get_node_string(args->first_value()).c_str())); }
-static node_idx_t native_system_file_exists(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_exists(get_node_string(args->first_value()).c_str())); }
-static node_idx_t native_system_file_size(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_file_size(get_node_string(args->first_value()).c_str())); }
-static node_idx_t native_system_file_readable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_readable(get_node_string(args->first_value()).c_str())); }
-static node_idx_t native_system_file_writable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_writable(get_node_string(args->first_value()).c_str())); }
-static node_idx_t native_system_file_executable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_executable(get_node_string(args->first_value()).c_str())); }
-static node_idx_t native_system_file_empty(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_empty(get_node_string(args->first_value()).c_str())); }
-static node_idx_t native_system_chdir(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_chdir(get_node_string(args->first_value()).c_str()) == 0); }
+static node_idx_t native_system_getenv(env_ptr_t env, list_ptr_t args) { return new_node_string(getenv(get_node_string(env, args->first_value()).c_str())); }
+static node_idx_t native_system_dir_exists(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_dir_exists(get_node_string(env, args->first_value()).c_str())); }
+static node_idx_t native_system_file_exists(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_exists(get_node_string(env, args->first_value()).c_str())); }
+static node_idx_t native_system_file_size(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_file_size(get_node_string(env, args->first_value()).c_str())); }
+static node_idx_t native_system_file_readable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_readable(get_node_string(env, args->first_value()).c_str())); }
+static node_idx_t native_system_file_writable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_writable(get_node_string(env, args->first_value()).c_str())); }
+static node_idx_t native_system_file_executable(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_executable(get_node_string(env, args->first_value()).c_str())); }
+static node_idx_t native_system_file_empty(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_empty(get_node_string(env, args->first_value()).c_str())); }
+static node_idx_t native_system_chdir(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_chdir(get_node_string(env, args->first_value()).c_str()) == 0); }
 static node_idx_t native_system_kbhit(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_kbhit() != 0); }
 static node_idx_t native_system_getch(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_getch()); }
 // returns current time since program start in seconds

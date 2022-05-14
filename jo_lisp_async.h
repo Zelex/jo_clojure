@@ -29,12 +29,12 @@ static node_idx_t native_atom(env_ptr_t env, list_ptr_t args) {
 			warnf("(atom) options must be keywords\n");
 			return NIL_NODE;
 		}
-		if(get_node_string(*it) == "meta") {
+		if(get_node_string(env, *it) == "meta") {
 			meta_idx = eval_node(env, *++it);
-		} else if(get_node_string(*it) == "validator") {
+		} else if(get_node_string(env, *it) == "validator") {
 			validator_idx = eval_node(env, *++it);
 		} else {
-			warnf("(atom) unknown option: %s\n", get_node_string(*it).c_str());
+			warnf("(atom) unknown option: %s\n", get_node_string(env, *it).c_str());
 			return NIL_NODE;
 		}
 	}
