@@ -339,7 +339,6 @@ select-keys
 send
 send-off
 send-via
-seq
 seq?
 seque
 sequence
