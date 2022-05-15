@@ -119,7 +119,6 @@ denominator
 derive
 descendants
 destructure
-disj
 disj!
 dissoc!
 doto
