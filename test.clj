@@ -150,7 +150,8 @@
 (defn when-let-test []
   (is (= nil   (when-let [a nil] a)))
   (is (= 5     (when-let [a 5]   a)))
-  (is (= 2     (when-let [[_ a]  (list 1 2)] a))))
+  (is (= 2     (when-let [[_ a]  (list 1 2)] a)))
+  )
 (defn for-test []
   (is (= (list 1 2 3) (for [x (list 1 2 3)] x)))
   (is (= (list 1 4 6) (for [x (list 1 2 3)] (* x 2))))
@@ -656,6 +657,10 @@
 (is (= (split-with (partial >= 3) [1 2 3 4 5]) [(1 2 3) (4 5)]))
 (is (= (split-with (partial > 3) [1 2 3 2 1]) [(1 2) (3 2 1)]))
 
+;(is (= (disj #{1 2 3}) #{1 2 3}))
+;(is (= (disj #{1 2 3} 2) #{1 3}))
+;(is (= (disj #{1 2 3} 4) #{1 2 3}))
+;(is (= (disj #{1 2 3} 1 3) #{2}))
 
 (string-test)
 (if-test)

@@ -115,6 +115,8 @@
 ;(into [] #{:a :b :a :c})
 
 ;(into #{} [:a :b :a :c])
+;(seq [:c :b :a])
+;(disj #{1 2 3})
 
-(seq [:c :b :a])
+(when-let [[_ a]  (list 1 2)]
 

@@ -343,7 +343,7 @@ struct env_t {
 			if(get_node_type(key_idx) == NODE_LIST && get_node_type(value_idx) == NODE_LIST) {
 				set_temp(get_node_list(key_idx), get_node_list(value_idx));
 			} else {
-				set_temp(get_node_string(this, key_idx), value_idx);
+				set_temp(get_node_string(NULL, key_idx), value_idx);
 			}
 		}
 	}
@@ -558,7 +558,7 @@ struct node_t {
 	bool is_list() const { return type == NODE_LIST; }
 	bool is_vector() const { return type == NODE_VECTOR; }
 	bool is_map() const { return type == NODE_MAP; }
-	bool is_set() const { return type == NODE_HASH_SET; }
+	bool is_hash_set() const { return type == NODE_HASH_SET; }
 	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
 	bool is_string() const { return type == NODE_STRING; }
 	bool is_func() const { return type == NODE_FUNC; }
@@ -570,14 +570,14 @@ struct node_t {
 	bool is_dir() const { return type == NODE_DIR; }
 	bool is_atom() const { return type == NODE_ATOM; }
 
-	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_vector(); }
+	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_hash_set() || is_vector(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
 
 	node_idx_t seq_first(env_ptr_t env) const {
 		if(is_list()) return t_list->first_value();
 		if(is_vector()) return t_vector->first_value();
 		if(is_map()) return t_map->first_value();
-		if(is_set()) return t_set->first_value();
+		if(is_hash_set()) return t_set->first_value();
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(env, this);
 			return lit.val;
@@ -589,7 +589,7 @@ struct node_t {
 		if(is_list()) return new_node_list(t_list->rest());
 		if(is_vector()) return new_node_vector(t_vector->rest());
 		if(is_map()) return new_node_map(t_map->rest());
-		if(is_set()) return new_node_hash_set(t_set->rest());
+		if(is_hash_set()) return new_node_hash_set(t_set->rest());
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(env, this);
 			return new_node_lazy_list(lit.next_fn());
@@ -601,7 +601,7 @@ struct node_t {
 		if(is_list()) return jo_pair<node_idx_t, node_idx_t>(t_list->first_value(), new_node_list(t_list->rest()));
 		if(is_vector()) return jo_pair<node_idx_t, node_idx_t>(t_vector->first_value(), new_node_vector(t_vector->rest()));
 		if(is_map()) return jo_pair<node_idx_t, node_idx_t>(t_map->first_value(), new_node_map(t_map->rest()));
-		if(is_set()) return jo_pair<node_idx_t, node_idx_t>(t_set->first_value(), new_node_hash_set(t_set->rest()));
+		if(is_hash_set()) return jo_pair<node_idx_t, node_idx_t>(t_set->first_value(), new_node_hash_set(t_set->rest()));
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(env, this);
 			return jo_pair<node_idx_t, node_idx_t>(lit.val, new_node_lazy_list(lit.next_fn()));
@@ -613,7 +613,7 @@ struct node_t {
 		if(is_list()) return t_list->empty();
 		if(is_vector()) return t_vector->empty();
 		if(is_map()) return t_map->size() == 0;
-		if(is_set()) return t_set->size() == 0;
+		if(is_hash_set()) return t_set->size() == 0;
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(env, this);
 			return lit.done();
@@ -3022,7 +3022,7 @@ static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
 	if(list->is_list()) { return new_node_int(list->t_list->size()); }
 	if(list->is_vector()) { return new_node_int(list->t_vector->size()); }
 	if(list->is_map()) { return new_node_int(list->t_map->size()); }
-	if(list->is_set()) { return new_node_int(list->t_set->size()); }
+	if(list->is_hash_set()) { return new_node_int(list->t_set->size()); }
 	if(list->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, list_idx);
 		return new_node_int(lit.all()->size());
@@ -3440,7 +3440,7 @@ static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
 	if(node->is_list()) return new_node_list(node->as_list()->reverse());
 	if(node->is_vector()) return new_node_vector(node->as_vector()->reverse());
 	if(node->is_map()) return node_idx; // nonsensical to reverse an "unordered" map. just give back the input.
-	if(node->is_set()) return node_idx; // nonsensical to reverse an "unordered" set. just give back the input.
+	if(node->is_hash_set()) return node_idx; // nonsensical to reverse an "unordered" set. just give back the input.
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(env, node_idx);
 		list_ptr_t list_list = new_list();
@@ -3648,7 +3648,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_map(map);
 	} 
-	if(map_node->is_set()) {
+	if(map_node->is_hash_set()) {
 		hash_set_ptr_t set = map_node->t_set;
 		while(it) {
 			node_idx_t key_idx = *it++;
@@ -3679,10 +3679,26 @@ static node_idx_t native_dissoc(env_ptr_t env, list_ptr_t args) {
 	if(map_node->is_map()) {
 		map_ptr_t map = map_node->t_map;
 		for(; it; it++) {
-			node_idx_t key_idx = *it;
-			map = map->dissoc(key_idx, [env](node_idx_t k, node_idx_t v) { return node_eq(env, k, v); });
+			map = map->dissoc(*it, [env](node_idx_t k, node_idx_t v) { return node_eq(env, k, v); });
 		}
 		return new_node_map(map);
+	} 
+	return NIL_NODE;
+}
+
+// (disj set)(disj set key)(disj set key & ks)
+// disj[oin]. Returns a new set of the same (hashed/sorted) type, that
+// does not contain key(s).
+static node_idx_t native_disj(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t set_idx = *it++;
+	node_t *set_node = get_node(set_idx);
+	if(set_node->is_hash_set()) {
+		hash_set_ptr_t set = set_node->t_set;
+		for(; it; it++) {
+			set = set->dissoc(*it, [env](node_idx_t a, node_idx_t b) { return node_eq(env, a, b); });
+		}
+		return new_node_hash_set(set);
 	} 
 	return NIL_NODE;
 }
@@ -3704,7 +3720,7 @@ static node_idx_t native_get(env_ptr_t env, list_ptr_t args) {
 		}
 		return not_found_idx;
 	}
-	if(map_node->is_set()) {
+	if(map_node->is_hash_set()) {
 		auto entry = map_node->t_set->find(key_idx, [env](node_idx_t k, node_idx_t v) { return node_eq(env, k, v); });
 		if(entry.second) {
 			return entry.first;
@@ -4885,6 +4901,7 @@ int main(int argc, char **argv) {
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
 	env->set("assoc-in", new_node_native_function("assoc-in", &native_assoc_in, false));
 	env->set("dissoc", new_node_native_function("dissoc", &native_dissoc, false));
+	env->set("disj", new_node_native_function("disj", &native_disj, false));
 	env->set("update", new_node_native_function("update", &native_update, false));
 	env->set("update-in", new_node_native_function("update-in", &native_update_in, false));
 	env->set("get", new_node_native_function("get", &native_get, false));
