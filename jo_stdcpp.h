@@ -4247,8 +4247,7 @@ struct jo_persistent_list {
             head->next = new node(value2, NULL);
             tail = head->next;
         } else {
-            head->next->next = new node(value2, NULL);
-            tail = head->next->next;
+            head->next = new node(value2, head->next);
         }
         length+=2;
         return this;
@@ -4272,15 +4271,13 @@ struct jo_persistent_list {
             head->next = new node(value2, NULL);
             tail = head->next;
         } else {
-            head->next->next = new node(value2, NULL);
-            tail = head->next->next;
+            head->next = new node(value2, head->next);
         }
         if(!head->next->next) {
             head->next->next = new node(value3, NULL);
             tail = head->next->next;
         } else {
-            head->next->next->next = new node(value3, NULL);
-            tail = head->next->next->next;
+            head->next->next = new node(value3, head->next->next);
         }
         length+=3;
         return this;
@@ -4304,22 +4301,19 @@ struct jo_persistent_list {
             head->next = new node(value2, NULL);
             tail = head->next;
         } else {
-            head->next->next = new node(value2, NULL);
-            tail = head->next->next;
+            head->next = new node(value2, head->next);
         }
         if(!head->next->next) {
             head->next->next = new node(value3, NULL);
             tail = head->next->next;
         } else {
-            head->next->next->next = new node(value3, NULL);
-            tail = head->next->next->next;
+            head->next->next = new node(value3, head->next->next);
         }
         if(!head->next->next->next) {
             head->next->next->next = new node(value4, NULL);
             tail = head->next->next->next;
         } else {
-            head->next->next->next->next = new node(value4, NULL);
-            tail = head->next->next->next->next;
+            head->next->next->next = new node(value4, head->next->next->next);
         }
         length+=4;
         return this;

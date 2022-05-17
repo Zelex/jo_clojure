@@ -118,5 +118,10 @@
 ;(seq [:c :b :a])
 ;(disj #{1 2 3})
 
-(when-let [[_ a]  (list 1 2)]
+;(when-let [[_ a]  (list 1 2)]
 
+(def my-atom (atom []))
+(swap! my-atom conj "test1\n")
+(swap! my-atom conj "test2\n")
+(swap! my-atom conj "test3\n")
+(doall (map print @my-atom))

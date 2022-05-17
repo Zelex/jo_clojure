@@ -1054,6 +1054,17 @@ static token_t get_token(parse_state_t *state) {
 					fprintf(stderr, "unterminated string on line %i\n", state->line_num);
 					exit(__LINE__);
 				}
+				switch(C) {
+				case 'n': C = '\n'; break;
+				case 't': C = '\t'; break;
+				case 'r': C = '\r'; break;
+				case '\\': C = '\\'; break;
+				case '"': C = '"'; break;
+				default:
+					fprintf(stderr, "unknown escape sequence \\%c on line %i\n", C, state->line_num);
+					exit(__LINE__);
+				}
+
 			} else if(C == '"') {
 				break;
 			}
@@ -2936,13 +2947,17 @@ static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 	vector_ptr_t vec;
 	if(first_type == NODE_NIL) {
 		list = new_list();
+		debugf("conj: nil\n");
 	} else if(first_type == NODE_LIST) {
 		list = get_node(first_idx)->as_list();
+		debugf("conj: list\n");
 	} else if(first_type == NODE_VECTOR) {
 		vec = get_node(first_idx)->as_vector();
+		debugf("conj: vector\n");
 	} else {
 		list = new_list();
 		list->push_front_inplace(first_idx);
+		debugf("conj: default %s\n", get_node_type_string(first_idx));
 	}
 	if(list.ptr) {
 		for(; it; it++) {
