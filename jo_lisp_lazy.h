@@ -1456,43 +1456,52 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	list_ptr_t state = new_list();
-	node_idx_t seq_idx = args->first_value();
-	vector_ptr_t seq_exprs = get_node_vector(seq_idx);
-	for(auto vit = seq_exprs->begin(); vit != seq_exprs->end();) {
-		node_idx_t binding_idx = *vit++;
-		int type = get_node_type(binding_idx);
-		if(type != NODE_SYMBOL) {
-			continue;
+	// for storing the state of the iterators
+	env_ptr_t E = new_env(env);
+
+	node_idx_t nfn_idx = new_node(NODE_NATIVE_FUNC, 0);
+	node_t *nfn = get_node(nfn_idx);
+	nfn->t_native_function = new native_func_t([E,nfn_idx](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
+		// reparent
+		E.ptr->parent = env2;
+
+		list_t::iterator it = args2->begin();
+		node_idx_t seq_idx = *it++;
+		node_idx_t body_idx = *it++;
+		node_t *seq = get_node(seq_idx);
+		vector_ptr_t seq_exprs = get_node_vector(seq_idx);
+		auto expr_it = seq_exprs->begin();
+		while(expr_it) {
+			node_idx_t binding_idx = *expr_it++;
+			node_t *binding = get_node(binding_idx);
+			if(!binding->is_symbol()) {
+				continue;
+			}
+			jo_string b_first = binding->t_string;
+			jo_string b_rest = b_first + "$$for";
+
+			node_idx_t val_idx = *expr_it++;
+			node_t *val = get_node(val_idx);
+			jo_pair<node_idx_t, node_idx_t> fr;
+			if(E.ptr->has(b_rest)) {
+				val_idx = E.ptr->get(b_rest).value;
+				val = get_node(val_idx);
+			}
+			fr = val->seq_first_rest(E);
+			E.ptr->set_temp(b_first, fr.first);
+			E.ptr->set_temp(b_rest, fr.second);
 		}
-		state->push_back_inplace(*vit++);
-	}
+
+		list_ptr_t L = new_list();
+		return new_node_list(args2->push_front2(0, nfn_idx));
+	});
 
 	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
 	node_t *lazy_func = get_node(lazy_func_idx);
-	lazy_func->t_list = args->push_front2(env->get("for-next").value, new_node_list(state));
+	//lazy_func->t_list = args->push_front2(env->get("for-next").value, new_node_list(state));
+	lazy_func->t_list = args->push_front(nfn_idx);
 	return new_node_lazy_list(lazy_func_idx);
 }
-
-static node_idx_t native_for_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	vector_ptr_t out_vec = new_vector();
-	node_idx_t state_idx = *it++;
-	node_idx_t seq_idx = *it++;
-	node_idx_t body_idx = *it++;
-	list_ptr_t state = get_node_list(state_idx);
-	vector_ptr_t seq_exprs = get_node_vector(seq_idx);
-	for(auto vit = seq_exprs->begin(); vit != seq_exprs->end();) {
-		node_idx_t expr_idx = *vit++;
-		node_idx_t coll_idx = *vit++;
-		node_t *coll = get_node(coll_idx);
-		auto fr = coll->seq_first_rest(env);
-
-		out_vec->push_back_inplace(expr_idx);
-	}
-
-}
-
 
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
