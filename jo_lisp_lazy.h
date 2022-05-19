@@ -1441,6 +1441,58 @@ static node_idx_t native_dedupe(env_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(new_node_list(list));
 }
 
+// (for seq-exprs body-expr)
+// List comprehension. Takes a vector of one or more
+// binding-form/collection-expr pairs, each followed by zero or more
+// modifiers, and yields a lazy sequence of evaluations of expr.
+// Collections are iterated in a nested fashion, rightmost fastest,
+// and nested coll-exprs can refer to bindings created in prior
+// binding-forms.  Supported modifiers are: :let [binding-form expr ...],
+// :while test, :when test.
+// (take 100 (for [x (range 100000000) y (range 1000000) :while (< y x)] [x y]))
+static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 2) {
+		warnf("(for) requires at least 2 arguments\n");
+		return NIL_NODE;
+	}
+
+	list_ptr_t state = new_list();
+	node_idx_t seq_idx = args->first_value();
+	vector_ptr_t seq_exprs = get_node_vector(seq_idx);
+	for(auto vit = seq_exprs->begin(); vit != seq_exprs->end();) {
+		node_idx_t binding_idx = *vit++;
+		int type = get_node_type(binding_idx);
+		if(type != NODE_SYMBOL) {
+			continue;
+		}
+		state->push_back_inplace(*vit++);
+	}
+
+	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
+	node_t *lazy_func = get_node(lazy_func_idx);
+	lazy_func->t_list = args->push_front2(env->get("for-next").value, new_node_list(state));
+	return new_node_lazy_list(lazy_func_idx);
+}
+
+static node_idx_t native_for_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	vector_ptr_t out_vec = new_vector();
+	node_idx_t state_idx = *it++;
+	node_idx_t seq_idx = *it++;
+	node_idx_t body_idx = *it++;
+	list_ptr_t state = get_node_list(state_idx);
+	vector_ptr_t seq_exprs = get_node_vector(seq_idx);
+	for(auto vit = seq_exprs->begin(); vit != seq_exprs->end();) {
+		node_idx_t expr_idx = *vit++;
+		node_idx_t coll_idx = *vit++;
+		node_t *coll = get_node(coll_idx);
+		auto fr = coll->seq_first_rest(env);
+
+		out_vec->push_back_inplace(expr_idx);
+	}
+
+}
+
 
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
