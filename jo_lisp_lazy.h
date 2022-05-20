@@ -1474,6 +1474,8 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		if(expr_idx != K_WHILE_NODE && expr_idx != K_WHEN_NODE && expr_idx != K_LET_NODE) {
 			PC_list->push_back_inplace(PC);
 		}
+		expr_it++;
+		PC++;
 	}
 
 	// for storing the state of the iterators
@@ -1497,7 +1499,6 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		env_ptr_t E = new_env(env2);
 		for(auto it = state_first->begin(); it; ++it) {
 			node_let(E, it->first, it->second);
-			//E->set_temp(get_node(it->first)->t_string, it->second);
 		}
 
 		if(PC > PC_list->size()-1) {
@@ -1530,7 +1531,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 				node_idx_t test_idx = eval_node(E, *expr_it++);
 				if(test_idx == FALSE_NODE) {
 					PC -= 1;
-					if(PC < 0) return NIL_NODE;
+					if(PC < 0) PC = 0;
 					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
 				}
 			} else {

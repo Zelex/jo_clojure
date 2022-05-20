@@ -132,5 +132,7 @@
 ;(def digits [1 2 3])
 ;(for [x1 digits x2 digits] (* x1 x2)) 
 
-(for [[x y] '([:a 1] [:b 2] [:c 0]) :when (= y 0)] x)
+;(for [[x y] '([:a 1] [:b 2] [:c 0]) :when (= y 0)] x)
+
+(for [x (range 3) y (range 3) :when (not= x y)] [x y]) 
 
