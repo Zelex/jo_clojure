@@ -13,7 +13,9 @@
 #include "jo_stdcpp.h"
 
 //#define debugf printf
+#ifndef debugf
 #define debugf sizeof
+#endif
 
 #define warnf printf
 //#define warnf sizeof
@@ -53,6 +55,7 @@ enum {
 	K_WHEN_NODE,
 	K_WHILE_NODE,
 	K_LET_NODE,
+	K_PC_NODE,
 
 	// node types
 	NODE_NIL = 0,
@@ -102,6 +105,14 @@ struct node_idx_t {
 	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
 	bool operator==(int idx) const { return this->idx == idx; }
 	bool operator!=(int idx) const { return this->idx != idx; }
+	node_idx_t& operator++() { ++idx; return *this; }
+	node_idx_t& operator--() { --idx; return *this; }
+	node_idx_t operator++(int) { node_idx_t tmp = *this; ++idx; return tmp; }
+	node_idx_t operator--(int) { node_idx_t tmp = *this; --idx; return tmp; }
+	node_idx_t operator+(int i) const { return node_idx_t(idx + i); }
+	node_idx_t operator-(int i) const { return node_idx_t(idx - i); }
+	node_idx_t& operator+=(int i) { idx += i; return *this; }
+	node_idx_t& operator-=(int i) { idx -= i; return *this; }
 };
 
 typedef jo_persistent_list<node_idx_t> list_t;
@@ -1339,6 +1350,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "when") return K_WHEN_NODE;
 		if(tok.str == "while") return K_WHILE_NODE;
 		if(tok.str == "let") return K_LET_NODE;
+		if(tok.str == "PC") return K_PC_NODE;
 		return new_node_keyword(tok.str.c_str());
 	}
 	if(tok.type == TOK_SYMBOL) {
@@ -2957,7 +2969,7 @@ static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 	} else {
 		list = new_list();
 		list->push_front_inplace(first_idx);
-		debugf("conj: default %s\n", get_node_type_string(first_idx));
+		debugf("conj: default %s\n", get_node_type_string(first_idx).c_str());
 	}
 	if(list.ptr) {
 		for(; it; it++) {
@@ -4815,6 +4827,7 @@ int main(int argc, char **argv) {
 		new_node_keyword("when");
 		new_node_keyword("while");
 		new_node_keyword("let");
+		new_node_keyword("__PC__");
 	}
 
 	env->set("nil", NIL_NODE);

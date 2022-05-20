@@ -3202,6 +3202,18 @@ struct jo_persistent_vector
         return (*this)[index];
     }
 
+    T &nth_clamp(int index) {
+        index = index < 0 ? 0 : index;
+        index = index > (int)length-1 ? length-1 : index;
+        return (*this)[index];
+    }
+    
+    const T &nth_clamp(int index) const {
+        index = index < 0 ? 0 : index;
+        index = index > (int)length-1 ? length-1 : index;
+        return (*this)[index];
+    }
+
     const T &first_value() const {
         return (*this)[0];
     }

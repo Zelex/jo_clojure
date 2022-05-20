@@ -120,8 +120,17 @@
 
 ;(when-let [[_ a]  (list 1 2)]
 
-(def my-atom (atom []))
-(swap! my-atom conj "test1\n")
-(swap! my-atom conj "test2\n")
-(swap! my-atom conj "test3\n")
-(doall (map print @my-atom))
+;(def my-atom (atom []))
+;(swap! my-atom conj "test1\n")
+;(swap! my-atom conj "test2\n")
+;(swap! my-atom conj "test3\n")
+;(doall (map print @my-atom))
+
+;(def x 5)
+;(for [x [0 1 2 3 4 5] :let [y (* x 3)] :when (even? y)] y)
+
+;(def digits [1 2 3])
+;(for [x1 digits x2 digits] (* x1 x2)) 
+
+(for [[x y] '([:a 1] [:b 2] [:c 0]) :when (= y 0)] x)
+

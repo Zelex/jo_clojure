@@ -662,6 +662,16 @@
 ;(is (= (disj #{1 2 3} 4) #{1 2 3}))
 ;(is (= (disj #{1 2 3} 1 3) #{2}))
 
+(is (= (for [x [0 1 2 3 4 5], :let [y (* x 3)], :when (even? y)] y) (0 6 12)))
+(def digits [1 2 3])
+(is (= (for [x1 digits x2 digits] (* x1 x2)) (1 2 3 2 4 6 3 6 9)))
+(is (= (for [x ['a 'b 'c] y [1 2 3]] [x y]) (['a 1] ['a 2] ['a 3] ['b 1] ['b 2] ['b 3] ['c 1] ['c 2] ['c 3])))
+(is (= (for [x (range 1 6) :let [y (* x x) z (* x x x)]] [x y z]) ([1 1 1] [2 4 8] [3 9 27] [4 16 64] [5 25 125])))
+(is (= (for [x (range 6)] (* x x)) (0 1 4 9 16 25)))
+;(is (= (for [[x y] '([:a 1] [:b 2] [:c 0]) :when (= y 0)] x) (:c)))
+
+
+
 (string-test)
 (if-test)
 (when-test)

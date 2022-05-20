@@ -1456,51 +1456,122 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	// for storing the state of the iterators
-	env_ptr_t E = new_env(env);
+	node_idx_t seq_exprs_idx = args->first_value();
+	node_idx_t body_expr_idx = args->second_value();
 
-	node_idx_t nfn_idx = new_node(NODE_NATIVE_FUNC, 0);
+	node_t *seq_exprs = get_node(seq_exprs_idx);
+	if(seq_exprs->type != NODE_VECTOR) {
+		warnf("(for) first argument must be a vector\n");
+		return NIL_NODE;
+	}
+
+	// pre-calculate where the loop points are
+	vector_ptr_t PC_list = new_vector();
+	vector_ptr_t exprs = seq_exprs->t_vector;
+	auto expr_it = exprs->begin();
+	for(node_idx_t PC = 0; expr_it; PC++) {
+		node_idx_t expr_idx = *expr_it++;
+		if(get_node_type(expr_idx) == NODE_SYMBOL) {
+			PC_list->push_back_inplace(PC);
+		}
+	}
+
+	// for storing the state of the iterators
+	node_idx_t state_first_idx = new_node_map(new_map()->assoc_inplace(K_PC_NODE, 0));
+	node_idx_t state_rest_idx = new_node_map(new_map());
+	node_idx_t nfn_idx = new_node(NODE_NATIVE_FUNC, NODE_FLAG_MACRO);
 	node_t *nfn = get_node(nfn_idx);
-	nfn->t_native_function = new native_func_t([E,nfn_idx](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
-		// reparent
-		E.ptr->parent = env2;
+	nfn->t_native_function = new native_func_t([nfn_idx,PC_list,seq_exprs_idx,body_expr_idx](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
 
 		list_t::iterator it = args2->begin();
-		node_idx_t seq_idx = *it++;
-		node_idx_t body_idx = *it++;
-		node_t *seq = get_node(seq_idx);
-		vector_ptr_t seq_exprs = get_node_vector(seq_idx);
-		auto expr_it = seq_exprs->begin();
+		node_idx_t state_first_idx = *it++;
+		node_idx_t state_rest_idx = *it++;
+		map_ptr_t state_first = get_node_map(state_first_idx);
+		map_ptr_t state_rest = get_node_map(state_rest_idx);
+
+		node_idx_t PC = state_first->get(K_PC_NODE);
+
+		// Setup the initial sub env with current values
+		// TODO: Ideally we can persist this across calls - however there's problems with that
+		// in that going backwards gets complicated.
+		env_ptr_t E = new_env(env2);
+		for(auto it = state_first->begin(); it; ++it) {
+			E->set_temp(get_node(it->first)->t_string, it->second);
+		}
+
+		if(PC > PC_list->size()-1) {
+			PC = PC_list->size()-1;
+		}
+
+		// Evaluate all exprs (moving PC around while we do it) until we run out of exprs
+		vector_ptr_t seq_exprs = get_node_vector(seq_exprs_idx);
+		auto expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
 		while(expr_it) {
 			node_idx_t binding_idx = *expr_it++;
 			node_t *binding = get_node(binding_idx);
-			if(!binding->is_symbol()) {
-				continue;
+			if(binding->is_symbol()) {
+				jo_pair<node_idx_t, node_idx_t> fr;
+				node_idx_t val_idx = eval_node(E, *expr_it++);
+				node_t *val = get_node(val_idx);
+				auto cur = state_rest->find(binding_idx);
+				if(cur.third) {
+					val_idx = cur.second;
+					val = get_node(val_idx);
+				}
+				if(val->seq_empty(E)) {
+					// Drop back to the last loop instruction
+					PC -= 1;
+					if(PC < 0) return NIL_NODE;
+					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+					state_rest = state_rest->dissoc(binding_idx);
+				} else {
+					fr = val->seq_first_rest(E);
+					E.ptr->set_temp(binding->t_string, fr.first);
+					state_first = state_first->assoc(binding_idx, fr.first);
+					state_rest = state_rest->assoc(binding_idx, fr.second);
+					PC += 1;
+				}
+			} else if(binding_idx == K_LET_NODE) {
+				node_idx_t bind_list_idx = *expr_it++;
+				node_t *bind_list = get_node(bind_list_idx);
+				vector_ptr_t bind_list_exprs = get_node_vector(bind_list_idx);
+				auto bind_it = bind_list_exprs->begin();
+				while(bind_it) {
+					node_idx_t binding_idx = *bind_it++;
+					node_t *binding = get_node(binding_idx);
+					//E->print_map();
+					node_idx_t val_idx = eval_node(E, *bind_it++);
+					E.ptr->set_temp(binding->t_string, val_idx);
+					//E->print_map();
+					state_first = state_first->assoc(binding_idx, val_idx);
+				}
+			} else if(binding_idx == K_WHILE_NODE) {
+				node_idx_t test_idx = eval_node(E, *expr_it++);
+				if(test_idx == FALSE_NODE) {
+					return NIL_NODE;
+				}
+			} else if(binding_idx == K_WHEN_NODE) {
+				node_idx_t test_idx = eval_node(E, *expr_it++);
+				if(test_idx == FALSE_NODE) {
+					PC -= 1;
+					if(PC < 0) return NIL_NODE;
+					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+				}
+			} else {
+				warnf("(for) unknown binding form: %s\n", binding->t_string.c_str());
+				return NIL_NODE;
 			}
-			jo_string b_first = binding->t_string;
-			jo_string b_rest = b_first + "$$for";
-
-			node_idx_t val_idx = *expr_it++;
-			node_t *val = get_node(val_idx);
-			jo_pair<node_idx_t, node_idx_t> fr;
-			if(E.ptr->has(b_rest)) {
-				val_idx = E.ptr->get(b_rest).value;
-				val = get_node(val_idx);
-			}
-			fr = val->seq_first_rest(E);
-			E.ptr->set_temp(b_first, fr.first);
-			E.ptr->set_temp(b_rest, fr.second);
 		}
 
-		list_ptr_t L = new_list();
-		return new_node_list(args2->push_front2(0, nfn_idx));
+		state_first = state_first->assoc(K_PC_NODE, PC);
+
+		// Evaluate the body
+		node_idx_t result = eval_node(E, body_expr_idx);
+
+		return new_node_list(list_va(4, result, nfn_idx, new_node_map(state_first), new_node_map(state_rest)));
 	});
 
-	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-	node_t *lazy_func = get_node(lazy_func_idx);
-	//lazy_func->t_list = args->push_front2(env->get("for-next").value, new_node_list(state));
-	lazy_func->t_list = args->push_front(nfn_idx);
-	return new_node_lazy_list(lazy_func_idx);
+	return new_node_lazy_list(new_node_list(list_va(3, nfn_idx, state_first_idx, state_rest_idx)));
 }
 
 void jo_lisp_lazy_init(env_ptr_t env) {
@@ -1551,4 +1622,5 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("cons-next", new_node_native_function("cons-next", &native_cons_next, true));
 	env->set("cycle", new_node_native_function("cycle", &native_cycle, false));
 	env->set("dedupe", new_node_native_function("dedupe", &native_dedupe, false));
+	env->set("for", new_node_native_function("for", &native_for, true));
 }
