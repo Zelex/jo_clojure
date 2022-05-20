@@ -1525,7 +1525,17 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 			} else if(binding_idx == K_WHILE_NODE) {
 				node_idx_t test_idx = eval_node(E, *expr_it++);
 				if(test_idx == FALSE_NODE) {
-					return NIL_NODE;
+					PC -= 1;
+					if(PC < 0) {
+						return NIL_NODE;
+					}
+					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+					state_rest = state_rest->dissoc(*expr_it);
+					PC -= 1;
+					if(PC < 0) {
+						return NIL_NODE;
+					}
+					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
 				}
 			} else if(binding_idx == K_WHEN_NODE) {
 				node_idx_t test_idx = eval_node(E, *expr_it++);
