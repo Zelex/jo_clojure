@@ -1471,7 +1471,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 	auto expr_it = exprs->begin();
 	for(node_idx_t PC = 0; expr_it; PC++) {
 		node_idx_t expr_idx = *expr_it++;
-		if(get_node_type(expr_idx) == NODE_SYMBOL) {
+		if(expr_idx != K_WHILE_NODE && expr_idx != K_WHEN_NODE && expr_idx != K_LET_NODE) {
 			PC_list->push_back_inplace(PC);
 		}
 	}
@@ -1496,7 +1496,8 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		// in that going backwards gets complicated.
 		env_ptr_t E = new_env(env2);
 		for(auto it = state_first->begin(); it; ++it) {
-			E->set_temp(get_node(it->first)->t_string, it->second);
+			node_let(E, it->first, it->second);
+			//E->set_temp(get_node(it->first)->t_string, it->second);
 		}
 
 		if(PC > PC_list->size()-1) {
@@ -1509,7 +1510,30 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		while(expr_it) {
 			node_idx_t binding_idx = *expr_it++;
 			node_t *binding = get_node(binding_idx);
-			if(binding->is_symbol()) {
+			if(binding_idx == K_LET_NODE) {
+				node_idx_t bind_list_idx = *expr_it++;
+				node_t *bind_list = get_node(bind_list_idx);
+				vector_ptr_t bind_list_exprs = get_node_vector(bind_list_idx);
+				auto bind_it = bind_list_exprs->begin();
+				while(bind_it) {
+					node_idx_t binding_idx = *bind_it++;
+					node_idx_t val_idx = eval_node(E, *bind_it++);
+					node_let(E, binding_idx, val_idx);
+					state_first = state_first->assoc(binding_idx, val_idx);
+				}
+			} else if(binding_idx == K_WHILE_NODE) {
+				node_idx_t test_idx = eval_node(E, *expr_it++);
+				if(test_idx == FALSE_NODE) {
+					return NIL_NODE;
+				}
+			} else if(binding_idx == K_WHEN_NODE) {
+				node_idx_t test_idx = eval_node(E, *expr_it++);
+				if(test_idx == FALSE_NODE) {
+					PC -= 1;
+					if(PC < 0) return NIL_NODE;
+					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+				}
+			} else {
 				jo_pair<node_idx_t, node_idx_t> fr;
 				node_idx_t val_idx = eval_node(E, *expr_it++);
 				node_t *val = get_node(val_idx);
@@ -1526,40 +1550,11 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 					state_rest = state_rest->dissoc(binding_idx);
 				} else {
 					fr = val->seq_first_rest(E);
-					E.ptr->set_temp(binding->t_string, fr.first);
+					node_let(E, binding_idx, fr.first);
 					state_first = state_first->assoc(binding_idx, fr.first);
 					state_rest = state_rest->assoc(binding_idx, fr.second);
 					PC += 1;
 				}
-			} else if(binding_idx == K_LET_NODE) {
-				node_idx_t bind_list_idx = *expr_it++;
-				node_t *bind_list = get_node(bind_list_idx);
-				vector_ptr_t bind_list_exprs = get_node_vector(bind_list_idx);
-				auto bind_it = bind_list_exprs->begin();
-				while(bind_it) {
-					node_idx_t binding_idx = *bind_it++;
-					node_t *binding = get_node(binding_idx);
-					//E->print_map();
-					node_idx_t val_idx = eval_node(E, *bind_it++);
-					E.ptr->set_temp(binding->t_string, val_idx);
-					//E->print_map();
-					state_first = state_first->assoc(binding_idx, val_idx);
-				}
-			} else if(binding_idx == K_WHILE_NODE) {
-				node_idx_t test_idx = eval_node(E, *expr_it++);
-				if(test_idx == FALSE_NODE) {
-					return NIL_NODE;
-				}
-			} else if(binding_idx == K_WHEN_NODE) {
-				node_idx_t test_idx = eval_node(E, *expr_it++);
-				if(test_idx == FALSE_NODE) {
-					PC -= 1;
-					if(PC < 0) return NIL_NODE;
-					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
-				}
-			} else {
-				warnf("(for) unknown binding form: %s\n", binding->t_string.c_str());
-				return NIL_NODE;
 			}
 		}
 

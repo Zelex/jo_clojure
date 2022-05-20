@@ -1,7 +1,5 @@
 * lazy read-dir-all and the like
 * REPL (not sure I would ever use this?)
-* let doesn't yet support destructuring
-* for doesn't yet support destructuring
 
 *1
 *2

@@ -2183,6 +2183,22 @@ static bool node_lte(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 	return false;
 }
 
+static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
+	node_t *n1 = get_node(n1i);
+	node_t *n2 = get_node(n2i);
+	if(n1->type == NODE_SYMBOL) {
+		env->set_temp(n1->t_string, n2i);
+	} else if(n1->is_seq() && n2->is_seq()) {
+		seq_iterator_t i1(env, n1i), i2(env, n2i);
+		for(; i1 && i2; i1.next(), i2.next()) {
+			node_let(env, i1.val, i2.val);
+		}
+		if(i1.val != INV_NODE || i2.val != INV_NODE) {
+			node_let(env, i1.val, i2.val);
+		}
+	}
+}
+
 // jo_hash_value of node_idx_t
 template <>
 size_t jo_hash_value(node_idx_t n) {
@@ -3311,8 +3327,7 @@ static node_idx_t native_let(env_ptr_t env, list_ptr_t args) {
 	for(vector_t::iterator i = list_list->begin(); i;) {
 		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
 		node_idx_t value_idx = eval_node(env2, *i++);
-		node_t *key = get_node(key_idx);
-		env2->set_temp(key->as_string(env), value_idx);
+		node_let(env2, key_idx, value_idx);
 	}
 	return eval_node_list(env2, args->rest());
 }
