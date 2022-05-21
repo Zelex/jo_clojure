@@ -137,4 +137,5 @@
 
 ;(for [x (range 3) y (range 3) :while (not= x y)] [x y])
 
+(frequencies ['a 'b 'a 'a])
 

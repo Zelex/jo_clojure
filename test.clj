@@ -732,6 +732,8 @@
     [["a" "b"] ["c" "d"]])
 (is (= (for [row matrix letter row] letter) ("a" "b" "c" "d")))
 
+(is (= (frequencies ['a 'b 'a 'a]) {a 3, b 1}))
+
 
 (string-test)
 (if-test)
