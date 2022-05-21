@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <functional>
 #include <atomic>
+#include <future>
+#include <thread>
 #include "debugbreak.h"
 #include "jo_stdcpp.h"
 
@@ -487,6 +489,7 @@ struct node_t {
 	hash_set_ptr_t t_set;
 	native_func_ptr_t t_native_function;
 	std::atomic<node_idx_t> t_atom;
+	std::shared_future<node_idx_t> t_future;
 	env_ptr_t t_env;
 	struct {
 		vector_ptr_t args;
@@ -514,6 +517,7 @@ struct node_t {
 	, t_set()
 	, t_native_function()
 	, t_atom()
+	, t_future()
 	, t_func()
 	, t_int() 
 	{
@@ -529,6 +533,7 @@ struct node_t {
 	, t_map(other.t_map)
 	, t_set(other.t_set)
 	, t_native_function(other.t_native_function)
+	, t_future(other.t_future)
 	, t_func(other.t_func)
 	, t_float(other.t_float) 
 	{
@@ -545,6 +550,7 @@ struct node_t {
 	, t_map(std::move(other.t_map))
 	, t_set(std::move(other.t_set))
 	, t_native_function(other.t_native_function)
+	, t_future(std::move(other.t_future))
 	, t_func(std::move(other.t_func))
 	, t_float(other.t_float)
 	{
@@ -561,12 +567,12 @@ struct node_t {
 		t_map = other.t_map;
 		t_set = other.t_set;
 		t_native_function = other.t_native_function;
+		t_atom.store(other.t_atom.load());
+		t_future = other.t_future;
 		t_func = other.t_func;
 		t_float = other.t_float;
-		t_atom.store(other.t_atom.load());
 		return *this;
 	}
-
 
 	bool is_symbol() const { return type == NODE_SYMBOL; }
 	bool is_keyword() const { return type == NODE_KEYWORD; }
@@ -584,6 +590,7 @@ struct node_t {
 	bool is_file() const { return type == NODE_FILE; }
 	bool is_dir() const { return type == NODE_DIR; }
 	bool is_atom() const { return type == NODE_ATOM; }
+	bool is_future() const { return type == NODE_FUTURE; }
 
 	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_hash_set() || is_vector(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
