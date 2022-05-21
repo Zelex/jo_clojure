@@ -805,6 +805,7 @@ struct node_t {
 		case NODE_FILE:	   return "file";
 		case NODE_DIR:     return "dir";	
 		case NODE_PROMISE: return "promise";
+		case NODE_FUTURE:  return "future";
 		}
 		return "unknown";		
 	}
@@ -4682,8 +4683,19 @@ static node_idx_t native_split_with(env_ptr_t env, list_ptr_t args) {
 		for(; it; it++) {
 			B->push_back_inplace(*it);
 		}
+	} else if(coll_type == NODE_LAZY_LIST) {
+		lazy_list_iterator_t lit(coll_idx);
+		for(; lit; lit.next()) {
+			if(!get_node_bool(eval_va(env, 2, pred_idx, lit.val))) {
+				break;
+			}
+			A->push_back_inplace(lit.val);
+		}
+		for(; lit; lit.next()) {
+			B->push_back_inplace(lit.val);
+		}
 	} else {
-		warnf("(split-with) requires a list or string\n");
+		warnf("(split-with) requires a list, string, vector, or lazy-list\n");
 		return NIL_NODE;
 	}
 	vec->push_back_inplace(new_node_list(A));
