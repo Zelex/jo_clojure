@@ -225,7 +225,6 @@ static node_idx_t native_div_int(env_ptr_t env, list_ptr_t args) {
 	return new_node_int(i_sum);
 }
 
-
 // modulo the first argument by the second
 static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
 	if(args->size() == 0) {
@@ -564,6 +563,7 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("-", new_node_native_function("-", &native_sub, false));
 	env->set("*", new_node_native_function("*", &native_mul, false));
 	env->set("/", new_node_native_function("/", &native_div, false));
+	env->set("rem", new_node_native_function("rem", &native_remainder, false));
 	env->set("mod", new_node_native_function("mod", &native_mod, false));
 	env->set("inc", new_node_native_function("inc", &native_inc, false));
 	env->set("dec", new_node_native_function("dec", &native_dec, false));

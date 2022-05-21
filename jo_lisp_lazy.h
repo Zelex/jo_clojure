@@ -1573,6 +1573,11 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 
 		// Evaluate the body
 		node_idx_t result = eval_node(E, body_expr_idx);
+		if(get_node_type(result) == NODE_LAZY_LIST) {
+			// We need to convert the lazy list into a normal list
+			lazy_list_iterator_t it(E, result);
+			result = new_node_list(it.all());
+		}
 
 		return new_node_list(list_va(4, result, nfn_idx, new_node_map(state_first), new_node_map(state_rest)));
 	});

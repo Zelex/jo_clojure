@@ -135,5 +135,6 @@
 ;(for [[x y] '([:a 1] [:b 2] [:c 0]) :when (= y 0)] x)
 ;(for [x (range 3) y (range 3) :when (not= x y)] [x y]) 
 
-(for [x (range 3) y (range 3) :while (not= x y)] [x y])
+;(for [x (range 3) y (range 3) :while (not= x y)] [x y])
+
 
