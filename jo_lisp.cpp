@@ -4626,6 +4626,21 @@ static node_idx_t native_split_at(env_ptr_t env, list_ptr_t args) {
 		}
 		vec->push_back_inplace(new_node_vector(coll->take(n)));
 		vec->push_back_inplace(new_node_vector(coll->drop(n)));
+	} else if(coll_type == NODE_LAZY_LIST) {
+		list_ptr_t A = new_list();
+		list_ptr_t B = new_list();
+		lazy_list_iterator_t lit(coll_idx);
+		for(; lit; lit.next()) {
+			if(A->size() < n) {
+				break;
+			}
+			A->push_back_inplace(lit.val);
+		}
+		for(; lit; lit.next()) {
+			B->push_back_inplace(lit.val);
+		}
+		vec->push_back_inplace(new_node_list(A));
+		vec->push_back_inplace(new_node_list(B));
 	} else {
 		warnf("(split-at) requires a list or string\n");
 		return NIL_NODE;
