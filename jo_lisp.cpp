@@ -4467,6 +4467,7 @@ static node_idx_t native_empty(env_ptr_t env, list_ptr_t args) {
 		case NODE_VECTOR: return EMPTY_VECTOR_NODE;
 		case NODE_MAP: return EMPTY_MAP_NODE;
 		case NODE_HASH_SET: return EMPTY_SET_NODE;
+		case NODE_LAZY_LIST: return EMPTY_LIST_NODE;
 		default: return NIL_NODE;
 	}
 }
@@ -4507,6 +4508,12 @@ static node_idx_t native_not_empty(env_ptr_t env, list_ptr_t args) {
 	} else if(coll_type == NODE_STRING) {
 		jo_string coll = get_node_string(coll_idx);
 		if(coll.empty()) {
+			return NIL_NODE;
+		}
+		return coll_idx;
+	} else if(coll_type == NODE_LAZY_LIST) {
+		lazy_list_iterator_t lit(coll_idx);
+		if(!lit) {
 			return NIL_NODE;
 		}
 		return coll_idx;
