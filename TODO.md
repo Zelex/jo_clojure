@@ -150,7 +150,6 @@ float-array
 floats
 force
 format
-frequencies
 future
 future-call
 future-cancel
