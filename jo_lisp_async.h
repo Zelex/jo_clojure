@@ -571,6 +571,58 @@ static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
 	return f_idx;
 }
 
+// (future-cancel f)
+// Cancels the future, if possible.
+static node_idx_t native_future_cancel(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 1) {
+		warnf("(future-cancel) requires at least 1 argument\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = args->first_value();
+	node_t *f = get_node(f_idx);
+	if(f->type != NODE_FUTURE) {
+		warnf("(future-cancel) requires a future\n");
+		return NIL_NODE;
+	}
+	// TODO? Currently this is a no-op.
+	return NIL_NODE;
+}
+
+// (future-cancelled? f)
+// Returns true if future f is cancelled
+static node_idx_t native_future_cancelled(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 1) {
+		warnf("(future-cancelled?) requires at least 1 argument\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = args->first_value();
+	node_t *f = get_node(f_idx);
+	if(f->type != NODE_FUTURE) {
+		warnf("(future-cancelled?) requires a future\n");
+		return NIL_NODE;
+	}
+	// TODO? Currently this is a no-op.
+	return FALSE_NODE;
+}
+
+// (future-done? f)
+// Returns true if future f is done
+static node_idx_t native_future_done(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 1) {
+		warnf("(future-done?) requires at least 1 argument\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = args->first_value();
+	node_t *f = get_node(f_idx);
+	if(f->type != NODE_FUTURE) {
+		warnf("(future-done?) requires a future\n");
+		return NIL_NODE;
+	}
+	return f->t_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready ? TRUE_NODE : FALSE_NODE;
+}
+
+static node_idx_t native_is_future(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FUTURE ? TRUE_NODE : FALSE_NODE; }
+
 static node_idx_t native_thread_sleep(env_ptr_t env, list_ptr_t args) {
 	std::this_thread::sleep_for(std::chrono::milliseconds(get_node_int(args->first_value())));
 	return NIL_NODE;
@@ -600,5 +652,9 @@ void jo_lisp_async_init(env_ptr_t env) {
 	// futures
 	env->set("future", new_node_native_function("future", &native_future, true));
 	env->set("future-call", new_node_native_function("future-call", &native_future_call, true));
+	env->set("future-cancel", new_node_native_function("future-cancel", &native_future_cancel, false));
+	env->set("future-cancelled?", new_node_native_function("future-cancelled?", &native_future_cancelled, false));
+	env->set("future-done?", new_node_native_function("future-done?", &native_future_done, false));
+	env->set("future?", new_node_native_function("future?", &native_is_future, false));
 
 }

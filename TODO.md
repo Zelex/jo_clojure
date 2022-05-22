@@ -150,10 +150,6 @@ float-array
 floats
 force
 format
-future-cancel
-future-cancelled?
-future-done?
-future?
 gen-class
 gen-interface
 gensym
