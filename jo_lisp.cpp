@@ -3391,16 +3391,10 @@ static node_idx_t native_apply(env_ptr_t env, list_ptr_t args) {
 		node_t *arg = get_node(arg_idx);
 		if(arg->is_list()) {
 			arg_list->conj_inplace(*arg->as_list().ptr);
-		} else if(arg->is_lazy_list()) {
-			for(lazy_list_iterator_t lit(arg_idx); !lit.done(); lit.next()) {
-				arg_list->push_back_inplace(lit.val);
-			}
-		} else if(arg->is_vector()) {
-			for(vector_t::iterator vit = arg->as_vector()->begin(); vit; vit++) {
-				arg_list->push_back_inplace(*vit);
-			}
 		} else {
-			arg_list->push_back_inplace(arg_idx);
+			if(!seq_iterate(arg_idx, [&](node_idx_t node_idx) { arg_list->push_back_inplace(node_idx); return true; })) {
+				arg_list->push_back_inplace(arg_idx);
+			}
 		}
 	}
 	return eval_list(env, arg_list);
