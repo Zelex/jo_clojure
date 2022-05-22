@@ -45,15 +45,7 @@ static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
 	if(start >= end) {
 		return NIL_NODE;
 	}
-	list_ptr_t ret = new_list();
-	// this value
-	ret->push_back_inplace(new_node_int(start));
-	// next function
-	ret->push_back_inplace(env->get("range-next").value);
-	ret->push_back_inplace(new_node_int(start+step));
-	ret->push_back_inplace(new_node_int(step));
-	ret->push_back_inplace(new_node_int(end));
-	return new_node_list(ret);
+	return new_node_list(list_va(start, env->get("range-next").value, start+step, step, end));
 }
 
 // (repeat x)
