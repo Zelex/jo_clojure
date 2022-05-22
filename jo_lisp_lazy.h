@@ -84,12 +84,11 @@ static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_list(ret);
 	}
-	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-	get_node(lazy_func_idx)->t_list = new_list();
-	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("repeat-next").value);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(x);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_int(n));
-	return new_node_lazy_list(env, lazy_func_idx);
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(env->get("repeat-next").value);
+	ret->push_back_inplace(x);
+	ret->push_back_inplace(new_node_int(n));
+	return new_node_lazy_list(env, new_node_list(ret));
 }
 
 static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
@@ -181,12 +180,11 @@ static node_idx_t native_iterate(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
 	node_idx_t x = *it++;
-	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-	get_node(lazy_func_idx)->t_list = new_list();
-	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("iterate-next").value);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(f);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(x);
-	return new_node_lazy_list(env, lazy_func_idx);
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(env->get("iterate-next").value);
+	ret->push_back_inplace(f);
+	ret->push_back_inplace(x);
+	return new_node_lazy_list(env, new_node_list(ret));
 }
 
 static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
