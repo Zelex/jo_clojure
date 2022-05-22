@@ -213,22 +213,13 @@ static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_map(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f = *it++;
-	if(args->size() == 1) {
-		node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-		node_t *lazy_func = get_node(lazy_func_idx);
-		lazy_func->t_list = new_list();
-		lazy_func->t_list->push_back_inplace(env->get("map-next").value);
-		lazy_func->t_list->push_back_inplace(f);
-		return new_node_lazy_list(env, lazy_func_idx);
-	}
-	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-	get_node(lazy_func_idx)->t_list = new_list();
-	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("map-next").value);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(f);
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(env->get("map-next").value);
+	ret->push_back_inplace(f);
 	while(it) {
-		get_node(lazy_func_idx)->t_list->push_back_inplace(eval_node(env, *it++));
+		ret->push_back_inplace(eval_node(env, *it++));
 	}
-	return new_node_lazy_list(env, lazy_func_idx);
+	return new_node_lazy_list(env, new_node_list(ret));
 }
 
 static node_idx_t native_map_next(env_ptr_t env, list_ptr_t args) {
