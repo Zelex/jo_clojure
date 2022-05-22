@@ -2,7 +2,7 @@ JO_TARGET=jo
 DESTDIR=/usr/local/bin
 
 $(JO_TARGET):
-	c++ -std=c++17 jo_lisp.cpp -g -O2 -o $(JO_TARGET)
+	c++ -std=c++17 jo_lisp.cpp -g -O2 -lpthread -o $(JO_TARGET)
 
 install: $(JO_TARGET)
 	mkdir -p '$(DESTDIR)'
