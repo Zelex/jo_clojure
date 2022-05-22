@@ -2057,6 +2057,46 @@ struct seq_iterator_t {
 	}
 };
 
+template<typename F>
+static inline bool seq_iterate(node_idx_t seq, F f) {
+	node_t *n = get_node(seq);
+	if(n->type == NODE_LIST) {
+		for(list_t::iterator i = n->t_list->begin(); i; i++) {
+			if(!f(*i)) break;
+		}
+		return true;
+	} else if(n->type == NODE_VECTOR) {
+		for(vector_t::iterator i = n->t_vector->begin(); i; i++) {
+			if(!f(*i)) break;
+		}
+		return true;
+	} else if(n->type == NODE_MAP) {
+		for(map_t::iterator i = n->t_map->begin(); i; i++) {
+			if(!f(i->second)) break;
+		}
+		return true;
+	} else if(n->type == NODE_HASH_SET) {
+		for(hash_set_t::iterator i = n->t_set->begin(); i; i++) {
+			if(!f(i->first)) break;
+		}
+		return true;
+	} else if(n->type == NODE_LAZY_LIST) {
+		lazy_list_iterator_t lit(seq);
+		for(;!lit.done();lit.next()) {
+			if(!f(lit.val)) break;
+		}
+		return true;
+	} else if(n->type == NODE_STRING) {
+		auto it = n->t_string.begin();
+		auto it_end = n->t_string.end();
+		for(; it != it_end; it++) {
+			if(!f(*it)) break;
+		}
+		return true;
+	}
+	return false;
+}
+
 static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 	if(n1i == INV_NODE || n2i == INV_NODE) {
 		return false;
@@ -4164,34 +4204,18 @@ static node_idx_t native_is_not_any(env_ptr_t env, list_ptr_t args) {
 	node_t *pred_node = get_node(pred_idx);
 	node_t *coll_node = get_node(coll_idx);
 	if(!pred_node->can_eval()) return FALSE_NODE;
-	if(coll_node->is_list()) {
-		list_ptr_t coll_list = coll_node->t_list;
-		for(list_t::iterator it = coll_list->begin(); it; it++) {
-			if(get_node_bool(eval_va(env, 2, pred_idx, *it))) {
-				return FALSE_NODE;
-			}
+	node_idx_t ret = TRUE_NODE;
+	if(!seq_iterate(coll_idx, [&](node_idx_t item) {
+		if(get_node_bool(eval_va(env, 2, pred_idx, item))) {
+			ret = FALSE_NODE;
+			return false; // early out
 		}
-		return TRUE_NODE;
+		return true; // keep goin
+	})) {
+		warnf("is_not_any: seq_iterate failed");
+		return FALSE_NODE;
 	}
-	if(coll_node->is_vector()) {
-		vector_ptr_t coll_vector = coll_node->t_vector;
-		for(vector_t::iterator it = coll_vector->begin(); it; it++) {
-			if(get_node_bool(eval_va(env, 2, pred_idx, *it))) {
-				return FALSE_NODE;
-			}
-		}
-		return TRUE_NODE;
-	}
-	if(coll_node->is_lazy_list()) {
-		lazy_list_iterator_t lit(coll_idx);
-		for(; !lit.done(); lit.next()) {
-			if(get_node_bool(eval_va(env, 2, pred_idx, lit.val))) {
-				return FALSE_NODE;
-			}
-		}
-		return TRUE_NODE;
-	}
-	return FALSE_NODE;
+	return ret;
 }
 
 // (array-map)(array-map & keyvals)
@@ -4557,7 +4581,7 @@ static node_idx_t native_find(env_ptr_t env, list_ptr_t args) {
 	node_idx_t map_idx = eval_node(env, args->first_value());
 	node_idx_t key_idx = eval_node(env, args->second_value());
 	map_ptr_t map = get_node_map(map_idx);
-	auto kv = map->find(key_idx, [env](const node_idx_t &a, const node_idx_t &b) { return node_eq(a, b); });
+	auto kv = map->find(key_idx, node_eq);
 	if(!kv.third) {
 		return NIL_NODE;
 	}
@@ -4736,28 +4760,10 @@ static node_idx_t native_frequencies(env_ptr_t env, list_ptr_t args) {
 	node_idx_t coll_idx = args->first_value();
 	int coll_type = get_node_type(coll_idx);
 	map_ptr_t map = new_map();
-	if(coll_type == NODE_LIST) {
-		list_ptr_t coll = get_node_list(coll_idx);
-		for(auto it = coll->begin(); it; it++) {
-			map->assoc_inplace(*it, new_node_int(get_node_int(map->get(*it, node_eq)) + 1), node_eq);
-		}
-	} else if(coll_type == NODE_STRING) {
-		jo_string coll = get_node_string(coll_idx);
-		auto it = coll.begin();
-		auto it_end = coll.end();
-		for(; it != it_end; it++) {
-			map->assoc_inplace(*it, new_node_int(get_node_int(map->get(*it, node_eq)) + 1), node_eq);
-		}
-	} else if(coll_type == NODE_VECTOR) {
-		vector_ptr_t coll = get_node_vector(coll_idx);
-		for(auto it = coll->begin(); it; it++) {
-			map->assoc_inplace(*it, new_node_int(get_node_int(map->get(*it, node_eq)) + 1), node_eq);
-		}
-	} else if(coll_type == NODE_LAZY_LIST) {
-		for(lazy_list_iterator_t lit(coll_idx); lit; lit.next()) {
-			map->assoc_inplace(lit.val, new_node_int(get_node_int(map->get(lit.val, node_eq)) + 1), node_eq);
-		}
-	} else {
+	if(!seq_iterate(coll_idx, [&](node_idx_t item) {
+		map->assoc_inplace(item, new_node_int(get_node_int(map->get(item, node_eq)) + 1), node_eq);
+		return true;
+	})) {
 		warnf("(frequencies) requires a list, string, vector, or lazy-list\n");
 		return NIL_NODE;
 	}
