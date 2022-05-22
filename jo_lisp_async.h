@@ -554,6 +554,23 @@ static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
 	return f_idx;
 }
 
+// (future-call f)
+// Takes a function of no args and yields a future object that will
+// invoke the function in another thread, and will cache the result and
+// return it on all subsequent calls to deref/@. If the computation has
+// not yet finished, calls to deref/@ will block, unless the variant
+// of deref with timeout is used. See also - realized?.
+static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 1) {
+		warnf("(future-call) requires at least 1 argument\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
+	node_t *f = get_node(f_idx);
+	f->t_future = std::async(std::launch::async, [env,args]() { return eval_list(env, args); });
+	return f_idx;
+}
+
 static node_idx_t native_thread_sleep(env_ptr_t env, list_ptr_t args) {
 	std::this_thread::sleep_for(std::chrono::milliseconds(get_node_int(args->first_value())));
 	return NIL_NODE;
@@ -582,5 +599,6 @@ void jo_lisp_async_init(env_ptr_t env) {
 
 	// futures
 	env->set("future", new_node_native_function("future", &native_future, true));
+	env->set("future-call", new_node_native_function("future-call", &native_future_call, true));
 
 }

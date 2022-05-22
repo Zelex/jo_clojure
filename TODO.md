@@ -150,8 +150,6 @@ float-array
 floats
 force
 format
-future
-future-call
 future-cancel
 future-cancelled?
 future-done?
