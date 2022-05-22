@@ -2,7 +2,7 @@
 
 Author Jon Olick. @JonOlick on twitter. 
 
-A Fast, Embeddable Clojure language implementation in C. 
+A Fast, Embeddable Clojure language implementation in C/C++. 
 
 Just started the project, nothing is done, everything is messy. Will clean up before version 1.0.
 
