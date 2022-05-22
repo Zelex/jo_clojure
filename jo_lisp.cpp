@@ -4155,34 +4155,18 @@ static node_idx_t native_is_every(env_ptr_t env, list_ptr_t args) {
 	node_t *pred_node = get_node(pred_idx);
 	node_t *coll_node = get_node(coll_idx);
 	if(!pred_node->can_eval()) return FALSE_NODE;
-	if(coll_node->is_list()) {
-		list_ptr_t coll_list = coll_node->t_list;
-		for(list_t::iterator it = coll_list->begin(); it; it++) {
-			if(!get_node_bool(eval_va(env, 2, pred_idx, *it))) {
-				return FALSE_NODE;
-			}
+	node_idx_t ret = TRUE_NODE;
+	if(!seq_iterate(coll_idx, [&](node_idx_t item) {
+		if(!get_node_bool(eval_va(env, 2, pred_idx, item))) {
+			ret = FALSE_NODE;
+			return false; // early out
 		}
-		return TRUE_NODE;
+		return true; // keep goin
+	})) {
+		warnf("is_not_any: seq_iterate failed");
+		return FALSE_NODE;
 	}
-	if(coll_node->is_vector()) {
-		vector_ptr_t coll_vector = coll_node->t_vector;
-		for(vector_t::iterator it = coll_vector->begin(); it; it++) {
-			if(!get_node_bool(eval_va(env, 2, pred_idx, *it))) {
-				return FALSE_NODE;
-			}
-		}
-		return TRUE_NODE;
-	}
-	if(coll_node->is_lazy_list()) {
-		lazy_list_iterator_t lit(coll_idx);
-		for(; !lit.done(); lit.next()) {
-			if(!get_node_bool(eval_va(env, 2, pred_idx, lit.val))) {
-				return FALSE_NODE;
-			}
-		}
-		return TRUE_NODE;
-	}
-	return FALSE_NODE;
+	return ret;
 }
 
 // (not-every? pred coll)
