@@ -4758,7 +4758,7 @@ static node_idx_t native_frequencies(env_ptr_t env, list_ptr_t args) {
 			map->assoc_inplace(lit.val, new_node_int(get_node_int(map->get(lit.val, node_eq)) + 1), node_eq);
 		}
 	} else {
-		warnf("(frequencies) requires a list or string\n");
+		warnf("(frequencies) requires a list, string, vector, or lazy-list\n");
 		return NIL_NODE;
 	}
 	return new_node_map(map);
