@@ -34,13 +34,12 @@ static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
 		return new_node_list(ret);
 	}
 	// constructs a function which returns the next value in the range, and another function
-	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-	get_node(lazy_func_idx)->t_list = new_list();
-	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("range-next").value);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_int(start));
-	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_int(step));
-	get_node(lazy_func_idx)->t_list->push_back_inplace(new_node_int(end));
-	return new_node_lazy_list(env, lazy_func_idx);
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(env->get("range-next").value);
+	ret->push_back_inplace(new_node_int(start));
+	ret->push_back_inplace(new_node_int(step));
+	ret->push_back_inplace(new_node_int(end));
+	return new_node_lazy_list(env, new_node_list(ret));
 }
 
 static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
