@@ -38,6 +38,7 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <atomic>
 
 #ifdef _WIN32
 #include <conio.h>
@@ -58,6 +59,28 @@
 #define jo_strdup strdup
 #define jo_chdir chdir
 #endif
+
+#ifdef _WIN32
+#include <mutex>
+#define jo_mutex std::mutex
+#else
+#include <pthread.h>
+class jo_mutex {
+    pthread_mutex_t mutex;
+public:
+    jo_mutex() { pthread_mutex_init(&mutex, nullptr); }
+    ~jo_mutex() { pthread_mutex_destroy(&mutex); }
+    void lock() { pthread_mutex_lock(&mutex); }
+    void unlock() { pthread_mutex_unlock(&mutex); }
+};
+#endif
+
+class jo_lock_guard {
+    jo_mutex& mutex;
+public:
+    jo_lock_guard(jo_mutex& mutex) : mutex(mutex) { mutex.lock(); }
+    ~jo_lock_guard() { mutex.unlock(); }
+};
 
 #ifdef _WIN32
 static int jo_setenv(const char *name, const char *value, int overwrite)
@@ -1128,11 +1151,13 @@ struct jo_vector {
 template<typename T, int k=5>
 struct jo_pinned_vector {
     T *buckets[64-k+1];
-    size_t num_elements;
+    std::atomic<size_t> num_elements;
+    jo_mutex grow_mutex;
 
-    jo_pinned_vector() : buckets(), num_elements(0) {}
+    jo_pinned_vector() : buckets(), num_elements() {}
 
     ~jo_pinned_vector() {
+        jo_lock_guard guard(grow_mutex);
         for(size_t i = 0; i < 64-k; ++i) {
             if(buckets[i]) {
                 free(buckets[i]);
@@ -1145,23 +1170,24 @@ struct jo_pinned_vector {
     inline size_t index_bottom(size_t i, int top) const { return i & (~0ull >> top); }
 
     void push_back(const T& val) {
-        int top = index_top(num_elements);
-        size_t bottom = index_bottom(num_elements, top);
+        size_t this_elem = num_elements++;
+        int top = index_top(this_elem);
+        size_t bottom = index_bottom(this_elem, top);
         if(buckets[top] == 0) {
-            buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
+            jo_lock_guard guard(grow_mutex);
+            if(buckets[top] == 0) {
+                buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
+            }
         }
         if(std::is_pod<T>::value) {
             memcpy(buckets[top] + bottom, &val, sizeof(T));
         } else {
             new(buckets[top] + bottom) T(val);
         }
-        num_elements++;
     }
 
-    T pop_back() {
+    void pop_back() {
         num_elements--;
-        int top = index_top(num_elements);
-        return buckets[top-1][index_bottom(num_elements, top)];
     }
 
     T &operator[](size_t i) {
@@ -1179,6 +1205,7 @@ struct jo_pinned_vector {
     }
 
     void resize(size_t n) {
+        jo_lock_guard guard(grow_mutex);
         if(n == num_elements) {
             return;
         }
@@ -1208,11 +1235,15 @@ struct jo_pinned_vector {
     }
 
     void shrink_to_fit() {
+        jo_lock_guard guard(grow_mutex);
         int top = index_top(num_elements);
         for(int i = top-1; i >= 0; --i) {
             if(buckets[i]) {
-                free(buckets[i]);
-                buckets[i] = 0;
+                jo_lock_guard guard(grow_mutex);
+                if(buckets[i]) {
+                    free(buckets[i]);
+                    buckets[i] = 0;
+                }
             }
         }
     }
@@ -1422,28 +1453,6 @@ static inline double jo_time() {
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 #endif
 }
-
-#ifdef _WIN32
-#include <mutex>
-#define jo_mutex std::mutex
-#else
-#include <pthread.h>
-class jo_mutex {
-    pthread_mutex_t mutex;
-public:
-    jo_mutex() { pthread_mutex_init(&mutex, nullptr); }
-    ~jo_mutex() { pthread_mutex_destroy(&mutex); }
-    void lock() { pthread_mutex_lock(&mutex); }
-    void unlock() { pthread_mutex_unlock(&mutex); }
-};
-#endif
-
-class jo_lock_guard {
-    jo_mutex& mutex;
-public:
-    jo_lock_guard(jo_mutex& mutex) : mutex(mutex) { mutex.lock(); }
-    ~jo_lock_guard() { mutex.unlock(); }
-};
 
 // Maintains a linked list of blocks of objects which can be allocated from
 // and deallocated to.

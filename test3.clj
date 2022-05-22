@@ -137,5 +137,9 @@
 
 ;(for [x (range 3) y (range 3) :while (not= x y)] [x y])
 
-(frequencies ['a 'b 'a 'a])
+;(frequencies ['a 'b 'a 'a])
+
+(def f (future (Thread/sleep 1000) (println "done") 1))
+(println "in parallel!")
+@f
 

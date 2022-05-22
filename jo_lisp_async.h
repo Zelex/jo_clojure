@@ -60,8 +60,8 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_idx_t ref_idx = args->first_value();
-	//node_idx_t timeout_ms_idx = args->second_value();
-	//node_idx_t timeout_val_idx = args->third_value();
+	node_idx_t timeout_ms_idx = args->second_value();
+	node_idx_t timeout_val_idx = args->third_value();
 
 	node_t *ref = get_node(ref_idx);
 	int type = ref->type;
@@ -79,6 +79,19 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 		}
 	} else if(type == NODE_DELAY) {
 		return eval_node(env, ref_idx);
+	} else if(type == NODE_FUTURE) {
+		if(!ref->t_future.valid()) {
+			return NIL_NODE;
+		}
+		if(timeout_ms_idx != NIL_NODE) {
+			int timeout_ms = get_node_int(timeout_ms_idx);
+			if(ref->t_future.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::timeout) {
+				return timeout_val_idx;
+			}
+		} else {
+			ref->t_future.wait();
+		}
+		return ref->t_future.get();
 	}
 	return NODE_NIL;
 }
@@ -524,7 +537,31 @@ static node_idx_t native_dosync(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+// (future & body)
+// Takes a body of expressions and yields a future object that will
+// invoke the body in another thread, and will cache the result and
+// return it on all subsequent calls to deref/@. If the computation has
+// not yet finished, calls to deref/@ will block, unless the variant of
+// deref with timeout is used. See also - realized?.
+static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 1) {
+		warnf("(future) requires at least 1 argument\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
+	node_t *f = get_node(f_idx);
+	f->t_future = std::async(std::launch::async, [env,args]() { return eval_node_list(env, args); });
+	return f_idx;
+}
+
+static node_idx_t native_thread_sleep(env_ptr_t env, list_ptr_t args) {
+	std::this_thread::sleep_for(std::chrono::milliseconds(get_node_int(args->first_value())));
+	return NIL_NODE;
+}
+
+
 void jo_lisp_async_init(env_ptr_t env) {
+	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, true));
     env->set("deref", new_node_native_function("deref", &native_deref, false));
     env->set("swap!", new_node_native_function("swap!", &native_swap_e, false));
@@ -539,5 +576,11 @@ void jo_lisp_async_init(env_ptr_t env) {
     env->set("multi-swap-vals!", new_node_native_function("multi-swap-vals!", &native_multi_swap_vals_e, false));
     env->set("multi-reset-vals!", new_node_native_function("multi-reset-vals!", &native_multi_reset_vals_e, false));
 	env->set("dosync", new_node_native_function("dosync", &native_dosync, true));
+
+	// threads
+	env->set("Thread/sleep", new_node_native_function("Thread/sleep", &native_thread_sleep, false));
+
+	// futures
+	env->set("future", new_node_native_function("future", &native_future, true));
 
 }
