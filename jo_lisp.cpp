@@ -4654,6 +4654,33 @@ static node_idx_t native_frequencies(env_ptr_t env, list_ptr_t args) {
 	return new_node_map(map);
 }
 
+// (get-in m ks)(get-in m ks not-found)
+// Returns the value in a nested associative structure,
+// where ks is a sequence of keys. Returns nil if the key
+// is not present, or the not-found value if supplied.
+static node_idx_t native_get_in(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 2 || args->size() > 3) {
+		warnf("(get-in) requires 2 or 3 arguments\n");
+		return NIL_NODE;
+	}
+	node_idx_t m_idx = args->first_value();
+	node_idx_t ks_idx = args->second_value();
+	node_idx_t not_found_idx = args->size() == 3 ? args->third_value() : NIL_NODE;
+	int ks_type = get_node_type(ks_idx);
+	if(ks_type != NODE_VECTOR) {
+		warnf("(get-in) requires a vector\n");
+		return NIL_NODE;
+	}
+	node_idx_t result = m_idx;
+	vector_ptr_t ks = get_node_vector(ks_idx);
+	for(auto it = ks->begin(); it; it++) {
+		result = native_get(env, list_va(2, result, *it));
+		if(result == NIL_NODE) {
+			return not_found_idx;
+		}
+	}
+	return result;
+}
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -4954,6 +4981,7 @@ int main(int argc, char **argv) {
 	env->set("set?", new_node_native_function("set?", &native_is_set, false));
 	env->set("vector?", new_node_native_function("vector?", &native_is_vector, false));
 	env->set("frequencies", new_node_native_function("frequencies", &native_frequencies, false));
+	env->set("get-in", new_node_native_function("get-in", &native_get_in, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

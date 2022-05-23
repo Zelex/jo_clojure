@@ -139,7 +139,7 @@
 
 ;(frequencies ['a 'b 'a 'a])
 
-(def f (future (Thread/sleep 1000) (println "done") 1))
-(println "in parallel!")
-@f
+;(def f (future (Thread/sleep 1000) (println "done") 1))
+;(println "in parallel!")
+;@f
 

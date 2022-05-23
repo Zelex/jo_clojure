@@ -734,6 +734,21 @@
 
 (is (= (frequencies ['a 'b 'a 'a]) {a 3, b 1}))
 
+(def m {:username "sally"
+        :profile {:name "Sally Clojurian"
+                  :address {:city "Austin" :state "TX"}}})
+
+(is (= (get-in m [:profile :name]), "Sally Clojurian"))
+(is (= (get-in m [:profile :address :city]) "Austin"))
+(is (= (get-in m [:profile :address :zip-code]) nil))
+(is (= (get-in m [:profile :address :zip-code] "no zip code!"), "no zip code!"))
+
+(def v [[1 2 3]
+        [4 5 6]
+        [7 8 9]])
+
+(is (= (get-in v [0 2]) 3))
+(is (= (get-in v [2 1]) 8))
 
 (string-test)
 (if-test)
