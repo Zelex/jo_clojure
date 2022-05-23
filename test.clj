@@ -750,6 +750,14 @@
 (is (= (get-in v [0 2]) 3))
 (is (= (get-in v [2 1]) 8))
 
+(def mv {:username "jimmy"
+        :pets [{:name "Rex"
+                :type :dog}
+               {:name "Sniffles"
+                :type :hamster}]})
+
+(is (= (get-in mv [:pets 1 :type]) :hamster))
+
 (string-test)
 (if-test)
 (when-test)
