@@ -1570,7 +1570,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
-	env->set("range-next", new_node_native_function("range-next", &native_range_next, false));
+	env->set("range-next", new_node_native_function("range-next", &native_range_next, true));
 	env->set("repeat", new_node_native_function("repeat", &native_repeat, true));
 	env->set("repeat-next", new_node_native_function("repeat-next", &native_repeat_next, true));
 	env->set("concat", new_node_native_function("concat", &native_concat, true));
