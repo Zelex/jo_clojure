@@ -4822,42 +4822,6 @@ public:
         return copy;
     }
 
-    jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value) {
-        if(vec.size() - length < vec.size() / 8) {
-            resize_inplace(vec.size() * 2);
-        }
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].third) {
-            if(vec[index].first == key) {
-                vec.assoc_inplace(index, entry_t(key, value, true));
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        vec.assoc_inplace(index, entry_t(key, value, true));
-        ++length;
-        return this;
-    }
-
-    // assoc_inplace with lambda for equality
-    template<typename F>   
-    jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value, F eq) {
-        if(vec.size() - length < vec.size() / 8) {
-            resize_inplace(vec.size() * 2);
-        }
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].third) {
-            if(eq(vec[index].first, key)) {
-                vec.assoc_inplace(index, entry_t(key, value, true));
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        vec.assoc_inplace(index, entry_t(key, value, true));
-        ++length;
-        return this;
-    }
-
     // remove a value from the map
     jo_persistent_unordered_map *erase(const iterator &it) const {
         return erase(it.cur->first);
@@ -4878,25 +4842,6 @@ public:
         return copy;
     }
 
-    // dissoc_inplace
-    jo_persistent_unordered_map *dissoc_inplace(const K &key) {
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].third) {
-            if(vec[index].first == key) {
-                vec.assoc_inplace(index, entry_t(vec[index].first, V(), false));
-                --length;
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        return this;
-    }
-
-    // dissoc_inplace
-    jo_persistent_unordered_map *dissoc_inplace(const iterator &it) {
-        return dissoc_inplace(it.cur->first);
-    }
-
     // dissoc with lambda for equality
     template<typename F>
     jo_persistent_unordered_map *dissoc(const K &key, F eq) const {
@@ -4911,21 +4856,6 @@ public:
             index = (index + 1) % vec.size();
         } 
         return copy;
-    }
-
-    // dissoc_inplace with lambda for equality
-    template<typename F>
-    jo_persistent_unordered_map *dissoc_inplace(const K &key, F eq) {
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].third) {
-            if(eq(vec[index].first, key)) {
-                vec.assoc_inplace(index, entry_t(vec[index].first, V(), false));
-                --length;
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        return this;
     }
 
     // find a value in the map
@@ -4988,24 +4918,13 @@ public:
         return it->second;
     }
 
-    // conj
-    jo_persistent_unordered_map *conj(jo_persistent_unordered_map *other) const {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        for(auto it = other->vec.begin(); it != other->vec.end(); ++it) {
-            if(it->third) {
-                copy->assoc_inplace(it->first, it->second);
-            }
-        }
-        return copy;
-    }
-
     // conj with lambda
     template<typename F>
-    jo_persistent_unordered_map *conj(jo_persistent_unordered_map *other, F eq) const {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+    jo_shared_ptr<jo_persistent_unordered_map> conj(jo_persistent_unordered_map *other, F eq) const {
+        jo_shared_ptr<jo_persistent_unordered_map> copy = new jo_persistent_unordered_map(*this);
         for(auto it = other->vec.begin(); it != other->vec.end(); ++it) {
             if(it->third) {
-                copy->assoc_inplace(it->first, it->second, eq);
+                copy = copy->assoc(it->first, it->second, eq);
             }
         }
         return copy;
@@ -5201,42 +5120,6 @@ public:
         return copy;
     }
 
-    jo_persistent_unordered_set *assoc_inplace(const K &key) {
-        if(vec.size() - length < vec.size() / 8) {
-            resize_inplace(vec.size() * 2);
-        }
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].second) {
-            if(vec[index].first == key) {
-                vec.assoc_inplace(index, entry_t(key, true));
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        vec.assoc_inplace(index, entry_t(key, true));
-        ++length;
-        return this;
-    }
-
-    // assoc_inplace with lambda for equality
-    template<typename F>   
-    jo_persistent_unordered_set *assoc_inplace(const K &key, F eq) {
-        if(vec.size() - length < vec.size() / 8) {
-            resize_inplace(vec.size() * 2);
-        }
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].second) {
-            if(eq(vec[index].first, key)) {
-                vec.assoc_inplace(index, entry_t(key, true));
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        vec.assoc_inplace(index, entry_t(key, true));
-        ++length;
-        return this;
-    }
-
     // remove a key from the set
     jo_persistent_unordered_set *erase(const iterator &it) const {
         return erase(it.cur->first);
@@ -5257,25 +5140,6 @@ public:
         return copy;
     }
 
-    // dissoc_inplace
-    jo_persistent_unordered_set *dissoc_inplace(const K &key) {
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].second) {
-            if(vec[index].first == key) {
-                vec.assoc_inplace(index, entry_t(vec[index].first, false));
-                --length;
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        return this;
-    }
-
-    // dissoc_inplace
-    jo_persistent_unordered_set *dissoc_inplace(const iterator &it) {
-        return dissoc_inplace(it.cur->first);
-    }
-
     // dissoc with lambda for equality
     template<typename F>
     jo_persistent_unordered_set *dissoc(const K &key, F eq) const {
@@ -5290,21 +5154,6 @@ public:
             index = (index + 1) % vec.size();
         } 
         return copy;
-    }
-
-    // dissoc_inplace with lambda for equality
-    template<typename F>
-    jo_persistent_unordered_set *dissoc_inplace(const K &key, F eq) {
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].second) {
-            if(eq(vec[index].first, key)) {
-                vec.assoc_inplace(index, entry_t(vec[index].first, false));
-                --length;
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        return this;
     }
 
     // find a key in the set

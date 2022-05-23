@@ -1421,7 +1421,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		int common_flags = ~0;
 		while(next != INV_NODE) {
 			common_flags &= get_node_flags(next);
-			n.t_set->assoc_inplace(next, node_eq);
+			n.t_set = n.t_set->assoc(next, node_eq);
 			next = parse_next(env, state, '}');
 		}
 		if(common_flags & NODE_FLAG_LITERAL) {
@@ -1596,7 +1596,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			return EMPTY_MAP_NODE;
 		}
 		while(next != INV_NODE && next2 != INV_NODE) {
-			n.t_map->assoc_inplace(next, next2, node_eq);
+			n.t_map = n.t_map->assoc(next, next2, node_eq);
 			next = parse_next(env, state, '}');
 			next2 = next != INV_NODE ? parse_next(env, state, '}') : INV_NODE;
 		}
@@ -1752,7 +1752,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 		// resolve all symbols in the map
 		map_ptr_t newmap = new_map();
 		for(auto it = get_node(root)->t_map->begin(); it; it++) {
-			newmap->assoc_inplace(eval_node(env, it->first), eval_node(env, it->second), node_eq);
+			newmap = newmap->assoc(eval_node(env, it->first), eval_node(env, it->second), node_eq);
 		}
 		return new_node_map(newmap);
 	} else if(type == NODE_HASH_SET) {
@@ -1760,7 +1760,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 		// resolve all symbols in the map
 		hash_set_ptr_t newset = new_hash_set();
 		for(auto it = get_node(root)->t_set->begin(); it; it++) {
-			newset->assoc_inplace(eval_node(env, it->first), node_eq);
+			newset = newset->assoc(eval_node(env, it->first), node_eq);
 		}
 		return new_node_hash_set(newset);
 	}
@@ -2632,14 +2632,14 @@ static node_idx_t native_quasiquote_1(env_ptr_t env, node_idx_t arg) {
 	if(n->type == NODE_MAP) {
 		map_ptr_t ret = new_map();
 		for(auto i = n->t_map->begin(); i; i++) {
-			ret->assoc_inplace(i->first, native_quasiquote_1(env, i->second), node_eq);
+			ret = ret->assoc(i->first, native_quasiquote_1(env, i->second), node_eq);
 		}
 		return new_node_map(ret);
 	}
 	if(n->type == NODE_HASH_SET) {
 		hash_set_ptr_t ret = new_hash_set();
 		for(auto i = n->t_set->begin(); i; i++) {
-			ret->assoc_inplace(native_quasiquote_1(env, i->first), node_eq);
+			ret = ret->assoc(native_quasiquote_1(env, i->first), node_eq);
 		}
 		return new_node_hash_set(ret);
 	}
@@ -3574,7 +3574,7 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 	}
 	if(get_node_type(to) == NODE_HASH_SET) {
 		hash_set_ptr_t ret = new hash_set_t(*get_node(to)->t_set);
-		seq_iterate(from, [&ret](node_idx_t item) { ret->assoc_inplace(item, node_eq); return true; });
+		seq_iterate(from, [&ret](node_idx_t item) { ret = ret->assoc(item, node_eq); return true; });
 		return new_node_hash_set(ret);
 	}
 	return NIL_NODE;
@@ -3604,7 +3604,7 @@ static node_idx_t native_hash_map(env_ptr_t env, list_ptr_t args) {
 			break;
 		}
 		node_idx_t v = eval_node(env, *it++);
-		map->assoc_inplace(k, v, node_eq);
+		map = map->assoc(k, v, node_eq);
 	}
 	return new_node_map(map);
 }
@@ -3626,7 +3626,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 		while(it) {
 			node_idx_t key_idx = *it++;
 			node_idx_t val_idx = *it++;
-			map->assoc_inplace(key_idx, val_idx, node_eq);
+			map = map->assoc(key_idx, val_idx, node_eq);
 		}
 		return new_node_map(map);
 	}
@@ -4114,7 +4114,7 @@ static node_idx_t native_array_map(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator it = args->begin(); it; ) {
 		node_idx_t key_idx = *it++;
 		node_idx_t val_idx = *it++;
-		map->assoc_inplace(key_idx, val_idx, node_eq);
+		map = map->assoc(key_idx, val_idx, node_eq);
 	}
 	return new_node_map(map);
 }
@@ -4645,7 +4645,7 @@ static node_idx_t native_frequencies(env_ptr_t env, list_ptr_t args) {
 	int coll_type = get_node_type(coll_idx);
 	map_ptr_t map = new_map();
 	if(!seq_iterate(coll_idx, [&](node_idx_t item) {
-		map->assoc_inplace(item, new_node_int(get_node_int(map->get(item, node_eq)) + 1), node_eq);
+		map = map->assoc(item, new_node_int(get_node_int(map->get(item, node_eq)) + 1), node_eq);
 		return true;
 	})) {
 		warnf("(frequencies) requires a list, string, vector, or lazy-list\n");
