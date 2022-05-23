@@ -4675,7 +4675,7 @@ class jo_persistent_unordered_map {
     size_t length;
 
 public:
-    jo_persistent_unordered_map() : vec(16), length() {}
+    jo_persistent_unordered_map() : vec(32), length() {}
     jo_persistent_unordered_map(const jo_persistent_unordered_map &other) : vec(other.vec), length(other.length) {}
     jo_persistent_unordered_map &operator=(const jo_persistent_unordered_map &other) {
         vec = other.vec;
@@ -5054,7 +5054,7 @@ class jo_persistent_unordered_set {
     size_t length;
 
 public:
-    jo_persistent_unordered_set() : vec(16), length() {}
+    jo_persistent_unordered_set() : vec(32), length() {}
     jo_persistent_unordered_set(const jo_persistent_unordered_set &other) : vec(other.vec), length(other.length) {}
     jo_persistent_unordered_set &operator=(const jo_persistent_unordered_set &other) {
         vec = other.vec;

@@ -1,1 +1,1 @@
-cl /O2 /Zi jo_lisp.cpp
+cl /Od /Zi jo_lisp.cpp

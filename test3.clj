@@ -143,3 +143,21 @@
 ;(println "in parallel!")
 ;@f
 
+(defn prime? [n] (not-any? zero? (map #(rem n %) (range 2 n))))
+;(is (= (for [x (range 3 17 2) :when (prime? x)
+             ;y (range 3 17 2) :when (prime? y)]
+         ;[x y]) 
+         ;([ 3 3] [ 3 5] [ 3 7] [ 3 11] [ 3 13]
+          ;[ 5 3] [ 5 5] [ 5 7] [ 5 11] [ 5 13]
+          ;[ 7 3] [ 7 5] [ 7 7] [ 7 11] [ 7 13]
+          ;[11 3] [11 5] [11 7] [11 11] [11 13]
+          ;[13 3] [13 5] [13 7] [13 11] [13 13])))
+
+
+(for [x (range 3 17 2) :when (prime? x)
+      y (range 3 17 2) :when (prime? y)]
+         [x y])
+
+
+
+

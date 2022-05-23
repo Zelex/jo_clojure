@@ -1298,7 +1298,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 	}
 
 	// for storing the state of the iterators
-	node_idx_t state_first_idx = new_node_map(new_map()->assoc_inplace(K_PC_NODE, 0));
+	node_idx_t state_first_idx = new_node_map(new_map()->assoc(K_PC_NODE, 0));
 	node_idx_t state_rest_idx = new_node_map(new_map());
 	node_idx_t nfn_idx = new_node(NODE_NATIVE_FUNC, NODE_FLAG_MACRO);
 	node_t *nfn = get_node(nfn_idx);
@@ -1339,7 +1339,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 					node_idx_t binding_idx = *bind_it++;
 					node_idx_t val_idx = eval_node(E, *bind_it++);
 					node_let(E, binding_idx, val_idx);
-					state_first = state_first->assoc(binding_idx, val_idx);
+					state_first = state_first->assoc(binding_idx, val_idx, node_eq);
 				}
 			} else if(binding_idx == K_WHILE_NODE) {
 				node_idx_t test_idx = eval_node(E, *expr_it++);
@@ -1367,7 +1367,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 				jo_pair<node_idx_t, node_idx_t> fr;
 				node_idx_t val_idx = eval_node(E, *expr_it++);
 				node_t *val = get_node(val_idx);
-				auto cur = state_rest->find(binding_idx);
+				auto cur = state_rest->find(binding_idx, node_eq);
 				if(cur.third) {
 					val_idx = cur.second;
 					val = get_node(val_idx);
@@ -1377,18 +1377,18 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 					PC -= 1;
 					if(PC < 0) return NIL_NODE;
 					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
-					state_rest = state_rest->dissoc(binding_idx);
+					state_rest = state_rest->dissoc(binding_idx, node_eq);
 				} else {
 					fr = val->seq_first_rest();
 					node_let(E, binding_idx, fr.first);
-					state_first = state_first->assoc(binding_idx, fr.first);
-					state_rest = state_rest->assoc(binding_idx, fr.second);
+					state_first = state_first->assoc(binding_idx, fr.first, node_eq);
+					state_rest = state_rest->assoc(binding_idx, fr.second, node_eq);
 					PC += 1;
 				}
 			}
 		}
 
-		state_first = state_first->assoc(K_PC_NODE, PC);
+		state_first = state_first->assoc(K_PC_NODE, PC, node_eq);
 
 		// Evaluate the body
 		node_idx_t result = eval_node(E, body_expr_idx);
