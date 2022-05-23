@@ -1021,18 +1021,11 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 		lazy_func_args->push_front_inplace(env->get("cons-first").value);
 		return new_node_lazy_list(env, new_node_list(lazy_func_args));
 	}
-	list_ptr_t ret = new_list();
-	ret->cons_inplace(second_idx);
-	ret->cons_inplace(first_idx);
-	return new_node_list(ret);
+	return new_node_list(list_va(2, first_idx, second_idx));
 }
 
 static node_idx_t native_cons_first(env_ptr_t env, list_ptr_t args) {
-	list_ptr_t l = new_list();
-	l->push_front_inplace(args->second_value());
-	l->push_front_inplace(env->get("cons-next").value);
-	l->push_front_inplace(args->first_value());
-	return new_node_list(l);
+	return new_node_list(list_va(3, args->first_value(), env->get("cons-next").value, args->second_value()));
 }
 
 static node_idx_t native_cons_next(env_ptr_t env, list_ptr_t args) {
@@ -1073,12 +1066,7 @@ static node_idx_t native_take_while(env_ptr_t env, list_ptr_t args) {
 		return new_node_vector(out_vec);
 	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
-		node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-		get_node(lazy_func_idx)->t_list = new_list();
-		get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("take-while-next").value);
-		get_node(lazy_func_idx)->t_list->push_back_inplace(pred);
-		get_node(lazy_func_idx)->t_list->push_back_inplace(coll);
-		return new_node_lazy_list(env, lazy_func_idx);
+		return new_node_lazy_list(env, new_node_list(list_va(3, env->get("take-while-next").value, pred, coll)));
 	}
 	return coll;
 }
@@ -1091,12 +1079,7 @@ static node_idx_t native_take_while_next(env_ptr_t env, list_ptr_t args) {
 	if(lit.done() || eval_va(env, 2, pred, coll) != TRUE_NODE) {
 		return NIL_NODE;
 	}
-	list_ptr_t list = new_list();
-	list->push_back_inplace(lit.val);
-	list->push_back_inplace(env->get("take-while-next").value);
-	list->push_back_inplace(pred);
-	list->push_back_inplace(new_node_lazy_list(lit.env, lit.next_fn()));
-	return new_node_list(list);
+	return new_node_list(list_va(4, lit.val, env->get("take-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 // (drop-while pred)(drop-while pred coll)
