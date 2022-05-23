@@ -676,14 +676,7 @@ static node_idx_t native_partition(env_ptr_t env, list_ptr_t args) {
 		pad_idx = eval_node(env, *it++);
 		coll_idx = eval_node(env, *it++);
 	}
-	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-	get_node(lazy_func_idx)->t_list = new_list();
-	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("partition-next").value);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(n_idx);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(step_idx);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(pad_idx);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(coll_idx);
-	return new_node_lazy_list(env, lazy_func_idx);
+	return new_node_lazy_list(env, new_node_list(list_va(5, env->get("partition-next").value, n_idx, step_idx, pad_idx, coll_idx)));
 }
 
 static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
@@ -725,7 +718,6 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	if((!ret.ptr || ret->size() == 0) && (!retv.ptr || retv->size() == 0)) {
-		//printf("partition: not enough elements in collection\n");
 		return NIL_NODE;
 	}
 	if((!ret.ptr || ret->size() < n) && (!retv.ptr || retv->size() < n)) {
@@ -745,7 +737,6 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 	}
-	//printf("("); print_node_list(ret); printf(")\n");
 	list_ptr_t ret_list = new_list();
 	if(retv.ptr) {
 		ret_list->push_back_inplace(new_node_vector(retv));
@@ -773,6 +764,7 @@ static node_idx_t native_interleave(env_ptr_t env, list_ptr_t args) {
 	get_node(lazy_func_idx)->t_list->push_back_inplace(ZERO_NODE);
 	get_node(lazy_func_idx)->t_list->conj_inplace(*args.ptr);
 	return new_node_lazy_list(env, lazy_func_idx);
+
 }
 
 static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
@@ -936,11 +928,7 @@ static node_idx_t native_lazy_seq(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		auto fr = ll->seq_first_rest();
-		list_ptr_t l = new_list();
-		l->push_front_inplace(fr.second);
-		l->push_front_inplace(env->get("lazy-seq-next").value);
-		l->push_front_inplace(fr.first);
-		return new_node_list(l);
+		return new_node_list(list_va(3, fr.first, env->get("lazy-seq-next").value, fr.second));
 	}, true));
 	return new_node_lazy_list(env, lazy_func_idx);
 }
@@ -952,11 +940,7 @@ static node_idx_t native_lazy_seq_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	auto fr = ll->seq_first_rest();
-	list_ptr_t l = new_list();
-	l->push_front_inplace(fr.second);
-	l->push_front_inplace(env->get("lazy-seq-next").value);
-	l->push_front_inplace(fr.first);
-	return new_node_list(l);
+	return new_node_list(list_va(3, fr.first, env->get("lazy-seq-next").value, fr.second));
 }
 
 // (seq coll)
@@ -975,12 +959,7 @@ static node_idx_t native_seq(env_ptr_t env, list_ptr_t args) {
 	if(!n->is_seq()) {
 		return NIL_NODE;
 	}
-	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-	node_t *lazy_func = get_node(lazy_func_idx);
-	lazy_func->t_list = new_list();
-	lazy_func->t_list->push_front_inplace(x);
-	lazy_func->t_list->push_front_inplace(env->get("seq-next").value);
-	return new_node_lazy_list(env, lazy_func_idx);
+	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("seq-next").value, x)));
 }
 
 static node_idx_t native_seq_next(env_ptr_t env, list_ptr_t args) {
@@ -993,11 +972,7 @@ static node_idx_t native_seq_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	auto fr = n->seq_first_rest();
-	list_ptr_t l = new_list();
-	l->push_front_inplace(fr.second);
-	l->push_front_inplace(env->get("seq-next").value);
-	l->push_front_inplace(fr.first);
-	return new_node_list(l);
+	return new_node_list(list_va(3, fr.first, env->get("seq-next").value, fr.second));
 }
 
 // (cons x seq)
