@@ -153,7 +153,6 @@ format
 gen-class
 gen-interface
 gensym
-get-in
 get-method
 get-proxy-class
 get-thread-bindings
