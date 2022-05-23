@@ -38,8 +38,7 @@ static node_idx_t native_is_blank(env_ptr_t env, list_ptr_t args) { node_idx_t v
 
 // splits a string separated by newlines into a list of strings
 static node_idx_t native_split_lines(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t node_idx = *it++;
+	node_idx_t node_idx = args->first_value();
 	node_t *node = get_node(node_idx);
 	if(!node->is_string()) {
 		return NIL_NODE;
@@ -62,13 +61,12 @@ static node_idx_t native_split_lines(env_ptr_t env, list_ptr_t args) {
 
 // (join sep collection)
 static node_idx_t native_join(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-    node_idx_t node_idx = *it++;
+    node_idx_t node_idx = args->first_value();
     node_t *node = get_node(node_idx);
     if(!node->is_list()) {
         return NIL_NODE;
     }
-    jo_string sep = get_node(*it++)->as_string();
+    jo_string sep = get_node(args->second_value())->as_string();
     list_ptr_t list = node->as_list();
     jo_string str;
     for(list_t::iterator it = list->begin(); it;) {
