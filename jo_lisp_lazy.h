@@ -1195,20 +1195,16 @@ static node_idx_t native_drop_first(env_ptr_t env, list_ptr_t args) {
 			break;
 		}
 	}
-	if(lit.done()) {
-		return NIL_NODE;
-	}
-	return new_node_list(list_va(3, lit.val, env->get("drop-while-next").value, new_node_lazy_list(lit.env, lit.next_fn())));
+	if(lit.done()) return NIL_NODE;
+	return new_node_list(list_va(3, lit.val, env->get("drop-next").value, new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 static node_idx_t native_drop_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
-	if(lit.done()) {
-		return NIL_NODE;
-	}
-	return new_node_list(list_va(3, lit.val, env->get("drop-while-next").value, new_node_lazy_list(lit.env, lit.next_fn())));
+	if(lit.done()) return NIL_NODE;
+	return new_node_list(list_va(3, lit.val, env->get("drop-next").value, new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 // (cycle coll)
