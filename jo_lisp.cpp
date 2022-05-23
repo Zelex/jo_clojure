@@ -3248,8 +3248,6 @@ static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
 // equivalent to (first (first x))
 static node_idx_t native_ffirst(env_ptr_t env, list_ptr_t args) { return native_first(env, new_list(native_first(env, args))); }
 static node_idx_t native_is_fn(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FUNC ? TRUE_NODE : FALSE_NODE; }
-static node_idx_t native_is_int(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_INT ? TRUE_NODE : FALSE_NODE; }
-static node_idx_t native_int(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node(args->first_value())->as_int()); }
 static node_idx_t native_is_indexed(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_VECTOR ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) { return jo_isletter(get_node_int(args->first_value())) ? TRUE_NODE : FALSE_NODE; }
 
@@ -4908,9 +4906,6 @@ int main(int argc, char **argv) {
 	env->set("simple-keyword?", new_node_native_function("simple-keyword?", &native_is_simple_keyword, false));
 	env->set("qualified-keyword?", new_node_native_function("qualified-keyword?", &native_is_qualified_keyword, false));
 	env->set("indexed?", new_node_native_function("indexed?", &native_is_indexed, false));
-	env->set("int?", new_node_native_function("int?", &native_is_int, false));
-	env->set("int", new_node_native_function("int", &native_int, false));
-	env->set("integer?", new_node_native_function("integer?", &native_is_int, false));
 	env->set("defn", new_node_native_function("defn", &native_defn, true));
 	env->set("defmacro", new_node_native_function("defmacro", &native_defmacro, true));
 	env->set("*ns*", new_node_var("nil", NIL_NODE));

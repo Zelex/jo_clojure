@@ -547,13 +547,17 @@ static node_idx_t native_math_interp(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_float(env_ptr_t env, list_ptr_t args) { return new_node_float(get_node_float(args->first_value())); }
-static node_idx_t native_is_float(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FLOAT ? TRUE_NODE : FALSE_NODE; }
-
-// floats are doubles in jo_lisp, there is no distiction between float and double
 static node_idx_t native_double(env_ptr_t env, list_ptr_t args) { return new_node_float(get_node_float(args->first_value())); }
+static node_idx_t native_int(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node(args->first_value())->as_int()); }
+
+static node_idx_t native_is_float(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FLOAT ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_double(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FLOAT ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_int(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_INT ? TRUE_NODE : FALSE_NODE; }
 
 void jo_lisp_math_init(env_ptr_t env) {
+	env->set("int", new_node_native_function("int", &native_int, false));
+	env->set("int?", new_node_native_function("int?", &native_is_int, false));
+	env->set("integer?", new_node_native_function("integer?", &native_is_int, false));
 	env->set("float", new_node_native_function("float", &native_float, false));
 	env->set("float?", new_node_native_function("float?", &native_is_float, false));
 	env->set("double", new_node_native_function("double", &native_double, false));

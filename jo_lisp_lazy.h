@@ -758,12 +758,11 @@ static node_idx_t native_interleave(env_ptr_t env, list_ptr_t args) {
 	if(args->size() == 0) {
 		return NIL_NODE;
 	}
-	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-	get_node(lazy_func_idx)->t_list = new_list();
-	get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("interleave-next").value);
-	get_node(lazy_func_idx)->t_list->push_back_inplace(ZERO_NODE);
-	get_node(lazy_func_idx)->t_list->conj_inplace(*args.ptr);
-	return new_node_lazy_list(env, lazy_func_idx);
+	list_ptr_t list = new_list();
+	list->push_back_inplace(env->get("interleave-next").value);
+	list->push_back_inplace(ZERO_NODE);
+	list->conj_inplace(*args.ptr);
+	return new_node_lazy_list(env, new_node_list(list));
 
 }
 
