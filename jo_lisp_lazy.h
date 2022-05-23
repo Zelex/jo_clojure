@@ -34,12 +34,7 @@ static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
 		return new_node_list(ret);
 	}
 	// constructs a function which returns the next value in the range, and another function
-	list_ptr_t ret = new_list();
-	ret->push_back_inplace(env->get("range-next").value);
-	ret->push_back_inplace(new_node_int(start));
-	ret->push_back_inplace(new_node_int(step));
-	ret->push_back_inplace(new_node_int(end));
-	return new_node_lazy_list(env, new_node_list(ret));
+	return new_node_lazy_list(env, new_node_list(list_va(4, env->get("range-next").value, new_node_int(start), new_node_int(step), new_node_int(end))));
 }
 
 static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
@@ -50,15 +45,7 @@ static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
 	if(start >= end) {
 		return NIL_NODE;
 	}
-	list_ptr_t ret = new_list();
-	// this value
-	ret->push_back_inplace(new_node_int(start));
-	// next function
-	ret->push_back_inplace(env->get("range-next").value);
-	ret->push_back_inplace(new_node_int(start+step));
-	ret->push_back_inplace(new_node_int(step));
-	ret->push_back_inplace(new_node_int(end));
-	return new_node_list(ret);
+	return new_node_list(list_va(5, new_node_int(start), env->get("range-next").value, new_node_int(start+step), new_node_int(step), new_node_int(end)));
 }
 
 // (repeat x)
@@ -84,11 +71,7 @@ static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_list(ret);
 	}
-	list_ptr_t ret = new_list();
-	ret->push_back_inplace(env->get("repeat-next").value);
-	ret->push_back_inplace(x);
-	ret->push_back_inplace(new_node_int(n));
-	return new_node_lazy_list(env, new_node_list(ret));
+	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("repeat-next").value, x, new_node_int(n))));
 }
 
 static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
@@ -98,12 +81,7 @@ static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
 	if(n <= 0) {
 		return NIL_NODE;
 	}
-	list_ptr_t ret = new_list();
-	ret->push_back_inplace(x);
-	ret->push_back_inplace(env->get("repeat-next").value);
-	ret->push_back_inplace(x);
-	ret->push_back_inplace(new_node_int(n-1));
-	return new_node_list(ret);
+	return new_node_list(list_va(4, x, env->get("repeat-next").value, x, new_node_int(n-1)));
 }
 
 // (concat)
@@ -177,14 +155,7 @@ concat_next:
 // Returns a lazy seq representing the infinite sequence of x, f(x), f(f(x)), etc.
 // f must be free of side-effects
 static node_idx_t native_iterate(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t f = *it++;
-	node_idx_t x = *it++;
-	list_ptr_t ret = new_list();
-	ret->push_back_inplace(env->get("iterate-next").value);
-	ret->push_back_inplace(f);
-	ret->push_back_inplace(x);
-	return new_node_lazy_list(env, new_node_list(ret));
+	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("iterate-next").value, args->first_value(), args->second_value())));
 }
 
 static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
@@ -288,12 +259,7 @@ static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
 		return new_node_vector(list_list->take(N));
 	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
-		node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
-		get_node(lazy_func_idx)->t_list = new_list();
-		get_node(lazy_func_idx)->t_list->push_back_inplace(env->get("take-next").value);
-		get_node(lazy_func_idx)->t_list->push_back_inplace(n);
-		get_node(lazy_func_idx)->t_list->push_back_inplace(coll);
-		return new_node_lazy_list(env, lazy_func_idx);
+		return new_node_lazy_list(env, new_node_list(list_va(3, env->get("take-next").value, n, coll)));
 	}
 	return coll;
 }
@@ -309,12 +275,7 @@ static node_idx_t native_take_next(env_ptr_t env, list_ptr_t args) {
 	if(lit.done()) {
 		return NIL_NODE;
 	}
-	list_ptr_t list = new_list();
-	list->push_back_inplace(lit.val);
-	list->push_back_inplace(env->get("take-next").value);
-	list->push_back_inplace(new_node_int(n-1));
-	list->push_back_inplace(new_node_lazy_list(lit.env, lit.next_fn()));
-	return new_node_list(list);
+	return new_node_list(list_va(4, lit.val, env->get("take-next").value, new_node_int(n-1), new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 // (take-nth n) (take-nth n coll)
