@@ -20,7 +20,9 @@
 #endif
 
 #define warnf printf
-//#define warnf sizeof
+#ifndef warnf
+#define warnf sizeof
+#endif
 
 
 enum {
