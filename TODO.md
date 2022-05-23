@@ -1,6 +1,5 @@
 * lazy read-dir-all and the like
 * REPL (not sure I would ever use this?)
-* I think i can improve a lot of code without sacrificing much perf by creating a seq iterator that uses a lambda for the inner
 
 *1
 *2
