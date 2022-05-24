@@ -4680,6 +4680,97 @@ static node_idx_t native_get_in(env_ptr_t env, list_ptr_t args) {
 	return result;
 }
 
+// (group-by f coll)
+// Returns a map of the elements of coll keyed by the result of
+// f on each element. The value at each key will be a vector of the
+// corresponding elements, in the order they appeared in coll.
+static node_idx_t native_group_by(env_ptr_t env, list_ptr_t args) {
+	if(args->size() != 2) {
+		warnf("(group-by) requires 2 arguments\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	int coll_type = get_node_type(coll_idx);
+	map_ptr_t map = new_map();
+	seq_iterate(coll_idx, [&](node_idx_t item) {
+		node_idx_t key = eval_va(env, 2, f_idx, item);
+		node_idx_t V = map->get(key, node_eq);
+		list_ptr_t L = get_node_list(V);
+		if(L.ptr) {
+			L->push_back_inplace(item);
+		} else {
+			map = map->assoc(key, new_node_list(new_list()->push_back_inplace(item)), node_eq);
+		}
+		return true;
+	});
+	return new_node_map(map);
+}
+
+// (hash x)
+// Returns the hash code of its argument. Note this is the hash code
+// consistent with =, and thus is different than .hashCode for Integer,
+// Short, Byte and Clojure collections.
+static node_idx_t native_hash(env_ptr_t env, list_ptr_t args) {
+	if(args->size() != 1) {
+		warnf("(hash) requires 1 argument\n");
+		return NIL_NODE;
+	}
+	return new_node_int(jo_hash_value(args->first_value()));
+}
+
+// (hash-combine x y)
+// Calculates the hashes for x and y and produces a new hash that represents
+// the combination of the two.
+static node_idx_t native_hash_combine(env_ptr_t env, list_ptr_t args) {
+	if(args->size() != 2) {
+		warnf("(hash-combine) requires 2 arguments\n");
+		return NIL_NODE;
+	}
+	return new_node_int(jo_hash_value(args->first_value()) ^ jo_hash_value(args->second_value()));
+}
+
+// (hash-set)(hash-set & keys)
+// Returns a new hash set with supplied keys.  Any equal keys are
+// handled as if by repeated uses of conj.
+static node_idx_t native_hash_set(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	hash_set_ptr_t set = new_hash_set();
+	while(it) {
+		node_idx_t k = eval_node(env, *it++);
+		set = set->assoc(k, node_eq);
+	}
+	return new_node_hash_set(set);
+}
+
+// (identical? x y)
+// Tests if 2 arguments are the same object
+static node_idx_t native_is_identical(env_ptr_t env, list_ptr_t args) {
+	return args->first_value() == args->second_value() ? TRUE_NODE : FALSE_NODE;
+}
+
+// (juxt f)(juxt f g)(juxt f g h)(juxt f g h & fs)
+// Takes a set of functions and returns a fn that is the juxtaposition
+// of those fns.  The returned fn takes a variable number of args, and
+// returns a vector containing the result of applying each fn to the
+// args (left-to-right).
+// ((juxt a b c) x) => [(a x) (b x) (c x)]
+static node_idx_t native_juxt(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 2) {
+		warnf("(juxt) requires at least 2 arguments\n");
+		return NIL_NODE;
+	}
+	return new_node_native_function("juxt-lambda", [args](env_ptr_t env, list_ptr_t args2) {
+		node_idx_t val = args->first_value();
+		vector_ptr_t result = new_vector();
+		for(auto it = args->begin(); it; it++) {
+			result->push_back_inplace(eval_list(env, args2->push_front(*it)));
+		}
+		return new_node_vector(result);
+	}, false);
+}
+
+
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
@@ -4977,6 +5068,14 @@ int main(int argc, char **argv) {
 	env->set("vector?", new_node_native_function("vector?", &native_is_vector, false));
 	env->set("frequencies", new_node_native_function("frequencies", &native_frequencies, false));
 	env->set("get-in", new_node_native_function("get-in", &native_get_in, false));
+	env->set("group-by", new_node_native_function("group-by", &native_group_by, false));
+	env->set("hash", new_node_native_function("hash", &native_hash, false));
+	env->set("hash-ordered-coll", new_node_native_function("hash-ordered-coll", &native_hash, false));
+	env->set("hash-unordered-coll", new_node_native_function("hash-unordered-coll", &native_hash, false));
+	env->set("hash-combine", new_node_native_function("hash-combine", &native_hash_combine, false));
+	env->set("hash-set", new_node_native_function("hash-set", &native_hash_set, false));
+	env->set("identical?", new_node_native_function("identical?", &native_is_identical, false));
+	env->set("juxt", new_node_native_function("juxt", &native_juxt, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

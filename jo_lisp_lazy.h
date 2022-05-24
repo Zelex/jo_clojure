@@ -1398,6 +1398,59 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 	return new_node_lazy_list(env, new_node_list(list_va(3, nfn_idx, state_first_idx, state_rest_idx)));
 }
 
+// (interpose sep)(interpose sep coll)
+// Returns a lazy seq of the elements of coll separated by sep.
+// Returns a stateful transducer when no collection is provided.
+static node_idx_t native_interpose(env_ptr_t env, list_ptr_t args) {
+	node_idx_t sep_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("interpose-next-elem").value, sep_idx, coll_idx)));
+}
+
+static node_idx_t native_interpose_next_elem(env_ptr_t env, list_ptr_t args) {
+	node_idx_t sep_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	if(get_node(coll_idx)->seq_empty()) {
+		return NIL_NODE;
+	}
+	auto fr = get_node(coll_idx)->seq_first_rest();
+	return new_node_list(list_va(4, fr.first, env->get("interpose-next-sep"), sep_idx, fr.second));
+}
+
+static node_idx_t native_interpose_next_sep(env_ptr_t env, list_ptr_t args) {
+	node_idx_t sep_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	if(get_node(coll_idx)->seq_empty()) {
+		return NIL_NODE;
+	}
+	return new_node_list(list_va(4, sep_idx, env->get("interpose-next-elem"), sep_idx, coll_idx));
+}
+
+// (keep-indexed f)(keep-indexed f coll)
+// Returns a lazy sequence of the non-nil results of (f index item). Note,
+// this means false return values will be included.  f must be free of
+// side-effects.  Returns a stateful transducer when no collection is
+// provided.
+static node_idx_t native_keep_indexed(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	return new_node_lazy_list(env, new_node_list(list_va(4, env->get("keep-indexed-next").value, f_idx, coll_idx, INT_0_NODE)));
+}
+
+static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	int cnt = get_node_int(args->third_value());
+	node_idx_t result_idx;
+	do {
+		auto fr = get_node(coll_idx)->seq_first_rest();
+		result_idx = eval_va(env, 3, f_idx, new_node_int(cnt), fr.first);
+		coll_idx = fr.second;
+		++cnt;
+	} while(result_idx == NIL_NODE);
+	return new_node_list(list_va(5, result_idx, env->get("keep-indexed-next").value, f_idx, coll_idx, new_node_int(cnt)));
+}
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true));
@@ -1447,4 +1500,9 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("cycle", new_node_native_function("cycle", &native_cycle, false));
 	env->set("dedupe", new_node_native_function("dedupe", &native_dedupe, false));
 	env->set("for", new_node_native_function("for", &native_for, true));
+	env->set("interpose", new_node_native_function("interpose", &native_interpose, false));
+	env->set("interpose-next-elem", new_node_native_function("interpose-next-elem", &native_interpose_next_elem, true));
+	env->set("interpose-next-sep", new_node_native_function("interpose-next-sep", &native_interpose_next_sep, true));
+	env->set("keep-indexed", new_node_native_function("keep-indexed", &native_keep_indexed, false));
+	env->set("keep-indexed-next", new_node_native_function("keep-indexed-next", &native_keep_indexed_next, true));
 }
