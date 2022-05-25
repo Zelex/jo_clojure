@@ -174,7 +174,6 @@ iterator-seq
 key
 list*
 load
-load-file
 load-reader
 load-string
 loaded-libs
