@@ -2341,7 +2341,7 @@ struct jo_shared_ptr {
     int* ref_count;
     
     jo_shared_ptr() : ptr(nullptr), ref_count(nullptr) {}
-    jo_shared_ptr(T* ptr) : ptr(ptr), ref_count(new int(1)) {}
+    jo_shared_ptr(T* Ptr) : ptr(Ptr), ref_count(Ptr ? new int(1) : nullptr) {}
     jo_shared_ptr(const jo_shared_ptr& other) : ptr(other.ptr), ref_count(other.ref_count) {
         if(ref_count) (*ref_count)++;
     }
@@ -2360,7 +2360,7 @@ struct jo_shared_ptr {
                 }
             }
             ptr = other.ptr;
-            ref_count = other.ref_count;
+            ref_count = ptr ? other.ref_count : nullptr;
         }
         return *this;
     }
@@ -2374,7 +2374,7 @@ struct jo_shared_ptr {
                 }
             }
             ptr = other.ptr;
-            ref_count = other.ref_count;
+            ref_count = ptr ? other.ref_count : nullptr;
             other.ptr = nullptr;
             other.ref_count = nullptr;
         }
@@ -2386,7 +2386,8 @@ struct jo_shared_ptr {
             if(--(*ref_count) == 0) {
                 delete ptr;
                 delete ref_count;
-                ptr = 0;
+                ptr = nullptr;
+                ref_count = nullptr;
             }
         }
     }

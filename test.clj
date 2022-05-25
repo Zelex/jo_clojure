@@ -154,7 +154,7 @@
   )
 (defn for-test []
   (is (= (list 1 2 3) (for [x (list 1 2 3)] x)))
-  (is (= (list 1 4 6) (for [x (list 1 2 3)] (* x 2))))
+  (is (= (list 2 4 6) (for [x (list 1 2 3)] (* x 2))))
   (is (= (list 4 5 6 8 10 12 12 15 18)
          (for [x (list 1 2 3)
                y (list 4 5 6)]
@@ -567,7 +567,7 @@
 (is (= (contains? {:a 1} :b) false))
 
 (is (= (counted? [:a :b :c]) true))
-(is (= (counted? (:a :b :c)) true))
+(is (= (counted? '(:a :b :c)) true))
 (is (= (counted? {:a :b :c}) true))
 (is (= (counted? "test") false))
 
@@ -657,10 +657,10 @@
 (is (= (split-with (partial >= 3) [1 2 3 4 5]) [(1 2 3) (4 5)]))
 (is (= (split-with (partial > 3) [1 2 3 2 1]) [(1 2) (3 2 1)]))
 
-;(is (= (disj #{1 2 3}) #{1 2 3}))
-;(is (= (disj #{1 2 3} 2) #{1 3}))
-;(is (= (disj #{1 2 3} 4) #{1 2 3}))
-;(is (= (disj #{1 2 3} 1 3) #{2}))
+(is (= (disj #{1 2 3}) #{1 2 3}))
+(is (= (disj #{1 2 3} 2) #{1 3}))
+(is (= (disj #{1 2 3} 4) #{1 2 3}))
+(is (= (disj #{1 2 3} 1 3) #{2}))
 
 (is (= (for [x [0 1 2 3 4 5], :let [y (* x 3)], :when (even? y)] y) (0 6 12)))
 (def digits [1 2 3])
@@ -758,12 +758,53 @@
 
 (is (= (get-in mv [:pets 1 :type]) :hamster))
 
+(is (= (group-by count ["a" "as" "asd" "aa" "asdf" "qwer"]) {1 ["a"], 2 ["as" "aa"], 3 ["asd"], 4 ["asdf" "qwer"]}))
+(is (= (group-by odd? (range 10)) {false [0 2 4 6 8], true [1 3 5 7 9]}))
+(is (= (group-by :user-id [{:user-id 1 :uri "/"} 
+                           {:user-id 2 :uri "/foo"} 
+                           {:user-id 1 :uri "/account"}])
+        {1 [{:user-id 1, :uri "/"} 
+            {:user-id 1, :uri "/account"}],
+         2 [{:user-id 2, :uri "/foo"}]}))
+(def words ["Air" "Bud" "Cup" "Awake" "Break" "Chunk" "Ant" "Big" "Check"])
+(is (= (group-by (juxt first count) words)
+       {[\A 3] ["Air" "Ant"], 
+        [\B 3] ["Bud" "Big"], 
+        [\C 3] ["Cup"], 
+        [\A 5] ["Awake"], 
+        [\B 5] ["Break"], 
+        [\C 5] ["Chunk" "Check"]}))
+(is (= (group-by :category [{:category "a" :id 1}
+                            {:category "a" :id 2}
+                            {:category "b" :id 3}])
+        {"a" [{:category "a", :id 1} {:category "a", :id 2}], 
+         "b" [{:category "b", :id 3}]}))
+(is (= (group-by #(get % :category) [{:category "a" :id 1}
+                                     {:category "a" :id 2}
+                                     {:category "b" :id 3}])
+        {"a" [{:category "a", :id 1} {:category "a", :id 2}], 
+         "b" [{:category "b", :id 3}]}))
+(defn my-category [item] (get item :category))
+(is (= (group-by my-category [{:category "a" :id 1}
+                              {:category "a" :id 2}
+                              {:category "b" :id 3}])
+        {"a" [{:category "a", :id 1} {:category "a", :id 2}], 
+         "b" [{:category "b", :id 3}]}))
+(def words ["meat" "mat" "team" "mate" "eat" "tea"])
+(is (= (group-by hash-set words)
+        {#{\a \e \m \t} ["meat" "team" "mate"],
+         #{\a \m \t}    ["mat"], 
+         #{\a \e \t}    ["eat" "tea"]}))
+
+
+
+
 (string-test)
 (if-test)
 (when-test)
 (cond-test)
 (when-let-test)
-;(for-test)
+(for-test)
 (list-test)
 (seqable?-test)
 (cons-test)

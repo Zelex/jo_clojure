@@ -702,6 +702,9 @@ struct node_t {
 		case NODE_INT:    
 			// only letter? TODO
 		 	if(jo_isletter(t_int)) {
+				if(pretty >= 2) {
+					return "\\" + jo_string(t_int);
+				}
 				return jo_string(t_int);
 			}
 			return va("%i", t_int);
@@ -1633,7 +1636,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 		if(n1_type == NODE_LIST) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
 			sym_type = get_node_type(sym_idx);
-		} else if(n1_flags & NODE_FLAG_STRING) {
+		} else if(n1_type == NODE_SYMBOL) {
 			sym_idx = env->get(get_node_string(n1i)).value;
 			sym_type = get_node_type(sym_idx);
 		}
@@ -1728,7 +1731,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 	int flags = get_node_flags(root);
-	//if(flags & NODE_FLAG_LITERAL) { return root; }
+	if(flags & NODE_FLAG_LITERAL) { return root; }
 
 	int type = get_node_type(root);
 	if(type == NODE_LIST) {
@@ -2089,10 +2092,9 @@ static inline bool seq_iterate(node_idx_t seq, F f) {
 		}
 		return true;
 	} else if(n->type == NODE_STRING) {
-		auto it = n->t_string.begin();
-		auto it_end = n->t_string.end();
-		for(; it != it_end; it++) {
-			if(!f(*it)) break;
+		auto it = n->t_string.c_str();
+		for(;*it;it++) {
+			if(!f(new_node_int(*it))) break;
 		}
 		return true;
 	}
@@ -4314,8 +4316,8 @@ static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_idx_t coll_idx = eval_node(env, args->first_value());
-	node_idx_t key_idx = eval_node(env, args->second_value());
+	node_idx_t coll_idx = args->first_value();
+	node_idx_t key_idx = args->second_value();
 	int coll_type = get_node_type(coll_idx);
 	if(coll_type == NODE_LIST) {
 		list_ptr_t coll = get_node_list(coll_idx);
@@ -4337,7 +4339,7 @@ static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
 // (counted? coll)
 // Returns true if coll implements count in constant time
 static node_idx_t native_is_counted(env_ptr_t env, list_ptr_t args) {
-	node_idx_t coll_idx = eval_node(env, args->first_value());
+	node_idx_t coll_idx = args->first_value();
 	int coll_type = get_node_type(coll_idx);
 	if(coll_type == NODE_LIST) return TRUE_NODE;
 	if(coll_type == NODE_VECTOR) return TRUE_NODE;
@@ -4695,12 +4697,12 @@ static node_idx_t native_group_by(env_ptr_t env, list_ptr_t args) {
 	map_ptr_t map = new_map();
 	seq_iterate(coll_idx, [&](node_idx_t item) {
 		node_idx_t key = eval_va(env, 2, f_idx, item);
-		node_idx_t V = map->get(key, node_eq);
-		list_ptr_t L = get_node_list(V);
-		if(L.ptr) {
-			L->push_back_inplace(item);
+		node_idx_t V_idx = map->get(key, node_eq);
+		node_t *V = get_node(V_idx);
+		if(V->type == NODE_NIL) {
+			map = map->assoc(key, new_node_vector(new_vector()->push_back(item)), node_eq);
 		} else {
-			map = map->assoc(key, new_node_list(new_list()->push_back_inplace(item)), node_eq);
+			V->as_vector()->push_back_inplace(item);
 		}
 		return true;
 	});
@@ -4734,8 +4736,16 @@ static node_idx_t native_hash_combine(env_ptr_t env, list_ptr_t args) {
 // Returns a new hash set with supplied keys.  Any equal keys are
 // handled as if by repeated uses of conj.
 static node_idx_t native_hash_set(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
 	hash_set_ptr_t set = new_hash_set();
+	if(args->size() == 1) {
+		if(seq_iterate(args->first_value(), [&](node_idx_t item) {
+			set = set->assoc(item);
+			return true;
+		})) {
+			return new_node_hash_set(set);
+		}
+	}
+	list_t::iterator it = args->begin();
 	while(it) {
 		node_idx_t k = eval_node(env, *it++);
 		set = set->assoc(k, node_eq);
