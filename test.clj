@@ -796,7 +796,9 @@
          #{\a \m \t}    ["mat"], 
          #{\a \e \t}    ["eat" "tea"]}))
 
-
+(is (= (hash-set 1 2 1 3 1 4 1 5) #{1 2 3 4 5}))
+(is (= (hash-set :c :a :b) #{:b :a :c}))
+(is (= (hash-set "Lorem ipsum dolor sit amet") #{\space \a \d \e \i \L \l \m \o \p \r \s \t \u}))
 
 
 (string-test)

@@ -1,4 +1,5 @@
 
-(def words ["meat" "mat" "team" "mate" "eat" "tea"])
-(group-by hash-set words)
+(hash-set :c :a :b)
+
+
 

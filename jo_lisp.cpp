@@ -703,6 +703,10 @@ struct node_t {
 			// only letter? TODO
 		 	if(jo_isletter(t_int)) {
 				if(pretty >= 2) {
+					if(t_int == 32) return "\\space";
+					if(t_int == 9) return "\\tab";
+					if(t_int == 10) return "\\newline";
+					if(t_int == 13) return "\\return";
 					return "\\" + jo_string(t_int);
 				}
 				return jo_string(t_int);
@@ -1063,12 +1067,14 @@ static token_t get_token(parse_state_t *state) {
 		return tok;
 	}
  
+	/*
 	if(c == '\\') {
 		tok.type = TOK_SYMBOL;
 		int val = state->getc();
 		tok.str = va("%i", val);
 		return tok;
 	}
+	*/
 	if(c == '"') {
 		tok.type = TOK_STRING;
 		// string literal
@@ -1218,6 +1224,14 @@ static token_t get_token(parse_state_t *state) {
 		tok.str += (char)c;
 		c = state->getc();
 	} while(true);
+	
+	if(tok.str.c_str()[0] == '\\') {
+		// escape sequence
+		if(tok.str == "\\space") tok.str = "32";
+		else tok.str = va("%i", tok.str.c_str()[1]);
+		debugf("token: %s\n", tok.str.c_str());
+		return tok;
+	}
 	
 	debugf("token: %s\n", tok.str.c_str());
 
@@ -2111,6 +2125,14 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 
 	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
 		return n1->type == NODE_NIL && n2->type == NODE_NIL;
+	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
+		return n1->t_bool == n2->t_bool;
+	} else if(n1->type == NODE_INT && n2->type == NODE_INT) {
+		return n1->t_int == n2->t_int;
+	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
+		return n1->as_float() == n2->as_float();
+	} else if(n1->flags & n2->flags & NODE_FLAG_STRING) {
+		return n1->t_string == n2->t_string;
 	} else if(n1->is_func() && n2->is_func()) {
 		#if 1 // ?? is this correct?
 			return n1i == n2i;
@@ -2141,6 +2163,13 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 		}
 		return true;
 		#endif
+	} else if(n1->type == NODE_HASH_SET && n2->type == NODE_HASH_SET) {
+		for(auto i1 = n1->t_set->begin(); i1; i1++) {
+			if(!n2->t_set->contains(i1->first, node_eq)) {
+				return false;
+			}
+		}
+		return true;
 	} else if(n1->is_seq() && n2->is_seq()) {
 		// in this case we want to iterate over the sequences and compare
 		// each element
@@ -2156,14 +2185,6 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 			return false;
 		}
 		return true;
-	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
-		return n1->t_bool == n2->t_bool;
-	} else if(n1->type == NODE_INT && n2->type == NODE_INT) {
-		return n1->t_int == n2->t_int;
-	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
-		return n1->as_float() == n2->as_float();
-	} else if(n1->flags & n2->flags & NODE_FLAG_STRING) {
-		return n1->t_string == n2->t_string;
 	}
 	return false;
 }
@@ -3894,7 +3915,7 @@ static node_idx_t native_is(env_ptr_t env, list_ptr_t args) {
 			printf("%s\n", msg_node->t_string.c_str());
 		} else {
 			printf("Assertion failed\n");
-			print_node(form_idx);
+			native_print(env, list_va(1, form_idx));
 			printf("\n");
 		}
 	}
