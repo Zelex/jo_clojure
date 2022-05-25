@@ -1,8 +1,6 @@
 
-(spit "tmp.clj" "(defn doub2 [x] (* x 2))")
-(let [p (io/open-file "r" "tmp.clj")]
-  (load-reader p)
-  (is (= (doub2 15) 30))
-  (io/close-file p))
+  
+(load-string "(defn doub3 [x] (* x 2))")
+(is (= (doub3 15) 30))
 
 

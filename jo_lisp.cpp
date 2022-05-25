@@ -4925,6 +4925,30 @@ static node_idx_t native_load_reader(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(env, main_list);
 }
 
+// (load-string s)
+// Sequentially read and evaluate the set of forms contained in the
+// string
+static node_idx_t native_load_string(env_ptr_t env, list_ptr_t args) {
+	node_idx_t s_idx = args->first_value();
+	if(get_node_type(s_idx) != NODE_STRING) {
+		warnf("(load-string) requires a string\n");
+		return NIL_NODE;
+	}
+	jo_string s = get_node_string(s_idx);
+
+	parse_state_t parse_state;
+	parse_state.fp = jo_fmemopen(s.c_str(), s.size(), "r");
+	parse_state.line_num = 1;
+
+	// parse the base list
+	list_ptr_t main_list = new_list();
+	for(node_idx_t next = parse_next(env, &parse_state, 0); next != INV_NODE; next = parse_next(env, &parse_state, 0)) {
+		main_list->push_back_inplace(next);
+	}
+
+	return eval_node_list(env, main_list);
+}
+
 
 
 #include "jo_lisp_math.h"
@@ -5238,6 +5262,7 @@ int main(int argc, char **argv) {
 	env->set("letfn", new_node_native_function("letfn", &native_letfn, true));
 	env->set("load-file", new_node_native_function("load-file", &native_load_file, false));
 	env->set("load-reader", new_node_native_function("load-reader", &native_load_reader, false));
+	env->set("load-string", new_node_native_function("load-string", &native_load_string, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

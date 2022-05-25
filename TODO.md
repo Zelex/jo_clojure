@@ -174,8 +174,6 @@ iterator-seq
 key
 list*
 load
-load-reader
-load-string
 loaded-libs
 locking
 long

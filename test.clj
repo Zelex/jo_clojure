@@ -857,6 +857,9 @@
   (is (= (doub2 15) 30))
   (io/close-file p))
 
+(load-string "(defn doub3 [x] (* x 2))")
+(is (= (doub3 15) 30))
+
 (string-test)
 (if-test)
 (when-test)
