@@ -847,6 +847,10 @@
   (println "Twice 15 =" (twice 15))
   (println "Six times 15 =" (six-times 15)))
 
+(spit "tmp.clj" "(defn doub [x] (* x 2))")
+(load-file "tmp.clj")
+(is (= (doub 15) 30))
+
 (string-test)
 (if-test)
 (when-test)

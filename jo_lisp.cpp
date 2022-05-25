@@ -1390,8 +1390,11 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	if(tok.type == TOK_SYMBOL) {
 		debugf("symbol: %s\n", tok.str.c_str());
 		if(env->has(tok.str.c_str())) {
-			//debugf("pre-resolve symbol: %s\n", tok.str.c_str());
-			return env->get(tok.str.c_str()).value;
+			node_idx_t node = env->get(tok.str.c_str()).value;
+			if(get_node_type(node) == NODE_NATIVE_FUNC) {
+				debugf("pre-resolve symbol: %s\n", tok.str.c_str());
+				return node;
+			}
 		}
 		// fixed symbols
 		if(tok.str == "%") return PCT_NODE;
@@ -4868,6 +4871,35 @@ static node_idx_t native_letfn(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(E, args->rest());
 }
 
+// (load-file name)
+// Sequentially read and evaluate the set of forms contained in the file.
+static node_idx_t native_load_file(env_ptr_t env, list_ptr_t args) {
+	node_idx_t name_idx = args->first_value();
+	if(get_node_type(name_idx) != NODE_STRING) {
+		warnf("(load-file) requires a string\n");
+		return NIL_NODE;
+	}
+	jo_string name = get_node_string(name_idx);
+	FILE *fp = fopen(name.c_str(), "r");
+	if(!fp) {
+		return NIL_NODE;
+	}
+
+	parse_state_t parse_state;
+	parse_state.fp = fp;
+	parse_state.line_num = 1;
+
+	// parse the base list
+	list_ptr_t main_list = new_list();
+	for(node_idx_t next = parse_next(env, &parse_state, 0); next != INV_NODE; next = parse_next(env, &parse_state, 0)) {
+		main_list->push_back_inplace(next);
+	}
+	fclose(fp);
+
+	return eval_node_list(env, main_list);
+}
+
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -5178,6 +5210,7 @@ int main(int argc, char **argv) {
 	env->set("keys", new_node_native_function("keys", &native_keys, false));
 	env->set("keyword", new_node_native_function("keyword", &native_keyword, false));
 	env->set("letfn", new_node_native_function("letfn", &native_letfn, true));
+	env->set("load-file", new_node_native_function("load-file", &native_load_file, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

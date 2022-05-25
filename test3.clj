@@ -1,4 +1,7 @@
 
-(keep-indexed #(if (odd? %1) %2) [:a :b :c :d :e])
+(spit "tmp.clj" "(defn doub [x] (* x 2))")
+(load-file "tmp.clj")
+(is (= (doub 15) 30))
+(doub 15)
 
 
