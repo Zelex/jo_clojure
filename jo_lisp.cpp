@@ -2170,6 +2170,13 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 			}
 		}
 		return true;
+	} else if(n1->type == NODE_MAP && n2->type == NODE_MAP) {
+		for(auto i1 = n1->t_map->begin(); i1; i1++) {
+			if(!n2->t_map->contains(i1->first, node_eq)) {
+				return false;
+			}
+		}
+		return true;
 	} else if(n1->is_seq() && n2->is_seq()) {
 		// in this case we want to iterate over the sequences and compare
 		// each element
@@ -4801,6 +4808,10 @@ static node_idx_t native_juxt(env_ptr_t env, list_ptr_t args) {
 	}, false);
 }
 
+static node_idx_t native_name(env_ptr_t env, list_ptr_t args) {
+	return new_node_string(get_node(args->first_value())->t_string);
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -5107,6 +5118,7 @@ int main(int argc, char **argv) {
 	env->set("hash-set", new_node_native_function("hash-set", &native_hash_set, false));
 	env->set("identical?", new_node_native_function("identical?", &native_is_identical, false));
 	env->set("juxt", new_node_native_function("juxt", &native_juxt, false));
+	env->set("name", new_node_native_function("name", &native_name, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

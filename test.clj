@@ -440,12 +440,12 @@
   (is (= 1          (/ 4 2 2)))
   (is (= 1          (/ 4 2 2.0))))
 (defn min-max-test []
-  (is (= 1          (Math/min 1)))
-  (is (= 1          (Math/min 2 1)))
-  (is (= 1          (Math/min 3 5 7 1)))
-  (is (= 1          (Math/max 1)))
-  (is (= 2          (Math/max 2 1)))
-  (is (= 7          (Math/max 3 5 7 1))))
+  (is (= 1          (min 1)))
+  (is (= 1          (min 2 1)))
+  (is (= 1          (min 3 5 7 1)))
+  (is (= 1          (max 1)))
+  (is (= 2          (max 2 1)))
+  (is (= 7          (max 3 5 7 1))))
 (defn mod-test []
   (is (= 0          (mod 2 2)))
   (is (= 0          (mod 4 2)))
@@ -804,6 +804,32 @@
 (is (= (interpose ", " my-strings) ("one" ", " "two" ", " "three"))) 
 (is (= (apply str (interpose ", " my-strings)) "one, two, three"))
 
+(is (= ((juxt :a :b) {:a 1 :b 2 :c 3 :d 4}) [1 2]))
+(is (= ((juxt identity name) :keyword) [:keyword "keyword"]))
+(is (= (into {} (map (juxt identity name) [:a :b :c :d])) {:a "a" :b "b" :c "c" :d "d"}))
+(is (= ((juxt first count) "Clojure Rocks") [\C 13]))
+;(is (= (sort-by (juxt :a :b) [{:a 1 :b 3} {:a 1 :b 2} {:a 2 :b 1}]) [{:a 1 :b 2} {:a 1 :b 3} {:a 2 :b 1}]))
+
+(defn index-by [coll key-fn]
+    (into {} (map (juxt key-fn identity) coll)))
+(is (= (index-by [{:id 1 :name "foo"} 
+           {:id 2 :name "bar"} 
+           {:id 3 :name "baz"}] :id) 
+        {1 {:name "foo", :id 1}, 
+         2 {:name "bar", :id 2}, 
+         3 {:name "baz", :id 3}}))
+(is (= (index-by [{:id 1 :name "foo"} 
+           {:id 2 :name "bar"} 
+           {:id 3 :name "baz"}] :name)
+        {"foo" {:name "foo", :id 1}, 
+         "bar" {:name "bar", :id 2}, 
+         "baz" {:name "baz", :id 3}}))
+
+(is (= ((juxt + * min max) 3 4 6) [13 72 3 6]))
+(is (= ((juxt take drop) 3 [1 2 3 4 5 6]) [(1 2 3) (4 5 6)]))
+(is (= ((juxt (partial filter even?) (partial filter odd?)) (range 0 9)) [(0 2 4 6 8) (1 3 5 7)]))
+(is (= ((juxt :lname :fname) {:fname "Bill" :lname "Gates"}) ["Gates" "Bill"]))
+(is (= ((juxt :a #(get-in % [:c :d])) {:a 1 :b 2 :c {:d 2}}) [1 2]))
 
 (string-test)
 (if-test)

@@ -626,8 +626,8 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("Math/floor", new_node_native_function("Math/floor", &native_math_floor, false));
 	env->set("Math/round", new_node_native_function("Math/round", &native_math_round, false));
 	env->set("Math/trunc", new_node_native_function("Math/trunc", &native_math_trunc, false));
-	env->set("Math/min", new_node_native_function("Math/min", &native_math_min, false));
-	env->set("Math/max", new_node_native_function("Math/max", &native_math_max, false));
+	env->set("min", new_node_native_function("min", &native_math_min, false));
+	env->set("max", new_node_native_function("max", &native_math_max, false));
 	env->set("Math/clip", new_node_native_function("Math/clip", &native_math_clip, false));
 	env->set("Math/to-degrees", new_node_native_function("Math/to-degrees", &native_math_to_degrees, false));
 	env->set("Math/to-radians", new_node_native_function("Math/to-radians", &native_math_to_radians, false));

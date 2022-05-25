@@ -210,7 +210,6 @@ mix-collection-hash
 monitor-enter
 monitor-exit
 munge
-name
 namespace
 namespace-munge
 new
