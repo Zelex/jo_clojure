@@ -172,7 +172,6 @@ ints
 isa?
 iterator-seq
 key
-letfn
 line-seq
 list*
 load
