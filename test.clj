@@ -840,6 +840,13 @@
 (is (= (take 6 (n-repeat 1)) (1 2 2 3 3 3)))
 (is (= (take 12 (n-repeat 1)) (1 2 2 3 3 3 4 4 4 4 5 5)))
 
+(letfn [(twice [x]
+           (* x 2))
+        (six-times [y]
+           (* (twice y) 3))]
+  (println "Twice 15 =" (twice 15))
+  (println "Six times 15 =" (six-times 15)))
+
 (string-test)
 (if-test)
 (when-test)

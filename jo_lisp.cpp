@@ -718,7 +718,7 @@ struct node_t {
 				jo_string s;
 				s = '(';
 				for(auto it = t_list->begin(); it;) {
-					s += get_node(*it)->as_string(2);
+					s += get_node(*it)->as_string(3);
 					++it;
 					if(it) {
 						s += " ";
@@ -732,7 +732,7 @@ struct node_t {
 				jo_string s;
 				s = '[';
 				for(auto it = t_vector->begin(); it;) {
-					s += get_node(*it)->as_string(2);
+					s += get_node(*it)->as_string(3);
 					++it;
 					if(it) {
 						s += " ";
@@ -746,9 +746,9 @@ struct node_t {
 				jo_string s;
 				s = '{';
 				for(auto it = t_map->begin(); it;) {
-					s += get_node(it->first)->as_string(2);
+					s += get_node(it->first)->as_string(3);
 					s += " ";
-					s += get_node(it->second)->as_string(2);
+					s += get_node(it->second)->as_string(3);
 					++it;
 					if(it) {
 						s += ", ";
@@ -762,7 +762,7 @@ struct node_t {
 				jo_string s;
 				s = "#{";
 				for(auto it = t_set->begin(); it;) {
-					s += get_node(it->first)->as_string(2);
+					s += get_node(it->first)->as_string(3);
 					++it;
 					if(it) {
 						s += " ";
@@ -777,7 +777,7 @@ struct node_t {
 				jo_string s;
 				s = '(';
 				for(lazy_list_iterator_t lit(this); !lit.done() && left; --left) {
-					s += get_node(lit.val)->as_string(2);
+					s += get_node(lit.val)->as_string(3);
 					lit.next();
 					if(!lit.done()) {
 						s += " ";
@@ -788,7 +788,7 @@ struct node_t {
 			}
 		}
 		if(pretty >= 1 && type == NODE_KEYWORD) return ":" + t_string;
-		if(pretty >= 2 && type == NODE_STRING) return "\"" + t_string + "\"";
+		if(pretty >= 3 && type == NODE_STRING) return "\"" + t_string + "\"";
 		return t_string;
 	}
 
@@ -2464,7 +2464,7 @@ static node_idx_t native_if_some(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator i = args->begin(); i;) {
 		node_idx_t n = *i++;
-		printf(i ? "%s " : "%s", get_node(n)->as_string(true).c_str());
+		printf(i ? "%s " : "%s", get_node(n)->as_string(2).c_str());
 	}
 	return NIL_NODE;
 }
@@ -2473,7 +2473,7 @@ static node_idx_t native_print_str(env_ptr_t env, list_ptr_t args) {
 	jo_string s;
 	for(list_t::iterator i = args->begin(); i;) {
 		node_idx_t n = *i++;
-		s += get_node(n)->as_string(true);
+		s += get_node(n)->as_string(2);
 		if(i) {
 			s += " ";
 		}
@@ -2491,7 +2491,7 @@ static node_idx_t native_println_str(env_ptr_t env, list_ptr_t args) {
 	jo_string s;
 	for(list_t::iterator i = args->begin(); i;) {
 		node_idx_t n = *i++;
-		s += get_node(n)->as_string(true);
+		s += get_node(n)->as_string(2);
 		if(i) {
 			s += " ";
 		}
@@ -4837,6 +4837,37 @@ static node_idx_t native_keyword(env_ptr_t env, list_ptr_t args) {
 	return new_node_keyword(get_node_string(args->first_value()));
 }
 
+// (letfn [fnspecs*] exprs*)
+// fnspec ==> (fname [params*] exprs) or (fname ([params*] exprs)+)
+// Takes a vector of function specs and a body, and generates a set of
+// bindings of functions to their names. All of the names are available
+// in all of the definitions of the functions, as well as the body.
+static node_idx_t native_letfn(env_ptr_t env, list_ptr_t args) {
+	node_idx_t fnspecs_idx = args->first_value();
+	if(get_node_type(fnspecs_idx) != NODE_VECTOR) {
+		warnf("(letfn) requires a vector of function specs\n");
+		return NIL_NODE;
+	}
+	env_ptr_t E = new_env(env);
+	vector_ptr_t fnspecs = get_node(fnspecs_idx)->as_vector();
+	for(auto it = fnspecs->begin(); it; ++it) {
+		node_idx_t fnspec_idx = *it;
+		if(get_node_type(fnspec_idx) != NODE_LIST) {
+			warnf("(letfn) requires a list of function specs\n");
+			return NIL_NODE;
+		}
+		list_ptr_t fnspec = get_node(fnspec_idx)->as_list();
+		node_idx_t fname_idx = fnspec->first_value();
+		if(get_node_type(fname_idx) != NODE_SYMBOL) {
+			warnf("(letfn) requires a symbol for the function name\n");
+			return NIL_NODE;
+		}
+		node_idx_t fn_idx = native_fn(E, fnspec->rest());
+		E->set_temp(get_node_string(fname_idx), fn_idx);
+	}
+	return eval_node_list(E, args->rest());
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -5146,6 +5177,7 @@ int main(int argc, char **argv) {
 	env->set("name", new_node_native_function("name", &native_name, false));
 	env->set("keys", new_node_native_function("keys", &native_keys, false));
 	env->set("keyword", new_node_native_function("keyword", &native_keyword, false));
+	env->set("letfn", new_node_native_function("letfn", &native_letfn, true));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
