@@ -4937,7 +4937,7 @@ static node_idx_t native_load_string(env_ptr_t env, list_ptr_t args) {
 	jo_string s = get_node_string(s_idx);
 
 	parse_state_t parse_state;
-	parse_state.fp = jo_fmemopen(s.c_str(), s.size(), "r");
+	parse_state.fp = jo_fmemopen((void*)s.c_str(), s.size(), "r");
 	parse_state.line_num = 1;
 
 	// parse the base list

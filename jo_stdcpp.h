@@ -341,7 +341,7 @@ static void jo_yield()
 #endif
 }
 
-FILE *jo_fmemopen(const void *buf, size_t size, const char *mode)
+FILE *jo_fmemopen(void *buf, size_t size, const char *mode)
 {
     if (!size) {
         return 0;
