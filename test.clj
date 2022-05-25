@@ -833,8 +833,12 @@
 
 (is (= (keep-indexed #(if (odd? %1) %2) [:a :b :c :d :e]) (:b :d)))
 (is (= (keep-indexed #(if (pos? %2) %1) [-9 0 29 -7 45 3 -8]) (2 4 5)))
-(is (= (keep-indexed (fn [idx v]
-                       (if (pos? v) idx)) [-9 0 29 -7 45 3 -8]) (2 4 5)))
+(is (= (keep-indexed (fn [idx v] (if (pos? v) idx)) [-9 0 29 -7 45 3 -8]) (2 4 5)))
+
+(is (= (lazy-cat [1 2 3] [4 5 6]) (1 2 3 4 5 6)))
+(defn n-repeat [n] (lazy-cat (repeat n n) (n-repeat (inc n))))
+(is (= (take 6 (n-repeat 1)) (1 2 2 3 3 3)))
+(is (= (take 12 (n-repeat 1)) (1 2 2 3 3 3 4 4 4 4 5 5)))
 
 (string-test)
 (if-test)

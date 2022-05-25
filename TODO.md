@@ -169,13 +169,9 @@ int-array
 intern
 into-array
 ints
-io!
 isa?
 iterator-seq
 key
-keys
-keyword
-lazy-cat
 letfn
 line-seq
 list*

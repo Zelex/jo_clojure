@@ -4799,7 +4799,6 @@ static node_idx_t native_juxt(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	return new_node_native_function("juxt-lambda", [args](env_ptr_t env, list_ptr_t args2) {
-		node_idx_t val = args->first_value();
 		vector_ptr_t result = new_vector();
 		for(auto it = args->begin(); it; it++) {
 			result->push_back_inplace(eval_list(env, args2->push_front(*it)));
@@ -4810,6 +4809,32 @@ static node_idx_t native_juxt(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_name(env_ptr_t env, list_ptr_t args) {
 	return new_node_string(get_node(args->first_value())->t_string);
+}
+
+// (keys map)
+// Returns a sequence of the map's keys, in the same order as (seq map).
+static node_idx_t native_keys(env_ptr_t env, list_ptr_t args) {
+	node_idx_t map_idx = args->first_value();
+	if(get_node_type(map_idx) != NODE_MAP) {
+		warnf("(keys) requires a map\n");
+		return NIL_NODE;
+	}
+	map_ptr_t map = get_node(map_idx)->as_map();
+	list_ptr_t result = new_list();
+	for(auto it = map->begin(); it; it++) {
+		result->push_back_inplace(it->first);
+	}
+	return new_node_list(result);
+}
+
+// (keyword name)(keyword ns name)
+// Returns a Keyword with the given namespace and name.  Do not use :
+// in the keyword strings, it will be added automatically.
+static node_idx_t native_keyword(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 2) {
+		return new_node_keyword(get_node_string(args->first_value()) + "/" + get_node_string(args->second_value()));
+	}
+	return new_node_keyword(get_node_string(args->first_value()));
 }
 
 
@@ -5119,6 +5144,8 @@ int main(int argc, char **argv) {
 	env->set("identical?", new_node_native_function("identical?", &native_is_identical, false));
 	env->set("juxt", new_node_native_function("juxt", &native_juxt, false));
 	env->set("name", new_node_native_function("name", &native_name, false));
+	env->set("keys", new_node_native_function("keys", &native_keys, false));
+	env->set("keyword", new_node_native_function("keyword", &native_keyword, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

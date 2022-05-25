@@ -1455,6 +1455,21 @@ static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(list_va(5, result_idx, env->get("keep-indexed-next").value, f_idx, coll_idx, new_node_int(cnt)));
 }
 
+// (lazy-cat & colls)
+// Expands to code which yields a lazy sequence of the concatenation
+// of the supplied colls.  Each coll expr is not evaluated until it is
+// needed. 
+// (lazy-cat xs ys zs) === (concat (lazy-seq xs) (lazy-seq ys) (lazy-seq zs))
+static node_idx_t native_lazy_cat(env_ptr_t env, list_ptr_t args) {
+	list_ptr_t lzseqs = new_list();
+	for(auto it = args->begin(); it; ++it) {
+		node_idx_t lzseq = native_lazy_seq(env, list_va(1, *it));
+		lzseqs->push_back_inplace(lzseq);
+	}
+	return native_concat(env, lzseqs);
+}
+
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true));
@@ -1498,6 +1513,7 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("seq-next", new_node_native_function("seq-next", &native_seq_next, true));
 	env->set("lazy-seq", new_node_native_function("lazy-seq", &native_lazy_seq, true));
 	env->set("lazy-seq-next", new_node_native_function("lazy-seq-next", &native_lazy_seq_next, true));
+	env->set("lazy-cat", new_node_native_function("lazy-cat", &native_lazy_cat, true));
 	env->set("cons", new_node_native_function("cons", &native_cons, false));
 	env->set("cons-first", new_node_native_function("cons-first", &native_cons_first, true));
 	env->set("cons-next", new_node_native_function("cons-next", &native_cons_next, true));

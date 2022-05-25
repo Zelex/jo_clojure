@@ -628,6 +628,19 @@ static node_idx_t native_thread_sleep(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (io! & body)
+// If an io! block occurs in a transaction, throws an
+// IllegalStateException, else runs body in an implicit do. If the
+// first expression in body is a literal string, will use that as the
+// exception message.
+static node_idx_t native_io(env_ptr_t env, list_ptr_t args) {
+	if(env->tx) {
+		warnf("(io!) cannot be used in a transaction\n");
+		return NIL_NODE;
+	}
+	return native_do(env, args);
+}
+
 
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
@@ -645,6 +658,7 @@ void jo_lisp_async_init(env_ptr_t env) {
     env->set("multi-swap-vals!", new_node_native_function("multi-swap-vals!", &native_multi_swap_vals_e, false));
     env->set("multi-reset-vals!", new_node_native_function("multi-reset-vals!", &native_multi_reset_vals_e, false));
 	env->set("dosync", new_node_native_function("dosync", &native_dosync, true));
+	env->set("io!", new_node_native_function("io!", &native_io, true));
 
 	// threads
 	env->set("Thread/sleep", new_node_native_function("Thread/sleep", &native_thread_sleep, false));
