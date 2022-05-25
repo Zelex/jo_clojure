@@ -831,6 +831,11 @@
 (is (= ((juxt :lname :fname) {:fname "Bill" :lname "Gates"}) ["Gates" "Bill"]))
 (is (= ((juxt :a #(get-in % [:c :d])) {:a 1 :b 2 :c {:d 2}}) [1 2]))
 
+(is (= (keep-indexed #(if (odd? %1) %2) [:a :b :c :d :e]) (:b :d)))
+(is (= (keep-indexed #(if (pos? %2) %1) [-9 0 29 -7 45 3 -8]) (2 4 5)))
+(is (= (keep-indexed (fn [idx v]
+                       (if (pos? v) idx)) [-9 0 29 -7 45 3 -8]) (2 4 5)))
+
 (string-test)
 (if-test)
 (when-test)

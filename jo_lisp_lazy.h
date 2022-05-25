@@ -1443,7 +1443,11 @@ static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
 	int cnt = get_node_int(args->third_value());
 	node_idx_t result_idx;
 	do {
-		auto fr = get_node(coll_idx)->seq_first_rest();
+		node_t *coll = get_node(coll_idx);
+		if(coll->seq_empty()) {
+			return NIL_NODE;
+		}
+		auto fr = coll->seq_first_rest();
 		result_idx = eval_va(env, 3, f_idx, new_node_int(cnt), fr.first);
 		coll_idx = fr.second;
 		++cnt;
