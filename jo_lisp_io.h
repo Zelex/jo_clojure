@@ -547,10 +547,36 @@ static node_idx_t native_io_tell_dir(env_ptr_t env, list_ptr_t args) {
 #endif
 }
 
+// (line-seq rdr)
+// Returns the lines of text from rdr as a lazy sequence of strings.
+// rdr must implement java.io.BufferedReader.
+static node_idx_t native_io_line_seq(env_ptr_t env, list_ptr_t args) {
+	node_idx_t rdr_idx = args->first_value();
+	if(get_node_type(rdr_idx) != NODE_FILE) {
+		warnf("line-seq: rdr must be a file\n");
+		return NIL_NODE;
+	}
+	return new_node_lazy_list(env, new_node_list(list_va(2, env->get("line-seq-next").value, rdr_idx)));
+}
+
+static node_idx_t native_io_line_seq_next(env_ptr_t env, list_ptr_t args) {
+	node_idx_t rdr_idx = args->first_value();
+	node_t *rdr = get_node(rdr_idx);
+	if(feof(rdr->t_file)) {
+		return NIL_NODE;
+	}
+    node_idx_t line = native_io_read_line(env, args);
+    if(line == NIL_NODE) {
+        return NIL_NODE;
+    }
+	return new_node_list(list_va(3, line, env->get("line-seq-next").value, rdr_idx));
+}
 
 
 void jo_lisp_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false));
+    env->set("line-seq", new_node_native_function("line-seq", &native_io_line_seq, false));
+    env->set("line-seq-next", new_node_native_function("line-seq-next", &native_io_line_seq_next, true));
     env->set("slurp", new_node_native_function("slurp", &native_io_slurp, false));
     env->set("spit", new_node_native_function("spit", &native_io_spit, false));
     env->set("io/open-dir", new_node_native_function("io/open-dir", &native_io_open_dir, false));

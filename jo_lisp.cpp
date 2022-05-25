@@ -4872,8 +4872,8 @@ static node_idx_t native_letfn(env_ptr_t env, list_ptr_t args) {
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
 #include "jo_lisp_system.h"
-#include "jo_lisp_lazy.h"
 #include "jo_lisp_io.h"
+#include "jo_lisp_lazy.h"
 #include "jo_lisp_async.h"
 
 #ifdef _MSC_VER

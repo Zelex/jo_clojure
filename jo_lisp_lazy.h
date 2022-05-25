@@ -1469,7 +1469,6 @@ static node_idx_t native_lazy_cat(env_ptr_t env, list_ptr_t args) {
 	return native_concat(env, lzseqs);
 }
 
-
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true));
