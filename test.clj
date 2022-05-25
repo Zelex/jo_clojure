@@ -860,6 +860,9 @@
 (load-string "(defn doub3 [x] (* x 2))")
 (is (= (doub3 15) 30))
 
+(def fac-recur (fn [n] (loop [cnt n acc 1] (if (zero? cnt) acc (recur (dec cnt) (* acc cnt))))))
+(is (= (fac-recur 5) 120))
+
 (string-test)
 (if-test)
 (when-test)

@@ -85,6 +85,7 @@ enum {
 	NODE_AGENT,
 	NODE_FUTURE,
 	NODE_PROMISE,
+	NODE_RECUR,
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
@@ -4949,6 +4950,41 @@ static node_idx_t native_load_string(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(env, main_list);
 }
 
+// (loop [bindings*] exprs*)
+// Evaluates the exprs in a lexical context in which the symbols in
+// the binding-forms are bound to their respective init-exprs or parts
+// therein. Acts as a recur target.
+static node_idx_t native_loop(env_ptr_t env, list_ptr_t args) {
+	node_idx_t res_idx = native_let(env, args);
+	node_t *res = get_node(res_idx);
+	if(res->type == NODE_RECUR) {
+		vector_ptr_t B = get_node_vector(args->first_value());
+		env_ptr_t env2 = new_env(env);
+		do {
+			auto B_it = B->begin();
+			auto recur_it = res->t_list->begin();
+			for(; B_it && recur_it; ) {
+				node_idx_t key_idx = *B_it++;
+				*B_it++; // old binding
+				node_let(env2, key_idx, *recur_it++);
+			}
+			res_idx = eval_node_list(env2, args->rest());
+			res = get_node(res_idx);
+		} while(res->type == NODE_RECUR);
+	}
+	return res_idx;
+}
+
+// (recur bindings*)
+// Evaluates the exprs in order, then, in parallel, rebinds the bindings of
+// the recursion point to the values of the exprs. See
+// http://clojure.org/special_forms for more information.
+static node_idx_t native_recur(env_ptr_t env, list_ptr_t args) {
+	node_idx_t res_idx = new_node(NODE_RECUR, 0);
+	node_t *res = get_node(res_idx);
+	res->t_list = args;
+	return res_idx;
+}
 
 
 #include "jo_lisp_math.h"
@@ -5263,6 +5299,8 @@ int main(int argc, char **argv) {
 	env->set("load-file", new_node_native_function("load-file", &native_load_file, false));
 	env->set("load-reader", new_node_native_function("load-reader", &native_load_reader, false));
 	env->set("load-string", new_node_native_function("load-string", &native_load_string, false));
+	env->set("loop", new_node_native_function("loop", &native_loop, true));
+	env->set("recur", new_node_native_function("recur", &native_recur, false));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

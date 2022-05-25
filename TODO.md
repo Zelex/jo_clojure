@@ -179,7 +179,6 @@ locking
 long
 long-array
 longs
-loop
 macro-expand
 macroexpand-1
 make-array
@@ -269,7 +268,6 @@ reader-conditional
 reader-conditional?
 realized?
 record?
-recur
 reduce-kv
 reduced
 reduced?
