@@ -1414,7 +1414,7 @@ static node_idx_t native_interpose_next_elem(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	auto fr = get_node(coll_idx)->seq_first_rest();
-	return new_node_list(list_va(4, fr.first, env->get("interpose-next-sep"), sep_idx, fr.second));
+	return new_node_list(list_va(4, fr.first, env->get("interpose-next-sep").value, sep_idx, fr.second));
 }
 
 static node_idx_t native_interpose_next_sep(env_ptr_t env, list_ptr_t args) {
@@ -1423,7 +1423,7 @@ static node_idx_t native_interpose_next_sep(env_ptr_t env, list_ptr_t args) {
 	if(get_node(coll_idx)->seq_empty()) {
 		return NIL_NODE;
 	}
-	return new_node_list(list_va(4, sep_idx, env->get("interpose-next-elem"), sep_idx, coll_idx));
+	return new_node_list(list_va(4, sep_idx, env->get("interpose-next-elem").value, sep_idx, coll_idx));
 }
 
 // (keep-indexed f)(keep-indexed f coll)

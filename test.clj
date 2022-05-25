@@ -800,6 +800,10 @@
 (is (= (hash-set :c :a :b) #{:b :a :c}))
 (is (= (hash-set "Lorem ipsum dolor sit amet") #{\space \a \d \e \i \L \l \m \o \p \r \s \t \u}))
 
+(def my-strings ["one" "two" "three"])
+(is (= (interpose ", " my-strings) ("one" ", " "two" ", " "three"))) 
+(is (= (apply str (interpose ", " my-strings)) "one, two, three"))
+
 
 (string-test)
 (if-test)
