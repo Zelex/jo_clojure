@@ -186,12 +186,10 @@ memfn
 meta
 method-sig
 methods
-min-key
 mix-collection-hash
 monitor-enter
 monitor-exit
 munge
-namespace
 namespace-munge
 new
 newline

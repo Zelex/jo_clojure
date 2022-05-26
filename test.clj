@@ -926,6 +926,10 @@
            {:c 5  :d 42})
        {:d 42, :c 15, :a 25, :b 200}))
 
+(is (= (namespace 'user/x) "user"))
+(is (= (namespace :admin/live-playlist-details) "admin"))
+(is (= (namespace :about) nil))
+
 (string-test)
 (if-test)
 (when-test)

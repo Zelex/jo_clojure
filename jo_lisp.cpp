@@ -5176,6 +5176,18 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 	return new_node_map(r);
 }
 
+// (namespace x)
+// Returns the namespace String of a symbol or keyword, or nil if not present.
+static node_idx_t native_namespace(env_ptr_t env, list_ptr_t args) {
+	node_idx_t sym_idx = args->first_value();
+	node_t *sym_node = get_node(sym_idx);
+	size_t ns_pos = sym_node->t_string.find_last_of('/');
+	if(ns_pos == jo_npos) {
+		return NIL_NODE;
+	}
+	return new_node_string(sym_node->t_string.substr(0, ns_pos));
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -5498,6 +5510,7 @@ int main(int argc, char **argv) {
 	env->set("val", new_node_native_function("val", &native_val, false, NODE_FLAG_PRERESOLVE));
 	env->set("merge", new_node_native_function("merge", &native_merge, false, NODE_FLAG_PRERESOLVE));
 	env->set("merge-with", new_node_native_function("merge-with", &native_merge_with, false, NODE_FLAG_PRERESOLVE));
+	env->set("namespace", new_node_native_function("namespace", &native_namespace, false, NODE_FLAG_PRERESOLVE));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
