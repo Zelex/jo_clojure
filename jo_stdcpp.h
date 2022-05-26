@@ -4980,6 +4980,15 @@ public:
         return vec;
     }
 
+    entry_t first() const {
+        for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
+            if(it->third) {
+                return *it;
+            }
+        }
+        return entry_t();
+    }
+
     V first_value() const {
         for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
             if(it->third) {
@@ -4995,6 +5004,8 @@ public:
         for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
             if(it->third) {
                 copy->vec.assoc_inplace(it - copy->vec.begin(), entry_t(it->first, it->second, false));
+                copy->length--;
+                break;
             }
         }
         return copy;

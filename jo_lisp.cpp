@@ -191,6 +191,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
 static node_idx_t eval_va(env_ptr_t env, int num, ...);
 
 static list_ptr_t list_va(int num, ...);
+static vector_ptr_t vector_va(int num, ...);
 
 static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
 static void print_node_type(node_idx_t node);
@@ -603,7 +604,10 @@ struct node_t {
 	node_idx_t seq_first() const {
 		if(is_list()) return t_list->first_value();
 		if(is_vector()) return t_vector->first_value();
-		if(is_map()) return t_map->first_value();
+		if(is_map()) {
+			auto e = t_map->first();
+			return new_node_vector(vector_va(2, e.first, e.second));
+		}
 		if(is_hash_set()) return t_set->first_value();
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
@@ -629,7 +633,10 @@ struct node_t {
 	jo_pair<node_idx_t, node_idx_t> seq_first_rest() const {
 		if(is_list()) return jo_pair<node_idx_t, node_idx_t>(t_list->first_value(), new_node_list(t_list->rest()));
 		if(is_vector()) return jo_pair<node_idx_t, node_idx_t>(t_vector->first_value(), new_node_vector(t_vector->rest()));
-		if(is_map()) return jo_pair<node_idx_t, node_idx_t>(t_map->first_value(), new_node_map(t_map->rest()));
+		if(is_map()) {
+			auto e = t_map->first();
+			return jo_pair<node_idx_t, node_idx_t>(new_node_vector(vector_va(2, e.first, e.second)), new_node_map(t_map->rest()));
+		}
 		if(is_hash_set()) return jo_pair<node_idx_t, node_idx_t>(t_set->first_value(), new_node_hash_set(t_set->rest()));
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
@@ -1698,29 +1705,10 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 
 			if(proto_args.ptr) {
 				int is_macro = (sym_flags|list_flags) & NODE_FLAG_MACRO;
-				// For each argument in arg_symbols, 
-				// grab the corresponding argument in args1
-				// and evaluate it
-				// and create a new_node_var 
-				// and insert it to the head of env
 				vector_t::iterator i = proto_args->begin();
 				list_t::iterator i2 = args1->begin();
 				for (; i && i2; i++, i2++) {
-					int i_type = get_node_type(*i);
-					int i2_type = get_node_type(*i2);
-					if(i_type == NODE_SYMBOL) {
-						fn_env->set_temp(get_node_string(*i), is_macro ? *i2 : eval_node(env, *i2));
-					} else if(i_type == NODE_VECTOR && i2_type == NODE_VECTOR) {
-						for(vector_t::iterator i3 = get_node(*i)->t_vector->begin(), i4 = get_node(*i2)->t_vector->begin(); i3 && i4; i3++, i4++) {
-							fn_env->set_temp(get_node_string(*i3), is_macro ? *i4 : eval_node(env, *i4));
-						}
-					} else if(i_type == NODE_LIST && i2_type == NODE_LIST) {
-						for(list_t::iterator i3 = get_node(*i)->t_list->begin(), i4 = get_node(*i2)->t_list->begin(); i3 && i4; i3++, i4++) {
-							fn_env->set_temp(get_node_string(*i3), is_macro ? *i4 : eval_node(env, *i4));
-						}
-					} else {
-						fn_env->set_temp(get_node_string(*i), *i2);
-					}
+					node_let(fn_env, *i, is_macro ? *i2 : eval_node(env, *i2));
 				}
 			}
 
@@ -1836,6 +1824,17 @@ static list_ptr_t list_va(int num, ...) {
 	va_list ap;
 	va_start(ap, num);
 	list_ptr_t a = new_list();
+	for(int i = 0; i < num; i++) {
+		a->push_back_inplace(node_idx_t(va_arg(ap, int)));
+	}
+	va_end(ap);
+	return a;
+}
+
+static vector_ptr_t vector_va(int num, ...) {
+	va_list ap;
+	va_start(ap, num);
+	vector_ptr_t a = new_vector();
 	for(int i = 0; i < num; i++) {
 		a->push_back_inplace(node_idx_t(va_arg(ap, int)));
 	}
@@ -2300,6 +2299,21 @@ static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 	node_t *n2 = get_node(n2i);
 	if(n1->type == NODE_SYMBOL) {
 		env->set_temp(n1->t_string, n2i);
+	/*
+	} else if(n1->is_vector() && n2->is_map()) {
+		map_ptr_t m = n2->t_map;
+		node_idx_t k = n1->t_vector->nth(0);
+		node_idx_t v = n1->t_vector->nth(1);
+		if(get_node_type(k) == NODE_SYMBOL) {
+			if(m->size() >= 1) {
+				auto it = m->begin();
+				env->set_temp(get_node(k)->t_string, it->first);
+				node_let(env, v, it->second);
+			}
+		} else if(get_node_type(k) == NODE_KEYWORD) {
+			node_let(env, v, m->get(k, node_eq));
+		}
+	*/
 	} else if(n1->is_seq() && n2->is_seq()) {
 		seq_iterator_t i1(n1i), i2(n2i);
 		for(; i1 && i2; i1.next(), i2.next()) {
