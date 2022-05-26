@@ -906,6 +906,11 @@
                (+ (m-fib (dec n)) (m-fib (- n 2)))))))
 (is (= (m-fib 20) 10946))
 
+(is (= (merge {:a 1 :b 2 :c 3} {:b 9 :d 4}) {:d 4, :a 1, :b 9, :c 3}))
+(is (= (merge {:a 1} nil) {:a 1}))
+(is (= (merge nil {:a 1}) {:a 1}))
+(is (= (merge nil nil) nil))
+
 (string-test)
 (if-test)
 (when-test)
