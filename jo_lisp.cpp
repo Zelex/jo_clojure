@@ -183,6 +183,7 @@ static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flag
 static bool node_eq(node_idx_t n1i, node_idx_t n2i);
 static bool node_lt(node_idx_t n1i, node_idx_t n2i);
 static bool node_lte(node_idx_t n1i, node_idx_t n2i);
+static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
 static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
@@ -1723,6 +1724,19 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			node_idx_t last = NIL_NODE;
 			for(list_t::iterator i = proto_body->begin(); i; i++) {
 				last = eval_node(fn_env, *i);
+			}
+
+			node_t *last_node = get_node(last);
+			while(last_node->type == NODE_RECUR) {
+				auto proto_it = proto_args->begin();
+				auto recur_it = last_node->t_list->begin();
+				for(; proto_it && recur_it; ) {
+					node_let(fn_env, *proto_it++, *recur_it++);
+				}
+				for(list_t::iterator i = proto_body->begin(); i; i++) {
+					last = eval_node(fn_env, *i);
+				}
+				last_node = get_node(last);
 			}
 
 			if(sym_type == NODE_DELAY) {
