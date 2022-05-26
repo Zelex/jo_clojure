@@ -373,7 +373,6 @@ var-set
 var?
 vary-meta
 vec
-vector
 vector-of
 volatile!
 volatile?
