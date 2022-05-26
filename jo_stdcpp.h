@@ -3283,14 +3283,10 @@ struct jo_persistent_vector
         return new jo_persistent_vector();
     }
 
-    // reverse the order of the vector. Requires swapping two elements at a time, ending when we reach the middle
     jo_persistent_vector *reverse() {
-        jo_persistent_vector *copy = new jo_persistent_vector(*this);
-        size_t middle = length / 2;
-        for(size_t i = 0; i < middle; i++) {
-            T temp = copy->nth(i);
-            copy->set(i, copy->nth(length - i - 1));
-            copy->set(length - i - 1, temp);
+        jo_persistent_vector *copy = new jo_persistent_vector();
+        for(int i = length-1; i >= 0; --i) {
+            copy->push_back_inplace((*this)[i]);
         }
         return copy;
     }

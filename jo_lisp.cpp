@@ -3579,8 +3579,7 @@ static node_idx_t native_or(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_not(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
 
 static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it = args->begin();
-	int node_idx = *it++;
+	int node_idx = args->first_value();
     node_t *node = get_node(node_idx);
 	if(node->is_string()) return new_node_string(node->as_string().reverse());
 	if(node->is_list()) return new_node_list(node->as_list()->reverse());

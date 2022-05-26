@@ -870,6 +870,7 @@
 
 (is (= (map-indexed (fn [idx itm] [idx itm]) "foobar") ([0 \f] [1 \o] [2 \o] [3 \b] [4 \a] [5 \r])))
 
+(is (= (mapcat reverse [[3 2 1 0] [6 5 4] [9 8 7]]) (0 1 2 3 4 5 6 7 8 9)))
 
 (string-test)
 (if-test)

@@ -97,53 +97,21 @@ static node_idx_t native_concat(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_concat_next(env_ptr_t env, list_ptr_t args) {
-concat_next:
-	if(args->size() == 0) {
-		return NIL_NODE;
-	}
-	node_idx_t nidx = eval_node(env, args->first_value());
 	node_idx_t val = NIL_NODE;
-	int ntype = get_node(nidx)->type;
-	args = args->rest();
-	if(ntype == NODE_NIL) {
-		goto concat_next;
-	} else if(ntype == NODE_LIST) {
-		list_ptr_t n = get_node(nidx)->t_list;
-		if(n->size() == 0) {
-			goto concat_next;
+	do {
+		if(args->size() == 0) {
+			return NIL_NODE;
 		}
-		val = n->first_value();
-		args->cons_inplace(new_node_list(n->pop()));
-	} else if(ntype == NODE_VECTOR) {
-		vector_ptr_t n = get_node(nidx)->t_vector;
-		if(n->size() == 0) {
-			goto concat_next;
+		node_idx_t nidx = eval_node(env, args->first_value());
+		args = args->rest();
+		node_t *n = get_node(nidx);
+		if(!n->seq_empty()) {
+			auto fr = n->seq_first_rest();
+			val = fr.first;
+			args->cons_inplace(fr.second);
+			break;
 		}
-		val = n->first_value();
-		args->cons_inplace(new_node_vector(n->pop_front()));
-	} else if(ntype == NODE_LAZY_LIST) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, get_node(nidx)->t_lazy_fn);
-		if(reti == NIL_NODE) {
-			goto concat_next;
-		}
-		node_t *ret = get_node(reti);
-		if(ret->is_list()) {
-			list_ptr_t list_list = ret->as_list();
-			val = list_list->first_value();
-			args->cons_inplace(new_node_lazy_list(env, new_node_list(list_list->rest())));
-		}
-	} else if(ntype == NODE_STRING) {
-		// pull off the first character of the string
-		jo_string str = get_node(nidx)->t_string;
-		if(str.size() == 0) {
-			goto concat_next;
-		}
-		val = new_node_string(str.substr(0, 1));
-		args->cons_inplace(new_node_string(str.substr(1)));
-	} else {
-		val = nidx;
-	}
+	} while(true);
 	list_ptr_t ret = new_list();
 	ret->push_back_inplace(val);
 	ret->push_back_inplace(env->get("concat-next").value);
@@ -1499,6 +1467,42 @@ static node_idx_t native_lazy_cat(env_ptr_t env, list_ptr_t args) {
 	return native_concat(env, lzseqs);
 }
 
+// (mapcat f)(mapcat f & colls)
+// Returns the result of applying concat to the result of applying map
+// to f and colls.  Thus function f should return a collection. Returns
+// a transducer when no collections are provided
+static node_idx_t native_mapcat(env_ptr_t env, list_ptr_t args) {
+	node_idx_t map = native_map(env, args);
+	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("mapcat-next").value, map, NIL_NODE)));
+}
+
+static node_idx_t native_mapcat_next(env_ptr_t env, list_ptr_t args) {
+	node_idx_t map_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	node_t *coll = get_node(coll_idx);
+	while(coll->seq_empty()) {
+		// advance map
+		node_t *map = get_node(map_idx);
+		if(map->seq_empty()) {
+			return NIL_NODE;
+		}
+		auto mapfr = map->seq_first_rest();
+		coll_idx = mapfr.first;
+		map_idx = mapfr.second;
+		coll = get_node(coll_idx);
+	}
+
+	auto collfr = coll->seq_first_rest();
+	node_idx_t val = collfr.first;
+
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(val);
+	ret->push_back_inplace(env->get("mapcat-next").value);
+	ret->push_back_inplace(map_idx);
+	ret->push_back_inplace(collfr.second);
+	return new_node_list(ret);
+}
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false, NODE_FLAG_PRERESOLVE));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true, NODE_FLAG_PRERESOLVE));
@@ -1510,6 +1514,8 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("iterate-next", new_node_native_function("iterate-next", &native_iterate_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("map", new_node_native_function("map", &native_map, false, NODE_FLAG_PRERESOLVE));
 	env->set("map-next", new_node_native_function("map-next", &native_map_next, true, NODE_FLAG_PRERESOLVE));
+	env->set("mapcat", new_node_native_function("mapcat", &native_mapcat, false, NODE_FLAG_PRERESOLVE));
+	env->set("mapcat-next", new_node_native_function("mapcat-next", &native_mapcat_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("map-indexed", new_node_native_function("map-indexed", &native_map_indexed, false, NODE_FLAG_PRERESOLVE));
 	env->set("map-indexed-next", new_node_native_function("map-indexed-next", &native_map_indexed_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("take", new_node_native_function("take", &native_take, true, NODE_FLAG_PRERESOLVE));

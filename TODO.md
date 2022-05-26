@@ -183,7 +183,6 @@ macroexpand-1
 make-array
 make-hierarchy
 map-entry?
-map-indexed
 mapcat
 mapv
 max-key
