@@ -5064,6 +5064,25 @@ static node_idx_t native_max_key(env_ptr_t env, list_ptr_t args) {
 	return max_idx;
 }
 
+// (min-key k x)(min-key k x y)(min-key k x y & more)
+// Returns the x for which (k x), a number, is smallest.
+// If there are multiple such xs, the last one is returned.
+static node_idx_t native_min_key(env_ptr_t env, list_ptr_t args) {
+	node_idx_t k = args->first_value();
+	list_ptr_t colls = args->rest();
+	node_idx_t min_idx = INV_NODE;
+	double min_val = -INFINITY;
+	for(list_t::iterator it = colls->begin(); it; it++) {
+		double val = get_node_float(eval_va(env, 2, k, *it));
+		if(val < min_val) {
+			min_idx = *it;
+			min_val = val;
+		}
+	}
+	return min_idx;
+}
+
+
 static node_idx_t native_key(env_ptr_t env, list_ptr_t args) {
 	node_idx_t map_entry = args->first_value();
 	node_t *map_entry_node = get_node(map_entry);
@@ -5474,6 +5493,7 @@ int main(int argc, char **argv) {
 	env->set("mapv", new_node_native_function("mapv", &native_mapv, false, NODE_FLAG_PRERESOLVE));
 	env->set("vector", new_node_native_function("vector", &native_vector, false, NODE_FLAG_PRERESOLVE));
 	env->set("max-key", new_node_native_function("max-key", &native_max_key, false, NODE_FLAG_PRERESOLVE));
+	env->set("min-key", new_node_native_function("min-key", &native_min_key, false, NODE_FLAG_PRERESOLVE));
 	env->set("key", new_node_native_function("key", &native_key, false, NODE_FLAG_PRERESOLVE));
 	env->set("val", new_node_native_function("val", &native_val, false, NODE_FLAG_PRERESOLVE));
 	env->set("merge", new_node_native_function("merge", &native_merge, false, NODE_FLAG_PRERESOLVE));
