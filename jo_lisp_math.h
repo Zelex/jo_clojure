@@ -9,7 +9,7 @@
 
 // native function to add any number of arguments
 static node_idx_t native_add(env_ptr_t env, list_ptr_t args) { 
-	int i = 0;
+	long long i = 0;
 	double d = 0.0;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
@@ -25,7 +25,7 @@ static node_idx_t native_add(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_add_int(env_ptr_t env, list_ptr_t args) { 
-	int i = 0;
+	long long i = 0;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
 		if(n->type == NODE_INT) {
@@ -39,7 +39,7 @@ static node_idx_t native_add_int(env_ptr_t env, list_ptr_t args) {
 
 // subtract any number of arguments from the first argument
 static node_idx_t native_sub(env_ptr_t env, list_ptr_t args) {
-	int i_sum = 0;
+	long long i_sum = 0;
 	double d_sum = 0.0;
 
 	size_t size = args->size();
@@ -76,7 +76,7 @@ static node_idx_t native_sub(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_sub_int(env_ptr_t env, list_ptr_t args) {
-	int i_sum = 0;
+	long long i_sum = 0;
 
 	size_t size = args->size();
 	if(size == 0) {
@@ -116,7 +116,7 @@ static node_idx_t native_mul(env_ptr_t env, list_ptr_t args) {
 		return ONE_NODE; 
 	}
 
-	int i = 1;
+	long long i = 1;
 	double d = 1.0;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
@@ -137,7 +137,7 @@ static node_idx_t native_mul_int(env_ptr_t env, list_ptr_t args) {
 		return ONE_NODE; 
 	}
 
-	int i = 1;
+	long long i = 1;
 	for(list_t::iterator it = args->begin(); it; it++) {
 		node_t *n = get_node(*it);
 		int type = n->type;
@@ -152,7 +152,7 @@ static node_idx_t native_mul_int(env_ptr_t env, list_ptr_t args) {
 
 // divide any number of arguments from the first argument
 static node_idx_t native_div(env_ptr_t env, list_ptr_t args) {
-	int i_sum = 1;
+	long long i_sum = 1;
 	double d_sum = 1.0;
 	bool is_int = true;
 
@@ -191,7 +191,7 @@ static node_idx_t native_div(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_div_int(env_ptr_t env, list_ptr_t args) {
-	int i_sum = 1;
+	long long i_sum = 1;
 
 	size_t size = args->size();
 	if(size == 0) {
@@ -374,7 +374,7 @@ static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
 
 	if(n->type == NODE_INT) {
 		bool is_int = true;
-		int min_int = n->t_int;
+		long long min_int = n->t_int;
 		float min_float = min_int;
 		node_idx_t next = *it++;
 		while(true) {
@@ -429,7 +429,7 @@ static node_idx_t native_math_max(env_ptr_t env, list_ptr_t args) {
 
 	if(n->type == NODE_INT) {
 		bool is_int = true;
-		int max_int = n->t_int;
+		long long max_int = n->t_int;
 		float max_float = max_int;
 		node_idx_t next = *it++;
 		while(true) {
@@ -475,9 +475,9 @@ static node_idx_t native_math_clip(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n3i = *it++;
 	node_t *n3 = get_node(n3i);
 	if(n1->type == NODE_INT && n2->type == NODE_INT && n3->type == NODE_INT) {
-		int val = n1->t_int;
-		int min = n2->t_int;
-		int max = n3->t_int;
+		long long val = n1->t_int;
+		long long min = n2->t_int;
+		long long max = n3->t_int;
 		val = val < min ? min : val > max ? max : val;
 		return new_node_int(val);
 	}
@@ -490,7 +490,7 @@ static node_idx_t native_math_clip(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_bit_and(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
+	long long n = get_node_int(*it++);
 	for(; it; it++) {
 		n &= get_node_int(*it);
 	}
@@ -499,7 +499,7 @@ static node_idx_t native_bit_and(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_bit_and_not(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
+	long long n = get_node_int(*it++);
 	for(; it; it++) {
 		n &= ~get_node_int(*it);
 	}
@@ -508,7 +508,7 @@ static node_idx_t native_bit_and_not(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_bit_or(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
+	long long n = get_node_int(*it++);
 	for(; it; it++) {
 		n |= get_node_int(*it);
 	}
@@ -517,7 +517,7 @@ static node_idx_t native_bit_or(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_bit_xor(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
+	long long n = get_node_int(*it++);
 	for(; it; it++) {
 		n ^= get_node_int(*it);
 	}
@@ -528,11 +528,11 @@ static node_idx_t native_bit_xor(env_ptr_t env, list_ptr_t args) {
 // Override len bits in dst starting from pos using bits from src.
 static node_idx_t native_bit_override(env_ptr_t env, list_ptr_t args) {	
 	list_t::iterator it = args->begin();
-	int dst = get_node_int(*it++);
-	int src = get_node_int(*it++);
-	int pos = get_node_int(*it++);
-	int len = get_node_int(*it++);
-	int mask = ((1 << len) - 1) << pos;
+	long long dst = get_node_int(*it++);
+	long long src = get_node_int(*it++);
+	long long pos = get_node_int(*it++);
+	long long len = get_node_int(*it++);
+	long long mask = ((1 << len) - 1) << pos;
 	return new_node_int((dst & ~mask) | (src & mask));
 }
 

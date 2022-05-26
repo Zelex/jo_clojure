@@ -11,6 +11,7 @@
 #include <atomic>
 #include <future>
 #include <thread>
+#include <shared_mutex>
 #include "debugbreak.h"
 #include "jo_stdcpp.h"
 
@@ -102,23 +103,25 @@ struct node_t;
 struct lazy_list_iterator_t;
 
 struct node_idx_t {
-	int idx;
+	long long idx;
 	node_idx_t() = default;
-	node_idx_t(int idx) : idx(idx) {}
-	operator int() const { return idx; }
-	node_idx_t& operator=(int idx) { this->idx = idx; return *this; }
+	node_idx_t(long long idx) : idx(idx) {}
+	operator long long() const { return idx; }
+	node_idx_t& operator=(long long idx) { this->idx = idx; return *this; }
 	bool operator==(const node_idx_t& other) const { return idx == other.idx; }
 	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
+	bool operator==(long long idx) const { return this->idx == idx; }
+	bool operator!=(long long idx) const { return this->idx != idx; }
 	bool operator==(int idx) const { return this->idx == idx; }
 	bool operator!=(int idx) const { return this->idx != idx; }
 	node_idx_t& operator++() { ++idx; return *this; }
 	node_idx_t& operator--() { --idx; return *this; }
 	node_idx_t operator++(int) { node_idx_t tmp = *this; ++idx; return tmp; }
 	node_idx_t operator--(int) { node_idx_t tmp = *this; --idx; return tmp; }
-	node_idx_t operator+(int i) const { return node_idx_t(idx + i); }
-	node_idx_t operator-(int i) const { return node_idx_t(idx - i); }
-	node_idx_t& operator+=(int i) { idx += i; return *this; }
-	node_idx_t& operator-=(int i) { idx -= i; return *this; }
+	node_idx_t operator+(long long i) const { return node_idx_t(idx + i); }
+	node_idx_t operator-(long long i) const { return node_idx_t(idx - i); }
+	node_idx_t& operator+=(long long i) { idx += i; return *this; }
+	node_idx_t& operator-=(long long i) { idx -= i; return *this; }
 };
 
 typedef jo_persistent_list<node_idx_t> list_t;
@@ -160,7 +163,7 @@ static inline list_ptr_t get_node_list(node_idx_t idx);
 static inline vector_ptr_t get_node_vector(node_idx_t idx);
 static inline map_ptr_t get_node_map(node_idx_t idx);
 static inline hash_set_ptr_t get_node_hash_set(node_idx_t idx);
-static inline int get_node_int(node_idx_t idx);
+static inline long long get_node_int(node_idx_t idx);
 static inline double get_node_float(node_idx_t idx);
 static inline vector_ptr_t get_node_func_args(node_idx_t idx);
 static inline list_ptr_t get_node_func_body(node_idx_t idx);
@@ -388,7 +391,7 @@ struct lazy_list_iterator_t {
 	node_idx_t cur;
 	node_idx_t val;
 	jo_vector<node_idx_t> next_list;
-	int next_idx;
+	long long next_idx;
 
 	lazy_list_iterator_t(const node_t *node) : cur(), val(NIL_NODE), next_list(), next_idx() {
 		if(get_node_type(node) == NODE_LAZY_LIST) {
@@ -438,8 +441,8 @@ struct lazy_list_iterator_t {
 		return new_node_list(get_node_list(cur)->rest());
 	}
 
-	node_idx_t next_fn(int n) {
-		for(int i = 0; i < n; i++) {
+	node_idx_t next_fn(long long n) {
+		for(long long i = 0; i < n; i++) {
 			next();
 		}
 		if(done()) {
@@ -448,7 +451,7 @@ struct lazy_list_iterator_t {
 		return new_node_list(get_node_list(cur)->rest());
 	}
 
-	node_idx_t nth(int n) {
+	node_idx_t nth(long long n) {
 		node_idx_t res = val;
 		while(n-- > 0 && !done()) {
 			next();
@@ -460,7 +463,7 @@ struct lazy_list_iterator_t {
 		return !done();
 	}
 
-	list_ptr_t all(int n = INT_MAX) {
+	list_ptr_t all(long long n = INT_MAX) {
 		list_ptr_t res = new_list();
 		while(!done() && n-- > 0) {
 			res->push_back_inplace(val);
@@ -470,7 +473,7 @@ struct lazy_list_iterator_t {
 	}
 
 	// fetch the next N values, and put them into next_list
-	void prefetch(int n) {
+	void prefetch(long long n) {
 		// already prefetched at least n values?
 		if(next_list.size() > n || done()) {
 			return;
@@ -505,7 +508,7 @@ struct node_t {
 		node_idx_t t_var; // link to the variable
 		bool t_bool;
 		// most implementations combine these as "number", but at the moment that sounds silly
-		int t_int;
+		long long t_int;
 		double t_float;
 		node_idx_t t_delay; // cached result
 		node_idx_t t_lazy_fn;
@@ -681,11 +684,11 @@ struct node_t {
 		}
 	}
 
-	int as_int() const {
+	long long as_int() const {
 		switch(type) {
 		case NODE_BOOL:   return t_bool;
 		case NODE_INT:    return t_int;
-		case NODE_FLOAT:  return (int)t_float;
+		case NODE_FLOAT:  return (long long)t_float;
 		case NODE_FUNC:
 		case NODE_VAR:
 		case NODE_SYMBOL:
@@ -848,7 +851,7 @@ static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->a
 static inline vector_ptr_t get_node_vector(node_idx_t idx) { return get_node(idx)->as_vector(); }
 static inline map_ptr_t get_node_map(node_idx_t idx) { return get_node(idx)->as_map(); }
 static inline hash_set_ptr_t get_node_set(node_idx_t idx) { return get_node(idx)->as_set(); }
-static inline int get_node_int(node_idx_t idx) { return get_node(idx)->as_int(); }
+static inline long long get_node_int(node_idx_t idx) { return get_node(idx)->as_int(); }
 static inline double get_node_float(node_idx_t idx) { return get_node(idx)->as_float(); }
 static inline jo_string get_node_type_string(node_idx_t idx) { return get_node(idx)->type_as_string(); }
 static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
@@ -880,7 +883,7 @@ static inline void free_node(node_idx_t idx) {
 // TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
 static inline node_idx_t new_node(const node_t *n) {
 	if(free_nodes.size()) {
-		int ni = free_nodes.pop_back();
+		long long ni = free_nodes.pop_back();
 		nodes[ni] = *n;
 		return ni;
 	}
@@ -952,7 +955,7 @@ static node_idx_t new_node_bool(bool b) {
 	return b ? TRUE_NODE : FALSE_NODE;
 }
 
-static node_idx_t new_node_int(int i, int flags = 0) {
+static node_idx_t new_node_int(long long i, int flags = 0) {
 	if(i >= 0 && i <= 256) {
 		return INT_0_NODE + i;
 	}
@@ -1352,7 +1355,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	} 
 	if(is_num(c) || (c == '-' && is_num(c2))) {
 		// floating point
-		if(tok.str.find('.') != jo_string_npos) {
+		if(tok.str.find('.') != jo_npos) {
 			double float_val = atof(tok_ptr);
 			debugf("float: %f\n", float_val);
 			return new_node_float(float_val);
@@ -1737,8 +1740,8 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			return last;
 		} else if(sym_type == NODE_MAP) {
 			// lookup the key in the map
-			int n2i = eval_node(env, *it++);
-			int n3i = it ? eval_node(env, *it++) : NIL_NODE;
+			node_idx_t n2i = eval_node(env, *it++);
+			node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
 			auto it2 = get_node(sym_idx)->t_map->find(n2i, node_eq);
 			if(it2.third) {
 				return it2.second;
@@ -1746,8 +1749,8 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			return n3i;
 		} else if(sym_type == NODE_KEYWORD) {
 			// lookup the key in the map
-			int n2i = eval_node(env, *it++);
-			int n3i = it ? eval_node(env, *it++) : NIL_NODE;
+			node_idx_t n2i = eval_node(env, *it++);
+			node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
 			if(get_node_type(n2i) == NODE_MAP) {
 				auto it2 = get_node(n2i)->t_map->find(sym_idx, node_eq);
 				if(it2.third) {
@@ -1814,7 +1817,7 @@ static node_idx_t eval_va(env_ptr_t env, int num, ...) {
 	va_start(ap, num);
 	list_ptr_t a = new_list();
 	for(int i = 0; i < num; i++) {
-		a->push_back_inplace(node_idx_t(va_arg(ap, int)));
+		a->push_back_inplace(node_idx_t(va_arg(ap, long long)));
 	}
 	va_end(ap);
 	return eval_list(env, a);
@@ -1825,7 +1828,7 @@ static list_ptr_t list_va(int num, ...) {
 	va_start(ap, num);
 	list_ptr_t a = new_list();
 	for(int i = 0; i < num; i++) {
-		a->push_back_inplace(node_idx_t(va_arg(ap, int)));
+		a->push_back_inplace(node_idx_t(va_arg(ap, long long)));
 	}
 	va_end(ap);
 	return a;
@@ -1836,7 +1839,7 @@ static vector_ptr_t vector_va(int num, ...) {
 	va_start(ap, num);
 	vector_ptr_t a = new_vector();
 	for(int i = 0; i < num; i++) {
-		a->push_back_inplace(node_idx_t(va_arg(ap, int)));
+		a->push_back_inplace(node_idx_t(va_arg(ap, long long)));
 	}
 	va_end(ap);
 	return a;
@@ -1909,7 +1912,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	} else if(type == NODE_FLOAT) {
 		printf("%f", get_node_float(node));
 	} else if(type == NODE_INT) {
-		printf("%d", get_node_int(node));
+		printf("%d", (int)get_node_int(node));
 	} else if(type == NODE_BOOL) {
 		printf("%s", get_node_bool(node) ? "true" : "false");
 	} else if(type == NODE_NIL) {
@@ -2071,7 +2074,7 @@ struct seq_iterator_t {
 		return val;
 	}
 
-	node_idx_t nth(int n) {
+	node_idx_t nth(long long n) {
 		if(type == NODE_LAZY_LIST) {
 			lit.nth(n);
 			return lit.val;
@@ -2097,7 +2100,7 @@ struct seq_iterator_t {
 		return res;
 	}
 
-	void prefetch(int n) {
+	void prefetch(long long n) {
 		if(type == NODE_LAZY_LIST) {
 			lit.prefetch(n);
 		}
@@ -2569,7 +2572,7 @@ static node_idx_t native_doall(env_ptr_t env, list_ptr_t args) {
 	}
 
 	if(args->size() == 2) {
-		int n = get_node(eval_node(env, *i++))->as_int();
+		long long n = get_node(eval_node(env, *i++))->as_int();
 		node_idx_t coll = eval_node(env, *i++);
 		node_t *n4 = get_node(coll);
 		if(!n4->is_seq()) {
@@ -2610,7 +2613,7 @@ static node_idx_t native_dorun(env_ptr_t env, list_ptr_t args) {
 	}
 
 	if(args->size() == 2) {
-		int n = get_node(eval_node(env, *i++))->as_int();
+		long long n = get_node(eval_node(env, *i++))->as_int();
 		node_idx_t coll = eval_node(env, *i++);
 		node_t *n4 = get_node(coll);
 		if(!n4->is_seq()) {
@@ -2842,7 +2845,7 @@ static node_idx_t native_fn_macro(env_ptr_t env, list_ptr_t args, bool macro) {
 			}
 		}
 		return new_node_native_function("fn_lambda", [=](env_ptr_t env, list_ptr_t args) -> node_idx_t {
-			int num_args = args->size();
+			long long num_args = args->size();
 			for(auto i = fn_list->begin(); i; i++) {
 				node_idx_t fn_idx = *i;
 				node_t *fn = get_node(fn_idx);
@@ -2986,11 +2989,11 @@ static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t name_idx = binding_list->first_value();
 	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
-	int times = get_node(value_idx)->as_int();
+	long long times = get_node(value_idx)->as_int();
 	jo_string name = get_node(name_idx)->as_string();
 	env_ptr_t env2 = new_env(env);
 	node_idx_t ret = NIL_NODE;
-	for(int i = 0; i < times; ++i) {
+	for(long long i = 0; i < times; ++i) {
 		env2->set_temp(name, new_node_int(i));
 		for(list_t::iterator it2 = it; it2; it2++) { 
 			ret = eval_node(env2, *it2);
@@ -3266,7 +3269,7 @@ static node_idx_t native_nth(env_ptr_t env, list_ptr_t args) {
 	node_idx_t list_idx = *it++;
 	node_t *list = get_node(list_idx);
 	node_idx_t n_idx = *it++;
-	int n = get_node(n_idx)->as_int();
+	long long n = get_node(n_idx)->as_int();
 	if(list->is_string()) {
 		jo_string &str = list->t_string;
 		if(n < 0) n = str.size() + n;
@@ -3334,37 +3337,37 @@ static node_idx_t native_is_vector(env_ptr_t env, list_ptr_t args) { return get_
 // Return true if x is a symbol or keyword without a namespace
 static node_idx_t native_is_simple_ident(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return (type == NODE_SYMBOL || type == NODE_KEYWORD) && get_node(args->first_value())->t_string.find('/') == jo_string_npos ? TRUE_NODE : FALSE_NODE;
+	return (type == NODE_SYMBOL || type == NODE_KEYWORD) && get_node(args->first_value())->t_string.find('/') == jo_npos ? TRUE_NODE : FALSE_NODE;
 }
 
 // Return true if x is a symbol or keyword with a namespace
 static node_idx_t native_is_qualified_ident(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return (type == NODE_SYMBOL || type == NODE_KEYWORD) && get_node(args->first_value())->t_string.find('/') != jo_string_npos ? TRUE_NODE : FALSE_NODE;
+	return (type == NODE_SYMBOL || type == NODE_KEYWORD) && get_node(args->first_value())->t_string.find('/') != jo_npos ? TRUE_NODE : FALSE_NODE;
 }
 
 // Return true if x is a symbol without a namespace
 static node_idx_t native_is_simple_symbol(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return type == NODE_SYMBOL && get_node(args->first_value())->t_string.find('/') == jo_string_npos ? TRUE_NODE : FALSE_NODE;
+	return type == NODE_SYMBOL && get_node(args->first_value())->t_string.find('/') == jo_npos ? TRUE_NODE : FALSE_NODE;
 }
 
 // Return true if x is a symbol with a namespace
 static node_idx_t native_is_qualified_symbol(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return type == NODE_SYMBOL && get_node(args->first_value())->t_string.find('/') != jo_string_npos ? TRUE_NODE : FALSE_NODE;
+	return type == NODE_SYMBOL && get_node(args->first_value())->t_string.find('/') != jo_npos ? TRUE_NODE : FALSE_NODE;
 }
 
 // Return true if x is a keyword without a namespace
 static node_idx_t native_is_simple_keyword(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return type == NODE_KEYWORD && get_node(args->first_value())->t_string.find('/') == jo_string_npos ? TRUE_NODE : FALSE_NODE;
+	return type == NODE_KEYWORD && get_node(args->first_value())->t_string.find('/') == jo_npos ? TRUE_NODE : FALSE_NODE;
 }
 
 // Return true if x is a keyword with a namespace
 static node_idx_t native_is_qualified_keyword(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return type == NODE_KEYWORD && get_node(args->first_value())->t_string.find('/') != jo_string_npos ? TRUE_NODE : FALSE_NODE;
+	return type == NODE_KEYWORD && get_node(args->first_value())->t_string.find('/') != jo_npos ? TRUE_NODE : FALSE_NODE;
 }
 
 // (next coll) 
@@ -3584,7 +3587,7 @@ static node_idx_t native_or(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_not(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
 
 static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
-	int node_idx = args->first_value();
+	node_idx_t node_idx = args->first_value();
     node_t *node = get_node(node_idx);
 	if(node->is_string()) return new_node_string(node->as_string().reverse());
 	if(node->is_list()) return new_node_list(node->as_list()->reverse());
@@ -3781,7 +3784,7 @@ static node_idx_t native_get(env_ptr_t env, list_ptr_t args) {
 		return not_found_idx;
 	}
 	if(map_node->is_vector()) {
-		int vec_idx = key_node->as_int();
+		long long vec_idx = key_node->as_int();
 		if(vec_idx < 0 || vec_idx > map_node->t_vector->size()) {
 			return not_found_idx;
 		}
@@ -3974,7 +3977,7 @@ static node_idx_t native_nthrest(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n_idx = *it++;
 	node_t *coll_node = get_node(coll_idx);
 	node_t *n_node = get_node(n_idx);
-	int n = n_node->as_int();
+	long long n = n_node->as_int();
 	if(n <= 0) return coll_idx;
 	if(coll_node->is_string()) {
 		jo_string &str = coll_node->t_string;
@@ -4001,7 +4004,7 @@ static node_idx_t native_nthnext(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n_idx = *it++;
 	node_t *coll_node = get_node(coll_idx);
 	node_t *n_node = get_node(n_idx);
-	int n = n_node->as_int();
+	long long n = n_node->as_int();
 	if(n <= 0) return NIL_NODE;
 	if(coll_node->is_string()) {
 		jo_string &str = coll_node->t_string;
@@ -4331,7 +4334,7 @@ static node_idx_t native_cond_thread_last(env_ptr_t env, list_ptr_t args) {
 // expression is provided and no clause matches, an
 // IllegalArgumentException is thrown.
 static node_idx_t native_condp(env_ptr_t env, list_ptr_t args) {
-	int num_args = args->size();
+	long long num_args = args->size();
 	if(num_args < 3) {
 		warnf("(condp) requires at least 3 arguments\n");
 		return NIL_NODE;
@@ -4346,8 +4349,8 @@ static node_idx_t native_condp(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	int num_clauses = (num_args - 2) / 2;
-	for(int i = 0; i < num_clauses; i++) {
+	long long num_clauses = (num_args - 2) / 2;
+	for(long long i = 0; i < num_clauses; i++) {
 		node_idx_t test_idx = eval_node(env, *it++);
 		node_idx_t form_idx = *it++;
 		list_ptr_t test_args = new_list();
@@ -4573,7 +4576,7 @@ static node_idx_t native_split_at(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t n_idx = args->first_value();
 	node_idx_t coll_idx = args->second_value();
-	int n = get_node_int(n_idx);
+	long long n = get_node_int(n_idx);
 	if(n < 0) {
 		warnf("(split-at) requires a positive integer\n");
 		return NIL_NODE;
@@ -5090,7 +5093,6 @@ static node_idx_t native_val(env_ptr_t env, list_ptr_t args) {
 	}
 	return map_entry_vec->nth(1);
 }
-
 
 
 #include "jo_lisp_math.h"

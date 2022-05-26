@@ -183,7 +183,6 @@ make-array
 make-hierarchy
 map-entry?
 memfn
-memoize
 merge
 merge-with
 meta

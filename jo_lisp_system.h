@@ -13,7 +13,7 @@ static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
 		str += n->as_string(env);
 	}
 	//printf("system_exec: %s\n", str.c_str());
-	int ret = system(str.c_str());
+	long long ret = system(str.c_str());
 	return new_node_int(ret);
 }
 

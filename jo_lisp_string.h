@@ -45,11 +45,11 @@ static node_idx_t native_split_lines(env_ptr_t env, list_ptr_t args) {
 	}
 	jo_string str = node->as_string();
 	list_ptr_t list_list = new_list();
-	int pos = 0;
-	int prev_pos = 0;
-	while(pos != jo_string_npos) {
+	long long pos = 0;
+	long long prev_pos = 0;
+	while(pos != jo_npos) {
 		pos = str.find('\n', prev_pos);
-		if(pos == jo_string_npos) {
+		if(pos == jo_npos) {
 			list_list->push_back_inplace(new_node_string(str.substr(prev_pos)));
 		} else {
 			list_list->push_back_inplace(new_node_string(str.substr(prev_pos, pos - prev_pos)));

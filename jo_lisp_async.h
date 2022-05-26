@@ -641,6 +641,29 @@ static node_idx_t native_io(env_ptr_t env, list_ptr_t args) {
 	return native_do(env, args);
 }
 
+// memoize
+// Returns a memoized version of a referentially transparent function. The
+// memoized version of the function keeps a cache of the mapping from arguments
+// to results and, when calls with the same arguments are repeated often, has
+// higher performance at the expense of higher memory use.
+static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f = args->first_value();
+	node_idx_t cache_idx = new_node_atom(new_node_map(new_map()));
+	node_idx_t func_idx = new_node(NODE_NATIVE_FUNC, 0);
+	node_t *func = get_node(func_idx);
+	func->t_native_function = new native_func_t([f,cache_idx](env_ptr_t env, list_ptr_t args) -> node_idx_t {
+		node_idx_t args_idx = new_node_list(args);
+		node_idx_t C = native_deref(env, list_va(1, cache_idx));
+		map_ptr_t mem = get_node(C)->t_map;
+		if(mem->contains(args_idx, node_eq)) {
+			return mem->get(args_idx, node_eq);
+		}
+		node_idx_t ret = eval_list(env, args->push_front(f));
+		native_swap_e(env, list_va(4, cache_idx, env->get("assoc").value, args_idx, ret));
+		return ret;
+	});
+	return func_idx;
+}
 
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
@@ -670,5 +693,7 @@ void jo_lisp_async_init(env_ptr_t env) {
 	env->set("future-cancelled?", new_node_native_function("future-cancelled?", &native_future_cancelled, false, NODE_FLAG_PRERESOLVE));
 	env->set("future-done?", new_node_native_function("future-done?", &native_future_done, false, NODE_FLAG_PRERESOLVE));
 	env->set("future?", new_node_native_function("future?", &native_is_future, false, NODE_FLAG_PRERESOLVE));
-
+	
+	// misc
+	env->set("memoize", new_node_native_function("memoize", &native_memoize, false, NODE_FLAG_PRERESOLVE));
 }

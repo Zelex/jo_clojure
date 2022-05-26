@@ -898,7 +898,13 @@
   "carl" {:timestamp 2 :name "q"} 
   "lola" {:timestamp 3 :name "r"}})
 (is (= (apply max-key #(:timestamp (val %)) map-with-index) ["lola" {:timestamp 3, :name "r"}]))
-
+(def m-fib
+  (memoize (fn [n]
+             (condp = n
+               0 1
+               1 1
+               (+ (m-fib (dec n)) (m-fib (- n 2)))))))
+(is (= (m-fib 20) 10946))
 
 (string-test)
 (if-test)

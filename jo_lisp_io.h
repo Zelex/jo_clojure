@@ -147,7 +147,7 @@ static node_idx_t native_io_seek(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
-    int pos = get_node_int(args->second_value());
+    long long pos = get_node_int(args->second_value());
     fseek(n->t_file, pos, SEEK_SET);
     return NIL_NODE;
 }
@@ -276,7 +276,7 @@ static node_idx_t native_io_write_int(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
-    int i = get_node_int(args->second_value());
+    long long i = get_node_int(args->second_value());
     fwrite(&i, sizeof(int), 1, n->t_file);
     return NIL_NODE;
 }
@@ -296,7 +296,7 @@ static node_idx_t native_io_write_short(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
-    int s = get_node_int(args->second_value());
+    long long s = get_node_int(args->second_value());
     fwrite(&s, sizeof(short), 1, n->t_file);
     return NIL_NODE;
 }
@@ -306,7 +306,7 @@ static node_idx_t native_io_write_byte(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
-    int b = get_node_int(args->second_value());
+    long long b = get_node_int(args->second_value());
     fwrite(&b, sizeof(char), 1, n->t_file);
     return NIL_NODE;
 }
@@ -363,7 +363,7 @@ static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
     if(args->size() == 2) {
         term = get_node_int(args->second_value());
     }
-    int i = 0;
+    long long i = 0;
     while(1) {
         int c = fgetc(n->t_file);
         if(c == EOF || c == term) {
@@ -541,7 +541,7 @@ static node_idx_t native_io_tell_dir(env_ptr_t env, list_ptr_t args) {
         return NIL_NODE;
     }
 #ifdef _WIN32
-    return new_node_int(0);
+    return ZERO_NODE;
 #else
     return new_node_int(telldir((DIR*)n->t_dir));
 #endif

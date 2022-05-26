@@ -12,9 +12,9 @@
 // start. When start is equal to end, returns empty list.
 static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int end = args->size(), start = 0, step = 1;
+	long long end = args->size(), start = 0, step = 1;
 	if(end == 0) {
-		end = INT_MAX; // "infinite" series
+		end = LLONG_MAX; // "infinite" series
 	} else if(end == 1) {
 		end = get_node(*it++)->as_int();
 	} else if(end == 2) {
@@ -28,7 +28,7 @@ static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
 	// @ Maybe make 32 configurable
 	if(end != INT_MAX && (end - start) / step < 32) {
 		list_ptr_t ret = new_list();
-		for(int i = start; i < end; i += step) {
+		for(long long i = start; i < end; i += step) {
 			ret->push_back_inplace(new_node_int(i));
 		}
 		return new_node_list(ret);
@@ -39,9 +39,9 @@ static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int start = get_node(*it++)->as_int();
-	int step = get_node(*it++)->as_int();
-	int end = get_node(*it++)->as_int();
+	long long start = get_node(*it++)->as_int();
+	long long step = get_node(*it++)->as_int();
+	long long end = get_node(*it++)->as_int();
 	if(start >= end) {
 		return NIL_NODE;
 	}
@@ -54,7 +54,7 @@ static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x;
-	int n = INT_MAX;
+	long long n = LLONG_MAX;
 	if(args->size() == 1) {
 		x = eval_node(env, *it++);
 	} else if(args->size() == 2) {
@@ -66,7 +66,7 @@ static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 	// @ Maybe make 32 configurable
 	if(n <= 32) {
 		list_ptr_t ret = new_list();
-		for(int i = 0; i < n; i++) {
+		for(long long i = 0; i < n; i++) {
 			ret->push_back_inplace(x);
 		}
 		return new_node_list(ret);
@@ -77,7 +77,7 @@ static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t x = *it++;
-	int n = get_node(*it++)->as_int();
+	long long n = get_node(*it++)->as_int();
 	if(n <= 0) {
 		return NIL_NODE;
 	}
@@ -206,7 +206,7 @@ static node_idx_t native_map_indexed_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = *it++;
 	node_idx_t coll_idx = *it++;
 	node_idx_t count_idx = *it++;
-	int count = get_node(count_idx)->t_int;
+	long long count = get_node(count_idx)->t_int;
 	// pull off the first element of each list and call f with it
 
 	node_t *coll = get_node(coll_idx);
@@ -240,7 +240,7 @@ static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
 	node_idx_t coll = eval_node(env, *it++);
 	if(get_node_type(coll) == NODE_LIST) {
 		// don't do it lazily if not given lazy inputs... thats dumb
-		int N = get_node(n)->as_int();
+		long long N = get_node(n)->as_int();
 		list_ptr_t list_list = get_node(coll)->as_list();
 		if(list_list->size() <= N) {
 			return coll;
@@ -249,7 +249,7 @@ static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
 	}
 	if(get_node_type(coll) == NODE_VECTOR) {
 		// don't do it lazily if not given lazy inputs... thats dumb
-		int N = get_node(n)->as_int();
+		long long N = get_node(n)->as_int();
 		vector_ptr_t list_list = get_node(coll)->as_vector();
 		if(list_list->size() <= N) {
 			return coll;
@@ -264,7 +264,7 @@ static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_take_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int n = get_node(*it++)->as_int();
+	long long n = get_node(*it++)->as_int();
 	if(n <= 0) {
 		return NIL_NODE;
 	}
@@ -290,7 +290,7 @@ static node_idx_t native_take_nth(env_ptr_t env, list_ptr_t args) {
 		get_node(lazy_func_idx)->t_list->push_back_inplace(n);
 		return new_node_lazy_list(env, lazy_func_idx);
 	}
-	int N = get_node(n)->as_int();
+	long long N = get_node(n)->as_int();
 	node_idx_t coll = eval_node(env, *it++);
 	if(get_node_type(coll) == NODE_LIST) {
 		// don't do it lazily if not given lazy inputs... thats dumb
@@ -356,7 +356,7 @@ static node_idx_t native_take_nth(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_take_nth_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int n = get_node(*it++)->as_int();
+	long long n = get_node(*it++)->as_int();
 	if(n <= 0) return NIL_NODE;
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
@@ -376,7 +376,7 @@ static node_idx_t native_take_last(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t n = eval_node(env, *it++);
 	node_idx_t coll = eval_node(env, *it++);
-	int N = get_node(n)->as_int();
+	long long N = get_node(n)->as_int();
 	if(get_node_type(coll) == NODE_LIST) {
 		list_ptr_t list_list = get_node(coll)->as_list();
 		if(list_list->size() <= N) {
@@ -542,7 +542,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		args->push_back_inplace(pred_idx);
 		size_t str_len = str.length();
 		const char *str_ptr = str.c_str();
-		for(int i = 0; i < str_len; i++) {
+		for(long long i = 0; i < str_len; i++) {
 			node_idx_t item_idx = new_node_int(str_ptr[i]);
 			node_idx_t comp = eval_list(env, args->conj(item_idx));
 			if(get_node_bool(comp)) {
@@ -640,7 +640,7 @@ static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t f_idx = *it++;
 	node_idx_t n_idx = *it++;
-	int n = get_node_int(n_idx);
+	long long n = get_node_int(n_idx);
 	if(n > 0) {
 		return new_node_list(list_va(4, eval_va(env, 1, f_idx), env->get("repeatedly-next").value, f_idx, new_node_int(n - 1)));
 	}
@@ -683,8 +683,8 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t step_idx = *it++;
 	node_idx_t pad_idx = *it++;
 	node_idx_t coll_idx = *it++;
-	int n = get_node_int(n_idx);
-	int step = get_node_int(step_idx);
+	long long n = get_node_int(n_idx);
+	long long step = get_node_int(step_idx);
 	int coll_type = get_node_type(coll_idx);
 	node_idx_t new_coll = NIL_NODE;
 	list_ptr_t ret;
@@ -720,7 +720,7 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	}
 	if((!ret.ptr || ret->size() < n) && (!retv.ptr || retv->size() < n)) {
 		if(pad_idx != NIL_NODE) {
-			int pad_n = n - ret->size();
+			long long pad_n = n - ret->size();
 			int pad_type = get_node_type(pad_idx);
 			list_ptr_t pad_coll;
 			if(pad_type == NODE_LIST) {
@@ -827,7 +827,7 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 	list_ptr_t ret = new_list();
 	ret->push_back_inplace(val);
 	ret->push_back_inplace(env->get("interleave-next").value);
-	int next_coll_it = get_node_int(coll_idx)+1;
+	long long next_coll_it = get_node_int(coll_idx)+1;
 	if(args->size() == next_coll_it) {
 		ret->push_back_inplace(ZERO_NODE);
 	} else {
@@ -1153,7 +1153,7 @@ static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
 	node_idx_t n_idx = *it++;
-	int n = get_node(n_idx)->as_int();
+	long long n = get_node(n_idx)->as_int();
 	node_idx_t list_idx = *it++;
 	if(n <= 0) {
 		return list_idx;
@@ -1184,7 +1184,7 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_drop_first(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it = args->begin();
-	int n = get_node_int(*it++);
+	long long n = get_node_int(*it++);
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
 	for(; !lit.done(); lit.next()) {
@@ -1438,7 +1438,7 @@ static node_idx_t native_keep_indexed(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = args->first_value();
 	node_idx_t coll_idx = args->second_value();
-	int cnt = get_node_int(args->third_value());
+	long long cnt = get_node_int(args->third_value());
 	node_idx_t result_idx;
 	do {
 		node_t *coll = get_node(coll_idx);
