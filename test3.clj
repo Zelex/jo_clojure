@@ -1,6 +1,3 @@
 
-(mapcat (fn [[k v]] (for [[k2 v2] v] (concat [k k2] v2)))
-          {:a {:x (1 2) :y (3 4)}
-           :b {:x (1 2) :z (5 6)}})
-
+(partition-all 4 [0 1 2 3 4 5 6 7 8 9])
 

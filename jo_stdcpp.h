@@ -3094,6 +3094,12 @@ struct jo_persistent_vector
     }
 
     jo_persistent_vector *drop(size_t n) const {
+        if(n == 0) {
+            return new jo_persistent_vector(*this);
+        }
+        if(n >= length) {
+            return new jo_persistent_vector();
+        }
         jo_persistent_vector *copy = new jo_persistent_vector(*this);
         copy->head_offset += n;
         copy->length -= n;
@@ -4227,20 +4233,8 @@ struct jo_persistent_list {
     }
 
     jo_persistent_list *push_front2_inplace(const T &value1, const T &value2) {
-        if(!head) {
-            head = new node(value1, NULL);
-            tail = head;
-        } else {
-            jo_shared_ptr<node> new_head = new node(value1, head);
-            head = new_head;
-        }
-        if(!head->next) {
-            head->next = new node(value2, NULL);
-            tail = head->next;
-        } else {
-            head->next = new node(value2, head->next);
-        }
-        length+=2;
+        push_front_inplace(value2);
+        push_front_inplace(value1);
         return this;
     }
 
@@ -4251,26 +4245,9 @@ struct jo_persistent_list {
     }
 
     jo_persistent_list *push_front3_inplace(const T &value1, const T &value2, const T &value3) {
-        if(!head) {
-            head = new node(value1, NULL);
-            tail = head;
-        } else {
-            jo_shared_ptr<node> new_head = new node(value1, head);
-            head = new_head;
-        }
-        if(!head->next) {
-            head->next = new node(value2, NULL);
-            tail = head->next;
-        } else {
-            head->next = new node(value2, head->next);
-        }
-        if(!head->next->next) {
-            head->next->next = new node(value3, NULL);
-            tail = head->next->next;
-        } else {
-            head->next->next = new node(value3, head->next->next);
-        }
-        length+=3;
+        push_front_inplace(value3);
+        push_front_inplace(value2);
+        push_front_inplace(value1);
         return this;
     }
 
@@ -4281,38 +4258,47 @@ struct jo_persistent_list {
     }
 
     jo_persistent_list *push_front4_inplace(const T &value1, const T &value2, const T &value3, const T &value4) {
-        if(!head) {
-            head = new node(value1, NULL);
-            tail = head;
-        } else {
-            jo_shared_ptr<node> new_head = new node(value1, head);
-            head = new_head;
-        }
-        if(!head->next) {
-            head->next = new node(value2, NULL);
-            tail = head->next;
-        } else {
-            head->next = new node(value2, head->next);
-        }
-        if(!head->next->next) {
-            head->next->next = new node(value3, NULL);
-            tail = head->next->next;
-        } else {
-            head->next->next = new node(value3, head->next->next);
-        }
-        if(!head->next->next->next) {
-            head->next->next->next = new node(value4, NULL);
-            tail = head->next->next->next;
-        } else {
-            head->next->next->next = new node(value4, head->next->next->next);
-        }
-        length+=4;
+        push_front_inplace(value4);
+        push_front_inplace(value3);
+        push_front_inplace(value2);
+        push_front_inplace(value1);
         return this;
     }
 
     jo_persistent_list *push_front4(const T &value1, const T &value2, const T &value3, const T &value4) const {
         jo_persistent_list *copy = new jo_persistent_list(*this);
         copy->push_front4_inplace(value1, value2, value3, value4);
+        return copy;
+    }
+
+    jo_persistent_list *push_front5_inplace(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5) {
+        push_front_inplace(value5);
+        push_front_inplace(value4);
+        push_front_inplace(value3);
+        push_front_inplace(value2);
+        push_front_inplace(value1);
+        return this;
+    }
+
+    jo_persistent_list *push_front5(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5) const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->push_front5_inplace(value1, value2, value3, value4, value5);
+        return copy;
+    }
+
+    jo_persistent_list *push_front6_inplace(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5, const T &value6) {
+        push_front_inplace(value6);
+        push_front_inplace(value5);
+        push_front_inplace(value4);
+        push_front_inplace(value3);
+        push_front_inplace(value2);
+        push_front_inplace(value1);
+        return this;
+    }
+
+    jo_persistent_list *push_front6(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5, const T &value6) const {
+        jo_persistent_list *copy = new jo_persistent_list(*this);
+        copy->push_front6_inplace(value1, value2, value3, value4, value5, value6);
         return copy;
     }
 

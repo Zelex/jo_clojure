@@ -930,6 +930,9 @@
 (is (= (namespace :admin/live-playlist-details) "admin"))
 (is (= (namespace :about) nil))
 
+(is (= (partition 4 [0 1 2 3 4 5 6 7 8 9]) ((0 1 2 3) (4 5 6 7))))
+(is (= (partition-all 4 [0 1 2 3 4 5 6 7 8 9]) ((0 1 2 3) (4 5 6 7) (8 9))))
+
 (string-test)
 (if-test)
 (when-test)

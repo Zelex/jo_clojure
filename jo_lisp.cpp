@@ -27,6 +27,7 @@
 
 
 enum {
+
 	// hard coded nodes
 	TX_HOLD_NODE = -4, // Set to this value if in the middle of a transaction commit. Don't touch while in this state!
 	EOL_NODE = -3,
@@ -61,6 +62,8 @@ enum {
 	K_WHILE_NODE,
 	K_LET_NODE,
 	K_PC_NODE,
+	K_ALL_NODE,
+	K_BY_NODE,
 
 	// node types
 	NODE_NIL = 0,
@@ -193,7 +196,13 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
 static node_idx_t eval_va(env_ptr_t env, int num, ...);
 
-static list_ptr_t list_va(int num, ...);
+static inline list_ptr_t list_va(node_idx_t a);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
+
 static vector_ptr_t vector_va(int num, ...);
 
 static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
@@ -1407,7 +1416,9 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "when") return K_WHEN_NODE;
 		if(tok.str == "while") return K_WHILE_NODE;
 		if(tok.str == "let") return K_LET_NODE;
-		if(tok.str == "PC") return K_PC_NODE;
+		if(tok.str == "__PC__") return K_PC_NODE;
+		if(tok.str == "__ALL__") return K_ALL_NODE;
+		if(tok.str == "__BY__") return K_BY_NODE;
 		return new_node_keyword(tok.str.c_str());
 	}
 	if(tok.type == TOK_SYMBOL) {
@@ -1823,16 +1834,12 @@ static node_idx_t eval_va(env_ptr_t env, int num, ...) {
 	return eval_list(env, a);
 }
 
-static list_ptr_t list_va(int num, ...) {
-	va_list ap;
-	va_start(ap, num);
-	list_ptr_t a = new_list();
-	for(int i = 0; i < num; i++) {
-		a->push_back_inplace(node_idx_t(va_arg(ap, long long)));
-	}
-	va_end(ap);
-	return a;
-}
+static list_ptr_t list_va(node_idx_t a) { list_ptr_t L = new_list(); L->push_front_inplace(a); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b) { list_ptr_t L = new_list(); L->push_front2_inplace(a, b); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c) { list_ptr_t L = new_list(); L->push_front3_inplace(a, b, c); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) { list_ptr_t L = new_list(); L->push_front4_inplace(a, b, c, d); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) { list_ptr_t L = new_list(); L->push_front5_inplace(a, b, c, d, e); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) { list_ptr_t L = new_list(); L->push_front6_inplace(a, b, c, d, e, f); return L; }
 
 static vector_ptr_t vector_va(int num, ...) {
 	va_list ap;
@@ -3809,11 +3816,11 @@ static node_idx_t native_assoc_in(env_ptr_t env, list_ptr_t args) {
 	}
 	vector_ptr_t key_vector = key_node->t_vector;
 	if(key_vector->size() > 1) {
-		node_idx_t map2 = native_get(env, list_va(2, map_idx, key_vector->first_value()));
-		node_idx_t val2 = native_assoc_in(env, list_va(3, map2, new_node_vector(key_vector->rest()), val_idx));
-		return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), val2));
+		node_idx_t map2 = native_get(env, list_va(map_idx, key_vector->first_value()));
+		node_idx_t val2 = native_assoc_in(env, list_va(map2, new_node_vector(key_vector->rest()), val_idx));
+		return native_assoc(env, list_va(map_idx, key_vector->first_value(), val2));
 	}
-	return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), val_idx));
+	return native_assoc(env, list_va(map_idx, key_vector->first_value(), val_idx));
 }
 
 // (update m k f)(update m k f x)(update m k f x y)(update m k f x y z)(update m k f x y z & more)
@@ -3831,7 +3838,7 @@ static node_idx_t native_update(env_ptr_t env, list_ptr_t args) {
 	node_idx_t key_idx = *it++;
 	node_idx_t f_idx = *it++;
 	list_ptr_t rest = args->rest(it);
-	node_idx_t val_idx = eval_va(env, 2, f_idx, native_get(env, list_va(2, map_idx, key_idx)));
+	node_idx_t val_idx = eval_va(env, 2, f_idx, native_get(env, list_va(map_idx, key_idx)));
 	return native_assoc(env, rest->push_front3(map_idx, key_idx, val_idx));
 }
 
@@ -3857,13 +3864,13 @@ static node_idx_t native_update_in(env_ptr_t env, list_ptr_t args) {
 	}
 	vector_ptr_t key_vector = key_node->t_vector;
 	if(key_vector->size() > 1) {
-		node_idx_t map2 = native_get(env, list_va(2, map_idx, key_vector->first_value()));
-		node_idx_t val2 = native_update_in(env, list_va(3, map2, new_node_vector(key_vector->rest()), f_idx));
-		return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), val2));
+		node_idx_t map2 = native_get(env, list_va(map_idx, key_vector->first_value()));
+		node_idx_t val2 = native_update_in(env, list_va(map2, new_node_vector(key_vector->rest()), f_idx));
+		return native_assoc(env, list_va(map_idx, key_vector->first_value(), val2));
 	} else {
 		list_ptr_t rest = args->rest(it);
-		node_idx_t map2 = native_get(env, list_va(2, map_idx, key_vector->first_value()));
-		return native_assoc(env, list_va(3, map_idx, key_vector->first_value(), eval_list(env, rest->push_front2(f_idx, map2))));
+		node_idx_t map2 = native_get(env, list_va(map_idx, key_vector->first_value()));
+		return native_assoc(env, list_va(map_idx, key_vector->first_value(), eval_list(env, rest->push_front2(f_idx, map2))));
 	}
 }
 
@@ -3958,7 +3965,7 @@ static node_idx_t native_is(env_ptr_t env, list_ptr_t args) {
 			printf("%s\n", msg_node->t_string.c_str());
 		} else {
 			printf("Assertion failed\n");
-			native_print(env, list_va(1, form_idx));
+			native_print(env, list_va(form_idx));
 			printf("\n");
 		}
 	}
@@ -4738,7 +4745,7 @@ static node_idx_t native_get_in(env_ptr_t env, list_ptr_t args) {
 	node_idx_t result = m_idx;
 	vector_ptr_t ks = get_node_vector(ks_idx);
 	for(auto it = ks->begin(); it; it++) {
-		result = native_get(env, list_va(2, result, *it));
+		result = native_get(env, list_va(result, *it));
 		if(result == NIL_NODE) {
 			return not_found_idx;
 		}
@@ -5352,6 +5359,8 @@ int main(int argc, char **argv) {
 		new_node_keyword("while", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("let", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__PC__", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("__ALL__", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("__BY__", NODE_FLAG_PRERESOLVE);
 	}
 
 	env->set("nil", NIL_NODE);
@@ -5548,7 +5557,7 @@ int main(int argc, char **argv) {
 	debugf("Evaluating...\n");
 
 	node_idx_t res_idx = eval_node_list(env, main_list);
-	native_println(env, list_va(1, res_idx));
+	native_println(env, list_va(res_idx));
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());

@@ -653,13 +653,13 @@ static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 	node_t *func = get_node(func_idx);
 	func->t_native_function = new native_func_t([f,cache_idx](env_ptr_t env, list_ptr_t args) -> node_idx_t {
 		node_idx_t args_idx = new_node_list(args);
-		node_idx_t C = native_deref(env, list_va(1, cache_idx));
+		node_idx_t C = native_deref(env, list_va(cache_idx));
 		map_ptr_t mem = get_node(C)->t_map;
 		if(mem->contains(args_idx, node_eq)) {
 			return mem->get(args_idx, node_eq);
 		}
 		node_idx_t ret = eval_list(env, args->push_front(f));
-		native_swap_e(env, list_va(4, cache_idx, env->get("assoc").value, args_idx, ret));
+		native_swap_e(env, list_va(cache_idx, env->get("assoc").value, args_idx, ret));
 		return ret;
 	});
 	return func_idx;

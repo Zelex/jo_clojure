@@ -208,7 +208,6 @@ number?
 numerator
 object-array
 parents
-partiall
 partition-all
 partition-by
 pcalls

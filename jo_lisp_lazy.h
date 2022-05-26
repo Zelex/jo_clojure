@@ -34,7 +34,7 @@ static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
 		return new_node_list(ret);
 	}
 	// constructs a function which returns the next value in the range, and another function
-	return new_node_lazy_list(env, new_node_list(list_va(4, env->get("range-next").value, new_node_int(start), new_node_int(step), new_node_int(end))));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("range-next").value, new_node_int(start), new_node_int(step), new_node_int(end))));
 }
 
 static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
@@ -45,7 +45,7 @@ static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
 	if(start >= end) {
 		return NIL_NODE;
 	}
-	return new_node_list(list_va(5, new_node_int(start), env->get("range-next").value, new_node_int(start+step), new_node_int(step), new_node_int(end)));
+	return new_node_list(list_va(new_node_int(start), env->get("range-next").value, new_node_int(start+step), new_node_int(step), new_node_int(end)));
 }
 
 // (repeat x)
@@ -71,7 +71,7 @@ static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_list(ret);
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("repeat-next").value, x, new_node_int(n))));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("repeat-next").value, x, new_node_int(n))));
 }
 
 static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
@@ -81,7 +81,7 @@ static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
 	if(n <= 0) {
 		return NIL_NODE;
 	}
-	return new_node_list(list_va(4, x, env->get("repeat-next").value, x, new_node_int(n-1)));
+	return new_node_list(list_va(x, env->get("repeat-next").value, x, new_node_int(n-1)));
 }
 
 // (concat)
@@ -123,7 +123,7 @@ static node_idx_t native_concat_next(env_ptr_t env, list_ptr_t args) {
 // Returns a lazy seq representing the infinite sequence of x, f(x), f(f(x)), etc.
 // f must be free of side-effects
 static node_idx_t native_iterate(env_ptr_t env, list_ptr_t args) {
-	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("iterate-next").value, args->first_value(), args->second_value())));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("iterate-next").value, args->first_value(), args->second_value())));
 }
 
 static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
@@ -257,7 +257,7 @@ static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
 		return new_node_vector(list_list->take(N));
 	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
-		return new_node_lazy_list(env, new_node_list(list_va(3, env->get("take-next").value, n, coll)));
+		return new_node_lazy_list(env, new_node_list(list_va(env->get("take-next").value, n, coll)));
 	}
 	return coll;
 }
@@ -273,7 +273,7 @@ static node_idx_t native_take_next(env_ptr_t env, list_ptr_t args) {
 	if(lit.done()) {
 		return NIL_NODE;
 	}
-	return new_node_list(list_va(4, lit.val, env->get("take-next").value, new_node_int(n-1), new_node_lazy_list(lit.env, lit.next_fn())));
+	return new_node_list(list_va(lit.val, env->get("take-next").value, new_node_int(n-1), new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 // (take-nth n) (take-nth n coll)
@@ -361,12 +361,12 @@ static node_idx_t native_take_nth_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
 	if(lit.done()) return NIL_NODE;
-	return new_node_list(list_va(4, lit.val, env->get("take-nth-next").value, new_node_int(n), new_node_lazy_list(lit.env, lit.next_fn(n))));
+	return new_node_list(list_va(lit.val, env->get("take-nth-next").value, new_node_int(n), new_node_lazy_list(lit.env, lit.next_fn(n))));
 }
 
 static node_idx_t native_constantly_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t value = args->first_value();
-	return new_node_list(list_va(3, value, env->get("constantly-next").value, value));
+	return new_node_list(list_va(value, env->get("constantly-next").value, value));
 }
 
 // (take-last n coll)
@@ -533,7 +533,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		return new_node_hash_set(ret);
 	}
 	if(get_node_type(coll_idx) == NODE_LAZY_LIST) {
-		return new_node_lazy_list(env, new_node_list(list_va(3, env->get("filter-next").value, pred_idx, coll_idx)));
+		return new_node_lazy_list(env, new_node_list(list_va(env->get("filter-next").value, pred_idx, coll_idx)));
 	}
 	if(get_node_type(coll_idx) == NODE_STRING) {
 		jo_string str = get_node(coll_idx)->t_string;
@@ -562,7 +562,7 @@ static node_idx_t native_filter_next(env_ptr_t env, list_ptr_t args) {
 	for(lazy_list_iterator_t lit(coll_idx); !lit.done(); lit.next()) {
 		node_idx_t comp = eval_list(env, e->conj(lit.val));
 		if(get_node_bool(comp)) {
-			return new_node_list(list_va(4, lit.val, env->get("filter-next").value, pred_idx, new_node_lazy_list(lit.env, lit.next_fn())));
+			return new_node_list(list_va(lit.val, env->get("filter-next").value, pred_idx, new_node_lazy_list(lit.env, lit.next_fn())));
 		}
 	}
 	return NIL_NODE;
@@ -575,7 +575,7 @@ static node_idx_t native_filter_next(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_keep(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = eval_node(env, args->first_value());
 	node_idx_t coll_idx = eval_node(env, args->second_value());
-	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("keep-next").value, f_idx, coll_idx)));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("keep-next").value, f_idx, coll_idx)));
 }
 
 static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
@@ -592,7 +592,7 @@ static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
 			list_list = list_list->pop_front();
 			node_idx_t comp = eval_list(env, e->conj(item_idx));
 			if(comp != NIL_NODE) {
-				return new_node_list(list_va(4, comp, env->get("keep-next").value, f_idx, new_node_list(list_list)));
+				return new_node_list(list_va(comp, env->get("keep-next").value, f_idx, new_node_list(list_list)));
 			}
 		}
 	}
@@ -603,7 +603,7 @@ static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
 			vec_list = vec_list->pop_front();
 			node_idx_t comp = eval_list(env, e->conj(item_idx));
 			if(comp != NIL_NODE) {
-				return new_node_list(list_va(4, comp, env->get("keep-next").value, f_idx, new_node_vector(vec_list)));
+				return new_node_list(list_va(comp, env->get("keep-next").value, f_idx, new_node_vector(vec_list)));
 			}
 		}
 	}
@@ -612,7 +612,7 @@ static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
 			node_idx_t item_idx = lit.val;
 			node_idx_t comp = eval_list(env, e->conj(item_idx));
 			if(comp != NIL_NODE) {
-				return new_node_list(list_va(4, comp, env->get("keep-next").value, f_idx, new_node_lazy_list(lit.env, lit.next_fn())));
+				return new_node_list(list_va(comp, env->get("keep-next").value, f_idx, new_node_lazy_list(lit.env, lit.next_fn())));
 			}
 		}
 	}
@@ -633,7 +633,7 @@ static node_idx_t native_repeatedly(env_ptr_t env, list_ptr_t args) {
 		n_idx = eval_node(env, *it++);
 		f_idx = eval_node(env, *it++);
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("repeatedly-next").value, f_idx, n_idx)));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("repeatedly-next").value, f_idx, n_idx)));
 }
 
 static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
@@ -642,7 +642,7 @@ static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n_idx = *it++;
 	long long n = get_node_int(n_idx);
 	if(n > 0) {
-		return new_node_list(list_va(4, eval_va(env, 1, f_idx), env->get("repeatedly-next").value, f_idx, new_node_int(n - 1)));
+		return new_node_list(list_va(eval_va(env, 1, f_idx), env->get("repeatedly-next").value, f_idx, new_node_int(n - 1)));
 	}
 	return NIL_NODE;
 }
@@ -659,22 +659,39 @@ static node_idx_t native_partition(env_ptr_t env, list_ptr_t args) {
 	if(args->size() == 1) {
 		return *it;
 	} else if(args->size() == 2) {
-		n_idx = eval_node(env, *it++);
+		n_idx = *it++;
 		step_idx = n_idx;
 		pad_idx = NIL_NODE;
-		coll_idx = eval_node(env, *it++);
+		coll_idx = *it++;
 	} else if(args->size() == 3) {
-		n_idx = eval_node(env, *it++);
-		step_idx = eval_node(env, *it++);
+		n_idx = *it++;
+		step_idx = *it++;
 		pad_idx = NIL_NODE;
-		coll_idx = eval_node(env, *it++);
+		coll_idx = *it++;
 	} else {
-		n_idx = eval_node(env, *it++);
-		step_idx = eval_node(env, *it++);
-		pad_idx = eval_node(env, *it++);
-		coll_idx = eval_node(env, *it++);
+		n_idx = *it++;
+		step_idx = *it++;
+		pad_idx = *it++;
+		coll_idx = *it++;
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(5, env->get("partition-next").value, n_idx, step_idx, pad_idx, coll_idx)));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("partition-next").value, n_idx, step_idx, pad_idx, coll_idx)));
+}
+
+static node_idx_t native_partition_all(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t n_idx, step_idx, coll_idx;
+	if(args->size() == 1) {
+		return *it;
+	} else if(args->size() == 2) {
+		n_idx = *it++;
+		step_idx = n_idx;
+		coll_idx = *it++;
+	} else if(args->size() == 3) {
+		n_idx = *it++;
+		step_idx = *it++;
+		coll_idx = *it++;
+	}
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("partition-next").value, n_idx, step_idx, K_ALL_NODE, coll_idx)));
 }
 
 static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
@@ -719,7 +736,9 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	if((!ret.ptr || ret->size() < n) && (!retv.ptr || retv->size() < n)) {
-		if(pad_idx != NIL_NODE) {
+		if(pad_idx == K_ALL_NODE) {
+			// let the last one go without pad...
+		} else if(pad_idx != NIL_NODE) {
 			long long pad_n = n - ret->size();
 			int pad_type = get_node_type(pad_idx);
 			list_ptr_t pad_coll;
@@ -925,7 +944,7 @@ static node_idx_t native_lazy_seq(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		auto fr = ll->seq_first_rest();
-		return new_node_list(list_va(3, fr.first, env->get("lazy-seq-next").value, fr.second));
+		return new_node_list(list_va(fr.first, env->get("lazy-seq-next").value, fr.second));
 	}, true));
 	return new_node_lazy_list(env, lazy_func_idx);
 }
@@ -937,7 +956,7 @@ static node_idx_t native_lazy_seq_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	auto fr = ll->seq_first_rest();
-	return new_node_list(list_va(3, fr.first, env->get("lazy-seq-next").value, fr.second));
+	return new_node_list(list_va(fr.first, env->get("lazy-seq-next").value, fr.second));
 }
 
 // (seq coll)
@@ -956,7 +975,7 @@ static node_idx_t native_seq(env_ptr_t env, list_ptr_t args) {
 	if(!n->is_seq()) {
 		return NIL_NODE;
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("seq-next").value, x)));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("seq-next").value, x)));
 }
 
 static node_idx_t native_seq_next(env_ptr_t env, list_ptr_t args) {
@@ -969,7 +988,7 @@ static node_idx_t native_seq_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	auto fr = n->seq_first_rest();
-	return new_node_list(list_va(3, fr.first, env->get("seq-next").value, fr.second));
+	return new_node_list(list_va(fr.first, env->get("seq-next").value, fr.second));
 }
 
 // (cons x seq)
@@ -1018,11 +1037,11 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 		lazy_func_args->push_front_inplace(env->get("cons-first").value);
 		return new_node_lazy_list(env, new_node_list(lazy_func_args));
 	}
-	return new_node_list(list_va(2, first_idx, second_idx));
+	return new_node_list(list_va(first_idx, second_idx));
 }
 
 static node_idx_t native_cons_first(env_ptr_t env, list_ptr_t args) {
-	return new_node_list(list_va(3, args->first_value(), env->get("cons-next").value, args->second_value()));
+	return new_node_list(list_va(args->first_value(), env->get("cons-next").value, args->second_value()));
 }
 
 static node_idx_t native_cons_next(env_ptr_t env, list_ptr_t args) {
@@ -1063,7 +1082,7 @@ static node_idx_t native_take_while(env_ptr_t env, list_ptr_t args) {
 		return new_node_vector(out_vec);
 	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
-		return new_node_lazy_list(env, new_node_list(list_va(3, env->get("take-while-next").value, pred, coll)));
+		return new_node_lazy_list(env, new_node_list(list_va(env->get("take-while-next").value, pred, coll)));
 	}
 	return coll;
 }
@@ -1076,7 +1095,7 @@ static node_idx_t native_take_while_next(env_ptr_t env, list_ptr_t args) {
 	if(lit.done() || eval_va(env, 2, pred, coll) != TRUE_NODE) {
 		return NIL_NODE;
 	}
-	return new_node_list(list_va(4, lit.val, env->get("take-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn())));
+	return new_node_list(list_va(lit.val, env->get("take-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 // (drop-while pred)(drop-while pred coll)
@@ -1118,7 +1137,7 @@ static node_idx_t native_drop_while(env_ptr_t env, list_ptr_t args) {
 		return new_node_vector(out_vec);
 	}
 	if(get_node_type(coll) == NODE_LAZY_LIST) {
-		return new_node_lazy_list(env, new_node_list(list_va(3, env->get("drop-while-first").value, pred, coll)));
+		return new_node_lazy_list(env, new_node_list(list_va(env->get("drop-while-first").value, pred, coll)));
 	}
 	return coll;
 }
@@ -1136,7 +1155,7 @@ static node_idx_t native_drop_while_first(env_ptr_t env, list_ptr_t args) {
 	if(lit.done()) {
 		return NIL_NODE;
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(4, lit.val, env->get("drop-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn()))));
+	return new_node_lazy_list(env, new_node_list(list_va(lit.val, env->get("drop-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn()))));
 }
 
 static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
@@ -1147,7 +1166,7 @@ static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
 	if(lit.done()) {
 		return NIL_NODE;
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(4, lit.val, env->get("drop-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn()))));
+	return new_node_lazy_list(env, new_node_list(list_va(lit.val, env->get("drop-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn()))));
 }
 
 static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
@@ -1177,7 +1196,7 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 		return new_node_vector(list->as_vector()->drop(n));
 	}
 	if(list->is_lazy_list()) {
-		return new_node_lazy_list(env, new_node_list(list_va(3, env->get("drop-first").value, n_idx, list_idx)));
+		return new_node_lazy_list(env, new_node_list(list_va(env->get("drop-first").value, n_idx, list_idx)));
 	}
 	return NIL_NODE;
 }
@@ -1193,7 +1212,7 @@ static node_idx_t native_drop_first(env_ptr_t env, list_ptr_t args) {
 		}
 	}
 	if(lit.done()) return NIL_NODE;
-	return new_node_list(list_va(3, lit.val, env->get("drop-next").value, new_node_lazy_list(lit.env, lit.next_fn())));
+	return new_node_list(list_va(lit.val, env->get("drop-next").value, new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 static node_idx_t native_drop_next(env_ptr_t env, list_ptr_t args) {
@@ -1201,7 +1220,7 @@ static node_idx_t native_drop_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
 	if(lit.done()) return NIL_NODE;
-	return new_node_list(list_va(3, lit.val, env->get("drop-next").value, new_node_lazy_list(lit.env, lit.next_fn())));
+	return new_node_list(list_va(lit.val, env->get("drop-next").value, new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 // (cycle coll)
@@ -1390,10 +1409,10 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		// Evaluate the body
 		node_idx_t result = eval_node(E, body_expr_idx);
 
-		return new_node_list(list_va(4, result, nfn_idx, new_node_map(state_first), new_node_map(state_rest)));
+		return new_node_list(list_va(result, nfn_idx, new_node_map(state_first), new_node_map(state_rest)));
 	});
 
-	return new_node_lazy_list(env, new_node_list(list_va(3, nfn_idx, state_first_idx, state_rest_idx)));
+	return new_node_lazy_list(env, new_node_list(list_va(nfn_idx, state_first_idx, state_rest_idx)));
 }
 
 // (interpose sep)(interpose sep coll)
@@ -1402,7 +1421,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_interpose(env_ptr_t env, list_ptr_t args) {
 	node_idx_t sep_idx = args->first_value();
 	node_idx_t coll_idx = args->second_value();
-	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("interpose-next-elem").value, sep_idx, coll_idx)));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("interpose-next-elem").value, sep_idx, coll_idx)));
 }
 
 static node_idx_t native_interpose_next_elem(env_ptr_t env, list_ptr_t args) {
@@ -1412,7 +1431,7 @@ static node_idx_t native_interpose_next_elem(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	auto fr = get_node(coll_idx)->seq_first_rest();
-	return new_node_list(list_va(4, fr.first, env->get("interpose-next-sep").value, sep_idx, fr.second));
+	return new_node_list(list_va(fr.first, env->get("interpose-next-sep").value, sep_idx, fr.second));
 }
 
 static node_idx_t native_interpose_next_sep(env_ptr_t env, list_ptr_t args) {
@@ -1421,7 +1440,7 @@ static node_idx_t native_interpose_next_sep(env_ptr_t env, list_ptr_t args) {
 	if(get_node(coll_idx)->seq_empty()) {
 		return NIL_NODE;
 	}
-	return new_node_list(list_va(4, sep_idx, env->get("interpose-next-elem").value, sep_idx, coll_idx));
+	return new_node_list(list_va(sep_idx, env->get("interpose-next-elem").value, sep_idx, coll_idx));
 }
 
 // (keep-indexed f)(keep-indexed f coll)
@@ -1432,7 +1451,7 @@ static node_idx_t native_interpose_next_sep(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_keep_indexed(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = args->first_value();
 	node_idx_t coll_idx = args->second_value();
-	return new_node_lazy_list(env, new_node_list(list_va(4, env->get("keep-indexed-next").value, f_idx, coll_idx, INT_0_NODE)));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("keep-indexed-next").value, f_idx, coll_idx, INT_0_NODE)));
 }
 
 static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
@@ -1450,7 +1469,7 @@ static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
 		coll_idx = fr.second;
 		++cnt;
 	} while(result_idx == NIL_NODE);
-	return new_node_list(list_va(5, result_idx, env->get("keep-indexed-next").value, f_idx, coll_idx, new_node_int(cnt)));
+	return new_node_list(list_va(result_idx, env->get("keep-indexed-next").value, f_idx, coll_idx, new_node_int(cnt)));
 }
 
 // (lazy-cat & colls)
@@ -1461,7 +1480,7 @@ static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_lazy_cat(env_ptr_t env, list_ptr_t args) {
 	list_ptr_t lzseqs = new_list();
 	for(auto it = args->begin(); it; ++it) {
-		node_idx_t lzseq = native_lazy_seq(env, list_va(1, *it));
+		node_idx_t lzseq = native_lazy_seq(env, list_va(*it));
 		lzseqs->push_back_inplace(lzseq);
 	}
 	return native_concat(env, lzseqs);
@@ -1473,7 +1492,7 @@ static node_idx_t native_lazy_cat(env_ptr_t env, list_ptr_t args) {
 // a transducer when no collections are provided
 static node_idx_t native_mapcat(env_ptr_t env, list_ptr_t args) {
 	node_idx_t map = native_map(env, args);
-	return new_node_lazy_list(env, new_node_list(list_va(3, env->get("mapcat-next").value, map, NIL_NODE)));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("mapcat-next").value, map, NIL_NODE)));
 }
 
 static node_idx_t native_mapcat_next(env_ptr_t env, list_ptr_t args) {
@@ -1506,13 +1525,13 @@ static node_idx_t native_mapcat_next(env_ptr_t env, list_ptr_t args) {
 // (keys map)
 // Returns a sequence of the map's keys, in the same order as (seq map).
 static node_idx_t native_keys(env_ptr_t env, list_ptr_t args) {
-	return native_map(env, list_va(2, env->get("key").value, args->first_value()));
+	return native_map(env, list_va(env->get("key").value, args->first_value()));
 }
 
 // (vals map)
 // Returns a sequence of the map's values, in the same order as (seq map).
 static node_idx_t native_vals(env_ptr_t env, list_ptr_t args) {
-	return native_map(env, list_va(2, env->get("val").value, args->first_value()));
+	return native_map(env, list_va(env->get("val").value, args->first_value()));
 }
 
 void jo_lisp_lazy_init(env_ptr_t env) {
@@ -1546,7 +1565,8 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("keep-next", new_node_native_function("keep-next", &native_keep_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("repeatedly", new_node_native_function("repeatedly", &native_repeatedly, true, NODE_FLAG_PRERESOLVE));
 	env->set("repeatedly-next", new_node_native_function("repeatedly-next", &native_repeatedly_next, true, NODE_FLAG_PRERESOLVE));
-	env->set("partition", new_node_native_function("partition", &native_partition, true, NODE_FLAG_PRERESOLVE));
+	env->set("partition", new_node_native_function("partition", &native_partition, false, NODE_FLAG_PRERESOLVE));
+	env->set("partition-all", new_node_native_function("partition-all", &native_partition_all, false, NODE_FLAG_PRERESOLVE));
 	env->set("partition-next", new_node_native_function("partition-next", &native_partition_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("drop", new_node_native_function("drop", &native_drop, false, NODE_FLAG_PRERESOLVE));
 	env->set("drop-first", new_node_native_function("drop-first", &native_drop_first, false, NODE_FLAG_PRERESOLVE));

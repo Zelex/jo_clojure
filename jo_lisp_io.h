@@ -556,7 +556,7 @@ static node_idx_t native_io_line_seq(env_ptr_t env, list_ptr_t args) {
 		warnf("line-seq: rdr must be a file\n");
 		return NIL_NODE;
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(2, env->get("line-seq-next").value, rdr_idx)));
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("line-seq-next").value, rdr_idx)));
 }
 
 static node_idx_t native_io_line_seq_next(env_ptr_t env, list_ptr_t args) {
@@ -569,7 +569,7 @@ static node_idx_t native_io_line_seq_next(env_ptr_t env, list_ptr_t args) {
     if(line == NIL_NODE) {
         return NIL_NODE;
     }
-	return new_node_list(list_va(3, line, env->get("line-seq-next").value, rdr_idx));
+	return new_node_list(list_va(line, env->get("line-seq-next").value, rdr_idx));
 }
 
 
