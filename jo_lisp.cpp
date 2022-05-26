@@ -609,6 +609,7 @@ struct node_t {
 			lazy_list_iterator_t lit(this);
 			return lit.val;
 		}
+		if(is_string() && t_string.size()) return INT_0_NODE + t_string.c_str()[0];
 		return NIL_NODE;
 	}
 
@@ -621,6 +622,7 @@ struct node_t {
 			lazy_list_iterator_t lit(this);
 			return new_node_lazy_list(t_env, lit.next_fn());
 		}
+		if(is_string()) return new_node_string(t_string.substr(1));
 		return NIL_NODE;
 	}
 
@@ -633,6 +635,7 @@ struct node_t {
 			lazy_list_iterator_t lit(this);
 			return jo_pair<node_idx_t, node_idx_t>(lit.val, new_node_lazy_list(t_env, lit.next_fn()));
 		}
+		if(is_string() && t_string.size()) return jo_pair<node_idx_t, node_idx_t>(INT_0_NODE + t_string.c_str()[0], new_node_string(t_string.substr(1)));
 		return jo_pair<node_idx_t, node_idx_t>(NIL_NODE, NIL_NODE);
 	}
 
@@ -645,6 +648,7 @@ struct node_t {
 			lazy_list_iterator_t lit(this);
 			return lit.done();
 		}
+		if(is_string() && t_string.size()) return false;
 		return true;
 	}
 

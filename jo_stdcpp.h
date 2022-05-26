@@ -650,10 +650,11 @@ struct jo_string {
         return *this;
     }
 
-    jo_string substr(size_t pos = 0, size_t len = jo_string_npos) {
+    jo_string substr(size_t pos = 0, size_t len = jo_string_npos) const {
         if(len == jo_string_npos) {
             len = size() - pos;
         }
+        if(pos >= size()) return jo_string();
         return jo_string(str + pos, len);
     }
 

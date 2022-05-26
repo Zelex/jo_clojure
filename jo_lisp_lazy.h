@@ -205,29 +205,59 @@ static node_idx_t native_map_next(env_ptr_t env, list_ptr_t args) {
 	for(; it; it++) {
 		node_idx_t arg_idx = *it;
 		node_t *arg = get_node(arg_idx);
-		if(arg->is_list()) {
-			list_ptr_t list_list = arg->as_list();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			arg_list->push_back_inplace(list_list->first_value());
-			next_list->push_back_inplace(new_node_list(list_list->rest()));
-		} else if(arg->is_vector()) {
-			vector_ptr_t list_list = arg->as_vector();
-			if(list_list->size() == 0) {
-				return NIL_NODE;
-			}
-			arg_list->push_back_inplace(list_list->first_value());
-			next_list->push_back_inplace(new_node_vector(list_list->rest()));
-		} else if(arg->is_lazy_list()) {
-			lazy_list_iterator_t lit(arg_idx);
-			if(lit.done()) {
-				return NIL_NODE;
-			}
-			arg_list->push_back_inplace(lit.val);
-			next_list->push_back_inplace(new_node_lazy_list(lit.env, lit.next_fn()));
+		if(arg->seq_empty()) {
+			return NIL_NODE;
 		}
+		auto fr = arg->seq_first_rest();
+		arg_list->push_back_inplace(fr.first);
+		next_list->push_back_inplace(fr.second);
 	}
+	// call f with the args
+	node_idx_t ret = eval_list(env, arg_list);
+	next_list->cons_inplace(ret);
+	return new_node_list(next_list);
+}
+
+// (map-indexed f)(map-indexed f coll)
+// Returns a lazy sequence consisting of the result of applying f to 0
+// and the first item of coll, followed by applying f to 1 and the second
+// item in coll, etc, until coll is exhausted. Thus function f should
+// accept 2 arguments, index and item. Returns a stateful transducer when
+// no collection is provided.
+static node_idx_t native_map_indexed(env_ptr_t env, list_ptr_t args) {
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(env->get("map-indexed-next").value);
+	ret->push_back_inplace(args->first_value());
+	ret->push_back_inplace(args->second_value());
+	ret->push_back_inplace(INT_0_NODE);
+	return new_node_lazy_list(env, new_node_list(ret));
+}
+
+static node_idx_t native_map_indexed_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f_idx = *it++;
+	node_idx_t coll_idx = *it++;
+	node_idx_t count_idx = *it++;
+	int count = get_node(count_idx)->t_int;
+	// pull off the first element of each list and call f with it
+
+	node_t *coll = get_node(coll_idx);
+	if(coll->seq_empty()) {
+		return NIL_NODE;
+	}
+	auto fr = coll->seq_first_rest();
+
+	list_ptr_t arg_list = new_list();
+	arg_list->push_back_inplace(f_idx);
+	arg_list->push_back_inplace(count_idx);
+	arg_list->push_back_inplace(fr.first);
+
+	list_ptr_t next_list = new_list();
+	next_list->push_back_inplace(env->get("map-indexed-next").value);
+	next_list->push_back_inplace(f_idx);
+	next_list->push_back_inplace(fr.second);
+	next_list->push_back_inplace(new_node_int(count + 1));
+
 	// call f with the args
 	node_idx_t ret = eval_list(env, arg_list);
 	next_list->cons_inplace(ret);
@@ -1478,8 +1508,10 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("concat-next", new_node_native_function("concat-next", &native_concat_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("iterate", new_node_native_function("iterate", &native_iterate, true, NODE_FLAG_PRERESOLVE));
 	env->set("iterate-next", new_node_native_function("iterate-next", &native_iterate_next, true, NODE_FLAG_PRERESOLVE));
-	env->set("map", new_node_native_function("map", &native_map, true, NODE_FLAG_PRERESOLVE));
+	env->set("map", new_node_native_function("map", &native_map, false, NODE_FLAG_PRERESOLVE));
 	env->set("map-next", new_node_native_function("map-next", &native_map_next, true, NODE_FLAG_PRERESOLVE));
+	env->set("map-indexed", new_node_native_function("map-indexed", &native_map_indexed, false, NODE_FLAG_PRERESOLVE));
+	env->set("map-indexed-next", new_node_native_function("map-indexed-next", &native_map_indexed_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("take", new_node_native_function("take", &native_take, true, NODE_FLAG_PRERESOLVE));
 	env->set("take-next", new_node_native_function("take-next", &native_take_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("take-while", new_node_native_function("take-while", &native_take_while, true, NODE_FLAG_PRERESOLVE));

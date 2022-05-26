@@ -179,7 +179,6 @@ locking
 long
 long-array
 longs
-macro-expand
 macroexpand-1
 make-array
 make-hierarchy

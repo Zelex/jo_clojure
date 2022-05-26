@@ -1,8 +1,4 @@
 
-(def x 5)
-
-  
-(load-string "(defn doub3 [x] (* x 2))")
-(is (= (doub3 15) 30))
+(map-indexed (fn [idx itm] [idx itm]) "foobar")
 
 

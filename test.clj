@@ -868,6 +868,8 @@
   ([n accumulator] (if (zero? n) accumulator (recur (dec n) (* accumulator n)))))
 (is (= (fac-recur2 5) 120))
 
+(is (= (map-indexed (fn [idx itm] [idx itm]) "foobar") ([0 \f] [1 \o] [2 \o] [3 \b] [4 \a] [5 \r])))
+
 
 (string-test)
 (if-test)
