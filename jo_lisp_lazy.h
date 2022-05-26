@@ -1503,6 +1503,18 @@ static node_idx_t native_mapcat_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
+// (keys map)
+// Returns a sequence of the map's keys, in the same order as (seq map).
+static node_idx_t native_keys(env_ptr_t env, list_ptr_t args) {
+	return native_map(env, list_va(2, env->get("key").value, args->first_value()));
+}
+
+// (vals map)
+// Returns a sequence of the map's values, in the same order as (seq map).
+static node_idx_t native_vals(env_ptr_t env, list_ptr_t args) {
+	return native_map(env, list_va(2, env->get("val").value, args->first_value()));
+}
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false, NODE_FLAG_PRERESOLVE));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true, NODE_FLAG_PRERESOLVE));
@@ -1562,4 +1574,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("interpose-next-sep", new_node_native_function("interpose-next-sep", &native_interpose_next_sep, true, NODE_FLAG_PRERESOLVE));
 	env->set("keep-indexed", new_node_native_function("keep-indexed", &native_keep_indexed, false, NODE_FLAG_PRERESOLVE));
 	env->set("keep-indexed-next", new_node_native_function("keep-indexed-next", &native_keep_indexed_next, true, NODE_FLAG_PRERESOLVE));
+	env->set("keys", new_node_native_function("keys", &native_keys, false, NODE_FLAG_PRERESOLVE));
+	env->set("vals", new_node_native_function("vals", &native_vals, false, NODE_FLAG_PRERESOLVE));
 }

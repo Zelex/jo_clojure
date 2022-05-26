@@ -4962,7 +4962,7 @@ public:
     template<typename F>
     jo_shared_ptr<jo_persistent_unordered_map> conj(jo_persistent_unordered_map *other, F eq) const {
         jo_shared_ptr<jo_persistent_unordered_map> copy = new jo_persistent_unordered_map(*this);
-        for(auto it = other->vec.begin(); it != other->vec.end(); ++it) {
+        for(auto it = other->vec.begin(); it; ++it) {
             if(it->third) {
                 copy = copy->assoc(it->first, it->second, eq);
             }
@@ -4972,7 +4972,7 @@ public:
 
     jo_persistent_vector<V> *to_vector() const {
         jo_persistent_vector<V> *vec = new jo_persistent_vector<V>();
-        for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
+        for(auto it = this->vec.begin(); it; ++it) {
             if(it->third) {
                 vec->conj_inplace(it->second);
             }
@@ -4981,7 +4981,7 @@ public:
     }
 
     entry_t first() const {
-        for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
+        for(auto it = this->vec.begin(); it; ++it) {
             if(it->third) {
                 return *it;
             }
@@ -4990,7 +4990,7 @@ public:
     }
 
     V first_value() const {
-        for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
+        for(auto it = vec.begin(); it; ++it) {
             if(it->third) {
                 return it->second;
             }
@@ -4998,10 +4998,20 @@ public:
         return V();
     }
 
+    K last_value() const {
+        for(long long i = vec.size()-1; i >= 0; --i) {
+            auto entry = vec[i];
+            if(entry.third) {
+                return entry.second;
+            }
+        }
+        return K();
+    }
+
     // TODO: this is not fast... speedup by caching first value index.
     jo_persistent_unordered_map *rest() const {
         jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
+        for(auto it = this->vec.begin(); it; ++it) {
             if(it->third) {
                 copy->vec.assoc_inplace(it - copy->vec.begin(), entry_t(it->first, it->second, false));
                 copy->length--;
@@ -5245,7 +5255,7 @@ public:
     // conj
     jo_persistent_unordered_set *conj(jo_persistent_unordered_set *other) const {
         jo_persistent_unordered_set *copy = new jo_persistent_unordered_set(*this);
-        for(auto it = other->vec.begin(); it != other->vec.end(); ++it) {
+        for(auto it = other->vec.begin(); it; ++it) {
             if(it->second) {
                 copy->assoc_inplace(it->first);
             }
@@ -5255,7 +5265,7 @@ public:
 
     jo_persistent_vector<K> *to_vector() const {
         jo_persistent_vector<K> *vec = new jo_persistent_vector<K>();
-        for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
+        for(auto it = this->vec.begin(); it; ++it) {
             if(it->second) {
                 vec->conj_inplace(it->first);
             }
@@ -5264,9 +5274,19 @@ public:
     }
 
     K first_value() const {
-        for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
+        for(auto it = vec.begin(); it; ++it) {
             if(it->second) {
                 return it->first;
+            }
+        }
+        return K();
+    }
+
+    K last_value() const {
+        for(long long i = vec.size()-1; i >= 0; --i) {
+            auto entry = vec[i];
+            if(entry.second) {
+                return entry.first;
             }
         }
         return K();
@@ -5275,7 +5295,7 @@ public:
     // TODO: this is not fast... speedup by caching first key index.
     jo_persistent_unordered_set *rest() const {
         jo_persistent_unordered_set *copy = new jo_persistent_unordered_set(*this);
-        for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
+        for(auto it = this->vec.begin(); it; ++it) {
             if(it->second) {
                 copy->vec.assoc_inplace(it - copy->vec.begin(), entry_t(it->first, false));
                 --copy->length;

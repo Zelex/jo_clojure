@@ -171,7 +171,6 @@ into-array
 ints
 isa?
 iterator-seq
-key
 list*
 load
 loaded-libs
@@ -183,7 +182,6 @@ macroexpand-1
 make-array
 make-hierarchy
 map-entry?
-max-key
 memfn
 memoize
 merge
@@ -366,8 +364,6 @@ update-proxy
 uri?
 use
 uuid?
-val
-vals
 var-get
 var-set
 var?

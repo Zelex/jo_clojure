@@ -883,6 +883,23 @@
 (is (= (mapv #(str "Hello " % "!" ) ["Ford" "Arthur" "Tricia"]) ["Hello Ford!" "Hello Arthur!" "Hello Tricia!"]))
 (is (= (apply mapv vector [[:a :b :c] [:d :e :f] [:g :h :i]]) [[:a :d :g] [:b :e :h] [:c :f :i]]))
 
+(is (= (max-key count "asd" "bsd" "dsd" "long word") "long word"))
+(is (= (key (apply max-key val {:a 3 :b 7 :c 9})) :c))
+(is (= (val (first {:one :two})) :two))
+(is (= (first (apply max-key second (map-indexed vector '(2 1 6 5 4)))) 2))
+(def mmm [
+  {:timestamp 1 :name "v"} 
+  {:timestamp 2 :name "q"} 
+  {:timestamp 3 :name "r"}])
+(is (= (apply max-key :timestamp mmm) {:timestamp 3, :name "r"}))
+(is (= (:timestamp (apply max-key :timestamp mmm)) 3))
+(def map-with-index {
+  "gary" {:timestamp 1 :name "v"} 
+  "carl" {:timestamp 2 :name "q"} 
+  "lola" {:timestamp 3 :name "r"}})
+(is (= (apply max-key #(:timestamp (val %)) map-with-index) ["lola" {:timestamp 3, :name "r"}]))
+
+
 (string-test)
 (if-test)
 (when-test)
