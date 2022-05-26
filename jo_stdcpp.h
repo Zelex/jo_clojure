@@ -5278,6 +5278,8 @@ public:
         for(auto it = this->vec.begin(); it != this->vec.end(); ++it) {
             if(it->second) {
                 copy->vec.assoc_inplace(it - copy->vec.begin(), entry_t(it->first, false));
+                --copy->length;
+                break;
             }
         }
         return copy;
