@@ -644,31 +644,31 @@ static node_idx_t native_io(env_ptr_t env, list_ptr_t args) {
 
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
-    env->set("atom", new_node_native_function("atom", &native_atom, true));
-    env->set("deref", new_node_native_function("deref", &native_deref, false));
-    env->set("swap!", new_node_native_function("swap!", &native_swap_e, false));
-    env->set("reset!", new_node_native_function("reset!", &native_reset_e, false));
-    env->set("compare-and-set!", new_node_native_function("compare-and-set!", &native_compare_and_set_e, false));
-    env->set("swap-vals!", new_node_native_function("swap-vals!", &native_swap_vals_e, false));
-    env->set("reset-vals!", new_node_native_function("reset-vals!", &native_reset_vals_e, false));
+    env->set("atom", new_node_native_function("atom", &native_atom, true, NODE_FLAG_PRERESOLVE));
+    env->set("deref", new_node_native_function("deref", &native_deref, false, NODE_FLAG_PRERESOLVE));
+    env->set("swap!", new_node_native_function("swap!", &native_swap_e, false, NODE_FLAG_PRERESOLVE));
+    env->set("reset!", new_node_native_function("reset!", &native_reset_e, false, NODE_FLAG_PRERESOLVE));
+    env->set("compare-and-set!", new_node_native_function("compare-and-set!", &native_compare_and_set_e, false, NODE_FLAG_PRERESOLVE));
+    env->set("swap-vals!", new_node_native_function("swap-vals!", &native_swap_vals_e, false, NODE_FLAG_PRERESOLVE));
+    env->set("reset-vals!", new_node_native_function("reset-vals!", &native_reset_vals_e, false, NODE_FLAG_PRERESOLVE));
 
     // STM like stuff
-    env->set("multi-swap!", new_node_native_function("multi-swap!", &native_multi_swap_e, false));
-    env->set("multi-reset!", new_node_native_function("multi-reset!", &native_multi_reset_e, false));
-    env->set("multi-swap-vals!", new_node_native_function("multi-swap-vals!", &native_multi_swap_vals_e, false));
-    env->set("multi-reset-vals!", new_node_native_function("multi-reset-vals!", &native_multi_reset_vals_e, false));
-	env->set("dosync", new_node_native_function("dosync", &native_dosync, true));
-	env->set("io!", new_node_native_function("io!", &native_io, true));
+    env->set("multi-swap!", new_node_native_function("multi-swap!", &native_multi_swap_e, false, NODE_FLAG_PRERESOLVE));
+    env->set("multi-reset!", new_node_native_function("multi-reset!", &native_multi_reset_e, false, NODE_FLAG_PRERESOLVE));
+    env->set("multi-swap-vals!", new_node_native_function("multi-swap-vals!", &native_multi_swap_vals_e, false, NODE_FLAG_PRERESOLVE));
+    env->set("multi-reset-vals!", new_node_native_function("multi-reset-vals!", &native_multi_reset_vals_e, false, NODE_FLAG_PRERESOLVE));
+	env->set("dosync", new_node_native_function("dosync", &native_dosync, true, NODE_FLAG_PRERESOLVE));
+	env->set("io!", new_node_native_function("io!", &native_io, true, NODE_FLAG_PRERESOLVE));
 
 	// threads
-	env->set("Thread/sleep", new_node_native_function("Thread/sleep", &native_thread_sleep, false));
+	env->set("Thread/sleep", new_node_native_function("Thread/sleep", &native_thread_sleep, false, NODE_FLAG_PRERESOLVE));
 
 	// futures
-	env->set("future", new_node_native_function("future", &native_future, true));
-	env->set("future-call", new_node_native_function("future-call", &native_future_call, true));
-	env->set("future-cancel", new_node_native_function("future-cancel", &native_future_cancel, false));
-	env->set("future-cancelled?", new_node_native_function("future-cancelled?", &native_future_cancelled, false));
-	env->set("future-done?", new_node_native_function("future-done?", &native_future_done, false));
-	env->set("future?", new_node_native_function("future?", &native_is_future, false));
+	env->set("future", new_node_native_function("future", &native_future, true, NODE_FLAG_PRERESOLVE));
+	env->set("future-call", new_node_native_function("future-call", &native_future_call, true, NODE_FLAG_PRERESOLVE));
+	env->set("future-cancel", new_node_native_function("future-cancel", &native_future_cancel, false, NODE_FLAG_PRERESOLVE));
+	env->set("future-cancelled?", new_node_native_function("future-cancelled?", &native_future_cancelled, false, NODE_FLAG_PRERESOLVE));
+	env->set("future-done?", new_node_native_function("future-done?", &native_future_done, false, NODE_FLAG_PRERESOLVE));
+	env->set("future?", new_node_native_function("future?", &native_is_future, false, NODE_FLAG_PRERESOLVE));
 
 }

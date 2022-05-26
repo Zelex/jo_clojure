@@ -863,6 +863,12 @@
 (def fac-recur (fn [n] (loop [cnt n acc 1] (if (zero? cnt) acc (recur (dec cnt) (* acc cnt))))))
 (is (= (fac-recur 5) 120))
 
+(defn fac-recur2 
+  ([n] (fac-recur2 n 1)) 
+  ([n accumulator] (if (zero? n) accumulator (recur (dec n) (* accumulator n)))))
+(is (= (fac-recur2 5) 120))
+
+
 (string-test)
 (if-test)
 (when-test)

@@ -93,6 +93,7 @@ enum {
 	NODE_FLAG_LAZY         = 1<<2, // unused
 	NODE_FLAG_LITERAL      = 1<<3,
 	NODE_FLAG_LITERAL_ARGS = 1<<4,
+	NODE_FLAG_PRERESOLVE   = 1<<5,
 };
 
 struct env_t;
@@ -172,12 +173,12 @@ static inline env_ptr_t get_node_env(node_idx_t idx);
 static inline env_ptr_t get_node_env(const node_t *n);
 
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
-static node_idx_t new_node_string(const jo_string &s);
+static node_idx_t new_node_string(const jo_string &s, int flags = 0);
 static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0);
-static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn);
-static node_idx_t new_node_var(const jo_string &name, node_idx_t value);
+static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags = 0);
+static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flags = 0);
 
 static bool node_eq(node_idx_t n1i, node_idx_t n2i);
 static bool node_lt(node_idx_t n1i, node_idx_t n2i);
@@ -907,27 +908,29 @@ static node_idx_t new_node_vector(vector_ptr_t nodes, int flags) {
 	return idx;
 }
 
-static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn) {
-	node_idx_t idx = new_node(NODE_LAZY_LIST, NODE_FLAG_LAZY);
+static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags) {
+	node_idx_t idx = new_node(NODE_LAZY_LIST, NODE_FLAG_LAZY | flags);
 	get_node(idx)->t_lazy_fn = lazy_fn;
 	get_node(idx)->t_env = env;
 	return idx;
 }
 
-static node_idx_t new_node_native_function(std::function<node_idx_t(env_ptr_t,list_ptr_t)> f, bool is_macro) {
+static node_idx_t new_node_native_function(std::function<node_idx_t(env_ptr_t,list_ptr_t)> f, bool is_macro, int flags=0) {
 	node_t n;
 	n.type = NODE_NATIVE_FUNC;
 	n.t_native_function = new native_func_t(f);
+	n.flags = flags;
 	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
 	n.flags |= NODE_FLAG_LITERAL;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_native_function(const char *name, std::function<node_idx_t(env_ptr_t,list_ptr_t)> f, bool is_macro) {
+static node_idx_t new_node_native_function(const char *name, std::function<node_idx_t(env_ptr_t,list_ptr_t)> f, bool is_macro, int flags=0) {
 	node_t n;
 	n.type = NODE_NATIVE_FUNC;
 	n.t_native_function = new native_func_t(f);
 	n.t_string = name;
+	n.flags = flags;
 	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
 	n.flags |= NODE_FLAG_LITERAL;
 	return new_node(&n);
@@ -937,75 +940,79 @@ static node_idx_t new_node_bool(bool b) {
 	return b ? TRUE_NODE : FALSE_NODE;
 }
 
-static node_idx_t new_node_int(int i) {
+static node_idx_t new_node_int(int i, int flags = 0) {
 	if(i >= 0 && i <= 256) {
 		return INT_0_NODE + i;
 	}
 	node_t n;
 	n.type = NODE_INT;
 	n.t_int = i;
-	n.flags |= NODE_FLAG_LITERAL;
+	n.flags = NODE_FLAG_LITERAL | flags;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_float(double f) {
+static node_idx_t new_node_float(double f, int flags = 0) {
 	node_t n;
 	n.type = NODE_FLOAT;
 	n.t_float = f;
-	n.flags |= NODE_FLAG_LITERAL;
+	n.flags = NODE_FLAG_LITERAL | flags;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_string(const jo_string &s) {
+static node_idx_t new_node_string(const jo_string &s, int flags) {
 	node_t n;
 	n.type = NODE_STRING;
 	n.t_string = s;
-	n.flags |= NODE_FLAG_LITERAL | NODE_FLAG_STRING;
+	n.flags = NODE_FLAG_LITERAL | NODE_FLAG_STRING | flags;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_symbol(const jo_string &s) {
+static node_idx_t new_node_symbol(const jo_string &s, int flags=0) {
 	node_t n;
 	n.type = NODE_SYMBOL;
 	n.t_string = s;
-	n.flags |= NODE_FLAG_STRING;
+	n.flags = NODE_FLAG_STRING | flags;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_keyword(const jo_string &s) {
+static node_idx_t new_node_keyword(const jo_string &s, int flags=0) {
 	node_t n;
 	n.type = NODE_KEYWORD;
 	n.t_string = s;
-	n.flags |= NODE_FLAG_LITERAL | NODE_FLAG_STRING;
+	n.flags = NODE_FLAG_LITERAL | NODE_FLAG_STRING | flags;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_var(const jo_string &name, node_idx_t value) {
+static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flags) {
 	node_t n;
 	n.type = NODE_VAR;
 	n.t_string = name;
 	n.t_var = value;
+	n.flags = flags;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_file(FILE *fp) {
+static node_idx_t new_node_file(FILE *fp, int flags = 0) {
 	node_t n;
 	n.type = NODE_FILE;
 	n.t_file = fp;
+	n.flags = flags;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_dir(void *dp) {
+static node_idx_t new_node_dir(void *dp, int flags = 0) {
 	node_t n;
 	n.type = NODE_DIR;
 	n.t_dir = dp;
+	n.flags = flags;
 	return new_node(&n);
 }
 
-static node_idx_t new_node_atom(node_idx_t atom) {
+static node_idx_t new_node_atom(node_idx_t atom, int flags = 0) {
 	node_t n;
 	n.type = NODE_ATOM;
 	n.t_atom = atom;
+	n.flags = flags;
 	return new_node(&n);
 }
 
@@ -1392,7 +1399,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		debugf("symbol: %s\n", tok.str.c_str());
 		if(env->has(tok.str.c_str())) {
 			node_idx_t node = env->get(tok.str.c_str()).value;
-			if(get_node_type(node) == NODE_NATIVE_FUNC) {
+			if(get_node_flags(node) & NODE_FLAG_PRERESOLVE) {
 				debugf("pre-resolve symbol: %s\n", tok.str.c_str());
 				return node;
 			}
@@ -5121,186 +5128,186 @@ int main(int argc, char **argv) {
 			node_t *n = get_node(i);
 			n->t_bool = true;
 		}
-		new_node_symbol("quote");
-		new_node_symbol("unquote");
-		new_node_symbol("unquote-splice");
-		new_node_symbol("quasiquote");
-		new_node_list(new_list());
-		new_node_vector(new_vector());
-		new_node_map(new_map());
-		new_node_hash_set(new_hash_set());
-		new_node_symbol("%");
-		new_node_symbol("%1");
-		new_node_symbol("%2");
-		new_node_symbol("%3");
-		new_node_symbol("%4");
-		new_node_symbol("%5");
-		new_node_symbol("%6");
-		new_node_symbol("%7");
-		new_node_symbol("%8");
-		new_node_keyword("else");
-		new_node_keyword("when");
-		new_node_keyword("while");
-		new_node_keyword("let");
-		new_node_keyword("__PC__");
+		new_node_symbol("quote", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("unquote", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("unquote-splice", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("quasiquote", NODE_FLAG_PRERESOLVE);
+		new_node_list(new_list(), NODE_FLAG_PRERESOLVE);
+		new_node_vector(new_vector(), NODE_FLAG_PRERESOLVE);
+		new_node_map(new_map(), NODE_FLAG_PRERESOLVE);
+		new_node_hash_set(new_hash_set(), NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%1", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%2", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%3", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%4", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%5", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%6", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%7", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("%8", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("else", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("when", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("while", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("let", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("__PC__", NODE_FLAG_PRERESOLVE);
 	}
 
 	env->set("nil", NIL_NODE);
 	env->set("zero", ZERO_NODE);
 	env->set("false", FALSE_NODE);
 	env->set("true", TRUE_NODE);
-	env->set("quote", new_node_native_function("quote", &native_quote, true));
+	env->set("quote", new_node_native_function("quote", &native_quote, true, NODE_FLAG_PRERESOLVE));
 	env->set("unquote", UNQUOTE_NODE);
 	env->set("unquote-splice", UNQUOTE_SPLICE_NODE);
-	env->set("quasiquote", new_node_native_function("quasiquote", &native_quasiquote, true));
-	env->set("let", new_node_native_function("let", &native_let, true));
-	env->set("eval", new_node_native_function("eval", &native_eval, false));
-	env->set("print", new_node_native_function("print", &native_print, false));
-	env->set("println", new_node_native_function("println", &native_println, false));
-	env->set("print-str", new_node_native_function("print-str", &native_print_str, false));
-	env->set("println-str", new_node_native_function("println-str", &native_println_str, false));
-	env->set("=", new_node_native_function("=", &native_eq, false));
-	env->set("not=", new_node_native_function("not=", &native_neq, false));
-	env->set("<", new_node_native_function("<", &native_lt, false));
-	env->set("<=", new_node_native_function("<=", &native_lte, false));
-	env->set(">", new_node_native_function(">", &native_gt, false));
-	env->set(">=", new_node_native_function(">=", &native_gte, false));
-	env->set("and", new_node_native_function("and", &native_and, true));
-	env->set("or", new_node_native_function("or", &native_or, true));
-	env->set("not", new_node_native_function("not", &native_not, false));
-	env->set("empty?", new_node_native_function("empty?", &native_is_empty, false));
-	env->set("zero?", new_node_native_function("zero?", &native_is_zero, false));
-	env->set("false?", new_node_native_function("false?", &native_is_false, false));
-	env->set("true?", new_node_native_function("true?", &native_is_true, false));
-	env->set("some?", new_node_native_function("some?", &native_is_some, false));
-	env->set("letter?", new_node_native_function("letter?", &native_is_letter, false));
-	env->set("do", new_node_native_function("do", &native_do, false));
-	env->set("doall", new_node_native_function("doall", &native_doall, true));
-	env->set("dorun", new_node_native_function("dorun", &native_dorun, true));
-	env->set("conj", new_node_native_function("conj", &native_conj, false));
-	env->set("into", new_node_native_function("info", &native_into, false));
-	env->set("pop", new_node_native_function("pop", &native_pop, false));
-	env->set("peek", new_node_native_function("peek", &native_peek, false));
-	env->set("first", new_node_native_function("first", &native_first, false));
-	env->set("second", new_node_native_function("second", &native_second, false));
-	env->set("last", new_node_native_function("last", &native_last, false));
-	env->set("nth", new_node_native_function("nth", &native_nth, false));
-	env->set("rand-nth", new_node_native_function("rand-nth", &native_rand_nth, false));
-	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false));
-	env->set("next", new_node_native_function("next", &native_next, false));
-	env->set("nnext", new_node_native_function("nnext", &native_nnext, false));
-	env->set("fnext", new_node_native_function("fnext", &native_fnext, false));
-	env->set("nfirst", new_node_native_function("nfirst", &native_nfirst, false));
-	env->set("rest", new_node_native_function("rest", &native_rest, false));
-	env->set("list", new_node_native_function("list", &native_list, false));
-	env->set("list?", new_node_native_function("list?", &native_is_list, false));
-	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false));
-	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false));
-	env->set("var", new_node_native_function("var", &native_var, false));
-	env->set("declare", new_node_native_function("declare", &native_declare, false));
-	env->set("def", new_node_native_function("def", &native_def, true));
-	env->set("defonce", new_node_native_function("defonce", &native_defonce, true));
-	env->set("fn", new_node_native_function("fn", &native_fn, true));
-	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false));
-	env->set("ifn?", new_node_native_function("ifn?", &native_is_ifn, false));
-	env->set("ident?", new_node_native_function("ident?", &native_is_ident, false));
-	env->set("simple-ident?", new_node_native_function("simple-ident?", &native_is_simple_ident, false));
-	env->set("qualified-ident?", new_node_native_function("qualified-ident?", &native_is_qualified_ident, false));
-	env->set("symbol?", new_node_native_function("symbol?", &native_is_symbol, false));
-	env->set("simple-symbol?", new_node_native_function("simple-symbol?", &native_is_simple_symbol, false));
-	env->set("qualified-symbol?", new_node_native_function("qualified-symbol?", &native_is_qualified_symbol, false));
-	env->set("keyword?", new_node_native_function("keyword?", &native_is_keyword, false));
-	env->set("simple-keyword?", new_node_native_function("simple-keyword?", &native_is_simple_keyword, false));
-	env->set("qualified-keyword?", new_node_native_function("qualified-keyword?", &native_is_qualified_keyword, false));
-	env->set("indexed?", new_node_native_function("indexed?", &native_is_indexed, false));
-	env->set("defn", new_node_native_function("defn", &native_defn, true));
-	env->set("defmacro", new_node_native_function("defmacro", &native_defmacro, true));
-	env->set("*ns*", new_node_var("nil", NIL_NODE));
-	env->set("if", new_node_native_function("if", &native_if, true));
-	env->set("if-not", new_node_native_function("if-not", &native_if_not, true));
-	env->set("if-let", new_node_native_function("if-let", &native_if_let, true));
-	env->set("if-some", new_node_native_function("if-some", &native_if_some, true));
-	env->set("when", new_node_native_function("when", &native_when, true));
-	env->set("when-let", new_node_native_function("when-let", &native_when_let, true));
-	env->set("when-not", new_node_native_function("when-not", &native_when_not, true));
-	env->set("while", new_node_native_function("while", &native_while, true));
-	env->set("while-not", new_node_native_function("while-not", &native_while_not, true));
-	env->set("cond", new_node_native_function("cond", &native_cond, true));
-	env->set("condp", new_node_native_function("condp", &native_condp, true));
-	env->set("case", new_node_native_function("case", &native_case, true));
-	env->set("apply", new_node_native_function("apply", &native_apply, true));
-	env->set("reduce", new_node_native_function("reduce", &native_reduce, true));
-	env->set("delay", new_node_native_function("delay", &native_delay, true));
-	env->set("delay?", new_node_native_function("delay?", &native_is_delay, false));
-	env->set("constantly", new_node_native_function("constantly", &native_constantly, false));
-	env->set("count", new_node_native_function("count", &native_count, false));
-	env->set("dotimes", new_node_native_function("dotimes", &native_dotimes, true));
-	env->set("doseq", new_node_native_function("doseq", &native_doseq, true));
-	env->set("nil?", new_node_native_function("nil?", native_is_nil, false));
-	env->set("time", new_node_native_function("time", &native_time, true));
-	env->set("assoc", new_node_native_function("assoc", &native_assoc, false));
-	env->set("assoc-in", new_node_native_function("assoc-in", &native_assoc_in, false));
-	env->set("dissoc", new_node_native_function("dissoc", &native_dissoc, false));
-	env->set("disj", new_node_native_function("disj", &native_disj, false));
-	env->set("update", new_node_native_function("update", &native_update, false));
-	env->set("update-in", new_node_native_function("update-in", &native_update_in, false));
-	env->set("get", new_node_native_function("get", &native_get, false));
-	env->set("comp", new_node_native_function("comp", &native_comp, false));
-	env->set("partial", new_node_native_function("partial", &native_partial, false));
-	env->set("shuffle", new_node_native_function("shuffle", &native_shuffle, false));
-	env->set("random-sample", new_node_native_function("random-sample", &native_random_sample, false));
-	env->set("is", new_node_native_function("is", &native_is, true));
-	env->set("assert", new_node_native_function("assert", &native_is, true));
-	env->set("identity", new_node_native_function("identity", &native_identity, false));
-	env->set("reverse", new_node_native_function("reverse", &native_reverse, false));
-	env->set("nthrest", new_node_native_function("nthrest", &native_nthrest, false));
-	env->set("nthnext", new_node_native_function("nthnext", &native_nthnext, false));
-	env->set("->", new_node_native_function("->", &native_thread, true));
-	env->set("->>", new_node_native_function("->>", &native_thread_last, true));
-	env->set("as->", new_node_native_function("as->", &native_as_thread, true));
-	env->set("cond->", new_node_native_function("cond->", &native_cond_thread, true));
-	env->set("cond->>", new_node_native_function("cond->>", &native_cond_thread_last, true));
-	env->set("every?", new_node_native_function("every?", &native_is_every, false));
-	env->set("not-every?", new_node_native_function("not-every?", &native_is_not_every, false));
-	env->set("any?", new_node_native_function("any?", &native_is_any, false));
-	env->set("not-any?", new_node_native_function("not-any?", &native_is_not_any, false));
-	env->set("array-map", new_node_native_function("array-map", &native_array_map, false));
-	env->set("boolean", new_node_native_function("boolean", &native_boolean, false));
-	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false));
-	env->set("butlast", new_node_native_function("butlast", &native_butlast, false));
-	env->set("complement", new_node_native_function("complement", &native_complement, false));
-	env->set("contains?", new_node_native_function("contains?", &native_is_contains, false));
-	env->set("counted?", new_node_native_function("counted?", &native_is_counted, false));
-	env->set("distinct?", new_node_native_function("distinct?", &native_is_distinct, false));
-	env->set("empty", new_node_native_function("empty", &native_empty, false));
-	env->set("not-empty", new_node_native_function("not-empty", &native_not_empty, false));
-	env->set("every-pred", new_node_native_function("every-pred", &native_every_pred, false));
-	env->set("find", new_node_native_function("find", &native_find, false));
-	env->set("fnil", new_node_native_function("fnil", &native_fnil, false));
-	env->set("split-at", new_node_native_function("split-at", &native_split_at, false));
-	env->set("split-with", new_node_native_function("split-with", &native_split_with, false));
-	env->set("map?", new_node_native_function("map?", &native_is_map, false));
-	env->set("set?", new_node_native_function("set?", &native_is_set, false));
-	env->set("vector?", new_node_native_function("vector?", &native_is_vector, false));
-	env->set("frequencies", new_node_native_function("frequencies", &native_frequencies, false));
-	env->set("get-in", new_node_native_function("get-in", &native_get_in, false));
-	env->set("group-by", new_node_native_function("group-by", &native_group_by, false));
-	env->set("hash", new_node_native_function("hash", &native_hash, false));
-	env->set("hash-ordered-coll", new_node_native_function("hash-ordered-coll", &native_hash, false));
-	env->set("hash-unordered-coll", new_node_native_function("hash-unordered-coll", &native_hash, false));
-	env->set("hash-combine", new_node_native_function("hash-combine", &native_hash_combine, false));
-	env->set("hash-set", new_node_native_function("hash-set", &native_hash_set, false));
-	env->set("identical?", new_node_native_function("identical?", &native_is_identical, false));
-	env->set("juxt", new_node_native_function("juxt", &native_juxt, false));
-	env->set("name", new_node_native_function("name", &native_name, false));
-	env->set("keys", new_node_native_function("keys", &native_keys, false));
-	env->set("keyword", new_node_native_function("keyword", &native_keyword, false));
-	env->set("letfn", new_node_native_function("letfn", &native_letfn, true));
-	env->set("load-file", new_node_native_function("load-file", &native_load_file, false));
-	env->set("load-reader", new_node_native_function("load-reader", &native_load_reader, false));
-	env->set("load-string", new_node_native_function("load-string", &native_load_string, false));
-	env->set("loop", new_node_native_function("loop", &native_loop, true));
-	env->set("recur", new_node_native_function("recur", &native_recur, false));
+	env->set("quasiquote", new_node_native_function("quasiquote", &native_quasiquote, true, NODE_FLAG_PRERESOLVE));
+	env->set("let", new_node_native_function("let", &native_let, true, NODE_FLAG_PRERESOLVE));
+	env->set("eval", new_node_native_function("eval", &native_eval, false, NODE_FLAG_PRERESOLVE));
+	env->set("print", new_node_native_function("print", &native_print, false, NODE_FLAG_PRERESOLVE));
+	env->set("println", new_node_native_function("println", &native_println, false, NODE_FLAG_PRERESOLVE));
+	env->set("print-str", new_node_native_function("print-str", &native_print_str, false, NODE_FLAG_PRERESOLVE));
+	env->set("println-str", new_node_native_function("println-str", &native_println_str, false, NODE_FLAG_PRERESOLVE));
+	env->set("=", new_node_native_function("=", &native_eq, false, NODE_FLAG_PRERESOLVE));
+	env->set("not=", new_node_native_function("not=", &native_neq, false, NODE_FLAG_PRERESOLVE));
+	env->set("<", new_node_native_function("<", &native_lt, false, NODE_FLAG_PRERESOLVE));
+	env->set("<=", new_node_native_function("<=", &native_lte, false, NODE_FLAG_PRERESOLVE));
+	env->set(">", new_node_native_function(">", &native_gt, false, NODE_FLAG_PRERESOLVE));
+	env->set(">=", new_node_native_function(">=", &native_gte, false, NODE_FLAG_PRERESOLVE));
+	env->set("and", new_node_native_function("and", &native_and, true, NODE_FLAG_PRERESOLVE));
+	env->set("or", new_node_native_function("or", &native_or, true, NODE_FLAG_PRERESOLVE));
+	env->set("not", new_node_native_function("not", &native_not, false, NODE_FLAG_PRERESOLVE));
+	env->set("empty?", new_node_native_function("empty?", &native_is_empty, false, NODE_FLAG_PRERESOLVE));
+	env->set("zero?", new_node_native_function("zero?", &native_is_zero, false, NODE_FLAG_PRERESOLVE));
+	env->set("false?", new_node_native_function("false?", &native_is_false, false, NODE_FLAG_PRERESOLVE));
+	env->set("true?", new_node_native_function("true?", &native_is_true, false, NODE_FLAG_PRERESOLVE));
+	env->set("some?", new_node_native_function("some?", &native_is_some, false, NODE_FLAG_PRERESOLVE));
+	env->set("letter?", new_node_native_function("letter?", &native_is_letter, false, NODE_FLAG_PRERESOLVE));
+	env->set("do", new_node_native_function("do", &native_do, false, NODE_FLAG_PRERESOLVE));
+	env->set("doall", new_node_native_function("doall", &native_doall, true, NODE_FLAG_PRERESOLVE));
+	env->set("dorun", new_node_native_function("dorun", &native_dorun, true, NODE_FLAG_PRERESOLVE));
+	env->set("conj", new_node_native_function("conj", &native_conj, false, NODE_FLAG_PRERESOLVE));
+	env->set("into", new_node_native_function("info", &native_into, false, NODE_FLAG_PRERESOLVE));
+	env->set("pop", new_node_native_function("pop", &native_pop, false, NODE_FLAG_PRERESOLVE));
+	env->set("peek", new_node_native_function("peek", &native_peek, false, NODE_FLAG_PRERESOLVE));
+	env->set("first", new_node_native_function("first", &native_first, false, NODE_FLAG_PRERESOLVE));
+	env->set("second", new_node_native_function("second", &native_second, false, NODE_FLAG_PRERESOLVE));
+	env->set("last", new_node_native_function("last", &native_last, false, NODE_FLAG_PRERESOLVE));
+	env->set("nth", new_node_native_function("nth", &native_nth, false, NODE_FLAG_PRERESOLVE));
+	env->set("rand-nth", new_node_native_function("rand-nth", &native_rand_nth, false, NODE_FLAG_PRERESOLVE));
+	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false, NODE_FLAG_PRERESOLVE));
+	env->set("next", new_node_native_function("next", &native_next, false, NODE_FLAG_PRERESOLVE));
+	env->set("nnext", new_node_native_function("nnext", &native_nnext, false, NODE_FLAG_PRERESOLVE));
+	env->set("fnext", new_node_native_function("fnext", &native_fnext, false, NODE_FLAG_PRERESOLVE));
+	env->set("nfirst", new_node_native_function("nfirst", &native_nfirst, false, NODE_FLAG_PRERESOLVE));
+	env->set("rest", new_node_native_function("rest", &native_rest, false, NODE_FLAG_PRERESOLVE));
+	env->set("list", new_node_native_function("list", &native_list, false, NODE_FLAG_PRERESOLVE));
+	env->set("list?", new_node_native_function("list?", &native_is_list, false, NODE_FLAG_PRERESOLVE));
+	env->set("hash-map", new_node_native_function("hash-map", &native_hash_map, false, NODE_FLAG_PRERESOLVE));
+	env->set("upper-case", new_node_native_function("upper-case", &native_upper_case, false, NODE_FLAG_PRERESOLVE));
+	env->set("var", new_node_native_function("var", &native_var, false, NODE_FLAG_PRERESOLVE));
+	env->set("declare", new_node_native_function("declare", &native_declare, false, NODE_FLAG_PRERESOLVE));
+	env->set("def", new_node_native_function("def", &native_def, true, NODE_FLAG_PRERESOLVE));
+	env->set("defonce", new_node_native_function("defonce", &native_defonce, true, NODE_FLAG_PRERESOLVE));
+	env->set("fn", new_node_native_function("fn", &native_fn, true, NODE_FLAG_PRERESOLVE));
+	env->set("fn?", new_node_native_function("fn?", &native_is_fn, false, NODE_FLAG_PRERESOLVE));
+	env->set("ifn?", new_node_native_function("ifn?", &native_is_ifn, false, NODE_FLAG_PRERESOLVE));
+	env->set("ident?", new_node_native_function("ident?", &native_is_ident, false, NODE_FLAG_PRERESOLVE));
+	env->set("simple-ident?", new_node_native_function("simple-ident?", &native_is_simple_ident, false, NODE_FLAG_PRERESOLVE));
+	env->set("qualified-ident?", new_node_native_function("qualified-ident?", &native_is_qualified_ident, false, NODE_FLAG_PRERESOLVE));
+	env->set("symbol?", new_node_native_function("symbol?", &native_is_symbol, false, NODE_FLAG_PRERESOLVE));
+	env->set("simple-symbol?", new_node_native_function("simple-symbol?", &native_is_simple_symbol, false, NODE_FLAG_PRERESOLVE));
+	env->set("qualified-symbol?", new_node_native_function("qualified-symbol?", &native_is_qualified_symbol, false, NODE_FLAG_PRERESOLVE));
+	env->set("keyword?", new_node_native_function("keyword?", &native_is_keyword, false, NODE_FLAG_PRERESOLVE));
+	env->set("simple-keyword?", new_node_native_function("simple-keyword?", &native_is_simple_keyword, false, NODE_FLAG_PRERESOLVE));
+	env->set("qualified-keyword?", new_node_native_function("qualified-keyword?", &native_is_qualified_keyword, false, NODE_FLAG_PRERESOLVE));
+	env->set("indexed?", new_node_native_function("indexed?", &native_is_indexed, false, NODE_FLAG_PRERESOLVE));
+	env->set("defn", new_node_native_function("defn", &native_defn, true, NODE_FLAG_PRERESOLVE));
+	env->set("defmacro", new_node_native_function("defmacro", &native_defmacro, true, NODE_FLAG_PRERESOLVE));
+	env->set("*ns*", new_node_var("nil", NIL_NODE, NODE_FLAG_PRERESOLVE));
+	env->set("if", new_node_native_function("if", &native_if, true, NODE_FLAG_PRERESOLVE));
+	env->set("if-not", new_node_native_function("if-not", &native_if_not, true, NODE_FLAG_PRERESOLVE));
+	env->set("if-let", new_node_native_function("if-let", &native_if_let, true, NODE_FLAG_PRERESOLVE));
+	env->set("if-some", new_node_native_function("if-some", &native_if_some, true, NODE_FLAG_PRERESOLVE));
+	env->set("when", new_node_native_function("when", &native_when, true, NODE_FLAG_PRERESOLVE));
+	env->set("when-let", new_node_native_function("when-let", &native_when_let, true, NODE_FLAG_PRERESOLVE));
+	env->set("when-not", new_node_native_function("when-not", &native_when_not, true, NODE_FLAG_PRERESOLVE));
+	env->set("while", new_node_native_function("while", &native_while, true, NODE_FLAG_PRERESOLVE));
+	env->set("while-not", new_node_native_function("while-not", &native_while_not, true, NODE_FLAG_PRERESOLVE));
+	env->set("cond", new_node_native_function("cond", &native_cond, true, NODE_FLAG_PRERESOLVE));
+	env->set("condp", new_node_native_function("condp", &native_condp, true, NODE_FLAG_PRERESOLVE));
+	env->set("case", new_node_native_function("case", &native_case, true, NODE_FLAG_PRERESOLVE));
+	env->set("apply", new_node_native_function("apply", &native_apply, true, NODE_FLAG_PRERESOLVE));
+	env->set("reduce", new_node_native_function("reduce", &native_reduce, true, NODE_FLAG_PRERESOLVE));
+	env->set("delay", new_node_native_function("delay", &native_delay, true, NODE_FLAG_PRERESOLVE));
+	env->set("delay?", new_node_native_function("delay?", &native_is_delay, false, NODE_FLAG_PRERESOLVE));
+	env->set("constantly", new_node_native_function("constantly", &native_constantly, false, NODE_FLAG_PRERESOLVE));
+	env->set("count", new_node_native_function("count", &native_count, false, NODE_FLAG_PRERESOLVE));
+	env->set("dotimes", new_node_native_function("dotimes", &native_dotimes, true, NODE_FLAG_PRERESOLVE));
+	env->set("doseq", new_node_native_function("doseq", &native_doseq, true, NODE_FLAG_PRERESOLVE));
+	env->set("nil?", new_node_native_function("nil?", native_is_nil, false, NODE_FLAG_PRERESOLVE));
+	env->set("time", new_node_native_function("time", &native_time, true, NODE_FLAG_PRERESOLVE));
+	env->set("assoc", new_node_native_function("assoc", &native_assoc, false, NODE_FLAG_PRERESOLVE));
+	env->set("assoc-in", new_node_native_function("assoc-in", &native_assoc_in, false, NODE_FLAG_PRERESOLVE));
+	env->set("dissoc", new_node_native_function("dissoc", &native_dissoc, false, NODE_FLAG_PRERESOLVE));
+	env->set("disj", new_node_native_function("disj", &native_disj, false, NODE_FLAG_PRERESOLVE));
+	env->set("update", new_node_native_function("update", &native_update, false, NODE_FLAG_PRERESOLVE));
+	env->set("update-in", new_node_native_function("update-in", &native_update_in, false, NODE_FLAG_PRERESOLVE));
+	env->set("get", new_node_native_function("get", &native_get, false, NODE_FLAG_PRERESOLVE));
+	env->set("comp", new_node_native_function("comp", &native_comp, false, NODE_FLAG_PRERESOLVE));
+	env->set("partial", new_node_native_function("partial", &native_partial, false, NODE_FLAG_PRERESOLVE));
+	env->set("shuffle", new_node_native_function("shuffle", &native_shuffle, false, NODE_FLAG_PRERESOLVE));
+	env->set("random-sample", new_node_native_function("random-sample", &native_random_sample, false, NODE_FLAG_PRERESOLVE));
+	env->set("is", new_node_native_function("is", &native_is, true, NODE_FLAG_PRERESOLVE));
+	env->set("assert", new_node_native_function("assert", &native_is, true, NODE_FLAG_PRERESOLVE));
+	env->set("identity", new_node_native_function("identity", &native_identity, false, NODE_FLAG_PRERESOLVE));
+	env->set("reverse", new_node_native_function("reverse", &native_reverse, false, NODE_FLAG_PRERESOLVE));
+	env->set("nthrest", new_node_native_function("nthrest", &native_nthrest, false, NODE_FLAG_PRERESOLVE));
+	env->set("nthnext", new_node_native_function("nthnext", &native_nthnext, false, NODE_FLAG_PRERESOLVE));
+	env->set("->", new_node_native_function("->", &native_thread, true, NODE_FLAG_PRERESOLVE));
+	env->set("->>", new_node_native_function("->>", &native_thread_last, true, NODE_FLAG_PRERESOLVE));
+	env->set("as->", new_node_native_function("as->", &native_as_thread, true, NODE_FLAG_PRERESOLVE));
+	env->set("cond->", new_node_native_function("cond->", &native_cond_thread, true, NODE_FLAG_PRERESOLVE));
+	env->set("cond->>", new_node_native_function("cond->>", &native_cond_thread_last, true, NODE_FLAG_PRERESOLVE));
+	env->set("every?", new_node_native_function("every?", &native_is_every, false, NODE_FLAG_PRERESOLVE));
+	env->set("not-every?", new_node_native_function("not-every?", &native_is_not_every, false, NODE_FLAG_PRERESOLVE));
+	env->set("any?", new_node_native_function("any?", &native_is_any, false, NODE_FLAG_PRERESOLVE));
+	env->set("not-any?", new_node_native_function("not-any?", &native_is_not_any, false, NODE_FLAG_PRERESOLVE));
+	env->set("array-map", new_node_native_function("array-map", &native_array_map, false, NODE_FLAG_PRERESOLVE));
+	env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
+	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
+	env->set("butlast", new_node_native_function("butlast", &native_butlast, false, NODE_FLAG_PRERESOLVE));
+	env->set("complement", new_node_native_function("complement", &native_complement, false, NODE_FLAG_PRERESOLVE));
+	env->set("contains?", new_node_native_function("contains?", &native_is_contains, false, NODE_FLAG_PRERESOLVE));
+	env->set("counted?", new_node_native_function("counted?", &native_is_counted, false, NODE_FLAG_PRERESOLVE));
+	env->set("distinct?", new_node_native_function("distinct?", &native_is_distinct, false, NODE_FLAG_PRERESOLVE));
+	env->set("empty", new_node_native_function("empty", &native_empty, false, NODE_FLAG_PRERESOLVE));
+	env->set("not-empty", new_node_native_function("not-empty", &native_not_empty, false, NODE_FLAG_PRERESOLVE));
+	env->set("every-pred", new_node_native_function("every-pred", &native_every_pred, false, NODE_FLAG_PRERESOLVE));
+	env->set("find", new_node_native_function("find", &native_find, false, NODE_FLAG_PRERESOLVE));
+	env->set("fnil", new_node_native_function("fnil", &native_fnil, false, NODE_FLAG_PRERESOLVE));
+	env->set("split-at", new_node_native_function("split-at", &native_split_at, false, NODE_FLAG_PRERESOLVE));
+	env->set("split-with", new_node_native_function("split-with", &native_split_with, false, NODE_FLAG_PRERESOLVE));
+	env->set("map?", new_node_native_function("map?", &native_is_map, false, NODE_FLAG_PRERESOLVE));
+	env->set("set?", new_node_native_function("set?", &native_is_set, false, NODE_FLAG_PRERESOLVE));
+	env->set("vector?", new_node_native_function("vector?", &native_is_vector, false, NODE_FLAG_PRERESOLVE));
+	env->set("frequencies", new_node_native_function("frequencies", &native_frequencies, false, NODE_FLAG_PRERESOLVE));
+	env->set("get-in", new_node_native_function("get-in", &native_get_in, false, NODE_FLAG_PRERESOLVE));
+	env->set("group-by", new_node_native_function("group-by", &native_group_by, false, NODE_FLAG_PRERESOLVE));
+	env->set("hash", new_node_native_function("hash", &native_hash, false, NODE_FLAG_PRERESOLVE));
+	env->set("hash-ordered-coll", new_node_native_function("hash-ordered-coll", &native_hash, false, NODE_FLAG_PRERESOLVE));
+	env->set("hash-unordered-coll", new_node_native_function("hash-unordered-coll", &native_hash, false, NODE_FLAG_PRERESOLVE));
+	env->set("hash-combine", new_node_native_function("hash-combine", &native_hash_combine, false, NODE_FLAG_PRERESOLVE));
+	env->set("hash-set", new_node_native_function("hash-set", &native_hash_set, false, NODE_FLAG_PRERESOLVE));
+	env->set("identical?", new_node_native_function("identical?", &native_is_identical, false, NODE_FLAG_PRERESOLVE));
+	env->set("juxt", new_node_native_function("juxt", &native_juxt, false, NODE_FLAG_PRERESOLVE));
+	env->set("name", new_node_native_function("name", &native_name, false, NODE_FLAG_PRERESOLVE));
+	env->set("keys", new_node_native_function("keys", &native_keys, false, NODE_FLAG_PRERESOLVE));
+	env->set("keyword", new_node_native_function("keyword", &native_keyword, false, NODE_FLAG_PRERESOLVE));
+	env->set("letfn", new_node_native_function("letfn", &native_letfn, true, NODE_FLAG_PRERESOLVE));
+	env->set("load-file", new_node_native_function("load-file", &native_load_file, false, NODE_FLAG_PRERESOLVE));
+	env->set("load-reader", new_node_native_function("load-reader", &native_load_reader, false, NODE_FLAG_PRERESOLVE));
+	env->set("load-string", new_node_native_function("load-string", &native_load_string, false, NODE_FLAG_PRERESOLVE));
+	env->set("loop", new_node_native_function("loop", &native_loop, true, NODE_FLAG_PRERESOLVE));
+	env->set("recur", new_node_native_function("recur", &native_recur, false, NODE_FLAG_PRERESOLVE));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
