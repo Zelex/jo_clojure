@@ -5024,6 +5024,49 @@ static node_idx_t native_recur(env_ptr_t env, list_ptr_t args) {
 	return res_idx;
 }
 
+// (mapv f coll)(mapv f c1 c2)(mapv f c1 c2 c3)(mapv f c1 c2 c3 & colls)
+// Returns a vector consisting of the result of applying f to the
+// set of first items of each coll, followed by applying f to the set
+// of second items in each coll, until any one of the colls is
+// exhausted.  Any remaining items in other colls are ignored. Function
+// f should accept number-of-colls arguments.
+static node_idx_t native_mapv(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f = args->first_value();
+	list_ptr_t colls = args->rest();
+	vector_ptr_t r = new_vector();
+	do {
+		list_ptr_t new_colls = new_list();
+		list_ptr_t arg_list = new_list();
+		arg_list->push_back_inplace(f);
+		bool done = false;
+		for(list_t::iterator it = colls->begin(); it; it++) {
+			node_idx_t arg_idx = *it;
+			node_t *arg = get_node(arg_idx);
+			if(arg->seq_empty()) {
+				done = true;
+				break;
+			}
+			auto fr = arg->seq_first_rest();
+			arg_list->push_back_inplace(fr.first);
+			new_colls->push_back_inplace(fr.second);
+		}
+		if(done) {
+			break;
+		}
+		r->push_back_inplace(eval_list(env, arg_list));
+		colls = new_colls;
+	} while(true);
+	return new_node_vector(r);
+}
+
+static node_idx_t native_vector(env_ptr_t env, list_ptr_t args) {
+	auto it = args->begin();
+	vector_ptr_t r = new_vector();
+	for(; it; it++) {
+		r->push_back_inplace(*it);
+	}
+	return new_node_vector(r);
+}
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -5339,6 +5382,8 @@ int main(int argc, char **argv) {
 	env->set("load-string", new_node_native_function("load-string", &native_load_string, false, NODE_FLAG_PRERESOLVE));
 	env->set("loop", new_node_native_function("loop", &native_loop, true, NODE_FLAG_PRERESOLVE));
 	env->set("recur", new_node_native_function("recur", &native_recur, false, NODE_FLAG_PRERESOLVE));
+	env->set("mapv", new_node_native_function("mapv", &native_mapv, false, NODE_FLAG_PRERESOLVE));
+	env->set("vector", new_node_native_function("vector", &native_vector, false, NODE_FLAG_PRERESOLVE));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

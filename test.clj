@@ -877,6 +877,12 @@
            :b {:x (1 2) :z (5 6)}})
     ((:a :x 1 2) (:a :y 3 4) (:b :x 1 2) (:b :z 5 6))))
 
+(is (= (mapv inc [1 2 3 4 5]) [2 3 4 5 6]))
+(is (= (mapv + [1 2 3] [4 5 6]) [5 7 9]))
+(is (= (mapv + [1 2 3] (iterate inc 1)) [2 4 6]))
+(is (= (mapv #(str "Hello " % "!" ) ["Ford" "Arthur" "Tricia"]) ["Hello Ford!" "Hello Arthur!" "Hello Tricia!"]))
+(is (= (apply mapv vector [[:a :b :c] [:d :e :f] [:g :h :i]]) [[:a :d :g] [:b :e :h] [:c :f :i]]))
+
 (string-test)
 (if-test)
 (when-test)
