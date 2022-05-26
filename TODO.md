@@ -183,7 +183,6 @@ make-array
 make-hierarchy
 map-entry?
 memfn
-merge-with
 meta
 method-sig
 methods

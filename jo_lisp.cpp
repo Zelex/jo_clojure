@@ -5124,6 +5124,39 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 	return new_node_map(r);
 }
 
+// (merge-with f & maps)
+// Returns a map that consists of the rest of the maps conj-ed onto
+// the first.  If a key occurs in more than one map, the mapping(s)
+// from the latter (left-to-right) will be combined with the mapping in
+// the result by calling (f val-in-result val-in-latter).
+static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f = args->first_value();
+	list_ptr_t colls = args->rest();
+	node_idx_t map_first_idx = colls->first_value();
+	node_t *map_first_node = get_node(map_first_idx);
+	map_ptr_t r;
+	if(map_first_node->type != NODE_MAP) {
+		r = new_map();
+	} else {
+		r = map_first_node->t_map;
+	}
+	for(list_t::iterator it = colls->begin()+1; it; it++) {
+		node_idx_t map_idx = *it;
+		node_t *map_node = get_node(map_idx);
+		if(map_node->type != NODE_MAP) {
+			continue;
+		}
+		map_ptr_t map = map_node->t_map;
+		for(map_t::iterator it2 = map->begin(); it2; it2++) {
+			r = r->assoc(it2->first, eval_va(env, 3, f, r->get(it2->first), it2->second));
+		}
+	}
+	if(r->size() == 0) {
+		return NIL_NODE;
+	}
+	return new_node_map(r);
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -5444,6 +5477,7 @@ int main(int argc, char **argv) {
 	env->set("key", new_node_native_function("key", &native_key, false, NODE_FLAG_PRERESOLVE));
 	env->set("val", new_node_native_function("val", &native_val, false, NODE_FLAG_PRERESOLVE));
 	env->set("merge", new_node_native_function("merge", &native_merge, false, NODE_FLAG_PRERESOLVE));
+	env->set("merge-with", new_node_native_function("merge-with", &native_merge_with, false, NODE_FLAG_PRERESOLVE));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

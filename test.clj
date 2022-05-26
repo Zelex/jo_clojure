@@ -911,6 +911,21 @@
 (is (= (merge nil {:a 1}) {:a 1}))
 (is (= (merge nil nil) nil))
 
+(is (= (merge-with into
+	  {"Lisp" ["Common Lisp" "Clojure"]
+	   "ML" ["Caml" "Objective Caml"]}
+	  {"Lisp" ["Scheme"]
+	   "ML" ["Standard ML"]})
+    {"Lisp" ["Common Lisp" "Clojure" "Scheme"], "ML" ["Caml" "Objective Caml" "Standard ML"]}))
+(is (= (merge-with + {:a 1  :b 2} {:a 9  :b 98 :c 0}) {:c 0, :a 10, :b 100}))
+(is (= (merge-with + 
+           {:a 1  :b 2}
+           {:a 9  :b 98  :c 0}
+           {:a 10 :b 100 :c 10}
+           {:a 5}
+           {:c 5  :d 42})
+       {:d 42, :c 15, :a 25, :b 200}))
+
 (string-test)
 (if-test)
 (when-test)
