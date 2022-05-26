@@ -5188,6 +5188,13 @@ static node_idx_t native_namespace(env_ptr_t env, list_ptr_t args) {
 	return new_node_string(sym_node->t_string.substr(0, ns_pos));
 }
 
+// (newline)
+// Prints a newline to the output stream.
+static node_idx_t native_newline(env_ptr_t env, list_ptr_t args) {
+	printf("\n");
+	return NIL_NODE;
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -5511,6 +5518,7 @@ int main(int argc, char **argv) {
 	env->set("merge", new_node_native_function("merge", &native_merge, false, NODE_FLAG_PRERESOLVE));
 	env->set("merge-with", new_node_native_function("merge-with", &native_merge_with, false, NODE_FLAG_PRERESOLVE));
 	env->set("namespace", new_node_native_function("namespace", &native_namespace, false, NODE_FLAG_PRERESOLVE));
+	env->set("newline", new_node_native_function("newline", &native_newline, false, NODE_FLAG_PRERESOLVE));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

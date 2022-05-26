@@ -192,7 +192,6 @@ monitor-exit
 munge
 namespace-munge
 new
-newline
 ns
 ns-aliases
 ns-imports
