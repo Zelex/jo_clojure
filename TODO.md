@@ -208,7 +208,6 @@ number?
 numerator
 object-array
 parents
-peel
 persistent!
 pop!
 pop-thread-bindings
