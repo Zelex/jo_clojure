@@ -106,12 +106,12 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 		}
 	} else if(type == NODE_DELAY) {
 		return eval_node(env, ref_idx);
-	} else if(type == NODE_FUTURE) {
+	} else if(type == NODE_FUTURE || type == NODE_PROMISE) {
 		if(!ref->t_future.valid()) {
 			return NIL_NODE;
 		}
 		if(timeout_ms_idx != NIL_NODE) {
-			int timeout_ms = get_node_int(timeout_ms_idx);
+			long long timeout_ms = get_node_int(timeout_ms_idx);
 			if(ref->t_future.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::timeout) {
 				return timeout_val_idx;
 			}
@@ -788,6 +788,31 @@ static node_idx_t native_pcalls_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(args->rest()->push_front2(ret, env->get("pcalls-next").value));
 }
 
+// (promise)
+// Returns a promise object that can be read with deref/@, and set,
+// once only, with deliver. Calls to deref/@ prior to delivery will
+// block, unless the variant of deref with timeout is used. All
+// subsequent derefs will return the same delivered value without
+// blocking. See also - realized?.
+static node_idx_t native_promise(env_ptr_t env, list_ptr_t args) {
+	node_idx_t ret_idx = new_node(NODE_PROMISE, 0);
+	node_t *ret = get_node(ret_idx);
+	ret->t_future = ret->t_promise.get_future();
+	return ret_idx;
+}
+
+// (deliver promise val)
+// Delivers the supplied value to the promise, releasing any pending
+// derefs. A subsequent call to deliver on a promise will have no effect.
+static node_idx_t native_deliver(env_ptr_t env, list_ptr_t args) {
+	node_idx_t promise_idx = args->first_value();
+	node_t *promise = get_node(promise_idx);
+	if(promise->t_future.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+		promise->t_promise.set_value(args->second_value());
+	}
+	return NIL_NODE;
+}
+
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, true, NODE_FLAG_PRERESOLVE));
@@ -818,6 +843,8 @@ void jo_lisp_async_init(env_ptr_t env) {
 	env->set("future?", new_node_native_function("future?", &native_is_future, false, NODE_FLAG_PRERESOLVE));
 	env->set("auto-future", new_node_native_function("auto-future", &native_auto_future, true, NODE_FLAG_PRERESOLVE));
 	env->set("auto-future-call", new_node_native_function("auto-future-call", &native_auto_future_call, true, NODE_FLAG_PRERESOLVE));
+	env->set("promise", new_node_native_function("promise", &native_promise, false, NODE_FLAG_PRERESOLVE));
+	env->set("deliver", new_node_native_function("deliver", &native_deliver, false, NODE_FLAG_PRERESOLVE));
 
 	// stuff built with auto-futures
 	env->set("pmap", new_node_native_function("pmap", &native_pmap, false, NODE_FLAG_PRERESOLVE));
