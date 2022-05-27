@@ -500,6 +500,16 @@ struct lazy_list_iterator_t {
 	}
 };
 
+// stuff that is uncommonly used or has complex constructors so it can't go in the main union.
+// TODO: integrate this approach.
+struct node_extras_t {
+	std::atomic<node_idx_t> t_atom;
+	std::shared_future<node_idx_t> t_future;
+	std::promise<node_idx_t> t_promise;
+	// big int?
+	// big float?
+};
+
 struct node_t {
 	int type;
 	int flags;
@@ -511,6 +521,7 @@ struct node_t {
 	native_func_ptr_t t_native_function;
 	std::atomic<node_idx_t> t_atom;
 	std::shared_future<node_idx_t> t_future;
+	std::promise<node_idx_t> t_promise;
 	env_ptr_t t_env;
 	struct {
 		vector_ptr_t args;
@@ -522,7 +533,7 @@ struct node_t {
 		// most implementations combine these as "number", but at the moment that sounds silly
 		long long t_int;
 		double t_float;
-		node_idx_t t_delay; // cached result
+		node_idx_t t_delay; // cached result // TODO: this can be a future with async::delay execution
 		node_idx_t t_lazy_fn;
 		FILE *t_file;
 		void *t_dir;
@@ -539,6 +550,7 @@ struct node_t {
 	, t_native_function()
 	, t_atom()
 	, t_future()
+	, t_promise()
 	, t_func()
 	, t_int() 
 	{
@@ -555,6 +567,7 @@ struct node_t {
 	, t_hash_set(other.t_hash_set)
 	, t_native_function(other.t_native_function)
 	, t_future(other.t_future)
+	, t_promise()
 	, t_func(other.t_func)
 	, t_float(other.t_float) 
 	{
@@ -572,6 +585,7 @@ struct node_t {
 	, t_hash_set(std::move(other.t_hash_set))
 	, t_native_function(other.t_native_function)
 	, t_future(std::move(other.t_future))
+	, t_promise(std::move(other.t_promise))
 	, t_func(std::move(other.t_func))
 	, t_float(other.t_float)
 	{
@@ -590,6 +604,7 @@ struct node_t {
 		t_native_function = other.t_native_function;
 		t_atom.store(other.t_atom.load());
 		t_future = other.t_future;
+		//t_promise = other.t_promise;
 		t_func = other.t_func;
 		t_float = other.t_float;
 		return *this;
@@ -612,6 +627,7 @@ struct node_t {
 	bool is_dir() const { return type == NODE_DIR; }
 	bool is_atom() const { return type == NODE_ATOM; }
 	bool is_future() const { return type == NODE_FUTURE; }
+	bool is_promise() const { return type == NODE_PROMISE; }
 
 	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_hash_set() || is_vector(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
@@ -870,8 +886,6 @@ struct node_t {
 				s += ')';
 				return s;
 			}
-		//case NODE_FUTURE:
-			//return get_node(deref())->as_string(3);
 		}
 		if(pretty >= 1 && type == NODE_KEYWORD) return ":" + t_string;
 		if(pretty >= 3 && type == NODE_STRING) return "\"" + t_string + "\"";
@@ -879,11 +893,14 @@ struct node_t {
 	}
 
 	node_idx_t deref() const {
-		if(!t_future.valid()) {
-			return NIL_NODE;
+		if(type == NODE_FUTURE) {
+			if(!t_future.valid()) {
+				return NIL_NODE;
+			}
+			t_future.wait();
+			return t_future.get();
 		}
-		t_future.wait();
-		return t_future.get();
+		return NIL_NODE;
 	}
 
 	const char *type_as_string() const {
@@ -907,8 +924,8 @@ struct node_t {
 		case NODE_DELAY:   return "delay";
 		case NODE_FILE:	   return "file";
 		case NODE_DIR:     return "dir";	
-		case NODE_PROMISE: return "promise";
 		case NODE_FUTURE:  return "future";
+		case NODE_PROMISE: return "promise";
 		}
 		return "unknown";		
 	}
