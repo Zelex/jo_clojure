@@ -2,6 +2,33 @@
 
 #include <algorithm>
 
+struct jo_semaphore {
+    std::mutex m;
+    std::condition_variable cv;
+    std::atomic<int> count;
+
+    jo_semaphore(int n) : m(), cv(), count(n) {}
+    void notify() {
+        std::unique_lock<std::mutex> l(m);
+        ++count;
+        cv.notify_one();
+    }
+    void wait() {
+        std::unique_lock<std::mutex> l(m);
+        cv.wait(l, [this]{ return count!=0; });
+        --count;
+    }
+};
+
+struct jo_semaphore_waiter_notifier {
+    jo_semaphore &s;
+    jo_semaphore_waiter_notifier(jo_semaphore &s) : s{s} { s.wait(); }
+    ~jo_semaphore_waiter_notifier() { s.notify(); }
+};
+
+const auto processor_count = std::thread::hardware_concurrency();
+jo_semaphore thread_limiter(processor_count);
+
 // (atom x)(atom x & options)
 // Creates and returns an Atom with an initial value of x and zero or
 // more options (in any order):
@@ -550,7 +577,10 @@ static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
-	f->t_future = std::async(std::launch::async, [env,args]() { return eval_node_list(env, args); });
+	f->t_future = std::async(std::launch::async, [env,args]() { 
+		jo_semaphore_waiter_notifier w(thread_limiter);
+		return eval_node_list(env, args); 
+	});
 	return f_idx;
 }
 
@@ -567,7 +597,10 @@ static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
-	f->t_future = std::async(std::launch::async, [env,args]() { return eval_list(env, args); });
+	f->t_future = std::async(std::launch::async, [env,args]() { 
+		jo_semaphore_waiter_notifier w(thread_limiter);
+		return eval_list(env, args); 
+	});
 	return f_idx;
 }
 
@@ -708,6 +741,19 @@ static node_idx_t native_pmap_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(next_list);
 }
 
+// (pcalls & fns)
+// Executes the no-arg fns in parallel, returning a lazy sequence of
+// their values
+static node_idx_t native_pcalls(env_ptr_t env, list_ptr_t args) {
+	return new_node_lazy_list(env, new_node_list(args->push_front(env->get("pcalls-next").value)));
+}
+
+static node_idx_t native_pcalls_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t ret = native_future(env, list_va(new_node_list(list_va(*it++))));
+	return new_node_list(list_va(ret, env->get("pcalls-next").value, new_node_list(args->rest(it))));
+}
+
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, true, NODE_FLAG_PRERESOLVE));
@@ -740,6 +786,8 @@ void jo_lisp_async_init(env_ptr_t env) {
 	// stuff built with futures
 	env->set("pmap", new_node_native_function("pmap", &native_pmap, false, NODE_FLAG_PRERESOLVE));
 	env->set("pmap-next", new_node_native_function("pmap-next", &native_pmap_next, true, NODE_FLAG_PRERESOLVE));
+	env->set("pcalls", new_node_native_function("pcalls", &native_pcalls, false, NODE_FLAG_PRERESOLVE));
+	env->set("pcalls-next", new_node_native_function("pcalls-next", &native_pcalls_next, true, NODE_FLAG_PRERESOLVE));
 	
 	// misc
 	env->set("memoize", new_node_native_function("memoize", &native_memoize, false, NODE_FLAG_PRERESOLVE));
