@@ -584,6 +584,22 @@ static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
 	return f_idx;
 }
 
+// (auto-future & body)
+// like future, but deref is automatic
+static node_idx_t native_auto_future(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 1) {
+		warnf("(auto-future) requires at least 1 argument\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
+	node_t *f = get_node(f_idx);
+	f->t_future = std::async(std::launch::async, [env,args]() { 
+		jo_semaphore_waiter_notifier w(thread_limiter);
+		return eval_node_list(env, args); 
+	});
+	return f_idx;
+}
+
 // (future-call f)
 // Takes a function of no args and yields a future object that will
 // invoke the function in another thread, and will cache the result and
@@ -596,6 +612,22 @@ static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
+	node_t *f = get_node(f_idx);
+	f->t_future = std::async(std::launch::async, [env,args]() { 
+		jo_semaphore_waiter_notifier w(thread_limiter);
+		return eval_list(env, args); 
+	});
+	return f_idx;
+}
+
+// (auto-future-call f)
+// like future-call, but deref is automatic
+static node_idx_t native_auto_future_call(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 1) {
+		warnf("(auto-future-call) requires at least 1 argument\n");
+		return NIL_NODE;
+	}
+	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
 	f->t_future = std::async(std::launch::async, [env,args]() { 
 		jo_semaphore_waiter_notifier w(thread_limiter);
@@ -736,7 +768,7 @@ static node_idx_t native_pmap_next(env_ptr_t env, list_ptr_t args) {
 		next_list->push_back_inplace(fr.second);
 	}
 	// call f with the args
-	node_idx_t ret = native_future(env, list_va(new_node_list(arg_list)));
+	node_idx_t ret = native_auto_future(env, list_va(new_node_list(arg_list)));
 	next_list->cons_inplace(ret);
 	return new_node_list(next_list);
 }
@@ -749,9 +781,11 @@ static node_idx_t native_pcalls(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_pcalls_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
-	node_idx_t ret = native_future(env, list_va(new_node_list(list_va(*it++))));
-	return new_node_list(list_va(ret, env->get("pcalls-next").value, new_node_list(args->rest(it))));
+	if(!args->size()) {
+		return NIL_NODE;
+	}
+	node_idx_t ret = native_auto_future_call(env, list_va(args->first_value()));
+	return new_node_list(args->rest()->push_front2(ret, env->get("pcalls-next").value));
 }
 
 void jo_lisp_async_init(env_ptr_t env) {
@@ -782,8 +816,10 @@ void jo_lisp_async_init(env_ptr_t env) {
 	env->set("future-cancelled?", new_node_native_function("future-cancelled?", &native_future_cancelled, false, NODE_FLAG_PRERESOLVE));
 	env->set("future-done?", new_node_native_function("future-done?", &native_future_done, false, NODE_FLAG_PRERESOLVE));
 	env->set("future?", new_node_native_function("future?", &native_is_future, false, NODE_FLAG_PRERESOLVE));
+	env->set("auto-future", new_node_native_function("auto-future", &native_auto_future, true, NODE_FLAG_PRERESOLVE));
+	env->set("auto-future-call", new_node_native_function("auto-future-call", &native_auto_future_call, true, NODE_FLAG_PRERESOLVE));
 
-	// stuff built with futures
+	// stuff built with auto-futures
 	env->set("pmap", new_node_native_function("pmap", &native_pmap, false, NODE_FLAG_PRERESOLVE));
 	env->set("pmap-next", new_node_native_function("pmap-next", &native_pmap_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("pcalls", new_node_native_function("pcalls", &native_pcalls, false, NODE_FLAG_PRERESOLVE));

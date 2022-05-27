@@ -64,6 +64,7 @@ enum {
 	K_PC_NODE,
 	K_ALL_NODE,
 	K_BY_NODE,
+	K_AUTO_DEREF_NODE,
 
 	// node types
 	NODE_NIL = 0,
@@ -98,6 +99,7 @@ enum {
 	NODE_FLAG_LITERAL      = 1<<3,
 	NODE_FLAG_LITERAL_ARGS = 1<<4,
 	NODE_FLAG_PRERESOLVE   = 1<<5,
+	NODE_FLAG_AUTO_DEREF   = 1<<6,
 };
 
 struct env_t;
@@ -859,7 +861,7 @@ struct node_t {
 				jo_string s;
 				s = '(';
 				for(lazy_list_iterator_t lit(this); !lit.done() && left; --left) {
-					s += get_node(lit.val)->as_string(3);
+					s += get_node(eval_node(lit.env, lit.val))->as_string(3);
 					lit.next();
 					if(!lit.done()) {
 						s += " ";
@@ -868,18 +870,20 @@ struct node_t {
 				s += ')';
 				return s;
 			}
-		case NODE_FUTURE:
-			{
-				if(!t_future.valid()) {
-					return "nil";
-				}
-				t_future.wait();
-				return get_node(t_future.get())->as_string(3);
-			}
+		//case NODE_FUTURE:
+			//return get_node(deref())->as_string(3);
 		}
 		if(pretty >= 1 && type == NODE_KEYWORD) return ":" + t_string;
 		if(pretty >= 3 && type == NODE_STRING) return "\"" + t_string + "\"";
 		return t_string;
+	}
+
+	node_idx_t deref() const {
+		if(!t_future.valid()) {
+			return NIL_NODE;
+		}
+		t_future.wait();
+		return t_future.get();
 	}
 
 	const char *type_as_string() const {
@@ -1487,6 +1491,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "__PC__") return K_PC_NODE;
 		if(tok.str == "__ALL__") return K_ALL_NODE;
 		if(tok.str == "__BY__") return K_BY_NODE;
+		if(tok.str == "__AUTO_DEREF__") return K_AUTO_DEREF_NODE;
 		return new_node_keyword(tok.str.c_str());
 	}
 	if(tok.type == TOK_SYMBOL) {
@@ -1839,6 +1844,18 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			return n3i;
 		}
 	}
+
+	// eval the list
+	/*
+	{
+		list_ptr_t ret = new_list();
+		for(auto it = list->begin(); it; it++) {
+			ret->push_back_inplace(eval_node(env, *it));
+		}
+		return new_node_list(ret);
+	}
+	*/
+
 	return new_node_list(list);
 }
 
@@ -1879,6 +1896,8 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 			newset = newset->assoc(eval_node(env, it->first), node_eq);
 		}
 		return new_node_hash_set(newset);
+	} else if(type == NODE_FUTURE && (flags & NODE_FLAG_AUTO_DEREF)) {
+		return eval_node(env, get_node(root)->deref());
 	}
 	return root;
 }
@@ -2229,6 +2248,16 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 	node_t *n1 = get_node(n1i);
 	node_t *n2 = get_node(n2i);
 
+	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
+		n1i = n1->deref();
+		n1 = get_node(n1i);
+	}
+
+	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
+		n2i = n2->deref();
+		n2 = get_node(n2i);
+	}
+
 	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
 		return n1->type == NODE_NIL && n2->type == NODE_NIL;
 	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
@@ -2303,8 +2332,23 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 }
 
 static bool node_lt(node_idx_t n1i, node_idx_t n2i) {
+	if(n1i == INV_NODE || n2i == INV_NODE) {
+		return false;
+	}
+
 	node_t *n1 = get_node(n1i);
 	node_t *n2 = get_node(n2i);
+
+	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
+		n1i = n1->deref();
+		n1 = get_node(n1i);
+	}
+
+	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
+		n2i = n2->deref();
+		n2 = get_node(n2i);
+	}
+
 	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
 		return false;
 	} else if(n1->is_seq() && n2->is_seq()) {
@@ -2338,8 +2382,23 @@ static bool node_lt(node_idx_t n1i, node_idx_t n2i) {
 }
 
 static bool node_lte(node_idx_t n1i, node_idx_t n2i) {
+	if(n1i == INV_NODE || n2i == INV_NODE) {
+		return false;
+	}
+
 	node_t *n1 = get_node(n1i);
 	node_t *n2 = get_node(n2i);
+
+	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
+		n1i = n1->deref();
+		n1 = get_node(n1i);
+	}
+
+	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
+		n2i = n2->deref();
+		n2 = get_node(n2i);
+	}
+
 	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
 		return false;
 	} else if(n1->is_seq() && n2->is_seq()) {
@@ -5429,6 +5488,7 @@ int main(int argc, char **argv) {
 		new_node_keyword("__PC__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__ALL__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__BY__", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("__AUTO_DEREF__", NODE_FLAG_PRERESOLVE);
 	}
 
 	env->set("nil", NIL_NODE);

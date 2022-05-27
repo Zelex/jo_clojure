@@ -939,6 +939,8 @@
 (is (= (partition-by identity "Leeeeeerrroyyy") ("L" "eeeeee" "rrr" "o" "yyy")))
 
 (is (= (pmap inc [1 2 3 4 5]) [2 3 4 5 6]))
+(is (= (pcalls inc dec +) (1 -1 0)))
+
 
 (string-test)
 (if-test)
