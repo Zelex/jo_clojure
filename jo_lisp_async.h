@@ -672,7 +672,40 @@ static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 // computationally intensive functions where the time of f dominates
 // the coordination overhead.
 static node_idx_t native_pmap(env_ptr_t env, list_ptr_t args) {
-	// wip
+	list_t::iterator it = args->begin();
+	node_idx_t f = *it++;
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(env->get("pmap-next").value);
+	ret->push_back_inplace(f);
+	while(it) {
+		ret->push_back_inplace(eval_node(env, *it++));
+	}
+	return new_node_lazy_list(env, new_node_list(ret));
+}
+
+static node_idx_t native_pmap_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f = *it++;
+	// pull off the first element of each list and call f with it
+	list_ptr_t next_list = new_list();
+	list_ptr_t arg_list = new_list();
+	arg_list->push_back_inplace(f);
+	next_list->push_back_inplace(env->get("pmap-next").value);
+	next_list->push_back_inplace(f);
+	for(; it; it++) {
+		node_idx_t arg_idx = *it;
+		node_t *arg = get_node(arg_idx);
+		if(arg->seq_empty()) {
+			return NIL_NODE;
+		}
+		auto fr = arg->seq_first_rest();
+		arg_list->push_back_inplace(fr.first);
+		next_list->push_back_inplace(fr.second);
+	}
+	// call f with the args
+	node_idx_t ret = native_future(env, list_va(new_node_list(arg_list)));
+	next_list->cons_inplace(ret);
+	return new_node_list(next_list);
 }
 
 void jo_lisp_async_init(env_ptr_t env) {
@@ -703,6 +736,10 @@ void jo_lisp_async_init(env_ptr_t env) {
 	env->set("future-cancelled?", new_node_native_function("future-cancelled?", &native_future_cancelled, false, NODE_FLAG_PRERESOLVE));
 	env->set("future-done?", new_node_native_function("future-done?", &native_future_done, false, NODE_FLAG_PRERESOLVE));
 	env->set("future?", new_node_native_function("future?", &native_is_future, false, NODE_FLAG_PRERESOLVE));
+
+	// stuff built with futures
+	env->set("pmap", new_node_native_function("pmap", &native_pmap, false, NODE_FLAG_PRERESOLVE));
+	env->set("pmap-next", new_node_native_function("pmap-next", &native_pmap_next, true, NODE_FLAG_PRERESOLVE));
 	
 	// misc
 	env->set("memoize", new_node_native_function("memoize", &native_memoize, false, NODE_FLAG_PRERESOLVE));

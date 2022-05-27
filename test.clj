@@ -938,6 +938,8 @@
 (is (= (partition-by even? [1 1 1 2 2 3 3]) ((1 1 1) (2 2) (3 3))))
 (is (= (partition-by identity "Leeeeeerrroyyy") ("L" "eeeeee" "rrr" "o" "yyy")))
 
+(is (= (pmap inc [1 2 3 4 5]) [2 3 4 5 6]))
+
 (string-test)
 (if-test)
 (when-test)

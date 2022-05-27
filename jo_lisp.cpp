@@ -868,6 +868,14 @@ struct node_t {
 				s += ')';
 				return s;
 			}
+		case NODE_FUTURE:
+			{
+				if(!t_future.valid()) {
+					return "nil";
+				}
+				t_future.wait();
+				return get_node(t_future.get())->as_string(3);
+			}
 		}
 		if(pretty >= 1 && type == NODE_KEYWORD) return ":" + t_string;
 		if(pretty >= 3 && type == NODE_STRING) return "\"" + t_string + "\"";

@@ -75,6 +75,10 @@ static node_idx_t native_system_sleep(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+static node_idx_t native_system_currentTimeMillis(env_ptr_t env, list_ptr_t args) {
+	return new_node_int((jo_time() - time_program_start) * 1000);
+}
+
 
 void jo_lisp_system_init(env_ptr_t env) {
 	env->set("System/setenv", new_node_native_function("System/setenv", &native_system_setenv, false, NODE_FLAG_PRERESOLVE));
@@ -85,6 +89,7 @@ void jo_lisp_system_init(env_ptr_t env) {
 	env->set("System/getch", new_node_native_function("System/getch", &native_system_getch, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/date", new_node_native_function("System/date", &native_system_date, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/sleep", new_node_native_function("System/sleep", &native_system_sleep, false, NODE_FLAG_PRERESOLVE));
+	env->set("System/currentTimeMillis", new_node_native_function("System/currentTimeMillis", &native_system_currentTimeMillis, false, NODE_FLAG_PRERESOLVE));
 	env->set("read-line", new_node_native_function("read-line", &native_system_read_line, false, NODE_FLAG_PRERESOLVE));
 	env->set("-d", new_node_native_function("-d", &native_system_dir_exists, false, NODE_FLAG_PRERESOLVE));
 	env->set("-e", new_node_native_function("-e", &native_system_file_exists, false, NODE_FLAG_PRERESOLVE));
