@@ -665,6 +665,16 @@ static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 	return func_idx;
 }
 
+// (pmap f coll)(pmap f coll & colls)
+// Like map, except f is applied in parallel. Semi-lazy in that the
+// parallel computation stays ahead of the consumption, but doesn't
+// realize the entire result unless required. Only useful for
+// computationally intensive functions where the time of f dominates
+// the coordination overhead.
+static node_idx_t native_pmap(env_ptr_t env, list_ptr_t args) {
+	// wip
+}
+
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, true, NODE_FLAG_PRERESOLVE));
