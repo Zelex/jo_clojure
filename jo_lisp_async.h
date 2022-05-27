@@ -788,6 +788,21 @@ static node_idx_t native_pcalls_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(args->rest()->push_front2(ret, env->get("pcalls-next").value));
 }
 
+// (pvalues & fns)
+// Executes the no-arg fns in parallel, returning a lazy sequence of
+// their values
+static node_idx_t native_pvalues(env_ptr_t env, list_ptr_t args) {
+	return new_node_lazy_list(env, new_node_list(args->push_front(env->get("pvalues-next").value)));
+}
+
+static node_idx_t native_pvalues_next(env_ptr_t env, list_ptr_t args) {
+	if(!args->size()) {
+		return NIL_NODE;
+	}
+	node_idx_t ret = native_auto_future(env, list_va(args->first_value()));
+	return new_node_list(args->rest()->push_front2(ret, env->get("pvalues-next").value));
+}
+
 // (promise)
 // Returns a promise object that can be read with deref/@, and set,
 // once only, with deliver. Calls to deref/@ prior to delivery will
@@ -851,6 +866,8 @@ void jo_lisp_async_init(env_ptr_t env) {
 	env->set("pmap-next", new_node_native_function("pmap-next", &native_pmap_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("pcalls", new_node_native_function("pcalls", &native_pcalls, false, NODE_FLAG_PRERESOLVE));
 	env->set("pcalls-next", new_node_native_function("pcalls-next", &native_pcalls_next, true, NODE_FLAG_PRERESOLVE));
+	env->set("pvalues", new_node_native_function("pvalues", &native_pvalues, true, NODE_FLAG_PRERESOLVE));
+	env->set("pvalues-next", new_node_native_function("pvalues-next", &native_pvalues_next, true, NODE_FLAG_PRERESOLVE));
 	
 	// misc
 	env->set("memoize", new_node_native_function("memoize", &native_memoize, false, NODE_FLAG_PRERESOLVE));
