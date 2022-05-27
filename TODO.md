@@ -114,7 +114,6 @@ defprotocol
 defrecord
 defstruct
 deftype
-deliver
 denominator
 derive
 descendants
@@ -224,7 +223,6 @@ printf
 PrintWriter-on
 prn
 prn-str
-promise
 proxy
 proxy-call-with-super
 proxy-mappings
