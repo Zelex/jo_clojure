@@ -178,6 +178,7 @@ static inline std::atomic<node_idx_t> &get_node_atom(node_idx_t idx);
 static inline env_ptr_t get_node_env(node_idx_t idx);
 static inline env_ptr_t get_node_env(const node_t *n);
 
+static node_idx_t new_node_int(long long i, int flags = 0);
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_string(const jo_string &s, int flags = 0);
 static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0);
@@ -671,6 +672,61 @@ struct node_t {
 		return true;
 	}
 
+	node_idx_t seq_take(size_t n) const {
+		if(is_list()) return new_node_list(t_list->take(n));
+		if(is_vector()) return new_node_vector(t_vector->take(n));
+		if(is_map()) return new_node_map(t_map->take(n));
+		if(is_hash_set()) return new_node_hash_set(t_hash_set->take(n));
+		if(is_lazy_list()) {
+			lazy_list_iterator_t lit(this);
+			return new_node_list(lit.all(n));
+		}
+		if(is_string() && t_string.size()) return new_node_string(t_string.substr(0, n));
+		return NIL_NODE;
+	}
+
+	node_idx_t seq_drop(size_t n) const {
+		if(is_list()) return new_node_list(t_list->drop(n));
+		if(is_vector()) return new_node_vector(t_vector->drop(n));
+		if(is_map()) return new_node_map(t_map->drop(n));
+		if(is_hash_set()) return new_node_hash_set(t_hash_set->drop(n));
+		if(is_lazy_list()) {
+			lazy_list_iterator_t lit(this);
+			return new_node_list(lit.all(n));
+		}
+		if(is_string() && t_string.size()) return new_node_string(t_string.substr(n));
+		return NIL_NODE;
+	}
+
+	size_t seq_size() const {
+		if(is_list()) return t_list->size();
+		if(is_vector()) return t_vector->size();
+		if(is_map()) return t_map->size();
+		if(is_hash_set()) return t_hash_set->size();
+		if(is_lazy_list()) {
+			lazy_list_iterator_t lit(this);
+			return lit.all()->size();
+		}
+		if(is_string() && t_string.size()) return t_string.size();
+		return NIL_NODE;
+	}
+
+	void seq_push_back(node_idx_t x) {
+		if(is_list()) {
+			t_list = t_list->push_back(x);
+		} else if(is_vector()) {
+			t_vector = t_vector->push_back(x);
+		} else if(is_map()) {
+			warnf("map.push_back: not implemented");
+		} else if(is_hash_set()) {
+			warnf("hash_set.push_back: not implemented");
+		} else if(is_lazy_list()) {
+			warnf("seq_push_back: not implemented for lazy lists");
+		} else if(is_string()) {
+			t_string += get_node_string(x);
+		}
+	}
+
 	list_ptr_t &as_list() { return t_list; }
 	vector_ptr_t &as_vector() { return t_vector; }
 	map_ptr_t &as_map() { return t_map; }
@@ -844,6 +900,10 @@ struct node_t {
 		}
 		return "unknown";		
 	}
+
+	void print() const {
+		printf("%s\n", as_string().c_str());
+	}
 };
 
 static jo_pinned_vector<node_t> nodes;
@@ -964,7 +1024,7 @@ static node_idx_t new_node_bool(bool b) {
 	return b ? TRUE_NODE : FALSE_NODE;
 }
 
-static node_idx_t new_node_int(long long i, int flags = 0) {
+static node_idx_t new_node_int(long long i, int flags) {
 	if(i >= 0 && i <= 256) {
 		return INT_0_NODE + i;
 	}

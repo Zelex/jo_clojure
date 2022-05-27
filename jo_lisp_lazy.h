@@ -700,72 +700,66 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t step_idx = *it++;
 	node_idx_t pad_idx = *it++;
 	node_idx_t coll_idx = *it++;
+	node_t *coll = get_node(coll_idx);
 	long long n = get_node_int(n_idx);
 	long long step = get_node_int(step_idx);
-	int coll_type = get_node_type(coll_idx);
-	node_idx_t new_coll = NIL_NODE;
-	list_ptr_t ret;
-	vector_ptr_t retv;
-	if(coll_type == NODE_LIST) {
-		ret = get_node_list(coll_idx)->take(n);
-		new_coll = new_node_list(get_node_list(coll_idx)->drop(step));
-	} else if(coll_type == NODE_VECTOR) {
-		retv = get_node_vector(coll_idx)->take(n);
-		new_coll = new_node_vector(get_node_vector(coll_idx)->drop(step));
-	} else if(coll_type == NODE_LAZY_LIST) {
-		lazy_list_iterator_t lit(coll_idx);
-		if(step == n) {
-			ret = lit.all(n);
-			new_coll = new_node_lazy_list(lit.env, lit.next_fn());
-		} else if(step < n) {
-			ret = lit.all(step);
-			new_coll = new_node_lazy_list(lit.env, lit.next_fn());
-			if(lit.val != INV_NODE && n - step > 0) {
-				ret = ret->conj(*lit.all(n - step));
-			}
-		} else if(step > n) {
-			ret = lit.all(n);
-			lit.all(step - n);
-			new_coll = new_node_lazy_list(lit.env, lit.next_fn());
-		}
-	} else {
-		printf("partition: collection type not supported\n");
+	if(coll->seq_empty()) {
 		return NIL_NODE;
 	}
-	if((!ret.ptr || ret->size() == 0) && (!retv.ptr || retv->size() == 0)) {
-		return NIL_NODE;
-	}
-	if((!ret.ptr || ret->size() < n) && (!retv.ptr || retv->size() < n)) {
+	node_idx_t ret_idx = coll->seq_take(n);
+	node_idx_t new_coll = coll->seq_drop(step);
+	node_t *ret = get_node(ret_idx);
+	size_t ret_size = ret->seq_size();
+	if(ret_size < n) {
 		if(pad_idx == K_ALL_NODE) {
 			// let the last one go without pad...
 		} else if(pad_idx != NIL_NODE) {
-			long long pad_n = n - ret->size();
-			int pad_type = get_node_type(pad_idx);
-			list_ptr_t pad_coll;
-			if(pad_type == NODE_LIST) {
-				pad_coll = get_node_list(pad_idx)->take(pad_n);
-			} else if(pad_type == NODE_LAZY_LIST) {
-				pad_coll = lazy_list_iterator_t(pad_idx).all(pad_n);
-			} else {
-				return NIL_NODE;
-			}
-			ret = ret->conj(*pad_coll);
+			long long pad_n = n - ret_size;
+			seq_iterate(pad_idx, [&](node_idx_t idx) {
+				ret->seq_push_back(idx);
+				return --pad_n > 0;
+			});
 		} else {
 			return NIL_NODE;
 		}
 	}
-	list_ptr_t ret_list = new_list();
-	if(retv.ptr) {
-		ret_list->push_back_inplace(new_node_vector(retv));
-	} else {
-		ret_list->push_back_inplace(new_node_list(ret));
+	return new_node_list(list_va(ret_idx, env->get("partition-next").value, n_idx, step_idx, pad_idx, new_coll));
+}
+
+// (partition-by f)(partition-by f coll)
+// Applies f to each value in coll, splitting it each time f returns a
+// new value.  Returns a lazy seq of partitions.  Returns a stateful
+// transducer when no collection is provided.
+static node_idx_t native_partition_by(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("partition-by-next").value, f_idx, coll_idx)));
+}
+
+static node_idx_t native_partition_by_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it = args->begin();
+	node_idx_t f_idx = *it++;
+	node_idx_t coll_idx = *it++;
+	node_t *coll = get_node(coll_idx);
+	if(coll->seq_empty()) {
+		return NIL_NODE;
 	}
-	ret_list->push_back_inplace(env->get("partition-next").value);
-	ret_list->push_back_inplace(n_idx);
-	ret_list->push_back_inplace(step_idx);
-	ret_list->push_back_inplace(pad_idx);
-	ret_list->push_back_inplace(new_coll);
-	return new_node_list(ret_list);
+	node_idx_t ret_idx = coll->seq_take(1);
+	node_t *ret = get_node(ret_idx);
+	node_idx_t first_idx = eval_va(env, 2, f_idx, ret->seq_first());
+	int num_drop = 0;
+	seq_iterate(coll_idx, [&](node_idx_t idx) {
+		node_idx_t pred_idx = eval_va(env, 2, f_idx, idx);
+		if(!node_eq(pred_idx, first_idx)) {
+			return false;
+		}
+		if(num_drop > 0) {
+			ret->seq_push_back(idx);
+		}
+		++num_drop;
+		return true;
+	});
+	return new_node_list(list_va(ret_idx, env->get("partition-by-next").value, f_idx, coll->seq_drop(num_drop)));
 }
 
 // (interleave)(interleave c1)(interleave c1 c2)(interleave c1 c2 & colls)
@@ -1568,6 +1562,8 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("partition", new_node_native_function("partition", &native_partition, false, NODE_FLAG_PRERESOLVE));
 	env->set("partition-all", new_node_native_function("partition-all", &native_partition_all, false, NODE_FLAG_PRERESOLVE));
 	env->set("partition-next", new_node_native_function("partition-next", &native_partition_next, true, NODE_FLAG_PRERESOLVE));
+	env->set("partition-by", new_node_native_function("partition-by", &native_partition_by, false, NODE_FLAG_PRERESOLVE));
+	env->set("partition-by-next", new_node_native_function("partition-by-next", &native_partition_by_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("drop", new_node_native_function("drop", &native_drop, false, NODE_FLAG_PRERESOLVE));
 	env->set("drop-first", new_node_native_function("drop-first", &native_drop_first, false, NODE_FLAG_PRERESOLVE));
 	env->set("drop-next", new_node_native_function("drop-next", &native_drop_next, false, NODE_FLAG_PRERESOLVE));

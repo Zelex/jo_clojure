@@ -4757,6 +4757,23 @@ struct jo_persistent_unordered_map {
         return copy;
     }
 
+    jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize_inplace(vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(vec[index].first == key) {
+                vec.assoc_inplace(index, entry_t(key, value, true));
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        vec.assoc_inplace(index, entry_t(key, value, true));
+        ++length;
+        return this;
+    }
+
     // assoc with lambda for equality
     template<typename F>
     jo_persistent_unordered_map *assoc(const K &key, const V &value, F eq) const {
@@ -4775,6 +4792,25 @@ struct jo_persistent_unordered_map {
         copy->vec.assoc_inplace(index, entry_t(key, value, true));
         ++copy->length;
         return copy;
+    }
+
+    // assoc with lambda for equality
+    template<typename F>
+    jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value, F eq) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize_inplace(vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(eq(vec[index].first, key)) {
+                vec.assoc_inplace(index, entry_t(key, value, true));
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        vec.assoc_inplace(index, entry_t(key, value, true));
+        ++length;
+        return this;
     }
 
     // remove a value from the map
@@ -4939,10 +4975,35 @@ struct jo_persistent_unordered_map {
     jo_persistent_unordered_map *rest() const {
         jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
         for(size_t i = 0; i < vec.size(); ++i) {
-            if(vec[i].third) {
-                copy->vec.assoc_inplace(i, entry_t(vec[i].first, V(), false));
+            auto entry = vec[i];
+            if(entry.third) {
+                copy->vec.assoc_inplace(i, entry_t(entry.first, V(), false));
                 --copy->length;
                 break;
+            }
+        }
+        return copy;
+    }
+
+    jo_persistent_unordered_map *drop(size_t n) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
+        for(size_t i = 0; i < vec.size() && n; ++i) {
+            auto entry = vec[i];
+            if(entry.third) {
+                copy->vec.assoc_inplace(i, entry_t(entry.first, V(), false));
+                --copy->length;
+                --n;
+            }
+        }
+        return copy;
+    }
+
+    jo_persistent_unordered_map *take(size_t n) const {
+        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map();
+        for(size_t i = 0; i < vec.size() && copy->length < n; ++i) {
+            auto entry = vec[i];
+            if(entry.third) {
+                copy->assoc_inplace(entry.first, entry.second);
             }
         }
         return copy;
@@ -5087,6 +5148,23 @@ public:
         return copy;
     }
 
+    jo_persistent_unordered_set *assoc_inplace(const K &key) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize_inplace(vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].second) {
+            if(vec[index].first == key) {
+                vec.assoc_inplace(index, entry_t(key, true));
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        vec.assoc_inplace(index, entry_t(key, true));
+        ++length;
+        return this;
+    }
+
     // assoc with lambda for equality
     template<typename F>
     jo_persistent_unordered_set *assoc(const K &key, F eq) const {
@@ -5105,6 +5183,24 @@ public:
         copy->vec.assoc_inplace(index, entry_t(key, true));
         ++copy->length;
         return copy;
+    }
+
+    template<typename F>
+    jo_persistent_unordered_set *assoc_inplace(const K &key, F eq) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize_inplace(vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].second) {
+            if(eq(vec[index].first, key)) {
+                vec.assoc_inplace(index, entry_t(key, true));
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        vec.assoc_inplace(index, entry_t(key, true));
+        ++length;
+        return this;
     }
 
     // remove a key from the set
@@ -5227,11 +5323,36 @@ public:
     // TODO: this is not fast... speedup by caching first key index.
     jo_persistent_unordered_set *rest() const {
         jo_persistent_unordered_set *copy = new jo_persistent_unordered_set(*this);
-        for(auto it = this->vec.begin(); it; ++it) {
-            if(it->second) {
-                copy->vec.assoc_inplace(it - copy->vec.begin(), entry_t(it->first, false));
+        for(size_t i = 0; i < vec.size(); ++i) {
+            auto entry = vec[i];
+            if(entry.second) {
+                copy->vec.assoc_inplace(i, entry_t(entry.first, false));
                 --copy->length;
                 break;
+            }
+        }
+        return copy;
+    }
+
+    jo_persistent_unordered_set *drop(size_t n) const {
+        jo_persistent_unordered_set *copy = new jo_persistent_unordered_set(*this);
+        for(size_t i = 0; i < vec.size() && n; ++i) {
+            auto entry = vec[i];
+            if(entry.second) {
+                copy->vec.assoc_inplace(i, entry_t(entry.first, false));
+                --copy->length;
+                --n;
+            }
+        }
+        return copy;
+    }
+
+    jo_persistent_unordered_set *take(size_t n) const {
+        jo_persistent_unordered_set *copy = new jo_persistent_unordered_set();
+        for(size_t i = 0; i < vec.size() && copy->length < n; ++i) {
+            auto entry = vec[i];
+            if(entry.second) {
+                copy->assoc_inplace(entry.first);
             }
         }
         return copy;

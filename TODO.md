@@ -208,8 +208,6 @@ number?
 numerator
 object-array
 parents
-partition-all
-partition-by
 pcalls
 peel
 persistent!
