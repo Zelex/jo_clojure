@@ -229,7 +229,6 @@ proxy-mappings
 proxy-name
 proxy-super
 push-thread-bindings
-pvalues
 quot
 rand
 ratio?
