@@ -803,6 +803,8 @@ static node_idx_t native_pvalues_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(args->rest()->push_front2(ret, env->get("pvalues-next").value));
 }
 
+// TODO: Implement promise with atoms so its STM compliant!
+
 // (promise)
 // Returns a promise object that can be read with deref/@, and set,
 // once only, with deliver. Calls to deref/@ prior to delivery will
