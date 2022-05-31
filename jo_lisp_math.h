@@ -303,11 +303,15 @@ static node_idx_t native_dec_int(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_rand_int(env_ptr_t env, list_ptr_t args) { return new_node_int(rand() % get_node_int(args->first_value())); }
 static node_idx_t native_rand(env_ptr_t env, list_ptr_t args) { 
+	float bias = 0.0f;
 	float scale = 1.f / (float)RAND_MAX;
-	if(args->size()) {
+	if(args->size() == 1) {
 		scale = get_node_float(args->first_value()) / (float)RAND_MAX;
+	} else if(args->size() == 2) {
+		bias = get_node_float(args->first_value());
+		scale = get_node_float(args->second_value()) / (float)RAND_MAX;
 	}
-	return new_node_float(rand() * scale); 
+	return new_node_float(bias + rand() * scale); 
 }
 static node_idx_t native_math_sqrt(env_ptr_t env, list_ptr_t args) { return new_node_float(sqrt(get_node_float(args->first_value()))); }
 static node_idx_t native_math_cbrt(env_ptr_t env, list_ptr_t args) { return new_node_float(cbrt(get_node_float(args->first_value()))); }

@@ -25,6 +25,7 @@
 #define warnf sizeof
 #endif
 
+static std::atomic<size_t> stm_retries(0);
 
 enum {
 
@@ -319,6 +320,8 @@ struct env_t {
 		bool ret = tx->commit();
 		if(ret) {
 			tx = nullptr;
+		} else {
+			stm_retries++;
 		}
 		return ret;
 	}
@@ -5675,6 +5678,7 @@ int main(int argc, char **argv) {
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());
+	printf("stm_retries = %zu\n", stm_retries.load());
 
 	/*
 	for(int i = -20; i <= 20; i++) {

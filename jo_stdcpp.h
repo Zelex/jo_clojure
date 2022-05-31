@@ -2543,7 +2543,7 @@ struct jo_persistent_vector
     void append_tail() {
         size_t tail_offset = length + head_offset - tail_length;
         size_t shift = 5 * (depth + 1);
-        size_t max_size = 1 << (5 * shift);
+        size_t max_size = 1 << shift;
 
         // check for root overflow, and if so expand tree by 1 level
         if(length >= max_size) {

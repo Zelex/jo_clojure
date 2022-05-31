@@ -47,7 +47,7 @@
 
 (defn compile-file-internal [file]
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
-    (System/sleep (rand 1))
+    (System/sleep (rand 0.001 0.0))
     true)
 
 (defn compile-result-success [result] true)
@@ -55,8 +55,8 @@
 (defn compile-result-message [result] "")
 
 (defn compile-file [filename] 
+    ;(println "Compiling" filename)
 (dosync
-    (println "Compiling" filename)
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
             (do (swap! compile-files-done conj filename)
@@ -69,9 +69,26 @@
 )
 )
 
+(defn compile-file-atoms [filename] 
+    ;(println "Compiling" filename)
+    (let [compile-result (compile-file-internal filename)]
+        (if (compile-result-success compile-result)
+            (do (swap! compile-files-done conj filename)
+                (compile-result-message compile-result))
+            (do (swap! errors cons (compile-result-message compile-result))
+                (swap! warnings cons (compile-result-message compile-result))
+                (swap! compile-files-done cons filename))
+        )
+    )
+)
+
 (def files (doall (range 1000)))
 
-(doall (pmap compile-file files))
+(println "Single Threaded")
+(time (doall (map compile-file files)))
+
+(println "Atoms Only")
+(time (doall (map deref (doall (pmap compile-file-atoms files)))))
 
 
 
