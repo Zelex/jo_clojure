@@ -63,6 +63,9 @@
 #define jo_chdir chdir
 #endif
 
+template<typename T> static inline T jo_min(T a, T b) { return a < b ? a : b; }
+template<typename T> static inline T jo_max(T a, T b) { return a > b ? a : b; }
+
 #ifdef _WIN32
 #include <mutex>
 #define jo_mutex std::mutex
@@ -343,7 +346,7 @@ static void jo_yield_backoff(int *count)
 {
 #if 0
     jo_yield();
-#else
+#elif 0
     if(*count == 0) {
         *count = 1;
         //jo_yield(); // first, just try again right away.
@@ -354,6 +357,11 @@ static void jo_yield_backoff(int *count)
         *count = 0;
         jo_sleep(1.f / 1000.0f); // 1ms?
     }
+#else
+    const int lmin_ns = 1000;
+    const int lmax_ns = 1000000;
+    int sleep_ns = jo_min(lmin_ns + (int)((pow(*count++ + 1, 2) - 1) / 2), lmax_ns);
+    jo_sleep(sleep_ns / 1000000.0f);
 #endif
 }
 
@@ -1014,8 +1022,6 @@ struct jo_stringstream {
     }
 };
 
-template<typename T> static inline T jo_min(T a, T b) { return a < b ? a : b; }
-template<typename T> static inline T jo_max(T a, T b) { return a > b ? a : b; }
 
 #if !defined(__PLACEMENT_NEW_INLINE) && !defined(_WIN32)
 //inline void *operator new(size_t, void *p) { return p; }
