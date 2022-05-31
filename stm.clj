@@ -69,30 +69,37 @@
 )
 
 (defn compile-file-stm [filename] 
-(dosync
     ;(println "Compiling" filename)
+(dosync
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
             (do (swap! compile-files-done conj filename)
                 (compile-result-message compile-result))
-            (do (swap! errors cons (compile-result-message compile-result))
-                (swap! warnings cons (compile-result-message compile-result))
-                (swap! compile-files-done cons filename))
+            (do (swap! errors conj (compile-result-message compile-result))
+                (swap! warnings conj (compile-result-message compile-result))
+                (swap! compile-files-done conj filename))
         )
     )
 )
 )
 
-(defn compile-file-atoms [filename] 
+(defn compile-file-atom [filename] 
     ;(println "Compiling" filename)
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
             (do (swap! compile-files-done conj filename)
                 (compile-result-message compile-result))
-            (do (swap! errors cons (compile-result-message compile-result))
-                (swap! warnings cons (compile-result-message compile-result))
-                (swap! compile-files-done cons filename))
+            (do (swap! errors conj (compile-result-message compile-result))
+                (swap! warnings conj (compile-result-message compile-result))
+                (swap! compile-files-done conj filename))
         )
+    )
+)
+
+(defn compile-file-rand [filename]
+    (if (> 0.5 (rand)) 
+    (compile-file-stm filename) 
+    (compile-file-atom filename)
     )
 )
 
@@ -102,12 +109,14 @@
 ;(println (time (doall (map compile-file-st files))))
 
 (println "Atoms Only")
-(println (time (doall (map deref (doall (pmap compile-file-atoms files))))))
+(println (time (doall (map deref (doall (pmap compile-file-atom files))))))
 
 ; STM here almost acts like a sort, where the faster things are done first, 
 ; followed by the slower ones (as slower ones get retried a bunch)
-(println "STM")
+(println "STM Only")
 (println (time (doall (map deref (doall (pmap compile-file-stm files))))))
 
+(println "STM/Atom 50/50 random mix")
+(println (time (doall (map deref (doall (pmap compile-file-rand files))))))
 
 
