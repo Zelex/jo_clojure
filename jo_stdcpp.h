@@ -360,11 +360,7 @@ static void jo_yield_backoff(int *count)
 // get current thread id
 static uint64_t jo_thread_id()
 {
-#ifdef _WIN32
-    return GetCurrentThreadId();
-#else
-    return pthread_self();
-#endif
+    return std::hash<std::thread::id>()(std::this_thread::get_id());
 }
 
 FILE *jo_fmemopen(void *buf, size_t size, const char *mode)
