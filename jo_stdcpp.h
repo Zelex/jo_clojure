@@ -4884,76 +4884,76 @@ struct jo_bigint {
 };
 
 // arbitrary precision floating point
-struct jo_float {
+struct jo_bigfloat {
     bool negative;
     jo_bigint mantissa;
     int exponent;
 
-    jo_float() {
+    jo_bigfloat() {
         negative = false;
         mantissa.digits = mantissa.digits->push_back(0);
         exponent = 0;
     }
 
-    jo_float(const jo_float &other) {
+    jo_bigfloat(const jo_bigfloat &other) {
         negative = other.negative;
         mantissa = other.mantissa;
         exponent = other.exponent;
     }
 
-    jo_float(const int &other) {
+    jo_bigfloat(const int &other) {
         negative = other < 0;
         mantissa = jo_bigint(other);
         exponent = 0;
     }
 
-    jo_float(const jo_bigint &other) {
+    jo_bigfloat(const jo_bigint &other) {
         negative = other.negative;
         mantissa = other;
         exponent = 0;
     }
 
-    jo_float(const double &other) {
+    jo_bigfloat(const double &other) {
         negative = other < 0;
         mantissa = jo_bigint(other);
         exponent = 0;
     }
 
-    jo_float(const char *other) {
+    jo_bigfloat(const char *other) {
         negative = other[0] == '-';
         mantissa = jo_bigint(other);
         exponent = 0;
     }
 
-    jo_float(const char *other, int base) {
+    jo_bigfloat(const char *other, int base) {
         negative = other[0] == '-';
         mantissa = jo_bigint(other, base);
         exponent = 0;
     }
 
-    jo_float(const char *other, int base, int exp) {
+    jo_bigfloat(const char *other, int base, int exp) {
         negative = other[0] == '-';
         mantissa = jo_bigint(other, base);
         exponent = exp;
     }
 
-    jo_float(const char *other, int base, int exp, int exp_base) {
+    jo_bigfloat(const char *other, int base, int exp, int exp_base) {
         negative = other[0] == '-';
         mantissa = jo_bigint(other, base);
         exponent = exp * exp_base;
     }
 
     // operator overloads
-    jo_float operator+(const jo_float &other) const {
-        jo_float ret;
+    jo_bigfloat operator+(const jo_bigfloat &other) const {
+        jo_bigfloat ret;
         ret.negative = negative;
         ret.exponent = exponent;
         ret.mantissa = mantissa + other.mantissa;
         return ret;
     }
 
-    jo_float operator-(const jo_float &other) const {
-        jo_float ret;
+    jo_bigfloat operator-(const jo_bigfloat &other) const {
+        jo_bigfloat ret;
         ret.negative = negative;
         ret.exponent = exponent;
         ret.mantissa = mantissa - other.mantissa;
@@ -4961,16 +4961,16 @@ struct jo_float {
     }
 
     /*
-    jo_float operator*(const jo_float &other) const {
-        jo_float ret;
+    jo_bigfloat operator*(const jo_bigfloat &other) const {
+        jo_bigfloat ret;
         ret.negative = negative;
         ret.exponent = exponent + other.exponent;
         ret.mantissa = mantissa * other.mantissa;
         return ret;
     }
 
-    jo_float operator/(const jo_float &other) const {
-        jo_float ret;
+    jo_bigfloat operator/(const jo_bigfloat &other) const {
+        jo_bigfloat ret;
         ret.negative = negative;
         ret.exponent = exponent - other.exponent;
         ret.mantissa = mantissa / other.mantissa;
