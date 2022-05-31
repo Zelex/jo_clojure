@@ -869,7 +869,7 @@ static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
 
 	node_idx_t old_val;
 
-	unsigned current_thread_id = *(unsigned*)&std::this_thread::get_id();
+	unsigned long long current_thread_id = jo_thread_id();
 
 	// mutexes in transactions (does this even make sense?)
 	if(env->tx.ptr) {

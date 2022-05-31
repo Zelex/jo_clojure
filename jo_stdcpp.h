@@ -344,24 +344,26 @@ static void jo_yield()
 // yield exponential backoff
 static void jo_yield_backoff(int *count)
 {
-#if 0
-    jo_yield();
-#elif 0
     if(*count == 0) {
-        *count = 1;
-        //jo_yield(); // first, just try again right away.
-    } else if(*count < 20) {
-        *count += 1;
-        jo_yield(); // yield, then try again
+        // do nothing, just try again
+    } else if(*count == 1) {
+        jo_yield();
     } else {
-        *count = 0;
-        jo_sleep(1.f / 1000.0f); // 1ms?
+        const int lmin_ns = 1000;
+        const int lmax_ns = 1000000;
+        int sleep_ns = jo_min(lmin_ns + (int)((pow(*count + 1, 2) - 1) / 2), lmax_ns);
+        jo_sleep(sleep_ns / 1000000.0f);
     }
+    *count++;
+}
+
+// get current thread id
+static uint64_t jo_thread_id()
+{
+#ifdef _WIN32
+    return GetCurrentThreadId();
 #else
-    const int lmin_ns = 1000;
-    const int lmax_ns = 1000000;
-    int sleep_ns = jo_min(lmin_ns + (int)((pow(*count++ + 1, 2) - 1) / 2), lmax_ns);
-    jo_sleep(sleep_ns / 1000000.0f);
+    return pthread_self();
 #endif
 }
 

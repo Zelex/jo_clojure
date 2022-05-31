@@ -525,7 +525,7 @@ struct node_t {
 		node_idx_t t_lazy_fn;
 		FILE *t_file;
 		void *t_dir;
-		unsigned t_thread_id;
+		unsigned long long t_thread_id;
 	};
 
 	node_t() 
