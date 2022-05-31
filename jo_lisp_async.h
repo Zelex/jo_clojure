@@ -559,7 +559,7 @@ static node_idx_t native_dosync(env_ptr_t env, list_ptr_t args) {
 	env2->begin_transaction();
 	node_idx_t ret;
 	do {
-		ret = eval_list(env2, args);
+		ret = eval_node_list(env2, args);
 	} while(!env2->end_transaction());
 	return ret;
 }

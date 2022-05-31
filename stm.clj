@@ -47,7 +47,7 @@
 
 (defn compile-file-internal [file]
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
-    (System/sleep (rand 0.1))
+    (System/sleep (rand 1))
     true)
 
 (defn compile-result-success [result] true)
@@ -55,6 +55,7 @@
 (defn compile-result-message [result] "")
 
 (defn compile-file [filename] 
+(dosync
     (println "Compiling" filename)
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
@@ -65,6 +66,7 @@
                 (swap! compile-files-done cons filename))
         )
     )
+)
 )
 
 (def files (doall (range 1000)))
