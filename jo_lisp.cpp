@@ -5653,8 +5653,8 @@ int main(int argc, char **argv) {
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());
-	printf("atom_retries = %zu\n", atom_retries.load());
-	printf("stm_retries = %zu\n", stm_retries.load());
+	debugf("atom_retries = %zu\n", atom_retries.load());
+	debugf("stm_retries = %zu\n", stm_retries.load());
 
 	/*
 	for(int i = -20; i <= 20; i++) {
