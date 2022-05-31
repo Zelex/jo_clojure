@@ -157,15 +157,20 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 		return new_val;
 	}
 
+	int count = 0;
 	do {
 		old_val = atom->t_atom.load();
-		int count = 0;
 		while(old_val == TX_HOLD_NODE) {
 			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
 		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
-	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
+		if(atom->t_atom.compare_exchange_weak(old_val, new_val)) {
+			break;
+		}
+		jo_yield_backoff(&count);
+		atom_retries++;
+	} while(true);
 	return new_val;
 }
 
@@ -232,7 +237,7 @@ static node_idx_t native_compare_and_set_e(env_ptr_t env, list_ptr_t args) {
 		return FALSE_NODE;
 	}
 
-	return atom->t_atom.compare_exchange_strong(old_val_idx, new_val_idx) ? TRUE_NODE : FALSE_NODE;
+	return atom->t_atom.compare_exchange_weak(old_val_idx, new_val_idx) ? TRUE_NODE : FALSE_NODE;
 }
 
 // (swap-vals! atom f)(swap-vals! atom f x)(swap-vals! atom f x y)(swap-vals! atom f x y & args)
@@ -361,6 +366,7 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	env2->begin_transaction();
 
+	int count = 0;
 	do {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
@@ -375,7 +381,11 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 			new_vals[i] = new_val;
 			env2->tx->write(atom_idx, new_val);
 		}
-	} while(!env2->end_transaction());
+		if(env2->end_transaction()) {
+			break;
+		}
+		jo_yield_backoff(&count);
+	} while(true);
 
 	// return a list of new values
 	list_ptr_t ret = new_list();
@@ -414,6 +424,7 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	env2->begin_transaction();
 
+	int count = 0;
 	do {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
@@ -426,7 +437,11 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 			old_vals[i] = old_val;
 			new_vals[i] = new_val;
 		}
-	} while(!env2->end_transaction());
+		if(env2->end_transaction()) {
+			break;
+		}
+		jo_yield_backoff(&count);
+	} while(true);
 
 	// return a list of new values
 	list_ptr_t ret = new_list();
@@ -467,6 +482,7 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	env2->begin_transaction();
 
+	int count = 0;
 	do {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
@@ -481,7 +497,11 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 			new_vals[i] = new_val;
 			env2->tx->write(atom_idx, new_val);
 		}
-	} while(!env2->end_transaction());
+		if(env2->end_transaction()) {
+			break;
+		}
+		jo_yield_backoff(&count);
+	} while(true);
 
 	// return a list of new values
 	list_ptr_t ret = new_list();
@@ -523,6 +543,7 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	env2->begin_transaction();
 
+	int count = 0;
 	do {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
@@ -535,7 +556,11 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 			old_vals[i] = old_val;
 			new_vals[i] = new_val;
 		}
-	} while(!env2->end_transaction());
+		if(env2->end_transaction()) {
+			break;
+		}
+		jo_yield_backoff(&count);
+	} while(true);
 
 	// return a list of new values
 	list_ptr_t ret = new_list();
@@ -558,9 +583,14 @@ static node_idx_t native_dosync(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	env2->begin_transaction();
 	node_idx_t ret;
+	int count = 0;
 	do {
 		ret = eval_node_list(env2, args);
-	} while(!env2->end_transaction());
+		if(env2->end_transaction()) {
+			break;
+		}
+		jo_yield_backoff(&count);
+	} while(true);
 	return ret;
 }
 

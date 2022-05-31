@@ -25,6 +25,7 @@
 #define warnf sizeof
 #endif
 
+static std::atomic<size_t> atom_retries(0);
 static std::atomic<size_t> stm_retries(0);
 
 enum {
@@ -3768,9 +3769,7 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 // Compute the time to execute arguments
 static node_idx_t native_time(env_ptr_t env, list_ptr_t args) {
 	double time_start = jo_time();
-	for(list_t::iterator it(args); it; it++) {
-		node_idx_t node_idx = eval_node(env, *it);
-	}
+	eval_node_list(env, args);
 	double time_end = jo_time();
 	return new_node_float(time_end - time_start);
 }
@@ -5678,6 +5677,7 @@ int main(int argc, char **argv) {
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());
+	printf("atom_retries = %zu\n", atom_retries.load());
 	printf("stm_retries = %zu\n", stm_retries.load());
 
 	/*

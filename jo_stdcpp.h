@@ -324,11 +324,8 @@ static const char *jo_strrstr(const char *haystack, const char *needle)
 }
 
 void jo_sleep(float seconds) {
-#ifdef _WIN32
-    Sleep((int)(seconds * 1000));
-#else
-    usleep((int)(seconds * 1000000));
-#endif
+    std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<float>(seconds));
+    std::this_thread::sleep_for(ns);
 }
 
 // yield
@@ -344,16 +341,20 @@ static void jo_yield()
 // yield exponential backoff
 static void jo_yield_backoff(int *count)
 {
+#if 0
+    jo_yield();
+#else
     if(*count == 0) {
         *count = 1;
-        jo_yield();
-    } else if(*count < 10) {
-        *count *= 2;
-        jo_sleep(0.5f / 1000.0f);
+        //jo_yield(); // first, just try again right away.
+    } else if(*count < 20) {
+        *count += 1;
+        jo_yield(); // yield, then try again
     } else {
         *count = 0;
-        jo_sleep(1.0f / 1000.0f);
+        jo_sleep(1.f / 1000.0f); // 1ms?
     }
+#endif
 }
 
 FILE *jo_fmemopen(void *buf, size_t size, const char *mode)
