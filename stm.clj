@@ -120,7 +120,7 @@
         (compile-file-stm filename) 
         (compile-file-atom filename)))
 
-(def files (doall (for [idx (range 10000) :let [T (rand 0.05 0.05)]] [idx T])))
+;(def files (doall (for [idx (range 1000) :let [T (rand 0.05 0.05)]] [idx T])))
 
 ;(println "Single Threaded")
 ;(println (time (doall (map compile-file-st files))))
@@ -144,6 +144,8 @@
     ;(doall (map deref (doall (pmap compile-file-stm files))))
     ;(deref tmp))))
 
+;(println "STM/Atom 50/50 random mix")
+;(println (time (doall (map deref (doall (pmap compile-file-rand files))))))
 
 ; Test Live-lock situations where things take twice as long as they should
 (println "STM Live-Lock simulation (just shows how it fails conceptually)")
@@ -153,7 +155,7 @@
                 (dosync 
                     (println "Slow task begin") 
                     (swap! A conj "abc") 
-                    (System/sleep 10) 
+                    (System/sleep 2) 
                     (println "Slow task end")))
             ]
     ; Wait to make sure that the slow task has accessed atom A
@@ -166,7 +168,20 @@
             (println "Fast task end"))))
     @slow-task)))
 
-;(println "STM/Atom 50/50 random mix")
-;(println (time (doall (map deref (doall (pmap compile-file-rand files))))))
-
+; Test dead-locks
+(println "STM Dead-lock simulation")
+(let [A (atom false)
+    B (atom false)
+    thread-1 (future (dosync
+        (reset! A true)
+        (when @B (println "cannot get here thread-1")) 
+        (println "thread-1 done")))
+    thread-2 (future (dosync
+        (reset! B true)
+        (when @A (println "cannot get here thread-2"))
+        (println "thread-2 done")))
+    ]
+    ; Wait for thread-1 and thread-2 to finish by doing a deref on them
+    @thread-1 @thread-2)
+(println "Done")
 

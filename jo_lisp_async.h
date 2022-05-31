@@ -190,21 +190,20 @@ static node_idx_t native_reset_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_idx_t old_val, new_val = args->second_value();
-
+	node_idx_t new_val = args->second_value();
 	if(env->tx.ptr) {
 		env->tx->write(atom_idx, new_val);
-		return new_val;
-	}
-
-	do {
-		old_val = atom->t_atom.load();
-		int count = 0;
-		while(old_val == TX_HOLD_NODE) {
-			jo_yield_backoff(&count);
+	} else {
+		node_idx_t old_val;
+		do {
 			old_val = atom->t_atom.load();
-		}
-	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
+			int count = 0;
+			while(old_val == TX_HOLD_NODE) {
+				jo_yield_backoff(&count);
+				old_val = atom->t_atom.load();
+			}
+		} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
+	}
 	return new_val;
 }
 
@@ -415,7 +414,7 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 		}	
 		node_idx_t atom = list->first_value();
 		if(get_node_type(atom) != NODE_ATOM) {
-			warnf("(multi-swap!) requires an atom\n");
+			warnf("(multi-reset!) requires an atom\n");
 			return NIL_NODE;
 		}
 		lists.push_back(list);
@@ -432,9 +431,7 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 			list_t::iterator it2(list);
 			node_idx_t atom_idx = *it2++;
 			node_idx_t new_val = *it2++;
-			node_idx_t old_val = env2->tx->read(atom_idx);
 			env2->tx->write(atom_idx, new_val);
-			old_vals[i] = old_val;
 			new_vals[i] = new_val;
 		}
 		if(env2->end_transaction()) {

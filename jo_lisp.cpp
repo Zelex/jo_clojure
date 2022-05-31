@@ -220,7 +220,7 @@ struct transaction_t {
 	struct tx_t {
 		node_idx_t old_val;
 		node_idx_t new_val;
-		tx_t() : old_val(NIL_NODE), new_val(INV_NODE) {}
+		tx_t() : old_val(INV_NODE), new_val(INV_NODE) {}
 	};
 	std::map<node_idx_t, tx_t> tx_map;
 
@@ -228,12 +228,15 @@ struct transaction_t {
 
 	node_idx_t read(node_idx_t atom_idx) {
 		if(tx_map.find(atom_idx) != tx_map.end()) {
-			return tx_map[atom_idx].old_val;
+			tx_t &tx = tx_map[atom_idx];
+			return tx.new_val != INV_NODE ? tx.new_val : tx.old_val;
 		}
+		debugf("stm read %d\n", atom_idx);
 		auto &atom = get_node_atom(atom_idx);
 		node_idx_t old_val = atom.load();
+		int count = 0;
 		while(old_val == TX_HOLD_NODE) {
-			jo_yield();
+			jo_yield_backoff(&count);
 			old_val = atom.load();
 		}
 		tx_t &tx = tx_map[atom_idx];
@@ -242,9 +245,7 @@ struct transaction_t {
 	}
 
 	void write(node_idx_t atom_idx, node_idx_t new_val) {
-		if(tx_map.find(atom_idx) == tx_map.end()) {
-			read(atom_idx);
-		}
+		debugf("stm write %d %d\n", atom_idx, new_val);
 		tx_t &tx = tx_map[atom_idx];
 		tx.new_val = new_val;
 	}
@@ -257,9 +258,12 @@ struct transaction_t {
 
 		// Transition all values to hold
 		for(auto tx = tx_map.begin(); tx != tx_map.end(); tx++) {
-			node_idx_t old_val = tx->second.old_val;
+			// Write stomp?
+			if(tx->second.old_val == INV_NODE) {
+				continue;
+			}
 			auto &atom = get_node_atom(tx->first);
-			if(!atom.compare_exchange_strong(old_val, TX_HOLD_NODE)) {
+			if(!atom.compare_exchange_strong(tx->second.old_val, TX_HOLD_NODE)) {
 				// restore old values... we failed
 				 for(auto tx2 = tx_map.begin(); tx2 != tx; tx2++) {
 					auto &atom2 = get_node_atom(tx2->first);
@@ -270,13 +274,28 @@ struct transaction_t {
 			}
 		}
 
-		// Set new values
+		// Set new values / restore reads from hold status
 		for(auto tx = tx_map.begin(); tx != tx_map.end(); tx++) {
+			node_idx_t store_val = tx->second.new_val != INV_NODE ? tx->second.new_val : tx->second.old_val;
+
 			auto &atom = get_node_atom(tx->first);
-			if(tx->second.new_val == INV_NODE) {
-				atom.store(tx->second.old_val);
+			// If we don't have an old value, cause we only stored, grab one real quick so we can lock it.
+			if(tx->second.old_val == INV_NODE) {
+				node_idx_t old_val;
+				do {
+					old_val = atom.load();
+					int count = 0;
+					while(old_val == TX_HOLD_NODE) {
+						jo_yield_backoff(&count);
+						old_val = atom.load();
+					}
+					if(atom.compare_exchange_strong(old_val, store_val)) {
+						break;
+					}
+					jo_yield_backoff(&count);
+				} while(true);
 			} else {
-				atom.store(tx->second.new_val);
+				atom.store(store_val);
 			}
 		}
 
