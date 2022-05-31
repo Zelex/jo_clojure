@@ -30,3 +30,46 @@
 ; * You have a list of files to link for each target
 ; * As you go collect errors/warnings/logs
 ; * should be like a DAG structure.
+
+(def targets [ SuperCoolProgram ])
+
+(def compile-files-done (atom []))
+(def compile-files-todo (atom []))
+
+(def link-files-done (atom []))
+(def link-files-todo (atom []))
+
+(def errors [])
+(def warnings [])
+
+(def compiler 'clang)
+(def linker 'clang)
+
+(defn compile-file-internal [file]
+    ;(System/exec compiler "-c" file "-o" (System/tmpnam))
+    ;(System/sleep (rand 1))
+    true)
+
+(defn compile-result-success [result] true)
+    
+(defn compile-result-message [result] "")
+
+(defn compile-file [filename] 
+    (println "Compiling" filename)
+    (let [compile-result (compile-file-internal filename)]
+        (if (compile-result-success compile-result)
+            (do (swap! compile-files-done conj filename)
+                (compile-result-message compile-result))
+            (do (swap! errors cons (compile-result-message compile-result))
+                (swap! warnings cons (compile-result-message compile-result))
+                (swap! compile-files-done cons filename))
+        )
+    )
+)
+
+(def files (doall (range 1000)))
+
+(doall (pmap compile-file files))
+
+
+

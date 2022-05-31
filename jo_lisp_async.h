@@ -51,7 +51,7 @@ static node_idx_t native_atom(env_ptr_t env, list_ptr_t args) {
 	node_idx_t meta_idx = NIL_NODE;
 	node_idx_t validator_idx = NIL_NODE;
 
-	for(auto it = options->begin(); it; it++) {
+	for(list_t::iterator it(options); it; it++) {
 		if(get_node_type(*it) != NODE_KEYWORD) {
 			warnf("(atom) options must be keywords\n");
 			return NIL_NODE;
@@ -98,8 +98,9 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 			env->tx->read(ref_idx);
 		} else {
 			node_idx_t ret = ref->t_atom;
+			int count = 0;
 			while(ret == TX_HOLD_NODE) {
-				jo_yield();
+				jo_yield_backoff(&count);
 				ret = ref->t_atom;
 			}
 			return ret;
@@ -134,7 +135,7 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-    auto it = args->begin();
+    list_t::iterator it(args);
 
 	node_idx_t atom_idx = *it++;
 	node_idx_t f_idx = *it++;
@@ -147,11 +148,6 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_t *f = get_node(f_idx);
-	if(!f->is_func() && !f->is_native_func()) {
-		warnf("(swap!) requires a function\n");
-		return NIL_NODE;
-	}
-
 	node_idx_t old_val, new_val;
 
 	if(env->tx.ptr) {
@@ -163,8 +159,9 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 
 	do {
 		old_val = atom->t_atom.load();
+		int count = 0;
 		while(old_val == TX_HOLD_NODE) {
-			jo_yield();
+			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
 		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
@@ -197,8 +194,9 @@ static node_idx_t native_reset_e(env_ptr_t env, list_ptr_t args) {
 
 	do {
 		old_val = atom->t_atom.load();
+		int count = 0;
 		while(old_val == TX_HOLD_NODE) {
-			jo_yield();
+			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
@@ -248,7 +246,7 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-    auto it = args->begin();
+    list_t::iterator it(args);
 	node_idx_t atom_idx = *it++;
 	node_idx_t f_idx = *it++;
 	list_ptr_t args2 = args->rest(it);
@@ -279,8 +277,9 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 
 	do {
 		old_val = atom->t_atom.load();
+		int count = 0;
 		while(old_val == TX_HOLD_NODE) {
-			jo_yield();
+			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
 		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
@@ -317,8 +316,9 @@ static node_idx_t native_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 
 	do {
 		old_val = atom->t_atom.load();
+		int count = 0;
 		while(old_val == TX_HOLD_NODE) {
-			jo_yield();
+			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
@@ -339,7 +339,7 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 	lists.reserve(args->size());
 	
 	// Gather lists
-	for(auto it = args->begin(); it; it++) {
+	for(list_t::iterator it(args); it; it++) {
 		list_ptr_t list = get_node_list(*it);
 		if(list->size() < 2) {
 			warnf("(multi-swap!) requires at least 2 arguments\n");
@@ -365,7 +365,7 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
 			list_ptr_t list = lists[i];
-			auto it2 = list->begin();
+			list_t::iterator it2(list);
 			node_idx_t atom_idx = *it2++;
 			node_idx_t f_idx = *it2++;
 			list_ptr_t args2 = list->rest(it2);
@@ -397,7 +397,7 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 	lists.reserve(args->size());
 
 	// Gather lists
-	for(auto it = args->begin(); it; it++) {
+	for(list_t::iterator it(args); it; it++) {
 		list_ptr_t list = get_node_list(*it);
 		if(list->size() < 2) {
 			warnf("(multi-reset!) requires at least 2 arguments\n");
@@ -418,7 +418,7 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
 			list_ptr_t list = lists[i];
-			auto it2 = list->begin();
+			list_t::iterator it2(list);
 			node_idx_t atom_idx = *it2++;
 			node_idx_t new_val = *it2++;
 			node_idx_t old_val = env2->tx->read(atom_idx);
@@ -445,7 +445,7 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 	lists.reserve(args->size());
 
 	// Gather lists
-	for(auto it = args->begin(); it; it++) {
+	for(list_t::iterator it(args); it; it++) {
 		list_ptr_t list = get_node_list(*it);
 		if(list->size() < 2) {
 			warnf("(multi-swap!) requires at least 2 arguments\n");
@@ -471,7 +471,7 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
 			list_ptr_t list = lists[i];
-			auto it2 = list->begin();
+			list_t::iterator it2(list);
 			node_idx_t atom_idx = *it2++;
 			node_idx_t f_idx = *it2++;
 			list_ptr_t args2 = list->rest(it2);
@@ -506,7 +506,7 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 	lists.reserve(args->size());
 	
 	// Gather lists
-	for(auto it = args->begin(); it; it++) {
+	for(list_t::iterator it(args); it; it++) {
 		list_ptr_t list = get_node_list(*it);
 		if(list->size() < 2) {
 			warnf("(multi-reset!) requires at least 2 arguments\n");
@@ -527,7 +527,7 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 		// First get the old values and calc new values
 		for(size_t i = 0; i < lists.size(); i++) {
 			list_ptr_t list = lists[i];
-			auto it2 = list->begin();
+			list_t::iterator it2(list);
 			node_idx_t atom_idx = *it2++;
 			node_idx_t new_val = *it2++;
 			node_idx_t old_val = env2->tx->read(atom_idx);
@@ -737,7 +737,7 @@ static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 // computationally intensive functions where the time of f dominates
 // the coordination overhead.
 static node_idx_t native_pmap(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f = *it++;
 	list_ptr_t ret = new_list();
 	ret->push_back_inplace(env->get("pmap-next").value);
@@ -749,7 +749,7 @@ static node_idx_t native_pmap(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_pmap_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f = *it++;
 	// pull off the first element of each list and call f with it
 	list_ptr_t next_list = new_list();

@@ -230,7 +230,6 @@ proxy-name
 proxy-super
 push-thread-bindings
 quot
-rand
 ratio?
 rational?
 rationalize

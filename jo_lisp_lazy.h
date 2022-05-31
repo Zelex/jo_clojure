@@ -11,7 +11,7 @@
 // infinity. When step is equal to 0, returns an infinite sequence of
 // start. When start is equal to end, returns empty list.
 static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	long long end = args->size(), start = 0, step = 1;
 	if(end == 0) {
 		end = LLONG_MAX; // "infinite" series
@@ -38,7 +38,7 @@ static node_idx_t native_range(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	long long start = get_node(*it++)->as_int();
 	long long step = get_node(*it++)->as_int();
 	long long end = get_node(*it++)->as_int();
@@ -52,7 +52,7 @@ static node_idx_t native_range_next(env_ptr_t env, list_ptr_t args) {
 // (repeat n x)
 // Returns a lazy (infinite!, or length n if supplied) sequence of xs.
 static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t x;
 	long long n = LLONG_MAX;
 	if(args->size() == 1) {
@@ -75,7 +75,7 @@ static node_idx_t native_repeat(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_repeat_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t x = *it++;
 	long long n = get_node(*it++)->as_int();
 	if(n <= 0) {
@@ -127,7 +127,7 @@ static node_idx_t native_iterate(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f = *it++;
 	node_idx_t x = *it++;
 	list_ptr_t ret = new_list();
@@ -150,7 +150,7 @@ static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
 // f should accept number-of-colls arguments. Returns a transducer when
 // no collection is provided.
 static node_idx_t native_map(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f = *it++;
 	list_ptr_t ret = new_list();
 	ret->push_back_inplace(env->get("map-next").value);
@@ -162,7 +162,7 @@ static node_idx_t native_map(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_map_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f = *it++;
 	// pull off the first element of each list and call f with it
 	list_ptr_t next_list = new_list();
@@ -202,7 +202,7 @@ static node_idx_t native_map_indexed(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_map_indexed_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f_idx = *it++;
 	node_idx_t coll_idx = *it++;
 	node_idx_t count_idx = *it++;
@@ -235,7 +235,7 @@ static node_idx_t native_map_indexed_next(env_ptr_t env, list_ptr_t args) {
 // (take n coll)
 // Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
 static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t n = eval_node(env, *it++);
 	node_idx_t coll = eval_node(env, *it++);
 	if(get_node_type(coll) == NODE_LIST) {
@@ -263,7 +263,7 @@ static node_idx_t native_take(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_take_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	long long n = get_node(*it++)->as_int();
 	if(n <= 0) {
 		return NIL_NODE;
@@ -280,7 +280,7 @@ static node_idx_t native_take_next(env_ptr_t env, list_ptr_t args) {
 // Returns a lazy seq of every nth item in coll.  Returns a stateful
 // transducer when no collection is provided.
 static node_idx_t native_take_nth(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t n = eval_node(env, *it++);
 	if(!it) {
 		// stateful transducer
@@ -308,7 +308,7 @@ static node_idx_t native_take_nth(env_ptr_t env, list_ptr_t args) {
 			list->push_back_inplace(list_list->first_value());
 			return new_node_list(list);
 		}
-		for(list_t::iterator it = list_list->begin(); it; it += N) {
+		for(list_t::iterator it(list_list); it; it += N) {
 			list->push_back_inplace(*it);
 		}
 		return new_node_list(list);
@@ -355,7 +355,7 @@ static node_idx_t native_take_nth(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_take_nth_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	long long n = get_node(*it++)->as_int();
 	if(n <= 0) return NIL_NODE;
 	node_idx_t coll = *it++;
@@ -373,7 +373,7 @@ static node_idx_t native_constantly_next(env_ptr_t env, list_ptr_t args) {
 // Returns a seq of the last n items in coll.  Depending on the type
 // of coll may be no better than linear time.  For vectors, see also subvec.
 static node_idx_t native_take_last(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t n = eval_node(env, *it++);
 	node_idx_t coll = eval_node(env, *it++);
 	long long N = get_node(n)->as_int();
@@ -413,13 +413,13 @@ static node_idx_t native_take_last(env_ptr_t env, list_ptr_t args) {
 // Returns a stateful transducer when no collection is provided.
 static node_idx_t native_distinct(env_ptr_t env, list_ptr_t args) {
 	// TODO: lazy? How is that a good idea for distinct? I think it's a bad idea.
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
 	if(node->is_list()) {
 		list_ptr_t list_list = node->as_list();
 		list_ptr_t ret = new_list();
-		for(list_t::iterator it = list_list->begin(); it; it++) {
+		for(list_t::iterator it(list_list); it; it++) {
 			node_idx_t value_idx = eval_node(env, *it);
 			node_t *value = get_node(value_idx);
 			if(!ret->contains([env,value_idx](node_idx_t idx) {
@@ -466,7 +466,7 @@ static node_idx_t native_distinct(env_ptr_t env, list_ptr_t args) {
 // (pred item) returns logical true. pred must be free of side-effects.
 // Returns a transducer when no collection is provided.
 static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t pred_idx = eval_node(env, *it++);
 	node_idx_t coll_idx = eval_node(env, *it++);
 	//print_node(coll_idx);
@@ -476,7 +476,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		list_ptr_t ret = new_list();
 		list_ptr_t args = new_list();
 		args->push_back_inplace(pred_idx);
-		for(list_t::iterator it = list_list->begin(); it; it++) {
+		for(list_t::iterator it(list_list); it; it++) {
 			node_idx_t item_idx = *it;//eval_node(env, *it);
 			//print_node(item_idx);
 			node_idx_t comp = eval_list(env, args->conj(item_idx));
@@ -579,7 +579,7 @@ static node_idx_t native_keep(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f_idx = *it++;
 	node_idx_t coll_idx = *it++;
 	int coll_type = get_node_type(coll_idx);
@@ -624,7 +624,7 @@ static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
 // returns an infinite (or length n if supplied) lazy sequence of calls
 // to it
 static node_idx_t native_repeatedly(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t n_idx, f_idx;
 	if(args->size() == 1) {
 		n_idx = new_node_int(INT_MAX);
@@ -637,7 +637,7 @@ static node_idx_t native_repeatedly(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f_idx = *it++;
 	node_idx_t n_idx = *it++;
 	long long n = get_node_int(n_idx);
@@ -654,7 +654,7 @@ static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
 // necessary to complete last partition upto n items. In case there are
 // not enough padding elements, return a partition with less than n items.
 static node_idx_t native_partition(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t n_idx, step_idx, pad_idx, coll_idx;
 	if(args->size() == 1) {
 		return *it;
@@ -678,7 +678,7 @@ static node_idx_t native_partition(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_partition_all(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t n_idx, step_idx, coll_idx;
 	if(args->size() == 1) {
 		return *it;
@@ -695,7 +695,7 @@ static node_idx_t native_partition_all(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t n_idx = *it++;
 	node_idx_t step_idx = *it++;
 	node_idx_t pad_idx = *it++;
@@ -737,7 +737,7 @@ static node_idx_t native_partition_by(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_partition_by_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t f_idx = *it++;
 	node_idx_t coll_idx = *it++;
 	node_t *coll = get_node(coll_idx);
@@ -784,7 +784,9 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t coll_idx = args->first_value();
 	if(coll_idx == ZERO_NODE) {
 		// check if any of args are done
-		for(list_t::iterator it = args->begin()+1; it; ++it) {
+		list_t::iterator it(args);
+		++it;
+		for(; it; ++it) {
 			node_t *n = get_node(*it);
 			int ntype = n->type;
 			if(ntype == NODE_NIL) {
@@ -813,7 +815,8 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t nidx = args->second_value();
 	node_idx_t val = NIL_NODE;
 	int ntype = get_node(nidx)->type;
-	args = args->rest(args->begin()+2);
+	list_t::iterator it(args);
+	args = args->rest(it+2);
 	if(ntype == NODE_LIST) {
 		list_ptr_t n = get_node(nidx)->t_list;
 		val = n->first_value();
@@ -990,7 +993,7 @@ static node_idx_t native_seq_next(env_ptr_t env, list_ptr_t args) {
 // Note: cons is not actually lazy, but I think this implementation 
 //   could benefit from that in the case of cat'ing to a lazy list.
 static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t first_idx = *it++;
 	node_idx_t second_idx = *it++;
 	if(first_idx == NIL_NODE && second_idx == NIL_NODE) {
@@ -1046,14 +1049,14 @@ static node_idx_t native_cons_next(env_ptr_t env, list_ptr_t args) {
 // (take-while pred)(take-while pred coll)
 // Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n.
 static node_idx_t native_take_while(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t pred = eval_node(env, *it++);
 	node_idx_t coll = eval_node(env, *it++);
 	if(get_node_type(coll) == NODE_LIST) {
 		// don't do it lazily if not given lazy inputs... thats dumb
 		list_ptr_t coll_list = get_node(coll)->as_list();
 		list_ptr_t out_list = new_list();
-		for(list_t::iterator it = coll_list->begin(); it; ++it) {
+		for(list_t::iterator it(coll_list); it; ++it) {
 			node_idx_t item = *it;
 			if(eval_va(env, 2, pred, item) != TRUE_NODE) {
 				break;
@@ -1082,7 +1085,7 @@ static node_idx_t native_take_while(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_take_while_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t pred = *it++;
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
@@ -1097,14 +1100,14 @@ static node_idx_t native_take_while_next(env_ptr_t env, list_ptr_t args) {
 // first item for which (pred item) returns logical false.  Returns a
 // stateful transducer when no collection is provided.
 static node_idx_t native_drop_while(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t pred = eval_node(env, *it++);
 	node_idx_t coll = eval_node(env, *it++);
 	if(get_node_type(coll) == NODE_LIST) {
 		// don't do it lazily if not given lazy inputs... thats dumb
 		list_ptr_t coll_list = get_node(coll)->as_list();
 		list_ptr_t out_list = new_list();
-		list_t::iterator it = coll_list->begin();
+		list_t::iterator it(coll_list);
 		for(; it; ++it) {
 			if(eval_va(env, 2, pred, *it) != TRUE_NODE) {
 				break;
@@ -1137,7 +1140,7 @@ static node_idx_t native_drop_while(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_drop_while_first(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t pred = *it++;
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
@@ -1153,7 +1156,7 @@ static node_idx_t native_drop_while_first(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t pred = *it++;
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
@@ -1164,7 +1167,7 @@ static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t n_idx = *it++;
 	long long n = get_node(n_idx)->as_int();
 	node_idx_t list_idx = *it++;
@@ -1196,7 +1199,7 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_drop_first(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	long long n = get_node_int(*it++);
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
@@ -1210,7 +1213,7 @@ static node_idx_t native_drop_first(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_drop_next(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
 	if(lit.done()) return NIL_NODE;
@@ -1314,7 +1317,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 	node_t *nfn = get_node(nfn_idx);
 	nfn->t_native_function = new native_func_t([nfn_idx,PC_list,seq_exprs_idx,body_expr_idx](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
 
-		list_t::iterator it = args2->begin();
+		list_t::iterator it(args2);
 		node_idx_t state_first_idx = *it++;
 		node_idx_t state_rest_idx = *it++;
 		map_ptr_t state_first = get_node_map(state_first_idx);
@@ -1473,7 +1476,7 @@ static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
 // (lazy-cat xs ys zs) === (concat (lazy-seq xs) (lazy-seq ys) (lazy-seq zs))
 static node_idx_t native_lazy_cat(env_ptr_t env, list_ptr_t args) {
 	list_ptr_t lzseqs = new_list();
-	for(auto it = args->begin(); it; ++it) {
+	for(list_t::iterator it(args); it; ++it) {
 		node_idx_t lzseq = native_lazy_seq(env, list_va(*it));
 		lzseqs->push_back_inplace(lzseq);
 	}

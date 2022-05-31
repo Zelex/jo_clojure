@@ -7,7 +7,7 @@ static double time_program_start = jo_time();
 // execute a shell command
 static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
 	jo_string str;
-	for(list_t::iterator it = args->begin(); it; it++) {
+	for(list_t::iterator it(args); it; it++) {
 		node_t *n = get_node(*it);
 		str += " ";
 		str += n->as_string(env);
@@ -19,7 +19,7 @@ static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
 
 // Set system enviorment variables
 static node_idx_t native_system_setenv(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
 	jo_string key = node->as_string(env);
@@ -67,7 +67,7 @@ static node_idx_t native_system_read_line(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_system_sleep(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it = args->begin();
+	list_t::iterator it(args);
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
 	float seconds = node->as_float();
@@ -79,6 +79,9 @@ static node_idx_t native_system_currentTimeMillis(env_ptr_t env, list_ptr_t args
 	return new_node_int((jo_time() - time_program_start) * 1000);
 }
 
+static node_idx_t native_system_tmpnam(env_ptr_t env, list_ptr_t args) {
+	return new_node_string(tmpnam(NULL));
+}
 
 void jo_lisp_system_init(env_ptr_t env) {
 	env->set("System/setenv", new_node_native_function("System/setenv", &native_system_setenv, false, NODE_FLAG_PRERESOLVE));
@@ -90,6 +93,7 @@ void jo_lisp_system_init(env_ptr_t env) {
 	env->set("System/date", new_node_native_function("System/date", &native_system_date, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/sleep", new_node_native_function("System/sleep", &native_system_sleep, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/currentTimeMillis", new_node_native_function("System/currentTimeMillis", &native_system_currentTimeMillis, false, NODE_FLAG_PRERESOLVE));
+	env->set("System/tmpnam", new_node_native_function("System/tmpnam", &native_system_tmpnam, false, NODE_FLAG_PRERESOLVE));
 	env->set("read-line", new_node_native_function("read-line", &native_system_read_line, false, NODE_FLAG_PRERESOLVE));
 	env->set("-d", new_node_native_function("-d", &native_system_dir_exists, false, NODE_FLAG_PRERESOLVE));
 	env->set("-e", new_node_native_function("-e", &native_system_file_exists, false, NODE_FLAG_PRERESOLVE));

@@ -5,7 +5,7 @@
 // concat all arguments as_string
 static node_idx_t native_str(env_ptr_t env, list_ptr_t args) {
 	jo_string str;
-	for(list_t::iterator it = args->begin(); it; it++) {
+	for(list_t::iterator it(args); it; it++) {
 		node_t *n = get_node(*it);
 		str += n->as_string();
 	}
@@ -69,7 +69,7 @@ static node_idx_t native_join(env_ptr_t env, list_ptr_t args) {
     jo_string sep = get_node(args->second_value())->as_string();
     list_ptr_t list = node->as_list();
     jo_string str;
-    for(list_t::iterator it = list->begin(); it;) {
+    for(list_t::iterator it(list); it;) {
         node_t *n = get_node(*it++);
         str += n->as_string();
         if(it) {

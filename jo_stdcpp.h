@@ -341,6 +341,21 @@ static void jo_yield()
 #endif
 }
 
+// yield exponential backoff
+static void jo_yield_backoff(int *count)
+{
+    if(*count == 0) {
+        *count = 1;
+        jo_yield();
+    } else if(*count < 10) {
+        *count *= 2;
+        jo_sleep(0.5f / 1000.0f);
+    } else {
+        *count = 0;
+        jo_sleep(1.0f / 1000.0f);
+    }
+}
+
 FILE *jo_fmemopen(void *buf, size_t size, const char *mode)
 {
     if (!size) {
@@ -1197,7 +1212,7 @@ struct jo_pinned_vector {
     std::atomic<size_t> num_elements;
     jo_mutex grow_mutex;
 
-    jo_pinned_vector() : buckets(), num_elements() {}
+    jo_pinned_vector() : buckets(), num_elements(), grow_mutex() {}
 
     ~jo_pinned_vector() {
         jo_lock_guard guard(grow_mutex);
@@ -1212,8 +1227,8 @@ struct jo_pinned_vector {
     inline int index_top(size_t i) const { return jo_clz64(i + (1<<k)) + 1; }
     inline size_t index_bottom(size_t i, int top) const { return i & (~0ull >> top); }
 
-    void push_back(const T& val) {
-        size_t this_elem = num_elements++;
+    size_t push_back(const T& val) {
+        size_t this_elem = num_elements.fetch_add(1);
         int top = index_top(this_elem);
         size_t bottom = index_bottom(this_elem, top);
         if(buckets[top] == 0) {
@@ -1227,10 +1242,7 @@ struct jo_pinned_vector {
         } else {
             new(buckets[top] + bottom) T(val);
         }
-    }
-
-    void pop_back() {
-        num_elements--;
+        return this_elem;
     }
 
     T &operator[](size_t i) {
@@ -1282,7 +1294,6 @@ struct jo_pinned_vector {
         int top = index_top(num_elements);
         for(int i = top-1; i >= 0; --i) {
             if(buckets[i]) {
-                jo_lock_guard guard(grow_mutex);
                 if(buckets[i]) {
                     free(buckets[i]);
                     buckets[i] = 0;
@@ -1320,12 +1331,7 @@ struct jo_pinned_vector {
     };
 
     iterator begin() { return iterator(this, 0); }
-    iterator end() { return iterator(this, num_elements); }
     const iterator begin() const { return iterator(this, 0); }
-    const iterator end() const { return iterator(this, num_elements); }
-
-    T& back() { return (*this)[num_elements-1]; }
-    const T& back() const { return (*this)[num_elements-1]; }
 };
 
 template<typename T, typename TT>
@@ -2381,12 +2387,12 @@ struct jo_stable_sort {
 template<typename T> 
 struct jo_shared_ptr {
     T* ptr;
-    int* ref_count;
+    std::atomic<int> *ref_count;
     
     jo_shared_ptr() : ptr(nullptr), ref_count(nullptr) {}
-    jo_shared_ptr(T* Ptr) : ptr(Ptr), ref_count(Ptr ? new int(1) : nullptr) {}
+    jo_shared_ptr(T* Ptr) : ptr(Ptr), ref_count(Ptr ? new std::atomic<int>(1) : nullptr) {}
     jo_shared_ptr(const jo_shared_ptr& other) : ptr(other.ptr), ref_count(other.ref_count) {
-        if(ref_count) (*ref_count)++;
+        if(ref_count) ref_count->fetch_add(1);
     }
     jo_shared_ptr(jo_shared_ptr&& other) : ptr(other.ptr), ref_count(other.ref_count) {
         other.ptr = nullptr;
@@ -2395,15 +2401,13 @@ struct jo_shared_ptr {
     
     jo_shared_ptr& operator=(const jo_shared_ptr& other) {
         if (this != &other) {
-            if(other.ref_count) (*other.ref_count)++;
-            if(ref_count) {
-                if(--(*ref_count) == 0) {
-                    delete ptr;
-                    delete ref_count;
-                }
+            if(other.ref_count) other.ref_count->fetch_add(1);
+            if(ref_count && ref_count->fetch_sub(1) == 1) {
+                delete ptr;
+                delete ref_count;
             }
             ptr = other.ptr;
-            ref_count = ptr ? other.ref_count : nullptr;
+            ref_count = other.ref_count;
         }
         return *this;
     }
@@ -2411,7 +2415,7 @@ struct jo_shared_ptr {
     jo_shared_ptr& operator=(jo_shared_ptr&& other) {
         if (this != &other) {
             if(ref_count) {
-                if(--(*ref_count) == 0) {
+                if(ref_count->fetch_sub(1) == 1) {
                     delete ptr;
                     delete ref_count;
                 }
@@ -2425,13 +2429,11 @@ struct jo_shared_ptr {
     }
     
     ~jo_shared_ptr() {
-        if(ref_count) {
-            if(--(*ref_count) == 0) {
-                delete ptr;
-                delete ref_count;
-                ptr = nullptr;
-                ref_count = nullptr;
-            }
+        if(ref_count && ref_count->fetch_sub(1) == 1) {
+            delete ptr;
+            delete ref_count;
+            ptr = nullptr;
+            ref_count = nullptr;
         }
     }
 
@@ -2467,211 +2469,6 @@ struct jo_unique_ptr {
     }
     ~jo_unique_ptr() {
         delete ptr;
-    }
-};
-
-
-template<typename KEY, typename VALUE>
-class jo_unordered_hash_map {
-    struct Node {
-        KEY key;
-        VALUE value;
-        Node *next;
-    };
-    Node *buckets;
-    int bucket_count;
-    Node *get_bucket(const KEY& key) {
-        return buckets + (key % bucket_count);
-    }
-public:
-    jo_unordered_hash_map() : bucket_count(0) {
-        buckets = nullptr;
-    }
-    jo_unordered_hash_map(int bucket_count) : bucket_count(bucket_count) {
-        buckets = new Node[bucket_count];
-    }
-    jo_unordered_hash_map(const jo_unordered_hash_map& other) : bucket_count(other.bucket_count) {
-        buckets = new Node[bucket_count];
-        for(int i = 0; i < bucket_count; i++) {
-            Node *bucket = get_bucket(other.buckets[i]->key);
-            Node *node = new Node(other.buckets[i]);
-            node->next = bucket->ptr;
-            bucket->ptr = node;
-        }
-    }
-    jo_unordered_hash_map(jo_unordered_hash_map&& other) : bucket_count(other.bucket_count) {
-        buckets = other.buckets;
-        other.buckets = nullptr;
-    }
-    jo_unordered_hash_map& operator=(const jo_unordered_hash_map& other) {
-        if (this != &other) {
-            for(int i = 0; i < bucket_count; i++) {
-                Node *bucket = get_bucket(other.buckets[i]->key);
-                Node *node = new Node(other.buckets[i]);
-                node->next = bucket->ptr;
-                bucket->ptr = node;
-            }
-        }
-        return *this;
-    }
-    jo_unordered_hash_map& operator=(jo_unordered_hash_map&& other) {
-        if (this != &other) {
-            for(int i = 0; i < bucket_count; i++) {
-                Node *bucket = get_bucket(other.buckets[i]->key);
-                Node *node = new Node(other.buckets[i]);
-                node->next = bucket->ptr;
-                bucket->ptr = node;
-            }
-            other.buckets = nullptr;
-        }
-        return *this;
-    }
-    ~jo_unordered_hash_map() {
-        for(int i = 0; i < bucket_count; i++) {
-            Node *bucket = get_bucket(buckets[i]->key);
-            while(bucket->ptr) {
-                Node *node = bucket->ptr;
-                bucket->ptr = node->next;
-                delete node;
-            }
-        }
-        delete[] buckets;
-    }
-
-    VALUE& operator[](const KEY& key) {
-        Node *bucket = get_bucket(key);
-        while(bucket->ptr) {
-            if (bucket->ptr->key == key) {
-                return bucket->ptr->value;
-            }
-            bucket = bucket->ptr;
-        }
-        Node *node = new Node;
-        node->key = key;
-        node->value = VALUE();
-        node->next = bucket->ptr;
-        bucket->ptr = node;
-        return node->value;
-    }
-
-    bool contains(const KEY& key) {
-        Node *bucket = get_bucket(key);
-        while(bucket->ptr) {
-            if (bucket->ptr->key == key) {
-                return true;
-            }
-            bucket = bucket->ptr;
-        }
-        return false;
-    }
-
-    VALUE& get(const KEY& key) {
-        Node *bucket = get_bucket(key);
-        while(bucket->ptr) {
-            if (bucket->ptr->key == key) {
-                return bucket->ptr->value;
-            }
-            bucket = bucket->ptr;
-        }
-        throw "Key not found";
-    }
-
-    void remove(const KEY& key) {
-        Node *bucket = get_bucket(key);
-        while(bucket->ptr) {
-            if (bucket->ptr->key == key) {
-                Node *node = bucket->ptr;
-                bucket->ptr = node->next;
-                delete node;
-                return;
-            }
-            bucket = bucket->ptr;
-        }
-        throw "Key not found";
-    }
-
-    void clear() {
-        for(int i = 0; i < bucket_count; i++) {
-            Node *bucket = get_bucket(buckets[i]->key);
-            while(bucket->ptr) {
-                Node *node = bucket->ptr;
-                bucket->ptr = node->next;
-                delete node;
-            }
-        }
-    }
-
-    int size() {
-        int size = 0;
-        for(int i = 0; i < bucket_count; i++) {
-            Node *bucket = get_bucket(buckets[i]->key);
-            while(bucket->ptr) {
-                size++;
-                bucket = bucket->ptr;
-            }
-        }
-        return size;
-    }
-
-    bool empty() {
-        for(int i = 0; i < bucket_count; i++) {
-            Node *bucket = get_bucket(buckets[i]->key);
-            while(bucket->ptr) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    class iterator {
-        Node *bucket;
-        Node *node;
-        jo_unordered_hash_map *map;
-
-        void next() {
-            while(bucket->ptr) {
-                node = bucket->ptr;
-                bucket = map->get_bucket(node->key);
-            }
-        }
-    public:
-        iterator(jo_unordered_hash_map *map) : map(map) {
-            bucket = map->buckets;
-            node = nullptr;
-            next();
-        }
-        iterator(const iterator& other) : map(other.map), bucket(other.bucket), node(other.node) {}
-
-        iterator& operator=(const iterator& other) {
-            if (this != &other) {
-                bucket = other.bucket;
-                node = other.node;
-            }
-            return *this;
-        }
-
-        iterator& operator++() { node = node->next; next(); return *this; }
-        iterator operator++(int) { iterator tmp(*this); operator++(); return tmp; }
-
-        bool operator==(const iterator& other) { return node == other.node; }
-        bool operator!=(const iterator& other) { return node != other.node; }
-        VALUE& operator*() { return node->value; }
-        VALUE* operator->() { return &node->value; }
-    };
-
-    iterator begin() { return iterator(this); }
-    iterator end() { return iterator(this); }
-
-    // find implementation
-    iterator find(const KEY& key) {
-        Node *bucket = get_bucket(key);
-        while(bucket->ptr) {
-            if (bucket->ptr->key == key) {
-                return iterator(this);
-            }
-            bucket = bucket->ptr;
-        }
-        return iterator(this);
     }
 };
 
@@ -4483,6 +4280,9 @@ struct jo_persistent_list {
         iterator() : cur(NULL), index() {}
         iterator(jo_shared_ptr<node> cur) : cur(cur), index() {}
         iterator(const iterator &other) : cur(other.cur), index(other.index) {}
+        iterator(const jo_persistent_list &list) : cur(list.head), index() {}
+        iterator(const jo_shared_ptr<jo_persistent_list> &list) : cur(list->head), index() {}
+
         iterator &operator=(const iterator &other) {
             cur = other.cur;
             index = other.index;
@@ -4539,14 +4339,6 @@ struct jo_persistent_list {
         }
 
     };
-
-    iterator begin() const {
-        return iterator(head);
-    }
-
-    iterator end() const {
-        return iterator(tail);
-    }
 
     jo_persistent_list *rest(const iterator &it) const {
         jo_persistent_list *copy = new jo_persistent_list();

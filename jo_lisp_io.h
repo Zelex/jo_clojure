@@ -62,7 +62,7 @@ static node_idx_t native_io_open_file(env_ptr_t env, list_ptr_t args) {
     if(args->size() < 2) {
         return NIL_NODE;
     }
-    list_t::iterator it = args->begin();
+    list_t::iterator it(args);
     jo_string opts = get_node_string(*it++);
     jo_string str;
     for(; it; it++) {
