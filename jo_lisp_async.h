@@ -860,6 +860,53 @@ static node_idx_t native_deliver(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (locking x & body)
+// Executes exprs in an implicit do, while holding the monitor of x.
+// Will release the monitor of x in all circumstances.
+static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
+	node_idx_t x_idx = args->first_value();
+	node_t *atom = get_node(x_idx);
+
+	node_idx_t old_val;
+
+	unsigned current_thread_id = *(unsigned*)&std::this_thread::get_id();
+
+	// mutexes in transactions (does this even make sense?)
+	if(env->tx.ptr) {
+		// TODO
+	}
+
+	// lock the atom
+	int count = 0;
+	do {
+		old_val = atom->t_atom.load();
+		while(old_val == TX_HOLD_NODE) {
+			// re-entrant support
+			if(atom->t_thread_id == current_thread_id) {
+				break;
+			}
+			jo_yield_backoff(&count);
+			old_val = atom->t_atom.load();
+		}
+		if(atom->t_atom.compare_exchange_weak(old_val, TX_HOLD_NODE)) {
+			break;
+		}
+		jo_yield_backoff(&count);
+		atom_retries++;
+	} while(true);
+
+	// re-entrant support
+	atom->t_thread_id = current_thread_id;
+
+	// do whatever it is that its locked for...
+	node_idx_t ret = eval_node_list(env, args->rest());
+
+	// unlock the atom
+	atom->t_atom.store(old_val);
+
+	return ret;
+}
+
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, true, NODE_FLAG_PRERESOLVE));
@@ -869,6 +916,9 @@ void jo_lisp_async_init(env_ptr_t env) {
     env->set("compare-and-set!", new_node_native_function("compare-and-set!", &native_compare_and_set_e, false, NODE_FLAG_PRERESOLVE));
     env->set("swap-vals!", new_node_native_function("swap-vals!", &native_swap_vals_e, false, NODE_FLAG_PRERESOLVE));
     env->set("reset-vals!", new_node_native_function("reset-vals!", &native_reset_vals_e, false, NODE_FLAG_PRERESOLVE));
+	   
+	// mutexes
+    env->set("locking", new_node_native_function("locking", &native_locking, true, NODE_FLAG_PRERESOLVE));
 
     // STM like stuff
     env->set("multi-swap!", new_node_native_function("multi-swap!", &native_multi_swap_e, false, NODE_FLAG_PRERESOLVE));
