@@ -368,7 +368,7 @@
                 reverse
                 first)))
   (let [xs (lazy-seq (repeatedly #(rand)))]
-    (is (= (take 5 xs) (take 5 xs)))))
+    (is (not= (take 5 xs) (take 5 xs)))))
 (defn partition-test []
   (is (= (list (list 0 1 2 3)
                (list 4 5 6 7))
