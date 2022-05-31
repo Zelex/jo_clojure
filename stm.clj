@@ -33,21 +33,22 @@
 
 (def targets [ SuperCoolProgram ])
 
-(def compile-files-done (atom []))
-(def compile-files-todo (atom []))
+(def compile-files-done (atom ()))
+(def compile-files-todo (atom ()))
 
-(def link-files-done (atom []))
-(def link-files-todo (atom []))
+(def link-files-done (atom ()))
+(def link-files-todo (atom ()))
 
-(def errors [])
-(def warnings [])
+(def errors ())
+(def warnings ())
 
 (def compiler 'clang)
 (def linker 'clang)
 
-(defn compile-file-internal [file]
+(defn compile-file-internal [[file T]]
+    ;(println "Compiling" file T)
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
-    ;(System/sleep (rand 0.001 0.0))
+    (System/sleep T)
     true)
 
 (defn compile-result-success [result] true)
@@ -68,8 +69,8 @@
 )
 
 (defn compile-file-stm [filename] 
-    ;(println "Compiling" filename)
 (dosync
+    ;(println "Compiling" filename)
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
             (do (swap! compile-files-done conj filename)
@@ -95,14 +96,16 @@
     )
 )
 
-(def files (doall (range 1000)))
+(def files (doall (for [idx (range 1000) :let [T (rand 0 0.1)]] [idx T])))
 
-(println "Single Threaded")
-(println (time (doall (map compile-file-st files))))
+;(println "Single Threaded")
+;(println (time (doall (map compile-file-st files))))
 
 (println "Atoms Only")
 (println (time (doall (map deref (doall (pmap compile-file-atoms files))))))
 
+; STM here almost acts like a sort, where the faster things are done first, 
+; followed by the slower ones (as slower ones get retried a bunch)
 (println "STM")
 (println (time (doall (map deref (doall (pmap compile-file-stm files))))))
 

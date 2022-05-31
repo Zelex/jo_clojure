@@ -3228,10 +3228,10 @@ static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 		list = new_list();
 		debugf("conj: nil\n");
 	} else if(first_type == NODE_LIST) {
-		list = get_node(first_idx)->as_list();
+		list = get_node(first_idx)->t_list;
 		debugf("conj: list\n");
 	} else if(first_type == NODE_VECTOR) {
-		vec = get_node(first_idx)->as_vector();
+		vec = get_node(first_idx)->t_vector;
 		debugf("conj: vector\n");
 	} else {
 		list = new_list();
@@ -3240,16 +3240,12 @@ static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 	}
 	if(list.ptr) {
 		for(; it; it++) {
-			node_idx_t second_idx = *it;
-			node_t *second = get_node(second_idx);
-			list = list->push_front(second_idx);
+			list = list->push_front(*it);
 		}
 		return new_node_list(list);
 	} else {
 		for(; it; it++) {
-			node_idx_t second_idx = *it;
-			node_t *second = get_node(second_idx);
-			vec = vec->push_back(second_idx);
+			vec = vec->push_back(*it);
 		}
 		return new_node_vector(vec);
 	}
@@ -5386,47 +5382,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	if(0) {
-		// test persistent vectors
-		jo_persistent_vector<int> *pv = new jo_persistent_vector<int>();
-		for(int i = 0; i < 100; i++) { pv->push_back_inplace(i); }
-		for(int i = 0; i < 33; i++) { pv->pop_front_inplace(); }
-		for(int i = 0; i < 10; i++) { pv->pop_back_inplace(); }
-
-		// test iterators
-		jo_persistent_vector<int>::iterator it = pv->begin();
-		for(int i = 0; it; it++, ++i) {
-			if(*it != 33 + i) {
-				fprintf(stderr, "iterator test failed\n");
-				return 1;
-			}
-			//printf("%d\n", *it);
-		}
-
-		delete pv;
-
-		printf("\n");
-		// test persistent vectors
-
-	}
-
-	if(0) {
-		// test bidirectional persistent vectors
-		jo_persistent_vector_bidirectional<int> *pv = new jo_persistent_vector_bidirectional<int>();
-		for(int i = 0; i < 10; i++) { pv->push_front_inplace(-i); }
-		for(int i = 0; i < 1; i++) { pv->push_back_inplace(i); }
-		//for(int i = 0; i < 1; i++) { pv->pop_front_inplace(); }
-		for(int i = 0; i < 3; i++) { pv->pop_back_inplace(); }
-		for(int i = 0; i < 3; i++) { pv->push_back_inplace(i); }
-		//for(int i = 0; i < 1; i++) { pv->push_front_inplace(-i); }
-		jo_persistent_vector_bidirectional<int>::iterator it = pv->begin();
-		for(; it; it++) {
-			printf("%d\n", *it);
-		}
-		delete pv;
-		printf("\n");
-		exit(0);
-	}
+	srand(0);
 
 	debugf("Setting up environment...\n");
 
