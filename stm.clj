@@ -47,7 +47,7 @@
 
 (defn compile-file-internal [file]
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
-    ;(System/sleep (rand 1))
+    (System/sleep (rand 0.1))
     true)
 
 (defn compile-result-success [result] true)
