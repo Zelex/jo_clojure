@@ -68,18 +68,21 @@
                 (swap! compile-files-done cons filename)))))
 
 (defn compile-file-stm [filename] 
-    ;(println "Compiling" filename)
+    (println "Compiling" filename)
     (dosync
+        (swap! compile-files-todo conj filename)
         (let [compile-result (compile-file-internal filename)]
             (if (compile-result-success compile-result)
                 (do (swap! compile-files-done conj filename)
                     (compile-result-message compile-result))
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
-                    (swap! compile-files-done conj filename))))))
+                    (swap! compile-files-done conj filename)))))
+    (println 'Compiled filename)
+)
 
 (defn compile-file-stm-fast [filename] 
-    ;(println "Compiling" filename)
+    (println "Compiling" filename)
     (let [compile-result (compile-file-internal filename)]
         (dosync
             (if (compile-result-success compile-result)
@@ -87,7 +90,9 @@
                     (compile-result-message compile-result))
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
-                    (swap! compile-files-done conj filename))))))
+                    (swap! compile-files-done conj filename)))))
+    (println "Compiled" filename)
+)
 
 (defn compile-file-atom [filename] 
     ;(println "Compiling" filename)
@@ -115,24 +120,51 @@
         (compile-file-stm filename) 
         (compile-file-atom filename)))
 
-(def files (doall (for [idx (range 1000) :let [T (rand 0 1)]] [idx T])))
+(def files (doall (for [idx (range 10000) :let [T (rand 0.05 0.05)]] [idx T])))
 
 ;(println "Single Threaded")
 ;(println (time (doall (map compile-file-st files))))
 
-(println "Mutexes")
-(println (time (doall (map deref (doall (pmap compile-file-mutex files))))))
+;(println "Mutexes")
+;(println (time (doall (map deref (doall (pmap compile-file-mutex files))))))
 
-(println "Atoms Only")
-(println (time (doall (map deref (doall (pmap compile-file-atom files))))))
+;(println "Atoms Only")
+;(println (time (doall (map deref (doall (pmap compile-file-atom files))))))
 
 ; STM here almost acts like a sort, where the faster things are done first, 
 ; followed by the slower ones (as slower ones get retried a bunch)
-(println "STM Slow")
-(println (time (doall (map deref (doall (pmap compile-file-stm files))))))
+;(println "STM Slow")
+;(println (time (doall (map deref (doall (pmap compile-file-stm files))))))
 
-(println "STM Fast")
-(println (time (doall (map deref (doall (pmap compile-file-stm-fast files))))))
+;(println "STM Fast (only parts that need sync, not whole action)")
+;(println (time (doall (map deref (doall (pmap compile-file-stm-fast files))))))
+
+;(println "STM Live-Lock situation (slow)")
+;(println (time (let [tmp (future (compile-file-stm ["./test/test.c" 1]))]
+    ;(doall (map deref (doall (pmap compile-file-stm files))))
+    ;(deref tmp))))
+
+
+; Test Live-lock situations where things take twice as long as they should
+(println "STM Live-Lock simulation (just shows how it fails conceptually)")
+(println (time (let 
+            [A (atom ()) 
+             slow-task (future 
+                (dosync 
+                    (println "Slow task begin") 
+                    (swap! A conj "abc") 
+                    (System/sleep 10) 
+                    (println "Slow task end")))
+            ]
+    ; Wait to make sure that the slow task has accessed atom A
+    (System/sleep 1)
+    ; Now kick off a fast task that will access A as well, causing a commit failure in slow-task
+    (deref (future 
+        (dosync
+            (println "Fast task begin") 
+            (swap! A conj "abc") 
+            (println "Fast task end"))))
+    @slow-task)))
 
 ;(println "STM/Atom 50/50 random mix")
 ;(println (time (doall (map deref (doall (pmap compile-file-rand files))))))

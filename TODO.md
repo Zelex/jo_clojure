@@ -173,7 +173,6 @@ iterator-seq
 list*
 load
 loaded-libs
-locking
 long
 long-array
 longs

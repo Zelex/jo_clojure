@@ -874,6 +874,7 @@ static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
 	// mutexes in transactions (does this even make sense?)
 	if(env->tx.ptr) {
 		// TODO
+		warnf("locking in transactions! Danger Will Robinson!");
 	}
 
 	// lock the atom
