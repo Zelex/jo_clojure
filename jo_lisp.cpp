@@ -67,6 +67,7 @@ enum {
 	K_ALL_NODE,
 	K_BY_NODE,
 	K_AUTO_DEREF_NODE,
+	START_USER_NODES,
 
 	// node types
 	NODE_NIL = 0,
@@ -102,6 +103,7 @@ enum {
 	NODE_FLAG_LITERAL_ARGS = 1<<4,
 	NODE_FLAG_PRERESOLVE   = 1<<5,
 	NODE_FLAG_AUTO_DEREF   = 1<<6,
+	NODE_FLAG_FOREVER	   = 1<<7, // never release this node
 };
 
 struct env_t;
@@ -109,26 +111,89 @@ struct transaction_t;
 struct node_t;
 struct lazy_list_iterator_t;
 
+static inline void node_add_ref(long long idx);
+static inline void node_release(long long idx);
+
 struct node_idx_t {
 	long long idx;
-	node_idx_t() = default;
-	node_idx_t(long long idx) : idx(idx) {}
+	node_idx_t() : idx() {}
+	node_idx_t(long long _idx) : idx(_idx) { 
+		node_add_ref(idx); 
+	}
+	~node_idx_t() { 
+		node_release(idx); 
+	}
+	node_idx_t(const node_idx_t& other) : idx(other.idx) { 
+		node_add_ref(idx); 
+	}
+	node_idx_t(node_idx_t&& other) : idx(other.idx) { 
+		other.idx = 0; 
+	}
+	node_idx_t& operator=(long long _idx) {  
+		if(idx != _idx) {
+			node_add_ref(_idx);
+			node_release(idx);
+			idx = _idx;
+		}
+		return *this; 
+	}
+	// copy assignment
+	node_idx_t& operator=(const node_idx_t& other) {  
+		if(idx != other.idx) {
+			node_add_ref(other.idx);
+			node_release(idx);
+			idx = other.idx;
+		}
+		return *this; 
+	}
+	// move assignment
+	node_idx_t& operator=(node_idx_t&& other) {  
+		if(idx != other.idx) {
+			node_add_ref(other.idx);
+			node_release(idx);
+			idx = other.idx;
+			other.idx = 0;
+		}
+		return *this; 
+	}
 	operator long long() const { return idx; }
-	node_idx_t& operator=(long long idx) { this->idx = idx; return *this; }
 	bool operator==(const node_idx_t& other) const { return idx == other.idx; }
 	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
 	bool operator==(long long idx) const { return this->idx == idx; }
 	bool operator!=(long long idx) const { return this->idx != idx; }
 	bool operator==(int idx) const { return this->idx == idx; }
 	bool operator!=(int idx) const { return this->idx != idx; }
-	node_idx_t& operator++() { ++idx; return *this; }
-	node_idx_t& operator--() { --idx; return *this; }
-	node_idx_t operator++(int) { node_idx_t tmp = *this; ++idx; return tmp; }
-	node_idx_t operator--(int) { node_idx_t tmp = *this; --idx; return tmp; }
-	node_idx_t operator+(long long i) const { return node_idx_t(idx + i); }
-	node_idx_t operator-(long long i) const { return node_idx_t(idx - i); }
-	node_idx_t& operator+=(long long i) { idx += i; return *this; }
-	node_idx_t& operator-=(long long i) { idx -= i; return *this; }
+};
+
+struct atomic_node_idx_t {
+	std::atomic<long long> idx;
+	atomic_node_idx_t() = default;
+	atomic_node_idx_t(long long _idx) : idx(_idx) { 
+		node_add_ref(idx); 
+	}
+	~atomic_node_idx_t() { 
+		node_release(idx); 
+	}
+	atomic_node_idx_t& operator=(long long _idx) {  
+		if(idx != _idx) {
+			node_add_ref(_idx);
+			node_release(idx);
+			idx = _idx;
+		}
+		return *this; 
+	}
+	operator long long() const { return idx; }
+	bool operator==(const atomic_node_idx_t& other) const { return idx == other.idx; }
+	bool operator!=(const atomic_node_idx_t& other) const { return idx != other.idx; }
+	bool operator==(long long idx) const { return this->idx == idx; }
+	bool operator!=(long long idx) const { return this->idx != idx; }
+	bool operator==(int idx) const { return this->idx == idx; }
+	bool operator!=(int idx) const { return this->idx != idx; }
+
+	node_idx_t load() const { return idx.load(); }
+	void store(node_idx_t idx) { this->idx.store(idx); }
+	bool compare_exchange_strong(long long expected, long long desired) { return idx.compare_exchange_strong(expected, desired); }
+	bool compare_exchange_weak(long long expected, long long desired) { return idx.compare_exchange_weak(expected, desired); }
 };
 
 typedef jo_persistent_list<node_idx_t> list_t;
@@ -158,7 +223,7 @@ static map_ptr_t new_map() { return map_ptr_t(new map_t()); }
 static hash_set_ptr_t new_hash_set() { return hash_set_ptr_t(new hash_set_t()); }
 static transaction_ptr_t new_transaction();
 
-static inline node_t *get_node(node_idx_t idx);
+static inline node_t *get_node(long long idx);
 static inline int get_node_type(node_idx_t idx);
 static inline int get_node_type(const node_t *n);
 static inline int get_node_flags(node_idx_t idx);
@@ -177,7 +242,7 @@ static inline node_idx_t get_node_lazy_fn(node_idx_t idx);
 static inline node_idx_t get_node_lazy_fn(const node_t *n);
 static inline FILE *get_node_file(node_idx_t idx);
 static inline void *get_node_dir(node_idx_t idx);
-static inline std::atomic<node_idx_t> &get_node_atom(node_idx_t idx);
+static inline atomic_node_idx_t &get_node_atom(node_idx_t idx);
 static inline env_ptr_t get_node_env(node_idx_t idx);
 static inline env_ptr_t get_node_env(const node_t *n);
 
@@ -316,7 +381,7 @@ struct env_t {
 		node_idx_t value;
 		bool valid;
 		fast_val_t() : var(NIL_NODE), value(NIL_NODE), valid() {}
-		fast_val_t(node_idx_t var, node_idx_t value) : var(var), value(value), valid(true) {}
+		fast_val_t(node_idx_t _var, node_idx_t _value) : var(_var), value(_value), valid(true) {}
 	};
 	std::unordered_map<std::string, fast_val_t> vars_map;
 	env_ptr_t parent;
@@ -381,7 +446,7 @@ struct env_t {
 		if(has(name)) {
 			remove(name);
 		}
-		node_idx_t idx = new_node_var(name, value);
+		node_idx_t idx = new_node_var(name, value, NODE_FLAG_FOREVER);
 		vars = vars->push_front(idx);
 		vars_map[name.c_str()] = fast_val_t(idx, value);
 	}
@@ -510,7 +575,7 @@ struct lazy_list_iterator_t {
 // stuff that is uncommonly used or has complex constructors so it can't go in the main union.
 // TODO: integrate this approach.
 struct node_extras_t {
-	std::atomic<node_idx_t> t_atom;
+	atomic_node_idx_t t_atom;
 	std::shared_future<node_idx_t> t_future;
 	std::promise<node_idx_t> t_promise;
 	// big int?
@@ -518,6 +583,7 @@ struct node_extras_t {
 };
 
 struct node_t {
+	int ref_count;
 	int type;
 	int flags;
 	jo_string t_string;
@@ -526,7 +592,7 @@ struct node_t {
 	map_ptr_t t_map;
 	hash_set_ptr_t t_hash_set;
 	native_func_ptr_t t_native_function;
-	std::atomic<node_idx_t> t_atom;
+	atomic_node_idx_t t_atom;
 	std::shared_future<node_idx_t> t_future;
 	std::promise<node_idx_t> t_promise;
 	env_ptr_t t_env;
@@ -534,39 +600,50 @@ struct node_t {
 		vector_ptr_t args;
 		list_ptr_t body;
 	} t_func;
+	node_idx_t t_var; // link to the variable
+	node_idx_t t_delay; // cached result // TODO: this can be a future with async::delay execution
+	node_idx_t t_lazy_fn;
 	union {
-		node_idx_t t_var; // link to the variable
 		bool t_bool;
 		// most implementations combine these as "number", but at the moment that sounds silly
 		long long t_int;
 		double t_float;
-		node_idx_t t_delay; // cached result // TODO: this can be a future with async::delay execution
-		node_idx_t t_lazy_fn;
 		FILE *t_file;
 		void *t_dir;
 		unsigned long long t_thread_id;
 	};
 
 	node_t() 
-	: type()
-	, flags()
-	, t_string()
-	, t_list()
-	, t_vector()
-	, t_map()
-	, t_hash_set()
-	, t_native_function()
-	, t_atom()
-	, t_future()
-	, t_promise()
-	, t_func()
-	, t_int() 
+		: ref_count(0)
+		, type(NODE_NIL)
+		, flags(0)
+		, t_string()
+		, t_list()
+		, t_vector()
+		, t_map()
+		, t_hash_set()
+		, t_native_function()
+		, t_atom()
+		, t_future()
+		, t_promise()
+		, t_env()
+		, t_func()
+		, t_var()
+		, t_delay()
+		, t_lazy_fn()
+		, t_bool(false)
+		, t_int(0)
+		, t_float(0)
+		, t_file(nullptr)
+		, t_dir(nullptr)
+		, t_thread_id(0) 
 	{
-	}
+	} 
 
 	// copy constructor
 	node_t(const node_t &other) 
-	: type(other.type)
+	: ref_count()
+	, type(other.type)
 	, flags(other.flags)
 	, t_string(other.t_string)
 	, t_list(other.t_list)
@@ -577,14 +654,18 @@ struct node_t {
 	, t_future(other.t_future)
 	, t_promise()
 	, t_func(other.t_func)
-	, t_float(other.t_float) 
+	, t_var(other.t_var)
+	, t_delay(other.t_delay)
+	, t_lazy_fn(other.t_lazy_fn)
+	, t_int(other.t_int) 
 	{
 		t_atom.store(other.t_atom.load());
 	}
 
 	// move constructor
 	node_t(node_t &&other)
-	: type(other.type)
+	: ref_count(other.ref_count)
+	, type(other.type)
 	, flags(other.flags)
 	, t_string(std::move(other.t_string))
 	, t_list(std::move(other.t_list))
@@ -595,7 +676,10 @@ struct node_t {
 	, t_future(std::move(other.t_future))
 	, t_promise(std::move(other.t_promise))
 	, t_func(std::move(other.t_func))
-	, t_float(other.t_float)
+	, t_var(other.t_var)
+	, t_delay(other.t_delay)
+	, t_lazy_fn(other.t_lazy_fn)
+	, t_int(other.t_int)
 	{
 		t_atom.store(other.t_atom.load());
 	}
@@ -612,9 +696,34 @@ struct node_t {
 		t_native_function = other.t_native_function;
 		t_atom.store(other.t_atom.load());
 		t_future = other.t_future;
-		//t_promise = other.t_promise;
+		t_promise.set_value(NIL_NODE);
 		t_func = other.t_func;
-		t_float = other.t_float;
+		t_var = other.t_var;
+		t_delay = other.t_delay;
+		t_lazy_fn = other.t_lazy_fn;
+		t_int = other.t_int;
+		return *this;
+	}
+
+	// move assignment operator
+	node_t &operator=(node_t &&other) {
+		ref_count = other.ref_count;
+		type = other.type;
+		flags = other.flags;
+		t_string = std::move(other.t_string);
+		t_list = std::move(other.t_list);
+		t_vector = std::move(other.t_vector);
+		t_map = std::move(other.t_map);
+		t_hash_set = std::move(other.t_hash_set);
+		t_native_function = other.t_native_function;
+		t_atom.store(other.t_atom.load());
+		t_future = std::move(other.t_future);
+		t_promise = std::move(other.t_promise);
+		t_func = std::move(other.t_func);
+		t_var = other.t_var;
+		t_delay = other.t_delay;
+		t_lazy_fn = other.t_lazy_fn;
+		t_int = other.t_int;
 		return *this;
 	}
 
@@ -946,9 +1055,33 @@ struct node_t {
 };
 
 static jo_pinned_vector<node_t> nodes;
-static jo_vector<node_idx_t> free_nodes; // available for allocation...
+static jo_pinned_vector<long long> free_nodes; // available for allocation...
 
-static inline node_t *get_node(node_idx_t idx) { return &nodes[idx]; }
+static inline void node_add_ref(long long idx) { 
+	if(idx >= START_USER_NODES) {
+		node_t *n = &nodes[idx];
+		int flags = n->flags;
+		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
+			n->ref_count++; 
+			debugf("node_add_ref: %s of type %s\n", n->t_string.c_str(), n->type_name());
+		}
+	}
+}
+static inline void node_release(long long idx) { 
+	if(idx >= START_USER_NODES) {
+		node_t *n = &nodes[idx];
+		int flags = n->flags;
+		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
+			if(--n->ref_count <= 0) {
+				debugf("node_release: %s\n", nodes[idx].as_string().c_str());
+				//assert(n->ref_count >= 0);
+				//free_nodes.push_back(idx);
+			}
+		}
+	}
+}
+
+static inline node_t *get_node(long long idx) { return &nodes[idx]; }
 static inline int get_node_type(node_idx_t idx) { return get_node(idx)->type; }
 static inline int get_node_type(const node_t *n) { return n->type; }
 static inline int get_node_flags(node_idx_t idx) { return get_node(idx)->flags; }
@@ -968,7 +1101,7 @@ static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)
 static inline node_idx_t get_node_lazy_fn(const node_t *n) { return n->t_lazy_fn; }
 static inline FILE *get_node_file(node_idx_t idx) { return get_node(idx)->t_file; }
 static inline void *get_node_dir(node_idx_t idx) { return get_node(idx)->t_dir; }
-static inline std::atomic<node_idx_t> &get_node_atom(node_idx_t idx) { return get_node(idx)->t_atom; }
+static inline atomic_node_idx_t &get_node_atom(node_idx_t idx) { return get_node(idx)->t_atom; }
 static inline env_ptr_t get_node_env(node_idx_t idx) { return get_node(idx)->t_env; }
 static inline env_ptr_t get_node_env(const node_t *n) { return n->t_env; }
 
@@ -977,20 +1110,23 @@ static inline void free_node(node_idx_t idx) {
 }
 
 // TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
-static inline node_idx_t new_node(const node_t *n) {
+static inline node_idx_t new_node(node_t &&n) {
 	if(free_nodes.size()) {
 		long long ni = free_nodes.pop_back();
-		nodes[ni] = *n;
-		return ni;
+		if(ni >= START_USER_NODES) {
+			node_t *nn = &nodes[ni];
+			*nn = std::move(n);
+			return ni;
+		}
 	}
-	return nodes.push_back(*n);
+	return nodes.push_back(std::move(n));
 }
 
 static node_idx_t new_node(int type, int flags) {
 	node_t n;
 	n.type = type;
 	n.flags = flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_list(list_ptr_t nodes, int flags) {
@@ -1031,7 +1167,7 @@ static node_idx_t new_node_native_function(std::function<node_idx_t(env_ptr_t,li
 	n.flags = flags;
 	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
 	n.flags |= NODE_FLAG_LITERAL;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_native_function(const char *name, std::function<node_idx_t(env_ptr_t,list_ptr_t)> f, bool is_macro, int flags=0) {
@@ -1042,7 +1178,7 @@ static node_idx_t new_node_native_function(const char *name, std::function<node_
 	n.flags = flags;
 	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
 	n.flags |= NODE_FLAG_LITERAL;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_bool(bool b) {
@@ -1057,7 +1193,7 @@ static node_idx_t new_node_int(long long i, int flags) {
 	n.type = NODE_INT;
 	n.t_int = i;
 	n.flags = NODE_FLAG_LITERAL | flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_float(double f, int flags = 0) {
@@ -1065,7 +1201,7 @@ static node_idx_t new_node_float(double f, int flags = 0) {
 	n.type = NODE_FLOAT;
 	n.t_float = f;
 	n.flags = NODE_FLAG_LITERAL | flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_string(const jo_string &s, int flags) {
@@ -1073,7 +1209,7 @@ static node_idx_t new_node_string(const jo_string &s, int flags) {
 	n.type = NODE_STRING;
 	n.t_string = s;
 	n.flags = NODE_FLAG_LITERAL | NODE_FLAG_STRING | flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_symbol(const jo_string &s, int flags=0) {
@@ -1081,7 +1217,7 @@ static node_idx_t new_node_symbol(const jo_string &s, int flags=0) {
 	n.type = NODE_SYMBOL;
 	n.t_string = s;
 	n.flags = NODE_FLAG_STRING | flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_keyword(const jo_string &s, int flags=0) {
@@ -1089,7 +1225,7 @@ static node_idx_t new_node_keyword(const jo_string &s, int flags=0) {
 	n.type = NODE_KEYWORD;
 	n.t_string = s;
 	n.flags = NODE_FLAG_LITERAL | NODE_FLAG_STRING | flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flags) {
@@ -1098,7 +1234,7 @@ static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flag
 	n.t_string = name;
 	n.t_var = value;
 	n.flags = flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_file(FILE *fp, int flags = 0) {
@@ -1106,7 +1242,7 @@ static node_idx_t new_node_file(FILE *fp, int flags = 0) {
 	n.type = NODE_FILE;
 	n.t_file = fp;
 	n.flags = flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_dir(void *dp, int flags = 0) {
@@ -1114,7 +1250,7 @@ static node_idx_t new_node_dir(void *dp, int flags = 0) {
 	n.type = NODE_DIR;
 	n.t_dir = dp;
 	n.flags = flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static node_idx_t new_node_atom(node_idx_t atom, int flags = 0) {
@@ -1122,7 +1258,7 @@ static node_idx_t new_node_atom(node_idx_t atom, int flags = 0) {
 	n.type = NODE_ATOM;
 	n.t_atom = atom;
 	n.flags = flags;
-	return new_node(&n);
+	return new_node(std::move(n));
 }
 
 static int is_whitespace(int c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
@@ -1445,14 +1581,14 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	// parse number...
 	if(tok.type == TOK_STRING) {
 		debugf("string: %s\n", tok.str.c_str());
-		return new_node_string(tok.str.c_str());
+		return new_node_string(tok.str.c_str(), NODE_FLAG_FOREVER);
 	} 
 	if(is_num(c) || (c == '-' && is_num(c2))) {
 		// floating point
 		if(tok.str.find('.') != jo_npos) {
 			double float_val = atof(tok_ptr);
 			debugf("float: %f\n", float_val);
-			return new_node_float(float_val);
+			return new_node_float(float_val, NODE_FLAG_FOREVER);
 		}
 
 		int int_val = 0;
@@ -1493,7 +1629,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		// Create a new number node
 		debugf("int: %d\n", int_val);
-		return new_node_int(int_val);
+		return new_node_int(int_val, NODE_FLAG_FOREVER);
 	} 
 	if(tok.type == TOK_KEYWORD) {
 		debugf("keyword: %s\n", tok.str.c_str());
@@ -1505,7 +1641,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "__ALL__") return K_ALL_NODE;
 		if(tok.str == "__BY__") return K_BY_NODE;
 		if(tok.str == "__AUTO_DEREF__") return K_AUTO_DEREF_NODE;
-		return new_node_keyword(tok.str.c_str());
+		return new_node_keyword(tok.str.c_str(), NODE_FLAG_FOREVER);
 	}
 	if(tok.type == TOK_SYMBOL) {
 		debugf("symbol: %s\n", tok.str.c_str());
@@ -1526,7 +1662,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "%6") return PCT6_NODE;
 		if(tok.str == "%7") return PCT7_NODE;
 		if(tok.str == "%8") return PCT8_NODE;
-		return new_node_symbol(tok.str.c_str());
+		return new_node_symbol(tok.str.c_str(), NODE_FLAG_FOREVER);
 	} 
 
 	// parse quote shorthand
@@ -1538,6 +1674,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_LIST;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(env->get("quote").value);
 		while(next != INV_NODE) {
@@ -1545,7 +1682,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			next = parse_next(env, state, ')');
 		}
 		debugf("list end\n");
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	// parse hash-set shorthand
@@ -1557,6 +1694,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_HASH_SET;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_hash_set = new_hash_set();
 		int common_flags = ~0;
 		while(next != INV_NODE) {
@@ -1568,7 +1706,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			n.flags |= NODE_FLAG_LITERAL;
 		}
 		debugf("hash-set end\n");
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	// parse unquote shorthand
@@ -1579,10 +1717,11 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_LIST;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(UNQUOTE_NODE);
 		n.t_list->push_back_inplace(inner);
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	// parse unquote shorthand
@@ -1593,10 +1732,11 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_LIST;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(UNQUOTE_SPLICE_NODE);
 		n.t_list->push_back_inplace(inner);
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	if(tok.type == TOK_SEPARATOR && tok.str == "quasiquote") {
@@ -1606,10 +1746,11 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_LIST;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(env->get("quasiquote").value);
 		n.t_list->push_back_inplace(inner);
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	if(tok.type == TOK_SEPARATOR && tok.str == "deref") {
@@ -1619,10 +1760,11 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_LIST;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(env->get("deref").value);
 		n.t_list->push_back_inplace(inner);
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	// anonymous function shorthand. 
@@ -1635,6 +1777,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_LIST;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(env->get("fn").value);
 		list_ptr_t body = new_list();
@@ -1666,7 +1809,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.t_list->push_back_inplace(new_node_list(body));
 		debugf("list end\n");
 		//print_node(new_node(&n));
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	// parse list
@@ -1678,6 +1821,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_LIST;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
 		int common_flags = ~0;
 		bool is_native_fn = get_node_type(next) == NODE_NATIVE_FUNC;
@@ -1694,7 +1838,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			}
 		}
 		debugf("list end\n");
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	// parse vector
@@ -1707,6 +1851,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		node_t n;
 		n.type = NODE_VECTOR;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_vector = new_vector(); 
 		int common_flags = ~0;
 		while(next != INV_NODE) {
@@ -1719,7 +1864,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		}
 		// @ If its all the same type, convert to simple array of values of type
 		debugf("vector end\n");
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	// parse map (hashmap)
@@ -1728,6 +1873,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		debugf("map begin\n");
 		node_t n;
 		n.type = NODE_MAP;
+		n.flags = NODE_FLAG_FOREVER;
 		n.t_map = new_map();
 		node_idx_t next = parse_next(env, state, '}');
 		node_idx_t next2 = next != INV_NODE ? parse_next(env, state, '}') : INV_NODE;
@@ -1741,7 +1887,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			next2 = next != INV_NODE ? parse_next(env, state, '}') : INV_NODE;
 		}
 		debugf("map end\n");
-		return new_node(&n);
+		return new_node(std::move(n));
 	}
 
 	// parse set
@@ -1873,10 +2019,11 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 }
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
-	int flags = get_node_flags(root);
+	node_t *node = get_node(root);
+	int flags = node->flags;
 	if(flags & NODE_FLAG_LITERAL) { return root; }
 
-	int type = get_node_type(root);
+	int type = node->type;
 	if(type == NODE_LIST) {
 		return eval_list(env, get_node(root)->t_list, flags);
 	} else if(type == NODE_SYMBOL) {
@@ -1887,28 +2034,57 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 		return sym.value;//eval_node(env, sym_idx);
 	} else if(type == NODE_VECTOR) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
-		// resolve all symbols in the vector
-		vector_ptr_t new_vec = new_vector();
-		for(auto it = get_node(root)->t_vector->begin(); it; it++) {
-			new_vec->push_back_inplace(eval_node(env, *it));
+		// TODO: some way to quick resolve the vector? IE, know exactly which ones are things that need to be evaluated
+		// resolve all symbols in the vector (if any)
+		vector_ptr_t vec = node->t_vector;
+		size_t vec_size = vec->size();
+		for(size_t i = 0; i < vec_size; i++) {
+			node_idx_t n = (*vec)[i];
+			node_idx_t new_n = eval_node(env, n);
+			if(n != new_n) {
+				vec = vec->assoc(i, new_n);
+			}
 		}
-		return new_node_vector(new_vec);
+		if(vec != node->t_vector) {
+			return new_node_vector(vec);
+		}
+		return root;
 	} else if(type == NODE_MAP) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the map
-		map_ptr_t newmap = new_map();
-		for(auto it = get_node(root)->t_map->begin(); it; it++) {
-			newmap = newmap->assoc(eval_node(env, it->first), eval_node(env, it->second), node_eq);
+		map_ptr_t map = node->t_map;
+		for(auto it = map->begin(); it; it++) {
+			node_idx_t k = it->first;
+			node_idx_t v = it->second;
+			node_idx_t new_k = eval_node(env, k);
+			node_idx_t new_v = eval_node(env, v);
+			if(k != new_k || v != new_v) {
+				if(k != new_k) {
+					map = map->dissoc(k, node_eq);
+				}
+				map = map->assoc(new_k, new_v, node_eq);
+			}
 		}
-		return new_node_map(newmap);
+		if(map != node->t_map) {
+			return new_node_map(map);
+		}
+		return root;
 	} else if(type == NODE_HASH_SET) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
-		// resolve all symbols in the map
-		hash_set_ptr_t newset = new_hash_set();
-		for(auto it = get_node(root)->t_hash_set->begin(); it; it++) {
-			newset = newset->assoc(eval_node(env, it->first), node_eq);
+		// resolve all symbols in the hash set
+		hash_set_ptr_t set = node->t_hash_set;
+		for(auto it = set->begin(); it; it++) {
+			node_idx_t k = it->first;
+			node_idx_t new_k = eval_node(env, k);
+			if(k != new_k) {
+				set = set->dissoc(k, node_eq);
+				set = set->assoc(new_k, node_eq);
+			}
 		}
-		return new_node_hash_set(newset);
+		if(set != node->t_hash_set) {
+			return new_node_hash_set(set);
+		}
+		return root;
 	} else if(type == NODE_FUTURE && (flags & NODE_FLAG_AUTO_DEREF)) {
 		return eval_node(env, get_node(root)->deref());
 	}
@@ -5410,20 +5586,20 @@ int main(int argc, char **argv) {
 
 	// first thing first, alloc special nodes
 	{
-		new_node(NODE_NIL, NODE_FLAG_LITERAL);
+		new_node(NODE_NIL, NODE_FLAG_LITERAL|NODE_FLAG_PRERESOLVE);
 		for(int i = 0; i <= 256; i++) {
-			node_idx_t nidx = new_node(NODE_INT, NODE_FLAG_LITERAL);
+			node_idx_t nidx = new_node(NODE_INT, NODE_FLAG_LITERAL|NODE_FLAG_PRERESOLVE);
 			assert(nidx == INT_0_NODE+i);
 			node_t *n = get_node(nidx);
 			n->t_int = i;
 		}
 		{
-			node_idx_t i = new_node(NODE_BOOL, NODE_FLAG_LITERAL);
+			node_idx_t i = new_node(NODE_BOOL, NODE_FLAG_LITERAL|NODE_FLAG_PRERESOLVE);
 			node_t *n = get_node(i);
 			n->t_bool = false;
 		}
 		{
-			node_idx_t i = new_node(NODE_BOOL, NODE_FLAG_LITERAL);
+			node_idx_t i = new_node(NODE_BOOL, NODE_FLAG_LITERAL|NODE_FLAG_PRERESOLVE);
 			node_t *n = get_node(i);
 			n->t_bool = true;
 		}
@@ -5651,8 +5827,8 @@ int main(int argc, char **argv) {
 	//native_println(env, list_va(res_idx));
 	printf("%s\n", get_node(res_idx)->as_string(3).c_str());
 
-	debugf("nodes.size() = %zu\n", nodes.size());
-	debugf("free_nodes.size() = %zu\n", free_nodes.size());
+	printf("nodes.size() = %zu\n", nodes.size());
+	printf("free_nodes.size() = %zu\n", free_nodes.size());
 	debugf("atom_retries = %zu\n", atom_retries.load());
 	debugf("stm_retries = %zu\n", stm_retries.load());
 

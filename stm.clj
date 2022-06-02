@@ -36,10 +36,6 @@
 (def global-lock (atom nil))
 
 (def compile-files-done (atom ()))
-(def compile-files-todo (atom ()))
-
-(def link-files-done (atom ()))
-(def link-files-todo (atom ()))
 
 (def errors ())
 (def warnings ())
@@ -48,7 +44,7 @@
 (def linker 'clang)
 
 (defn compile-file-internal [[file T]]
-    ;(println "Compiling" file T)
+    ;(println 'Compiling file T)
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
     (System/sleep T)
     true)
@@ -58,7 +54,7 @@
 (defn compile-result-message [result] "")
 
 (defn compile-file-st [filename] 
-    ;(println "Compiling" filename)
+    ;(println 'Compiling filename)
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
             (do (swap! compile-files-done conj filename)
@@ -68,9 +64,8 @@
                 (swap! compile-files-done cons filename)))))
 
 (defn compile-file-stm [filename] 
-    (println "Compiling" filename)
+    ;(println 'Compiling filename)
     (dosync
-        (swap! compile-files-todo conj filename)
         (let [compile-result (compile-file-internal filename)]
             (if (compile-result-success compile-result)
                 (do (swap! compile-files-done conj filename)
@@ -78,11 +73,11 @@
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
                     (swap! compile-files-done conj filename)))))
-    (println 'Compiled filename)
+    ;(println 'Compiled filename)
 )
 
 (defn compile-file-stm-fast [filename] 
-    (println "Compiling" filename)
+    ;(println 'Compiling filename)
     (let [compile-result (compile-file-internal filename)]
         (dosync
             (if (compile-result-success compile-result)
@@ -91,11 +86,11 @@
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
                     (swap! compile-files-done conj filename)))))
-    (println "Compiled" filename)
+    ;(println 'Compiled filename)
 )
 
 (defn compile-file-atom [filename] 
-    ;(println "Compiling" filename)
+    ;(println 'Compiling filename)
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
             (do (swap! compile-files-done conj filename)
@@ -105,7 +100,7 @@
                 (swap! compile-files-done conj filename)))))
 
 (defn compile-file-mutex [filename] 
-    ;(println "Compiling" filename)
+    ;(println 'Compiling filename)
     (let [compile-result (compile-file-internal filename)]
         (locking global-lock
             (if (compile-result-success compile-result)
@@ -120,7 +115,16 @@
         (compile-file-stm filename) 
         (compile-file-atom filename)))
 
-;(def files (doall (for [idx (range 1000) :let [T (rand 0.05 0.05)]] [idx T])))
+
+(def files-1 (doall (for [idx (range 1000) :let [T (rand 0.01)]] [idx T])))
+;(def files-2 (doall (for [idx (range 1000) :let [T (rand 0.05 0.05)]] [idx T])))
+;(def files-3 (doall (for [idx (range 1000) :let [T (rand 1)]] [idx T])))
+
+(doseq [num-cores (range 1 4)]
+    (Thread/workers num-cores)
+    (println (time (doall (map deref (doall (pmap compile-file-stm-fast files-1))))))
+)
+
 
 ;(println "Single Threaded")
 ;(println (time (doall (map compile-file-st files))))
@@ -131,7 +135,7 @@
 ;(println "Atoms Only")
 ;(println (time (doall (map deref (doall (pmap compile-file-atom files))))))
 
-; STM here almost acts like a sort, where the faster things are done first, 
+; STM here almost acts like a partial sort, where the faster things are done first, 
 ; followed by the slower ones (as slower ones get retried a bunch)
 ;(println "STM Slow")
 ;(println (time (doall (map deref (doall (pmap compile-file-stm files))))))
@@ -146,6 +150,8 @@
 
 ;(println "STM/Atom 50/50 random mix")
 ;(println (time (doall (map deref (doall (pmap compile-file-rand files))))))
+
+(comment
 
 ; Test Live-lock situations where things take twice as long as they should
 (println "STM Live-Lock simulation (just shows how it fails conceptually)")
@@ -183,8 +189,26 @@
     ]
     ; Wait for thread-1 and thread-2 to finish by doing a deref on them
     @thread-1 @thread-2)
+)
 
-
-
+(comment
+;(let [results (doall (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
+(let [results (doall (for [num-cores (1 2 3 4)] (do 
+        ; Set the number of worker threads...
+        (Thread/workers num-cores)
+        (println "Testing with" num-cores "cores")
+        ; Now lets kick off some STM tests and return results in a vector
+        [
+            num-cores 
+            (time (doall (map deref (doall (pmap compile-file-mutex files-1)))))
+            (time (doall (map deref (doall (pmap compile-file-atom files-1)))))
+            (time (doall (map deref (doall (pmap compile-file-stm files-1)))))
+            (time (doall (map deref (doall (pmap compile-file-stm-fast files-1)))))
+        ]
+    )))]
+    ; Print out the results
+    (println (map str results))
+)
+)
 (println "Done")
 

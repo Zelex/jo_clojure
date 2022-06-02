@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <deque>
 
 struct jo_semaphore {
     std::mutex m;
@@ -26,8 +27,68 @@ struct jo_semaphore_waiter_notifier {
     ~jo_semaphore_waiter_notifier() { s.notify(); }
 };
 
-const auto processor_count = std::thread::hardware_concurrency();
-jo_semaphore thread_limiter(processor_count);
+
+typedef std::packaged_task<node_idx_t()> task_t;
+typedef jo_shared_ptr<task_t> task_ptr_t;
+
+// Naiive implementation of a thread pool
+// TODO: Could be better...
+class jo_threadpool {
+	std::vector<std::thread> pool;
+	bool stop;
+
+	std::mutex access;
+	std::condition_variable cond;
+	std::deque<std::function<void()>> tasks;
+
+public:
+	jo_threadpool(int nr = 1) : pool(), stop(false), access(), cond(), tasks() {
+		while(nr-- > 0) {
+			std::thread t([this]() {
+				while(!stop) {
+					std::function<void()> task;
+					{
+						std::unique_lock<std::mutex> lock(access);
+						if(tasks.empty()) {
+							cond.wait_for(lock, std::chrono::duration<int, std::milli>(5));
+							continue;
+						}
+						task = std::move(tasks.front());
+						tasks.pop_front();
+					}
+					task();
+				}
+			});
+			pool.push_back(std::move(t));
+		}
+	}
+
+	~jo_threadpool() {
+		stop = true;
+		for(std::thread &t : pool) {
+			t.join();
+		}
+		pool.clear();
+	}
+
+	void add_task(task_ptr_t pt) {
+		std::unique_lock<std::mutex> lock(access);
+		tasks.push_back([pt]{(*pt.ptr)();});
+		cond.notify_one();
+	}
+};
+
+#define USE_THREADPOOL 1
+
+static const auto processor_count = std::thread::hardware_concurrency();
+static jo_semaphore thread_limiter(processor_count);
+static jo_threadpool *thread_pool = new jo_threadpool(processor_count);
+
+static node_idx_t native_thread_workers(env_ptr_t env, list_ptr_t args) {
+	delete thread_pool;
+	thread_pool = new jo_threadpool(get_node_int(args->first_value()));
+	return NIL_NODE;
+}
 
 // (atom x)(atom x & options)
 // Creates and returns an Atom with an initial value of x and zero or
@@ -604,10 +665,18 @@ static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
+#if USE_THREADPOOL
+	task_ptr_t task = new task_t([env,args]{
+		return eval_node_list(env, args); 
+	});
+	f->t_future = task->get_future();
+	thread_pool->add_task(task);
+#else
 	f->t_future = std::async(std::launch::async, [env,args]() { 
 		jo_semaphore_waiter_notifier w(thread_limiter);
 		return eval_node_list(env, args); 
 	});
+#endif
 	return f_idx;
 }
 
@@ -620,10 +689,18 @@ static node_idx_t native_auto_future(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
+#if USE_THREADPOOL
+	task_ptr_t task = new task_t([env,args]{
+		return eval_node_list(env, args); 
+	});
+	f->t_future = task->get_future();
+	thread_pool->add_task(task);
+#else
 	f->t_future = std::async(std::launch::async, [env,args]() { 
 		jo_semaphore_waiter_notifier w(thread_limiter);
 		return eval_node_list(env, args); 
 	});
+#endif
 	return f_idx;
 }
 
@@ -640,10 +717,18 @@ static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
+#if USE_THREADPOOL
+	task_ptr_t task = new task_t([env,args]{
+		return eval_list(env, args); 
+	});
+	f->t_future = task->get_future();
+	thread_pool->add_task(task);
+#else
 	f->t_future = std::async(std::launch::async, [env,args]() { 
 		jo_semaphore_waiter_notifier w(thread_limiter);
 		return eval_list(env, args); 
 	});
+#endif
 	return f_idx;
 }
 
@@ -656,10 +741,18 @@ static node_idx_t native_auto_future_call(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
+#if USE_THREADPOOL
+	task_ptr_t task = new task_t([env,args]{
+		return eval_list(env, args); 
+	});
+	f->t_future = task->get_future();
+	thread_pool->add_task(task);
+#else
 	f->t_future = std::async(std::launch::async, [env,args]() { 
 		jo_semaphore_waiter_notifier w(thread_limiter);
 		return eval_list(env, args); 
 	});
+#endif
 	return f_idx;
 }
 
@@ -928,6 +1021,7 @@ void jo_lisp_async_init(env_ptr_t env) {
 
 	// threads
 	env->set("Thread/sleep", new_node_native_function("Thread/sleep", &native_thread_sleep, false, NODE_FLAG_PRERESOLVE));
+	env->set("Thread/workers", new_node_native_function("Thread/workers", &native_thread_workers, false, NODE_FLAG_PRERESOLVE));
 
 	// futures
 	env->set("future", new_node_native_function("future", &native_future, true, NODE_FLAG_PRERESOLVE));
@@ -950,5 +1044,6 @@ void jo_lisp_async_init(env_ptr_t env) {
 	env->set("pvalues-next", new_node_native_function("pvalues-next", &native_pvalues_next, true, NODE_FLAG_PRERESOLVE));
 	
 	// misc
+	env->set("*hardware-concurrency*", new_node_int(processor_count, NODE_FLAG_PRERESOLVE));
 	env->set("memoize", new_node_native_function("memoize", &native_memoize, false, NODE_FLAG_PRERESOLVE));
 }

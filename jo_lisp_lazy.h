@@ -1301,17 +1301,17 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 	vector_ptr_t PC_list = new_vector();
 	vector_ptr_t exprs = seq_exprs->t_vector;
 	auto expr_it = exprs->begin();
-	for(node_idx_t PC = 0; expr_it; PC++) {
+	for(int PC = 0; expr_it; PC++) {
 		node_idx_t expr_idx = *expr_it++;
 		if(expr_idx != K_WHILE_NODE && expr_idx != K_WHEN_NODE && expr_idx != K_LET_NODE) {
-			PC_list->push_back_inplace(PC);
+			PC_list->push_back_inplace(new_node_int(PC));
 		}
 		expr_it++;
 		PC++;
 	}
 
 	// for storing the state of the iterators
-	node_idx_t state_first_idx = new_node_map(new_map()->assoc(K_PC_NODE, 0));
+	node_idx_t state_first_idx = new_node_map(new_map()->assoc(K_PC_NODE, INT_0_NODE));
 	node_idx_t state_rest_idx = new_node_map(new_map());
 	node_idx_t nfn_idx = new_node(NODE_NATIVE_FUNC, NODE_FLAG_MACRO);
 	node_t *nfn = get_node(nfn_idx);
@@ -1323,7 +1323,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		map_ptr_t state_first = get_node_map(state_first_idx);
 		map_ptr_t state_rest = get_node_map(state_rest_idx);
 
-		node_idx_t PC = state_first->get(K_PC_NODE);
+		int PC = get_node_int(state_first->get(K_PC_NODE));
 
 		// Setup the initial sub env with current values
 		// TODO: Ideally we can persist this across calls - however there's problems with that
@@ -1339,7 +1339,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 
 		// Evaluate all exprs (moving PC around while we do it) until we run out of exprs
 		vector_ptr_t seq_exprs = get_node_vector(seq_exprs_idx);
-		auto expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+		auto expr_it = seq_exprs->begin() + (size_t)get_node_int(PC_list->nth_clamp(PC));
 		while(expr_it) {
 			node_idx_t binding_idx = *expr_it++;
 			node_t *binding = get_node(binding_idx);
@@ -1361,20 +1361,20 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 					if(PC < 0) {
 						return NIL_NODE;
 					}
-					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+					expr_it = seq_exprs->begin() + (size_t)get_node_int(PC_list->nth_clamp(PC));
 					state_rest = state_rest->dissoc(*expr_it);
 					PC -= 1;
 					if(PC < 0) {
 						return NIL_NODE;
 					}
-					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+					expr_it = seq_exprs->begin() + (size_t)get_node_int(PC_list->nth_clamp(PC));
 				}
 			} else if(binding_idx == K_WHEN_NODE) {
 				node_idx_t test_idx = eval_node(E, *expr_it++);
 				if(test_idx == FALSE_NODE) {
 					PC -= 1;
 					if(PC < 0) PC = 0;
-					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+					expr_it = seq_exprs->begin() + (size_t)get_node_int(PC_list->nth_clamp(PC));
 				}
 			} else {
 				jo_pair<node_idx_t, node_idx_t> fr;
@@ -1389,7 +1389,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 					// Drop back to the last loop instruction
 					PC -= 1;
 					if(PC < 0) return NIL_NODE;
-					expr_it = seq_exprs->begin() + (size_t)PC_list->nth_clamp(PC);
+					expr_it = seq_exprs->begin() + (size_t)get_node_int(PC_list->nth_clamp(PC));
 					state_rest = state_rest->dissoc(binding_idx, node_eq);
 				} else {
 					fr = val->seq_first_rest();
@@ -1401,7 +1401,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 			}
 		}
 
-		state_first = state_first->assoc(K_PC_NODE, PC, node_eq);
+		state_first = state_first->assoc(K_PC_NODE, new_node_int(PC), node_eq);
 
 		// Evaluate the body
 		node_idx_t result = eval_node(E, body_expr_idx);

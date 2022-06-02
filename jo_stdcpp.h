@@ -1232,6 +1232,20 @@ struct jo_pinned_vector {
     inline int index_top(size_t i) const { return jo_clz64(i + (1<<k)) + 1; }
     inline size_t index_bottom(size_t i, int top) const { return i & (~0ull >> top); }
 
+    size_t push_back(T &&val) {
+        size_t this_elem = num_elements.fetch_add(1);
+        int top = index_top(this_elem);
+        size_t bottom = index_bottom(this_elem, top);
+        if(buckets[top] == 0) {
+            jo_lock_guard guard(grow_mutex);
+            if(buckets[top] == 0) {
+                buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
+            }
+        }
+        new(buckets[top] + bottom) T(val);
+        return this_elem;
+    }
+
     size_t push_back(const T& val) {
         size_t this_elem = num_elements.fetch_add(1);
         int top = index_top(this_elem);
@@ -1248,6 +1262,31 @@ struct jo_pinned_vector {
             new(buckets[top] + bottom) T(val);
         }
         return this_elem;
+    }
+
+    T pop_back() {
+        // pop via compare_and_exchange
+        do {
+            size_t this_elem = num_elements.load();
+            if(this_elem == 0) {
+                return T();
+            }
+            int top = index_top(this_elem-1);
+            size_t bottom = index_bottom(this_elem-1, top);
+            if(buckets[top] == 0) {
+                return T();
+            }
+            T *ptr = buckets[top] + bottom;
+            T ret = *ptr;
+            if(!num_elements.compare_exchange_weak(this_elem, this_elem-1)) {
+                // someone else beat us to it.
+                continue;
+            }
+            if(!std::is_pod<T>::value) {
+                ptr->~T();
+            }
+            return ret;
+        } while(true);
     }
 
     T &operator[](size_t i) {
@@ -1930,7 +1969,7 @@ struct jo_persistent_vector
             }
         }
 
-        node(const jo_shared_ptr<node> other) : children(), elements() {
+        node(const jo_shared_ptr<node> &other) : children(), elements() {
             if(other.ptr) {
                 for (int i = 0; i < 32; ++i) {
                     children[i] = other->children[i];
