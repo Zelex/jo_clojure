@@ -80,7 +80,10 @@ static node_idx_t native_system_currentTimeMillis(env_ptr_t env, list_ptr_t args
 }
 
 static node_idx_t native_system_tmpnam(env_ptr_t env, list_ptr_t args) {
-	return new_node_string(tmpnam(NULL));
+	char *t = jo_tmpnam();
+	node_idx_t ret = new_node_string(t);
+	free(t);
+	return ret;
 }
 
 void jo_lisp_system_init(env_ptr_t env) {

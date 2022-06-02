@@ -363,7 +363,7 @@ static uint64_t jo_thread_id()
     return std::hash<std::thread::id>()(std::this_thread::get_id());
 }
 
-FILE *jo_fmemopen(void *buf, size_t size, const char *mode)
+static FILE *jo_fmemopen(void *buf, size_t size, const char *mode)
 {
     if (!size) {
         return 0;
@@ -398,6 +398,24 @@ FILE *jo_fmemopen(void *buf, size_t size, const char *mode)
     return fp;
 #else
     return fmemopen(buf, size, mode);
+#endif
+}
+
+static char *jo_tmpnam() {
+#ifdef _WIN32
+    char *buf = (char *)malloc(MAX_PATH);
+    if(!buf) return NULL;
+    if(!GetTempFileNameA(NULL, "jotmp", 0, buf)) {
+        free(buf);
+        return NULL;
+    }
+    return buf;
+#else // not ideal, but shuts up warnings...
+    char *tmpfile = jo_strdup("/tmp/indi_XXXXXX");
+    int fd = mkstemp(tmpfile);
+    if(fd == -1) return NULL;
+    close(fd);
+    return tmpfile;
 #endif
 }
 
