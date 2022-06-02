@@ -625,7 +625,7 @@ struct node_t {
 	};
 
 	node_t() 
-		: ref_count(0)
+		: ref_count()
 		, type(NODE_NIL)
 		, flags(0)
 		, t_string()
@@ -1069,7 +1069,7 @@ static inline void node_add_ref(long long idx) {
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
 			n->ref_count++; 
-			debugf("node_add_ref: %s of type %s\n", n->t_string.c_str(), n->type_name());
+			//printf("node_add_ref(%i): %s of type %s\n", n->ref_count, n->as_string().c_str(), n->type_name());
 		}
 	}
 }
@@ -1078,8 +1078,8 @@ static inline void node_release(long long idx) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
+			//printf("node_release(%i): %s\n", n->ref_count-1, n->as_string().c_str());
 			if(--n->ref_count <= 0) {
-				debugf("node_release: %s\n", nodes[idx].as_string().c_str());
 				//assert(n->ref_count >= 0);
 				free_nodes.push_back(idx);
 			}
