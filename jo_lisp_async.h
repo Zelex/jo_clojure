@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <vector>
 #include <deque>
 
 struct jo_semaphore {
@@ -28,8 +29,8 @@ struct jo_semaphore_waiter_notifier {
 };
 
 
-typedef std::packaged_task<node_idx_t()> task_t;
-typedef jo_shared_ptr<task_t> task_ptr_t;
+typedef std::packaged_task<node_idx_t()> jo_task_t;
+typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
 
 // Naiive implementation of a thread pool
 // TODO: Could be better...
@@ -71,7 +72,7 @@ public:
 		pool.clear();
 	}
 
-	void add_task(task_ptr_t pt) {
+	void add_task(jo_task_ptr_t pt) {
 		std::unique_lock<std::mutex> lock(access);
 		tasks.push_back([pt]{(*pt.ptr)();});
 		cond.notify_one();
@@ -158,7 +159,7 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 		if(env->tx.ptr) {
 			env->tx->read(ref_idx);
 		} else {
-			node_idx_t ret = ref->t_atom;
+			node_idx_t ret = ref->t_atom.load();
 			int count = 0;
 			while(ret == TX_HOLD_NODE) {
 				jo_yield_backoff(&count);
@@ -666,7 +667,7 @@ static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
 #if USE_THREADPOOL
-	task_ptr_t task = new task_t([env,args]{
+	jo_task_ptr_t task = new jo_task_t([env,args]{
 		return eval_node_list(env, args); 
 	});
 	f->t_future = task->get_future();
@@ -690,7 +691,7 @@ static node_idx_t native_auto_future(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
 #if USE_THREADPOOL
-	task_ptr_t task = new task_t([env,args]{
+	jo_task_ptr_t task = new jo_task_t([env,args]{
 		return eval_node_list(env, args); 
 	});
 	f->t_future = task->get_future();
@@ -718,7 +719,7 @@ static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
 #if USE_THREADPOOL
-	task_ptr_t task = new task_t([env,args]{
+	jo_task_ptr_t task = new jo_task_t([env,args]{
 		return eval_list(env, args); 
 	});
 	f->t_future = task->get_future();
@@ -742,7 +743,7 @@ static node_idx_t native_auto_future_call(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
 #if USE_THREADPOOL
-	task_ptr_t task = new task_t([env,args]{
+	jo_task_ptr_t task = new jo_task_t([env,args]{
 		return eval_list(env, args); 
 	});
 	f->t_future = task->get_future();

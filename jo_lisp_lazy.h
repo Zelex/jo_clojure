@@ -134,7 +134,7 @@ static node_idx_t native_iterate_next(env_ptr_t env, list_ptr_t args) {
 	ret->push_back_inplace(x);
 	ret->push_back_inplace(env->get("iterate-next").value);
 	ret->push_back_inplace(f);
-	ret->push_back_inplace(eval_va(env, 2, f, x));
+	ret->push_back_inplace(eval_va(env, f, x));
 	return new_node_list(ret);
 }
 
@@ -642,7 +642,7 @@ static node_idx_t native_repeatedly_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n_idx = *it++;
 	long long n = get_node_int(n_idx);
 	if(n > 0) {
-		return new_node_list(list_va(eval_va(env, 1, f_idx), env->get("repeatedly-next").value, f_idx, new_node_int(n - 1)));
+		return new_node_list(list_va(eval_va(env, f_idx), env->get("repeatedly-next").value, f_idx, new_node_int(n - 1)));
 	}
 	return NIL_NODE;
 }
@@ -746,10 +746,10 @@ static node_idx_t native_partition_by_next(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t ret_idx = coll->seq_take(1);
 	node_t *ret = get_node(ret_idx);
-	node_idx_t first_idx = eval_va(env, 2, f_idx, ret->seq_first());
+	node_idx_t first_idx = eval_va(env, f_idx, ret->seq_first());
 	int num_drop = 0;
 	seq_iterate(coll_idx, [&](node_idx_t idx) {
-		node_idx_t pred_idx = eval_va(env, 2, f_idx, idx);
+		node_idx_t pred_idx = eval_va(env, f_idx, idx);
 		if(!node_eq(pred_idx, first_idx)) {
 			return false;
 		}
@@ -1058,7 +1058,7 @@ static node_idx_t native_take_while(env_ptr_t env, list_ptr_t args) {
 		list_ptr_t out_list = new_list();
 		for(list_t::iterator it(coll_list); it; ++it) {
 			node_idx_t item = *it;
-			if(eval_va(env, 2, pred, item) != TRUE_NODE) {
+			if(eval_va(env, pred, item) != TRUE_NODE) {
 				break;
 			}
 			out_list->push_back_inplace(item);
@@ -1071,7 +1071,7 @@ static node_idx_t native_take_while(env_ptr_t env, list_ptr_t args) {
 		vector_ptr_t out_vec = new_vector();
 		for(vector_t::iterator it = coll_vec->begin(); it; ++it) {
 			node_idx_t item = *it;
-			if(eval_va(env, 2, pred, item) != TRUE_NODE) {
+			if(eval_va(env, pred, item) != TRUE_NODE) {
 				break;
 			}
 			out_vec->push_back_inplace(item);
@@ -1089,7 +1089,7 @@ static node_idx_t native_take_while_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t pred = *it++;
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
-	if(lit.done() || eval_va(env, 2, pred, coll) != TRUE_NODE) {
+	if(lit.done() || eval_va(env, pred, coll) != TRUE_NODE) {
 		return NIL_NODE;
 	}
 	return new_node_list(list_va(lit.val, env->get("take-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn())));
@@ -1109,7 +1109,7 @@ static node_idx_t native_drop_while(env_ptr_t env, list_ptr_t args) {
 		list_ptr_t out_list = new_list();
 		list_t::iterator it(coll_list);
 		for(; it; ++it) {
-			if(eval_va(env, 2, pred, *it) != TRUE_NODE) {
+			if(eval_va(env, pred, *it) != TRUE_NODE) {
 				break;
 			}
 		}
@@ -1124,7 +1124,7 @@ static node_idx_t native_drop_while(env_ptr_t env, list_ptr_t args) {
 		vector_ptr_t out_vec = new_vector();
 		vector_t::iterator it = coll_vec->begin();
 		for(; it; ++it) {
-			if(eval_va(env, 2, pred, *it) != TRUE_NODE) {
+			if(eval_va(env, pred, *it) != TRUE_NODE) {
 				break;
 			}
 		}
@@ -1145,7 +1145,7 @@ static node_idx_t native_drop_while_first(env_ptr_t env, list_ptr_t args) {
 	node_idx_t coll = *it++;
 	lazy_list_iterator_t lit(coll);
 	for(; !lit.done(); lit.next()) {
-		if(eval_va(env, 2, pred, lit.val) != TRUE_NODE) {
+		if(eval_va(env, pred, lit.val) != TRUE_NODE) {
 			break;
 		}
 	}
@@ -1462,7 +1462,7 @@ static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		auto fr = coll->seq_first_rest();
-		result_idx = eval_va(env, 3, f_idx, new_node_int(cnt), fr.first);
+		result_idx = eval_va(env, f_idx, new_node_int(cnt), fr.first);
 		coll_idx = fr.second;
 		++cnt;
 	} while(result_idx == NIL_NODE);
