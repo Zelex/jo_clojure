@@ -934,7 +934,7 @@ struct node_t {
 				}
 				return jo_string(t_int);
 			}
-			return va("%i", t_int);
+			return va("%zu", t_int);
 		case NODE_FLOAT:  return va("%f", t_float);
 		case NODE_LIST: 
 			{
@@ -1081,7 +1081,7 @@ static inline void node_release(long long idx) {
 			if(--n->ref_count <= 0) {
 				debugf("node_release: %s\n", nodes[idx].as_string().c_str());
 				//assert(n->ref_count >= 0);
-				//free_nodes.push_back(idx);
+				free_nodes.push_back(idx);
 			}
 		}
 	}
@@ -1117,6 +1117,7 @@ static inline void free_node(node_idx_t idx) {
 
 // TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
 static inline node_idx_t new_node(node_t &&n) {
+	/*
 	if(free_nodes.size()) {
 		long long ni = free_nodes.pop_back();
 		if(ni >= START_USER_NODES) {
@@ -1125,6 +1126,7 @@ static inline node_idx_t new_node(node_t &&n) {
 			return ni;
 		}
 	}
+	*/
 	return nodes.push_back(std::move(n));
 }
 
