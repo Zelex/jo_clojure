@@ -810,7 +810,17 @@ static node_idx_t native_future_done(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_is_future(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FUTURE ? TRUE_NODE : FALSE_NODE; }
 
 static node_idx_t native_thread_sleep(env_ptr_t env, list_ptr_t args) {
-	std::this_thread::sleep_for(std::chrono::milliseconds(get_node_int(args->first_value())));
+	double ms = get_node_float(args->first_value());
+	double A,B;
+	A = B = jo_time();
+	// This actually works... though poorly.. wth windows?
+	while(B - A < ms / 1000.0) {
+		jo_yield();
+		B = jo_time();
+	}
+	//std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+	//jo_sleep(ms / 1000.0);
+	//printf("slept for %f ms, should be %f ms\n", (B-A) * 1000, ms);
 	return NIL_NODE;
 }
 
@@ -999,6 +1009,24 @@ static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+static node_idx_t native_atom_retries(env_ptr_t env, list_ptr_t args) {
+	return new_node_int(atom_retries);
+}
+
+static node_idx_t native_atom_retries_reset(env_ptr_t env, list_ptr_t args) {
+	atom_retries = 0;
+	return NIL_NODE;
+}
+
+static node_idx_t native_stm_retries(env_ptr_t env, list_ptr_t args) {
+	return new_node_int(stm_retries);
+}
+
+static node_idx_t native_stm_retries_reset(env_ptr_t env, list_ptr_t args) {
+	stm_retries = 0;
+	return NIL_NODE;
+}
+
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, true, NODE_FLAG_PRERESOLVE));
@@ -1047,4 +1075,8 @@ void jo_lisp_async_init(env_ptr_t env) {
 	// misc
 	env->set("*hardware-concurrency*", new_node_int(processor_count, NODE_FLAG_PRERESOLVE));
 	env->set("memoize", new_node_native_function("memoize", &native_memoize, false, NODE_FLAG_PRERESOLVE));
+	env->set("Thread/atom-retries", new_node_native_function("Thread/atom-retries", &native_atom_retries, false, NODE_FLAG_PRERESOLVE));
+	env->set("Thread/atom-retries-reset", new_node_native_function("Thread/atom-retries-reset", &native_atom_retries_reset, false, NODE_FLAG_PRERESOLVE));
+	env->set("Thread/stm-retries", new_node_native_function("Thread/stm-retries", &native_stm_retries, false, NODE_FLAG_PRERESOLVE));
+	env->set("Thread/stm-retries-reset", new_node_native_function("Thread/stm-retries-reset", &native_stm_retries_reset, false, NODE_FLAG_PRERESOLVE));
 }

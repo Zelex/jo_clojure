@@ -46,7 +46,9 @@
 (defn compile-file-internal [[file T]]
     ;(println 'Compiling file T)
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
-    (System/sleep T)
+    ;(System/sleep T)
+    (Thread/sleep T)
+    ;(print ".")
     true)
 
 (defn compile-result-success [result] true)
@@ -54,7 +56,6 @@
 (defn compile-result-message [result] "")
 
 (defn compile-file-st [filename] 
-    ;(println 'Compiling filename)
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
             (do (swap! compile-files-done conj filename)
@@ -64,7 +65,6 @@
                 (swap! compile-files-done cons filename)))))
 
 (defn compile-file-stm [filename] 
-    ;(println 'Compiling filename)
     (dosync
         (let [compile-result (compile-file-internal filename)]
             (if (compile-result-success compile-result)
@@ -72,12 +72,9 @@
                     (compile-result-message compile-result))
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
-                    (swap! compile-files-done conj filename)))))
-    ;(println 'Compiled filename)
-)
+                    (swap! compile-files-done conj filename))))))
 
 (defn compile-file-stm-fast [filename] 
-    ;(println 'Compiling filename)
     (let [compile-result (compile-file-internal filename)]
         (dosync
             (if (compile-result-success compile-result)
@@ -85,12 +82,9 @@
                     (compile-result-message compile-result))
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
-                    (swap! compile-files-done conj filename)))))
-    ;(println 'Compiled filename)
-)
+                    (swap! compile-files-done conj filename))))))
 
 (defn compile-file-atom [filename] 
-    ;(println 'Compiling filename)
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
             (do (swap! compile-files-done conj filename)
@@ -100,7 +94,6 @@
                 (swap! compile-files-done conj filename)))))
 
 (defn compile-file-mutex [filename] 
-    ;(println 'Compiling filename)
     (let [compile-result (compile-file-internal filename)]
         (locking global-lock
             (if (compile-result-success compile-result)
@@ -116,18 +109,14 @@
         (compile-file-atom filename)))
 
 
-(def files-1 (doall (for [idx (range 1000) :let [T (rand 0.01)]] [idx T])))
 ;(def files-2 (doall (for [idx (range 1000) :let [T (rand 0.05 0.05)]] [idx T])))
 ;(def files-3 (doall (for [idx (range 1000) :let [T (rand 1)]] [idx T])))
 
-(doseq [num-cores (range 1 4)]
-    (Thread/workers num-cores)
-    (println (time (doall (map deref (doall (pmap compile-file-stm-fast files-1))))))
-)
+;(doseq [num-cores (range 1 64)]
+    ;(Thread/workers num-cores)
+    ;(println (time (doall (map deref (doall (pmap compile-file-stm-fast files-1))))))
+;)
 
-
-;(println "Single Threaded")
-;(println (time (doall (map compile-file-st files))))
 
 ;(println "Mutexes")
 ;(println (time (doall (map deref (doall (pmap compile-file-mutex files))))))
@@ -161,11 +150,11 @@
                 (dosync 
                     (println "Slow task begin") 
                     (swap! A conj "abc") 
-                    (System/sleep 2) 
+                    (Thread/sleep 2000) 
                     (println "Slow task end")))
             ]
     ; Wait to make sure that the slow task has accessed atom A
-    (System/sleep 1)
+    (Thread/sleep 1000)
     ; Now kick off a fast task that will access A as well, causing a commit failure in slow-task
     (deref (future 
         (dosync
@@ -191,24 +180,31 @@
     @thread-1 @thread-2)
 )
 
-(comment
-;(let [results (doall (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
-(let [results (doall (for [num-cores (1 2 3 4)] (do 
+(defn reset-all [] 
+    (Thread/atom-retries-reset)
+    (Thread/stm-retries-reset))
+
+;(def files-1 (doall (for [idx (range 1000) :let [T (rand 0.1 0.1)]] [idx T])))
+(def files-1 (doall (for [idx (range 1000) :let [T (if (< (rand) 0.95) 0.01 20)]] [idx T]))) ; Diachomatic
+
+(let [results (doall (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
         ; Set the number of worker threads...
         (Thread/workers num-cores)
         (println "Testing with" num-cores "cores")
         ; Now lets kick off some STM tests and return results in a vector
         [
             num-cores 
-            (time (doall (map deref (doall (pmap compile-file-mutex files-1)))))
-            (time (doall (map deref (doall (pmap compile-file-atom files-1)))))
-            (time (doall (map deref (doall (pmap compile-file-stm files-1)))))
-            (time (doall (map deref (doall (pmap compile-file-stm-fast files-1)))))
+            (time (do (reset-all) (doall (map deref (doall (pmap compile-file-mutex files-1))))))
+            (time (do (reset-all) (doall (map deref (doall (pmap compile-file-atom files-1))))))
+            (Thread/atom-retries)
+            (time (do (reset-all) (doall (map deref (doall (pmap compile-file-stm files-1))))))
+            (Thread/stm-retries)
+            (time (do (reset-all) (doall (map deref (doall (pmap compile-file-stm-fast files-1))))))
+            (Thread/stm-retries)
         ]
     )))]
-    ; Print out the results
-    (println (map str results))
-)
-)
+    ; Output Results to csv file
+    (spit "stm.csv" (reduce str (map (fn [[a b c d e f g h]] (str a ", " b ", " c ", " d ", " e ", " f ", " g ", " h "\n")) results))))
+
 (println "Done")
 

@@ -327,8 +327,13 @@ static const char *jo_strrstr(const char *haystack, const char *needle)
 }
 
 void jo_sleep(float seconds) {
-    std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<float>(seconds));
-    std::this_thread::sleep_for(ns);
+#ifdef _WIN32
+    Sleep((int)(seconds * 1000));
+#else
+    usleep((int)(seconds * 1000000));
+#endif
+    //std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<float>(seconds));
+    //std::this_thread::sleep_for(ns);
 }
 
 // yield
