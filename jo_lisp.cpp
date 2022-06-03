@@ -166,29 +166,29 @@ struct node_idx_t {
 struct atomic_node_idx_t {
 	std::atomic<long long> idx;
 	atomic_node_idx_t() : idx() {}
-	atomic_node_idx_t(long long _idx) : idx(_idx) { 
-		node_add_ref(idx); 
-	}
 	~atomic_node_idx_t() { 
-		node_release(idx); 
+		node_release(idx.load()); 
 	}
 	atomic_node_idx_t(const atomic_node_idx_t& other) { 
 		idx.store(other.idx.load());
+		node_add_ref(idx.load()); 
+	}
+	atomic_node_idx_t(const node_idx_t& other) { 
+		idx.store(other.idx);
 		node_add_ref(idx); 
 	}
 	atomic_node_idx_t(atomic_node_idx_t&& other) { 
 		idx.store(other.idx.load());
 		other.idx.store(0); 
 	}
-	atomic_node_idx_t& operator=(long long _idx) {  
-		if(idx != _idx) {
-			node_add_ref(_idx);
+	atomic_node_idx_t& operator=(const node_idx_t& other) {  
+		if(idx != other.idx) {
+			node_add_ref(other.idx);
 			node_release(idx);
-			idx = _idx;
+			idx.store(other.idx);
 		}
 		return *this; 
 	}
-	// copy assignment
 	atomic_node_idx_t& operator=(const atomic_node_idx_t& other) {  
 		if(idx != other.idx) {
 			node_add_ref(other.idx);
@@ -197,11 +197,10 @@ struct atomic_node_idx_t {
 		}
 		return *this; 
 	}
-	// move assignment
 	atomic_node_idx_t& operator=(atomic_node_idx_t&& other) {  
 		if(idx != other.idx) {
-			node_release(idx);
-			idx.store(other.idx.load());
+			long long tmp = idx.exchange(other.idx);
+			node_release(tmp);
 			other.idx = 0;
 		}
 		return *this; 
@@ -214,10 +213,29 @@ struct atomic_node_idx_t {
 	bool operator==(int idx) const { return this->idx == idx; }
 	bool operator!=(int idx) const { return this->idx != idx; }
 
-	node_idx_t load() const { return idx.load(); }
-	void store(node_idx_t idx) { this->idx.store(idx); }
-	bool compare_exchange_strong(long long expected, long long desired) { return idx.compare_exchange_strong(expected, desired); }
-	bool compare_exchange_weak(long long expected, long long desired) { return idx.compare_exchange_weak(expected, desired); }
+	node_idx_t load() const { 
+		return idx.load(); 
+	}
+	void store(node_idx_t _idx) {
+		node_add_ref(_idx);
+		node_release(idx.exchange(_idx));
+	}
+	bool compare_exchange_strong(long long expected, long long desired) { 
+		if(idx.compare_exchange_strong(expected, desired)) {
+			node_add_ref(desired);
+			node_release(expected);
+			return true;
+		}
+		return false;
+	}
+	bool compare_exchange_weak(long long expected, long long desired) { 
+		if(idx.compare_exchange_weak(expected, desired)) {
+			node_add_ref(desired);
+			node_release(expected);
+			return true;
+		}
+		return false;
+	}
 };
 
 typedef jo_persistent_list<node_idx_t> list_t;
@@ -688,8 +706,8 @@ struct node_t {
 	, t_delay(other.t_delay)
 	, t_lazy_fn(other.t_lazy_fn)
 	, t_int(other.t_int) 
+	, t_atom(other.t_atom)
 	{
-		t_atom.store(other.t_atom.load());
 	}
 
 	// move constructor
@@ -710,8 +728,8 @@ struct node_t {
 	, t_delay(other.t_delay)
 	, t_lazy_fn(other.t_lazy_fn)
 	, t_int(other.t_int)
+	, t_atom(other.t_atom)
 	{
-		t_atom.store(other.t_atom.load());
 	}
 
 	// copy assignment operator
@@ -966,7 +984,7 @@ struct node_t {
 			{
 				jo_string s;
 				s = '(';
-				for(list_t::iterator it(t_list); it;) {
+				if(t_list.ptr) for(list_t::iterator it(t_list); it;) {
 					s += get_node(*it)->as_string(3);
 					++it;
 					if(it) {
@@ -980,7 +998,7 @@ struct node_t {
 			{
 				jo_string s;
 				s = '[';
-				for(auto it = t_vector->begin(); it;) {
+				if(t_vector.ptr) for(auto it = t_vector->begin(); it;) {
 					s += get_node(*it)->as_string(3);
 					++it;
 					if(it) {
@@ -994,7 +1012,7 @@ struct node_t {
 			{
 				jo_string s;
 				s = '{';
-				for(auto it = t_map->begin(); it;) {
+				if(t_map.ptr) for(auto it = t_map->begin(); it;) {
 					s += get_node(it->first)->as_string(3);
 					s += " ";
 					s += get_node(it->second)->as_string(3);
@@ -1010,7 +1028,7 @@ struct node_t {
 			{
 				jo_string s;
 				s = "#{";
-				for(auto it = t_hash_set->begin(); it;) {
+				if(t_hash_set.ptr) for(auto it = t_hash_set->begin(); it;) {
 					s += get_node(it->first)->as_string(3);
 					++it;
 					if(it) {
@@ -1095,7 +1113,7 @@ static inline void node_add_ref(long long idx) {
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
 			n->ref_count++; 
-			debugf("node_add_ref(%i): %s of type %s\n", n->ref_count, n->as_string().c_str(), n->type_name());
+			debugf("node_add_ref(%lld,%i): %s of type %s\n", idx, n->ref_count, n->as_string().c_str(), n->type_name());
 		}
 	}
 }
@@ -1104,9 +1122,9 @@ static inline void node_release(long long idx) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
-			debugf("node_release(%i): %s\n", n->ref_count-1, n->as_string().c_str());
+			debugf("node_release(%lld,%i): %s\n", idx, n->ref_count-1, n->as_string().c_str());
 			if(--n->ref_count <= 0) {
-				//assert(n->ref_count >= 0);
+				assert(n->ref_count >= 0);
 				free_nodes.push_back(idx);
 			}
 		}
@@ -1143,7 +1161,6 @@ static inline void free_node(node_idx_t idx) {
 
 // TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
 static inline node_idx_t new_node(node_t &&n) {
-	/*
 	if(free_nodes.size()) {
 		long long ni = free_nodes.pop_back();
 		if(ni >= START_USER_NODES) {
@@ -1152,7 +1169,6 @@ static inline node_idx_t new_node(node_t &&n) {
 			return ni;
 		}
 	}
-	*/
 	return nodes.push_back(std::move(n));
 }
 

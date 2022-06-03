@@ -844,13 +844,16 @@ static node_idx_t native_io(env_ptr_t env, list_ptr_t args) {
 // higher performance at the expense of higher memory use.
 static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f = args->first_value();
-	node_idx_t cache_idx = new_node_atom(new_node_map(new_map()));
+	map_ptr_t cache_map = new_map();
+	node_idx_t cache_map_idx = new_node_map(cache_map);
+	node_idx_t cache_idx = new_node_atom(cache_map_idx);
 	node_idx_t func_idx = new_node(NODE_NATIVE_FUNC, 0);
 	node_t *func = get_node(func_idx);
 	func->t_native_function = new native_func_t([f,cache_idx](env_ptr_t env, list_ptr_t args) -> node_idx_t {
 		node_idx_t args_idx = new_node_list(args);
-		node_idx_t C = native_deref(env, list_va(cache_idx));
-		map_ptr_t mem = get_node(C)->t_map;
+		node_idx_t C_idx = native_deref(env, list_va(cache_idx));
+		node_t *C = get_node(C_idx);
+		map_ptr_t mem = C->t_map;
 		if(mem->contains(args_idx, node_eq)) {
 			return mem->get(args_idx, node_eq);
 		}
