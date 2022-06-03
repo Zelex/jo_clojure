@@ -3113,18 +3113,23 @@ struct jo_persistent_vector_bidirectional {
 template<typename T>
 struct jo_persistent_list {
     struct node {
-        jo_shared_ptr<node> next;
         T value;
+        jo_shared_ptr<node> next;
         node() : value(), next() {}
         node(const T &value, jo_shared_ptr<node> next) : value(value), next(next) {}
         node(const node &other) : value(other.value), next(other.next) {}
-        node &operator=(const node &other) {
-            value = other.value;
-            next = other.next;
+        node &operator=(const jo_shared_ptr<node> &other) {
+            value = other->value;
+            next = other->next;
             return *this;
         }
-        bool operator==(const node &other) const { return value == other.value && next == other.next; }
-        bool operator!=(const node &other) const { return !(*this == other); }
+        node &operator=(jo_shared_ptr<node> &&other) {
+            value = other->value;
+            next = other->next;
+            return *this;
+        }
+        bool operator==(const jo_shared_ptr<node> &other) const { return value == other->value && next == other->next; }
+        bool operator!=(const jo_shared_ptr<node> &other) const { return !(*this == other); }
     };
 
     jo_shared_ptr<node> head;

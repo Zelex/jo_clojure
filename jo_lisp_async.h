@@ -445,6 +445,10 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 		if(env2->end_transaction()) {
 			break;
 		}
+		for(size_t i = 0; i < lists.size(); i++) {
+			old_vals[i] = NIL_NODE;
+			new_vals[i] = NIL_NODE;
+		}
 		jo_yield_backoff(&count);
 	} while(true);
 
@@ -498,6 +502,9 @@ static node_idx_t native_multi_reset_e(env_ptr_t env, list_ptr_t args) {
 		}
 		if(env2->end_transaction()) {
 			break;
+		}
+		for(size_t i = 0; i < lists.size(); i++) {
+			new_vals[i] = NIL_NODE;
 		}
 		jo_yield_backoff(&count);
 	} while(true);
@@ -559,6 +566,10 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 		if(env2->end_transaction()) {
 			break;
 		}
+		for(size_t i = 0; i < lists.size(); i++) {
+			old_vals[i] = NIL_NODE;
+			new_vals[i] = NIL_NODE;
+		}
 		jo_yield_backoff(&count);
 	} while(true);
 
@@ -618,6 +629,10 @@ static node_idx_t native_multi_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 		if(env2->end_transaction()) {
 			break;
 		}
+		for(size_t i = 0; i < lists.size(); i++) {
+			old_vals[i] = NIL_NODE;
+			new_vals[i] = NIL_NODE;
+		}
 		jo_yield_backoff(&count);
 	} while(true);
 
@@ -648,6 +663,7 @@ static node_idx_t native_dosync(env_ptr_t env, list_ptr_t args) {
 		if(env2->end_transaction()) {
 			break;
 		}
+		ret = NIL_NODE;
 		jo_yield_backoff(&count);
 	} while(true);
 	return ret;

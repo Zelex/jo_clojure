@@ -1132,6 +1132,8 @@ struct node_t {
 
 static jo_pinned_vector<node_t> nodes;
 static jo_pinned_vector<long long> free_nodes; // available for allocation...
+static jo_pinned_vector<long long> garbage_nodes; // need resource release 
+
 
 static inline void node_add_ref(long long idx) { 
 	if(idx >= START_USER_NODES) {
@@ -1143,6 +1145,8 @@ static inline void node_add_ref(long long idx) {
 		}
 	}
 }
+
+// TODO: Can do actual memory releases on separate thread... just queue them up or something to be released by it.
 static inline void node_release(long long idx) { 
 	if(idx >= START_USER_NODES) {
 		node_t *n = &nodes[idx];
@@ -1151,14 +1155,32 @@ static inline void node_release(long long idx) {
 			int rc = n->ref_count.fetch_sub(1);
 			debugf("node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
 			if(rc <= 0) {
-				printf("node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
+				printf("Error in ref count: node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
 			}
 			if(rc <= 1) {
-				assert(rc >= 0);
+				//assert(rc >= 0);
+#if 1 // no GC
+#elif 1 // delayed GC
+				garbage_nodes.push_back(idx);
+#else // immediate GC
 				n->release();
 				free_nodes.push_back(idx);
+#endif
 			}
 		}
+	}
+}
+
+volatile bool stop_gc = false;
+static void collect_garbage() {
+	while(!stop_gc) {
+		while(garbage_nodes.size()) {
+			long long idx = garbage_nodes.pop_back();
+			node_t *n = &nodes[idx];
+			n->release();
+			free_nodes.push_back(idx);
+		}
+		jo_yield();
 	}
 }
 
@@ -5940,9 +5962,19 @@ int main(int argc, char **argv) {
 
 	debugf("Evaluating...\n");
 
-	node_idx_t res_idx = eval_node_list(env, main_list);
-	//native_println(env, list_va(res_idx));
-	printf("%s\n", get_node(res_idx)->as_string(3).c_str());
+	// start the GC
+	stop_gc = false;
+	std::thread gc_thread(collect_garbage);
+
+	{
+		node_idx_t res_idx = eval_node_list(env, main_list);
+		//native_println(env, list_va(res_idx));
+		printf("%s\n", get_node(res_idx)->as_string(3).c_str());
+	}
+
+	debugf("Waiting for GC to stop...\n");
+	stop_gc = true;
+	gc_thread.join();
 
 	printf("nodes.size() = %zu\n", nodes.size());
 	printf("free_nodes.size() = %zu\n", free_nodes.size());
