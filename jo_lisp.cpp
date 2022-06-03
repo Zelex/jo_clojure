@@ -1095,7 +1095,7 @@ static inline void node_add_ref(long long idx) {
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
 			n->ref_count++; 
-			printf("node_add_ref(%i): %s of type %s\n", n->ref_count, n->as_string().c_str(), n->type_name());
+			debugf("node_add_ref(%i): %s of type %s\n", n->ref_count, n->as_string().c_str(), n->type_name());
 		}
 	}
 }
@@ -1104,7 +1104,7 @@ static inline void node_release(long long idx) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
-			printf("node_release(%i): %s\n", n->ref_count-1, n->as_string().c_str());
+			debugf("node_release(%i): %s\n", n->ref_count-1, n->as_string().c_str());
 			if(--n->ref_count <= 0) {
 				//assert(n->ref_count >= 0);
 				free_nodes.push_back(idx);
