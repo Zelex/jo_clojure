@@ -35,7 +35,7 @@
 
 (def global-lock (atom nil))
 
-(def compile-files-done (atom ()))
+(def compile-files-done (atom []))
 
 (def errors ())
 (def warnings ())
@@ -185,7 +185,7 @@
     (Thread/stm-retries-reset))
 
 ;(def files-1 (doall (for [idx (range 1000) :let [T (rand 0.1 0.1)]] [idx T])))
-(def files-1 (doall (for [idx (range 1000) :let [T (if (< (rand) 0.95) 0.01 20)]] [idx T]))) ; Diachomatic
+(def files-1 (for [idx (range 1000) :let [T (if (< (rand) 0.95) 0.01 20)]] [idx T])) ; Diachomatic
 
 (let [results (doall (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
         ; Set the number of worker threads...
@@ -194,12 +194,12 @@
         ; Now lets kick off some STM tests and return results in a vector
         [
             num-cores 
-            (time (do (reset-all) (doall (map deref (doall (pmap compile-file-mutex files-1))))))
-            (time (do (reset-all) (doall (map deref (doall (pmap compile-file-atom files-1))))))
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-mutex files-1))))))
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files-1))))))
             (Thread/atom-retries)
-            (time (do (reset-all) (doall (map deref (doall (pmap compile-file-stm files-1))))))
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm files-1))))))
             (Thread/stm-retries)
-            (time (do (reset-all) (doall (map deref (doall (pmap compile-file-stm-fast files-1))))))
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm-fast files-1))))))
             (Thread/stm-retries)
         ]
     )))]

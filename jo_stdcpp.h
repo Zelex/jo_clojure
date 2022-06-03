@@ -1279,7 +1279,7 @@ struct jo_pinned_vector {
                 buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
             }
         }
-        if(std::is_pod<T>::value) {
+        if constexpr (std::is_pod<T>::value) {
             memcpy(buckets[top] + bottom, &val, sizeof(T));
         } else {
             new(buckets[top] + bottom) T(val);
@@ -1989,6 +1989,7 @@ struct jo_persistent_vector
         ~node() {
             for (int i = 0; i < 32; ++i) {
                 children[i] = NULL;
+                elements[i] = std::move(T());
             }
         }
 
