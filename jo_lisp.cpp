@@ -137,7 +137,6 @@ struct node_idx_t {
 		}
 		return *this; 
 	}
-	// copy assignment
 	node_idx_t& operator=(const node_idx_t& other) {  
 		if(idx != other.idx) {
 			node_add_ref(other.idx);
@@ -146,16 +145,15 @@ struct node_idx_t {
 		}
 		return *this; 
 	}
-	// move assignment
 	node_idx_t& operator=(node_idx_t&& other) {  
 		if(idx != other.idx) {
-			node_add_ref(other.idx);
 			node_release(idx);
 			idx = other.idx;
 			other.idx = 0;
 		}
 		return *this; 
 	}
+
 	operator long long() const { return idx; }
 	bool operator==(const node_idx_t& other) const { return idx == other.idx; }
 	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
@@ -167,18 +165,44 @@ struct node_idx_t {
 
 struct atomic_node_idx_t {
 	std::atomic<long long> idx;
-	atomic_node_idx_t() = default;
+	atomic_node_idx_t() : idx() {}
 	atomic_node_idx_t(long long _idx) : idx(_idx) { 
 		node_add_ref(idx); 
 	}
 	~atomic_node_idx_t() { 
 		node_release(idx); 
 	}
+	atomic_node_idx_t(const atomic_node_idx_t& other) { 
+		idx.store(other.idx.load());
+		node_add_ref(idx); 
+	}
+	atomic_node_idx_t(atomic_node_idx_t&& other) { 
+		idx.store(other.idx.load());
+		other.idx.store(0); 
+	}
 	atomic_node_idx_t& operator=(long long _idx) {  
 		if(idx != _idx) {
 			node_add_ref(_idx);
 			node_release(idx);
 			idx = _idx;
+		}
+		return *this; 
+	}
+	// copy assignment
+	atomic_node_idx_t& operator=(const atomic_node_idx_t& other) {  
+		if(idx != other.idx) {
+			node_add_ref(other.idx);
+			node_release(idx);
+			idx.store(other.idx.load());
+		}
+		return *this; 
+	}
+	// move assignment
+	atomic_node_idx_t& operator=(atomic_node_idx_t&& other) {  
+		if(idx != other.idx) {
+			node_release(idx);
+			idx.store(other.idx.load());
+			other.idx = 0;
 		}
 		return *this; 
 	}
@@ -1071,7 +1095,7 @@ static inline void node_add_ref(long long idx) {
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
 			n->ref_count++; 
-			//printf("node_add_ref(%i): %s of type %s\n", n->ref_count, n->as_string().c_str(), n->type_name());
+			printf("node_add_ref(%i): %s of type %s\n", n->ref_count, n->as_string().c_str(), n->type_name());
 		}
 	}
 }
@@ -1080,7 +1104,7 @@ static inline void node_release(long long idx) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
-			//printf("node_release(%i): %s\n", n->ref_count-1, n->as_string().c_str());
+			printf("node_release(%i): %s\n", n->ref_count-1, n->as_string().c_str());
 			if(--n->ref_count <= 0) {
 				//assert(n->ref_count >= 0);
 				free_nodes.push_back(idx);
