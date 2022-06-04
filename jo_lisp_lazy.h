@@ -543,7 +543,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		size_t str_len = str.length();
 		const char *str_ptr = str.c_str();
 		for(long long i = 0; i < str_len; i++) {
-			node_idx_t item_idx = new_node_int(str_ptr[i]);
+			node_idx_t item_idx = new_node_int(str_ptr[i], NODE_FLAG_CHAR);
 			node_idx_t comp = eval_list(env, args->conj(item_idx));
 			if(get_node_bool(comp)) {
 				ret += (char)str_ptr[i];

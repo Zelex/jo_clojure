@@ -107,6 +107,7 @@ enum {
 	NODE_FLAG_AUTO_DEREF   = 1<<6,
 	NODE_FLAG_FOREVER	   = 1<<7, // never release this node
 	NODE_FLAG_GARBAGE	   = 1<<8, // this node is garbage
+	NODE_FLAG_CHAR		   = 1<<9, // char	
 };
 
 struct env_t;
@@ -840,7 +841,7 @@ struct node_t {
 			lazy_list_iterator_t lit(this);
 			return lit.val;
 		}
-		if(is_string() && t_string.size()) return INT_0_NODE + t_string.c_str()[0];
+		if(is_string() && t_string.size()) return new_node_int(t_string.c_str()[0], NODE_FLAG_CHAR);
 		return NIL_NODE;
 	}
 
@@ -997,7 +998,7 @@ struct node_t {
 		case NODE_BOOL:   return t_bool ? "true" : "false";
 		case NODE_INT:    
 			// only letter? TODO
-		 	if(jo_isletter(t_int)) {
+		 	if((flags & NODE_FLAG_CHAR) && jo_isletter(t_int)) {
 				if(pretty >= 2) {
 					if(t_int == 32) return "\\space";
 					if(t_int == 9) return "\\tab";
@@ -1292,7 +1293,7 @@ static node_idx_t new_node_bool(bool b) {
 }
 
 static node_idx_t new_node_int(long long i, int flags) {
-	if(i >= 0 && i <= 256) {
+	if(i >= 0 && i <= 256 && flags == 0) {
 		return INT_0_NODE + i;
 	}
 	node_t n;
@@ -2564,7 +2565,7 @@ static inline bool seq_iterate(node_idx_t seq, F f) {
 	} else if(n->type == NODE_STRING) {
 		auto it = n->t_string.c_str();
 		for(;*it;it++) {
-			if(!f(new_node_int(*it))) break;
+			if(!f(new_node_int(*it, NODE_FLAG_CHAR))) break;
 		}
 		return true;
 	}
