@@ -1259,54 +1259,49 @@ struct jo_mpmcq {
     std::atomic<T> slots[T_depth];
     std::atomic<size_t> push_idx;
     std::atomic<size_t> pop_idx;
-	jo_semaphore push_sem;
-	jo_semaphore pop_sem;
+    jo_semaphore push_sem;
+    jo_semaphore pop_sem;
     volatile bool closing;
 
-    jo_mpmcq() 
-    : push_idx(T_depth)
-    , pop_idx(0)
-    , push_sem(T_depth)
-    , pop_sem(0)
-    {
+    jo_mpmcq() : push_idx(T_depth), pop_idx(0), push_sem(T_depth), pop_sem(0), closing(false) {
         for (size_t i = 0; i < T_depth; ++i) {
             slots[i].store(invalid_value);
         }
     }
 
-	void push(T ptr) {
-		push_sem.wait();
-		size_t idx = push_idx.fetch_add(1) & (T_depth-1);
+    void push(T ptr) {
+        push_sem.wait();
+        size_t idx = push_idx.fetch_add(1) & (T_depth - 1);
         int count = 0;
-		while(slots[idx].load() != invalid_value) {
-			jo_yield_backoff(&count);
-		}
+        while (slots[idx].load() != invalid_value) {
+            jo_yield_backoff(&count);
+        }
         assert(slots[idx].load() == invalid_value);
         slots[idx].store(ptr);
-		pop_sem.notify();
-	}
+        pop_sem.notify();
+    }
 
-	T pop() {
-		pop_sem.wait();
-		if(closing) {
-			pop_sem.notify();
-			return invalid_value;
-		}
-		int idx = pop_idx.fetch_add(1) & (T_depth-1);
-		T res;
+    T pop() {
+        pop_sem.wait();
+        if (closing) {
+            pop_sem.notify();
+            return invalid_value;
+        }
+        int idx = pop_idx.fetch_add(1) & (T_depth - 1);
+        T res;
         int count = 0;
-		while((res = slots[idx].load()) == invalid_value) {
+        while ((res = slots[idx].load()) == invalid_value) {
             jo_yield();
-		}
+        }
         slots[idx].store(invalid_value);
-		push_sem.notify();
-		return res;
-	}
+        push_sem.notify();
+        return res;
+    }
 
-	void close() {
+    void close() {
         closing = true;
-		pop_sem.notify();
-	}
+        pop_sem.notify();
+    }
 
     size_t size() const {
         return T_depth - push_sem.count.load();
