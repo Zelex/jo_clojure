@@ -1371,31 +1371,6 @@ struct jo_pinned_vector {
         return this_elem;
     }
 
-    T pop_back() {
-        // pop via compare_and_exchange
-        do {
-            size_t this_elem = num_elements.load();
-            if(this_elem == 0) {
-                return T();
-            }
-            int top = index_top(this_elem-1);
-            size_t bottom = index_bottom(this_elem-1, top);
-            if(buckets[top] == 0) {
-                return T();
-            }
-            T *ptr = buckets[top] + bottom;
-            T ret = *ptr;
-            if(!num_elements.compare_exchange_weak(this_elem, this_elem-1)) {
-                // someone else beat us to it.
-                continue;
-            }
-            if(!std::is_pod<T>::value) {
-                ptr->~T();
-            }
-            return ret;
-        } while(true);
-    }
-
     T &operator[](size_t i) {
         int top = index_top(i);
         return buckets[top][index_bottom(i, top)];
