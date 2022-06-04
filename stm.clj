@@ -184,8 +184,8 @@
     (Thread/atom-retries-reset)
     (Thread/stm-retries-reset))
 
-(def files-1 (doall (for [idx (range 1000) :let [T (rand 0.1 0.1)]] [idx T])))
-;(def files-1 (for [idx (range 1000) :let [T (if (< (rand) 0.95) 0.01 20)]] [idx T])) ; Diachomatic
+(def files-1 (for [idx (range 1000)] [idx 1]))
+;(def files-1 (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])) ; Diachomatic
 
 (let [results (doall (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
         ; Set the number of worker threads...
