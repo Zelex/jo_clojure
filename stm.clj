@@ -35,7 +35,7 @@
 
 (def global-lock (atom nil))
 
-(def compile-files-done (atom []))
+(def compile-files-done (atom ()))
 
 (def errors ())
 (def warnings ())
