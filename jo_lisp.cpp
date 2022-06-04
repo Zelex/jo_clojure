@@ -786,8 +786,7 @@ struct node_t {
 	}
 
 	void release() {
-		//ref_count = 0;
-		assert(ref_count.load() == 0);
+		ref_count = 0;
 		type = NODE_NIL;
 		flags = NODE_FLAG_GARBAGE;
 		t_list = nullptr;
@@ -1143,8 +1142,7 @@ static inline void node_add_ref(long long idx) {
 	if(idx >= START_USER_NODES) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
-		assert(!(flags & NODE_FLAG_GARBAGE));
-		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
+		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER|NODE_FLAG_GARBAGE)) == 0) {
 			int rc = n->ref_count.fetch_add(1);
 			debugf("node_add_ref(%lld,%i): %s of type %s\n", idx, rc+1, n->as_string().c_str(), n->type_name());
 		}
@@ -1156,7 +1154,7 @@ static inline void node_release(long long idx) {
 	if(idx >= START_USER_NODES) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
-		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
+		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER|NODE_FLAG_GARBAGE)) == 0) {
 			int rc = n->ref_count.fetch_sub(1);
 			debugf("node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
 			if(rc <= 0) {

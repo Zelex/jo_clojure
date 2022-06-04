@@ -46,7 +46,6 @@
 (defn compile-file-internal [[file T]]
     ;(println 'Compiling file T)
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
-    ;(System/sleep T)
     (Thread/sleep T)
     ;(print ".")
     true)
@@ -181,11 +180,12 @@
 )
 
 (defn reset-all [] 
+    (reset! compile-files-done ())
     (Thread/atom-retries-reset)
     (Thread/stm-retries-reset))
 
-;(def files-1 (doall (for [idx (range 1000) :let [T (rand 0.1 0.1)]] [idx T])))
-(def files-1 (for [idx (range 1000) :let [T (if (< (rand) 0.95) 0.01 20)]] [idx T])) ; Diachomatic
+(def files-1 (doall (for [idx (range 1000) :let [T (rand 0.1 0.1)]] [idx T])))
+;(def files-1 (for [idx (range 1000) :let [T (if (< (rand) 0.95) 0.01 20)]] [idx T])) ; Diachomatic
 
 (let [results (doall (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
         ; Set the number of worker threads...
