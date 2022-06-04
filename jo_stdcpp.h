@@ -3487,7 +3487,7 @@ struct jo_persistent_list {
             index--;
         }
         if(!cur) {
-            throw jo_exception("nth");
+        //    throw jo_exception("nth");
         }
         return cur->value;
     }
@@ -4767,7 +4767,7 @@ struct jo_bigint {
     }
     jo_bigint(const char *str, int base) {
         if(base < 2 || base > 36) {
-            throw jo_exception("jo_bigint: invalid base");
+            //throw jo_exception("jo_bigint: invalid base");
         }
         digits = new jo_persistent_vector<int>();
         negative = false;
@@ -4781,7 +4781,7 @@ struct jo_bigint {
                 digit = *str - 'A' + 10;
             }
             if(digit >= base) {
-                throw jo_exception("jo_bigint: invalid digit");
+                //throw jo_exception("jo_bigint: invalid digit");
             }
             digits->append_inplace(digit);
             str++;
