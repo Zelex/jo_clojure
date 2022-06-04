@@ -1229,6 +1229,90 @@ struct jo_vector {
     
 };
 
+struct jo_semaphore {
+    std::mutex m;
+    std::condition_variable cv;
+    std::atomic<int> count;
+
+    jo_semaphore(int n) : m(), cv(), count(n) {}
+    void notify() {
+        std::unique_lock<std::mutex> l(m);
+        ++count;
+        cv.notify_one();
+    }
+    void wait() {
+        std::unique_lock<std::mutex> l(m);
+        cv.wait(l, [this]{ return count!=0; });
+        --count;
+    }
+};
+
+struct jo_semaphore_waiter_notifier {
+    jo_semaphore &s;
+    jo_semaphore_waiter_notifier(jo_semaphore &s) : s{s} { s.wait(); }
+    ~jo_semaphore_waiter_notifier() { s.notify(); }
+};
+
+// https://cbloomrants.blogspot.com/2011/07/07-09-11-lockfree-thomasson-simple-mpmc.html
+template <typename T, T invalid_value, int T_depth>
+struct jo_mpmcq {
+    std::atomic<T> slots[T_depth];
+    std::atomic<size_t> push_idx;
+    std::atomic<size_t> pop_idx;
+	jo_semaphore push_sem;
+	jo_semaphore pop_sem;
+    volatile bool closing;
+
+    jo_mpmcq() 
+    : push_idx(T_depth)
+    , pop_idx(0)
+    , push_sem(T_depth)
+    , pop_sem(0)
+    {
+        for (size_t i = 0; i < T_depth; ++i) {
+            slots[i].store(invalid_value);
+        }
+    }
+
+	void push(T ptr) {
+		push_sem.wait();
+		size_t idx = push_idx.fetch_add(1) & (T_depth-1);
+        int count = 0;
+		while(slots[idx].load() != invalid_value) {
+			jo_yield_backoff(&count);
+		}
+        assert(slots[idx].load() == invalid_value);
+        slots[idx].store(ptr);
+		pop_sem.notify();
+	}
+
+	T pop() {
+		pop_sem.wait();
+		if(closing) {
+			pop_sem.notify();
+			return invalid_value;
+		}
+		int idx = pop_idx.fetch_add(1) & (T_depth-1);
+		T res;
+        int count = 0;
+		while((res = slots[idx].load()) == invalid_value) {
+            jo_yield();
+		}
+        slots[idx].store(invalid_value);
+		push_sem.notify();
+		return res;
+	}
+
+	void close() {
+        closing = true;
+		pop_sem.notify();
+	}
+
+    size_t size() const {
+        return T_depth - push_sem.count.load();
+    }
+};
+
 // jo_pinned_vector
 // has 64 exponentially pow2 sized buckets and a split of top = jo_clz64(index), bottom = index & (~0ull >> top)
 // this is different than a jo_vector in that the elements never move and pointers can thus be relied upon as stable.
@@ -1279,7 +1363,7 @@ struct jo_pinned_vector {
                 buckets[top] = (T*)malloc(sizeof(T)*bucket_size(top));
             }
         }
-        if constexpr (std::is_pod<T>::value) {
+        if(std::is_pod<T>::value) {
             memcpy(buckets[top] + bottom, &val, sizeof(T));
         } else {
             new(buckets[top] + bottom) T(val);

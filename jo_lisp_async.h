@@ -4,29 +4,6 @@
 #include <vector>
 #include <deque>
 
-struct jo_semaphore {
-    std::mutex m;
-    std::condition_variable cv;
-    std::atomic<int> count;
-
-    jo_semaphore(int n) : m(), cv(), count(n) {}
-    void notify() {
-        std::unique_lock<std::mutex> l(m);
-        ++count;
-        cv.notify_one();
-    }
-    void wait() {
-        std::unique_lock<std::mutex> l(m);
-        cv.wait(l, [this]{ return count!=0; });
-        --count;
-    }
-};
-
-struct jo_semaphore_waiter_notifier {
-    jo_semaphore &s;
-    jo_semaphore_waiter_notifier(jo_semaphore &s) : s{s} { s.wait(); }
-    ~jo_semaphore_waiter_notifier() { s.notify(); }
-};
 
 
 typedef std::packaged_task<node_idx_t()> jo_task_t;
@@ -81,7 +58,6 @@ public:
 
 #define USE_THREADPOOL 1
 
-static const auto processor_count = std::thread::hardware_concurrency();
 static jo_semaphore thread_limiter(processor_count);
 static jo_threadpool *thread_pool = new jo_threadpool(processor_count);
 

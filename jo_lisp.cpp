@@ -28,6 +28,8 @@
 static std::atomic<size_t> atom_retries(0);
 static std::atomic<size_t> stm_retries(0);
 
+static const auto processor_count = std::thread::hardware_concurrency();
+
 enum {
 
 	// hard coded nodes
@@ -104,6 +106,7 @@ enum {
 	NODE_FLAG_PRERESOLVE   = 1<<5,
 	NODE_FLAG_AUTO_DEREF   = 1<<6,
 	NODE_FLAG_FOREVER	   = 1<<7, // never release this node
+	NODE_FLAG_GARBAGE	   = 1<<8, // this node is garbage
 };
 
 struct env_t;
@@ -731,7 +734,7 @@ struct node_t {
 	, t_int(other.t_int)
 	, t_atom(other.t_atom)
 	{
-		ref_count.store(other.ref_count.exchange(0));
+		//ref_count.store(other.ref_count.exchange(0));
 	}
 
 	// copy assignment operator
@@ -760,7 +763,7 @@ struct node_t {
 
 	// move assignment operator
 	node_t &operator=(node_t &&other) {
-		ref_count.store(other.ref_count.exchange(0));
+		//ref_count.store(other.ref_count.exchange(0));
 		type = other.type;
 		flags = other.flags;
 		t_string = std::move(other.t_string);
@@ -770,7 +773,7 @@ struct node_t {
 		t_hash_set = std::move(other.t_hash_set);
 		t_native_function = other.t_native_function;
 		t_atom.store(other.t_atom.load());
-		assert(!t_future.valid() || t_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
+		//assert(!t_future.valid() || t_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
 		t_future = std::move(other.t_future);
 		t_promise = std::move(other.t_promise);
 		t_env = std::move(other.t_env);
@@ -783,9 +786,10 @@ struct node_t {
 	}
 
 	void release() {
-		ref_count = 0;
+		//ref_count = 0;
+		assert(ref_count.load() == 0);
 		type = NODE_NIL;
-		flags = 0;
+		flags = NODE_FLAG_GARBAGE;
 		t_list = nullptr;
 		t_vector = nullptr;
 		t_map = nullptr;
@@ -1131,14 +1135,15 @@ struct node_t {
 };
 
 static jo_pinned_vector<node_t> nodes;
-static jo_pinned_vector<long long> free_nodes; // available for allocation...
-static jo_pinned_vector<long long> garbage_nodes; // need resource release 
+static jo_mpmcq<long long, NIL_NODE, (1<<16)> free_nodes; // available for allocation...
+static jo_mpmcq<long long, NIL_NODE, (1<<16)> garbage_nodes; // need resource release 
 
 
 static inline void node_add_ref(long long idx) { 
 	if(idx >= START_USER_NODES) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
+		assert(!(flags & NODE_FLAG_GARBAGE));
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER)) == 0) {
 			int rc = n->ref_count.fetch_add(1);
 			debugf("node_add_ref(%lld,%i): %s of type %s\n", idx, rc+1, n->as_string().c_str(), n->type_name());
@@ -1159,9 +1164,10 @@ static inline void node_release(long long idx) {
 			}
 			if(rc <= 1) {
 				//assert(rc >= 0);
-#if 1 // no GC
+#if 0 // no GC
 #elif 1 // delayed GC
-				garbage_nodes.push_back(idx);
+				n->flags |= NODE_FLAG_GARBAGE;
+				garbage_nodes.push(idx);
 #else // immediate GC
 				n->release();
 				free_nodes.push_back(idx);
@@ -1171,17 +1177,15 @@ static inline void node_release(long long idx) {
 	}
 }
 
-volatile bool stop_gc = false;
 static void collect_garbage() {
-	while(!stop_gc) {
-		while(garbage_nodes.size()) {
-			long long idx = garbage_nodes.pop_back();
-			node_t *n = &nodes[idx];
-			n->release();
-			free_nodes.push_back(idx);
-		}
-		jo_yield();
+	long long idx;
+	while((idx = garbage_nodes.pop()) != NIL_NODE) {
+		node_t *n = &nodes[idx];
+		assert(n->flags & NODE_FLAG_GARBAGE);
+		n->release();
+		free_nodes.push(idx);
 	}
+	jo_yield();
 }
 
 static inline node_t *get_node(long long idx) { return &nodes[idx]; }
@@ -1209,13 +1213,14 @@ static inline env_ptr_t get_node_env(node_idx_t idx) { return get_node(idx)->t_e
 static inline env_ptr_t get_node_env(const node_t *n) { return n->t_env; }
 
 static inline void free_node(node_idx_t idx) {
-	free_nodes.push_back(idx);
+	free_nodes.push(idx);
 }
 
 // TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
 static inline node_idx_t new_node(node_t &&n) {
-	if(free_nodes.size()) {
-		long long ni = free_nodes.pop_back();
+	// TODO: need try-pop really...
+	if(free_nodes.size() > processor_count * 2) {
+		long long ni = free_nodes.pop();
 		if(ni >= START_USER_NODES) {
 			node_t *nn = &nodes[ni];
 			*nn = std::move(n);
@@ -5963,7 +5968,6 @@ int main(int argc, char **argv) {
 	debugf("Evaluating...\n");
 
 	// start the GC
-	stop_gc = false;
 	std::thread gc_thread(collect_garbage);
 
 	{
@@ -5973,7 +5977,7 @@ int main(int argc, char **argv) {
 	}
 
 	debugf("Waiting for GC to stop...\n");
-	stop_gc = true;
+	garbage_nodes.close();
 	gc_thread.join();
 
 	printf("nodes.size() = %zu\n", nodes.size());
