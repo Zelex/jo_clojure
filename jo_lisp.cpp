@@ -5979,8 +5979,8 @@ int main(int argc, char **argv) {
 	garbage_nodes.close();
 	gc_thread.join();
 
-	printf("nodes.size() = %zu\n", nodes.size());
-	printf("free_nodes.size() = %zu\n", free_nodes.size());
+	debugf("nodes.size() = %zu\n", nodes.size());
+	debugf("free_nodes.size() = %zu\n", free_nodes.size());
 	debugf("atom_retries = %zu\n", atom_retries.load());
 	debugf("stm_retries = %zu\n", stm_retries.load());
 
