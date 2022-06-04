@@ -204,7 +204,10 @@
         ]
     )))]
     ; Output Results to csv file
-    (spit "stm.csv" (reduce str (map (fn [[a b c d e f g h]] (str a ", " b ", " c ", " d ", " e ", " f ", " g ", " h "\n")) results))))
+    (--> results
+        (map (fn [[a b c d e f g h]] (str a ", " b ", " c ", " d ", " e ", " f ", " g ", " h "\n")))
+        (reduce str)
+        (spit "stm.csv"))
 
 (println "Done")
 
