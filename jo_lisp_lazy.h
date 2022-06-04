@@ -1014,9 +1014,9 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 	node_t *first = get_node(first_idx);
 	node_t *second = get_node(second_idx);
 	if(second->type == NODE_STRING) {
-		jo_string s = second->as_string(env);
-		jo_string s2 = first->as_string(env);
-		jo_string s3 = s2 + s;
+		jo_string s = first->is_int() ? jo_string(first->t_int) : first->as_string();
+		jo_string s2 = second->as_string();
+		jo_string s3 = s + s2;
 		return new_node_string(s3);
 	}
 	if(second->type == NODE_LIST) {
