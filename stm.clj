@@ -195,7 +195,15 @@
         ; Now lets kick off some STM tests and return results in a vector
         [
             num-cores 
-            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-mutex files-1))))))
+            (time (do 
+                ; First we reset our internal counters to measure stuff
+                (reset-all) 
+                ; Second we run the STM tests
+                (->> files-1                    ; The files to "compile"
+                    (pmap compile-file-mutex)   ; Compile in parallel
+                    (doall)                     ; Kick
+                    (map deref)                 ; Wait until done
+                    (dorun))))                  ; Kick
             (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files-1))))))
             (Thread/atom-retries)
             (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm files-1))))))
