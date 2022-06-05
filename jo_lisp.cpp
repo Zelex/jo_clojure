@@ -1136,7 +1136,7 @@ struct node_t {
 
 static jo_pinned_vector<node_t> nodes;
 static jo_mpmcq<long long, NIL_NODE, (1<<16)> free_nodes; // available for allocation...
-static const int num_garbage_sectors = 1024;
+static const int num_garbage_sectors = 8;
 static jo_mpmcq<long long, NIL_NODE, (1<<10)> garbage_nodes[num_garbage_sectors]; // need resource release 
 
 
@@ -1165,7 +1165,7 @@ static inline void node_release(long long idx) {
 			if(rc <= 1) {
 				//assert(rc >= 0);
 #if 0 // no GC
-#elif 0 // delayed GC
+#elif 1 // delayed GC
 				n->flags |= NODE_FLAG_GARBAGE;
 				garbage_nodes[idx&(num_garbage_sectors-1)].push(idx);
 #else // immediate GC
@@ -1185,7 +1185,7 @@ static void collect_garbage() {
 				idx = NIL_NODE;
 				break;
 			} 
-			if(garbage_nodes[i].size() == 0) continue;
+			if(garbage_nodes[i].size() <= 1) continue;
 			idx = garbage_nodes[i].pop();
 			if(idx == NIL_NODE) break;
 			node_t *n = &nodes[idx];

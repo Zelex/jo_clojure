@@ -1254,13 +1254,35 @@ struct jo_semaphore_waiter_notifier {
 };
 
 // https://cbloomrants.blogspot.com/2011/07/07-09-11-lockfree-thomasson-simple-mpmc.html
+struct jo_fastsemaphore {
+    std::atomic<int> count;
+    jo_semaphore wait_set;
+
+    jo_fastsemaphore(long count = 0) : count(count), wait_set(0) {
+        assert(count > -1);
+    }
+
+    void notify() {
+        if (count.fetch_add(1) < 0) {
+            wait_set.notify();
+        }
+    }
+
+    void wait() {
+        if (count.fetch_add(-1) < 1) {
+            wait_set.wait();
+        }
+    }
+};
+
+// https://cbloomrants.blogspot.com/2011/07/07-09-11-lockfree-thomasson-simple-mpmc.html
 template <typename T, T invalid_value, int T_depth>
 struct jo_mpmcq {
     std::atomic<T> slots[T_depth];
     std::atomic<size_t> push_idx;
     std::atomic<size_t> pop_idx;
-    jo_semaphore push_sem;
-    jo_semaphore pop_sem;
+    jo_fastsemaphore push_sem;
+    jo_fastsemaphore pop_sem;
     volatile bool closing;
 
     jo_mpmcq() : push_idx(T_depth), pop_idx(0), push_sem(T_depth), pop_sem(0), closing(false) {
