@@ -1165,7 +1165,7 @@ static inline void node_release(long long idx) {
 			if(rc <= 1) {
 				//assert(rc >= 0);
 #if 0 // no GC
-#elif 1 // delayed GC
+#elif 0 // delayed GC
 				n->flags |= NODE_FLAG_GARBAGE;
 				garbage_nodes[idx&(num_garbage_sectors-1)].push(idx);
 #else // immediate GC
