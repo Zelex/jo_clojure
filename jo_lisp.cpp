@@ -1209,7 +1209,7 @@ static inline map_ptr_t get_node_map(node_idx_t idx) { return get_node(idx)->as_
 static inline hash_set_ptr_t get_node_set(node_idx_t idx) { return get_node(idx)->as_set(); }
 static inline long long get_node_int(node_idx_t idx) { return get_node(idx)->as_int(); }
 static inline double get_node_float(node_idx_t idx) { return get_node(idx)->as_float(); }
-static inline jo_string get_node_type_string(node_idx_t idx) { return get_node(idx)->type_name(); }
+static inline const char *get_node_type_string(node_idx_t idx) { return get_node(idx)->type_name(); }
 static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
 static inline list_ptr_t get_node_func_body(node_idx_t idx) { return get_node(idx)->t_func.body; }
 static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)->t_lazy_fn; }
@@ -2353,7 +2353,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	} else if(type == NODE_NIL) {
 		printf("nil");
 	} else {
-		printf("<<%s>>", get_node_type_string(node).c_str());
+		printf("<<%s>>", get_node_type_string(node));
 	}
 #else
 	node_t *n = get_node(node);
@@ -3584,7 +3584,7 @@ static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 	} else {
 		list = new_list();
 		list->push_front_inplace(first_idx);
-		debugf("conj: default %s\n", get_node_type_string(first_idx).c_str());
+		debugf("conj: default %s\n", get_node_type_string(first_idx));
 	}
 	if(list.ptr) {
 		for(; it; it++) {
@@ -5653,10 +5653,49 @@ static node_idx_t native_namespace(env_ptr_t env, list_ptr_t args) {
 	return new_node_string(sym_node->t_string.substr(0, ns_pos));
 }
 
-// (newline)
-// Prints a newline to the output stream.
-static node_idx_t native_newline(env_ptr_t env, list_ptr_t args) {
-	printf("\n");
+static node_idx_t native_newline(env_ptr_t env, list_ptr_t args) { printf("\n"); return NIL_NODE; }
+
+// (reduce-kv f init coll)
+// Reduces an associative collection. f should be a function of 3
+// arguments. Returns the result of applying f to init, the first key
+// and the first value in coll, then applying f to that result and the
+// 2nd key and value, etc. If coll contains no entries, returns init
+// and f is not called. Note that reduce-kv is supported on vectors,
+// where the keys will be the ordinals.
+static node_idx_t native_reduce_kv(env_ptr_t env, list_ptr_t args) {
+	if(args->size() != 3) {
+		warnf("reduce-kv: expected 3 arguments, got %zu\n", args->size());
+		return NIL_NODE;
+	}
+	list_t::iterator it(args);
+	node_idx_t f = *it++;
+	node_idx_t init = *it++;
+	node_idx_t coll = *it++;
+	node_t *coll_node = get_node(coll);
+	if(coll_node->type == NODE_VECTOR) {
+		vector_ptr_t coll_vec = coll_node->t_vector;
+		size_t size = coll_vec->size();
+		if(size == 0) {
+			return init;
+		}
+		node_idx_t result = init;
+		for(size_t i = 0; i < size; i++) {
+			result = eval_va(env, f, result, new_node_int(i), coll_vec->nth(i));
+		}
+		return result;
+	}
+	if(coll_node->type == NODE_MAP) {
+		map_ptr_t coll_map = coll_node->t_map;
+		if(coll_map->size() == 0) {
+			return init;
+		}
+		node_idx_t result = init; 
+		for(map_t::iterator it2 = coll_map->begin(); it2; it2++) {
+			result = eval_va(env, f, result, it2->first, it2->second);
+		}
+		return result;
+	}
+	warnf("reduce-kv: expected a collection, got %s\n", get_node_type_string(coll_node->type));
 	return NIL_NODE;
 }
 
@@ -5947,6 +5986,7 @@ int main(int argc, char **argv) {
 	env->set("merge-with", new_node_native_function("merge-with", &native_merge_with, false, NODE_FLAG_PRERESOLVE));
 	env->set("namespace", new_node_native_function("namespace", &native_namespace, false, NODE_FLAG_PRERESOLVE));
 	env->set("newline", new_node_native_function("newline", &native_newline, false, NODE_FLAG_PRERESOLVE));
+	env->set("reduce-kv", new_node_native_function("reduce-kv", &native_reduce_kv, false, NODE_FLAG_PRERESOLVE));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

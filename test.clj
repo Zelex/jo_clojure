@@ -941,6 +941,8 @@
 (is (= (pmap inc [1 2 3 4 5]) [2 3 4 5 6]))
 (is (= (pcalls inc dec +) (1 -1 0)))
 
+(is (= (reduce-kv #(assoc %1 %3 %2) {} {:a 1 :b 2 :c 3}) {1 :a, 2 :b, 3 :c}))
+
 
 (string-test)
 (if-test)
