@@ -245,7 +245,6 @@ read-string
 reader-conditional
 reader-conditional?
 record?
-reduce-kv
 reduced
 reduced?
 reductions
