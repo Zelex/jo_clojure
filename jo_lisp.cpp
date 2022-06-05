@@ -1184,7 +1184,6 @@ static void collect_garbage() {
 		n->release();
 		free_nodes.push(idx);
 	}
-	jo_yield();
 }
 
 static inline node_t *get_node(long long idx) { return &nodes[idx]; }

@@ -258,7 +258,6 @@ refer
 refer-clojure
 reify
 release-pending-sends
-rem
 remove
 remove-all-methods
 remove-method
