@@ -1022,6 +1022,16 @@ static node_idx_t native_stm_retries_reset(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// Returns true if a value has been produced for a promise, delay, future or lazy sequence.
+static node_idx_t native_realized(env_ptr_t env, list_ptr_t args) {
+	node_idx_t promise_idx = args->first_value();
+	node_t *promise = get_node(promise_idx);
+	if(promise->t_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+		return new_node_bool(true);
+	}
+	return new_node_bool(false);
+}
+
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, true, NODE_FLAG_PRERESOLVE));
@@ -1070,6 +1080,7 @@ void jo_lisp_async_init(env_ptr_t env) {
 	// misc
 	env->set("*hardware-concurrency*", new_node_int(processor_count, NODE_FLAG_PRERESOLVE));
 	env->set("memoize", new_node_native_function("memoize", &native_memoize, false, NODE_FLAG_PRERESOLVE));
+	env->set("realized?", new_node_native_function("realized?", &native_realized, false, NODE_FLAG_PRERESOLVE));
 	env->set("Thread/atom-retries", new_node_native_function("Thread/atom-retries", &native_atom_retries, false, NODE_FLAG_PRERESOLVE));
 	env->set("Thread/atom-retries-reset", new_node_native_function("Thread/atom-retries-reset", &native_atom_retries_reset, false, NODE_FLAG_PRERESOLVE));
 	env->set("Thread/stm-retries", new_node_native_function("Thread/stm-retries", &native_stm_retries, false, NODE_FLAG_PRERESOLVE));

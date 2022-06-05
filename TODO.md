@@ -244,7 +244,6 @@ read+string
 read-string
 reader-conditional
 reader-conditional?
-realized?
 record?
 reduce-kv
 reduced
