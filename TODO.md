@@ -127,7 +127,6 @@ doubles
 eduction
 EMPTY-NODE
 ensure
-ensure-reduced
 enumeration-seq
 error-handler
 error-mode
@@ -245,7 +244,6 @@ read-string
 reader-conditional
 reader-conditional?
 record?
-reduced?
 reductions
 ref
 ref-history-count
@@ -339,7 +337,6 @@ unchecked-int
 unchecked-long
 unchecked-short
 underive
-unreduced
 update-proxy
 uri?
 use

@@ -3870,6 +3870,28 @@ static node_idx_t native_reduced(env_ptr_t env, list_ptr_t args) {
 	return ret_idx;
 }
 
+static node_idx_t native_unreduced(env_ptr_t env, list_ptr_t args) {
+	node_idx_t fvi = args->first_value();
+	node_t *fv = get_node(fvi);
+	if(fv->type == NODE_REDUCED) {
+		return fv->t_extra;
+	}
+	return fvi;
+}
+
+static node_idx_t native_ensure_reduced(env_ptr_t env, list_ptr_t args) {
+	node_idx_t fvi = args->first_value();
+	node_t *fv = get_node(fvi);
+	if(fv->type == NODE_REDUCED) {
+		return fvi;
+	}
+	node_idx_t ret_idx = new_node(NODE_REDUCED, 0);
+	get_node(ret_idx)->t_extra = fvi;
+	return ret_idx;
+}
+
+static node_idx_t native_is_reduced(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_REDUCED ? TRUE_NODE : FALSE_NODE; }
+
 // (reduce f coll)
 // (reduce f val coll)
 // f should be a function of 2 arguments. 
@@ -5762,6 +5784,9 @@ int main(int argc, char **argv) {
 	env->set("apply", new_node_native_function("apply", &native_apply, true, NODE_FLAG_PRERESOLVE));
 	env->set("reduce", new_node_native_function("reduce", &native_reduce, true, NODE_FLAG_PRERESOLVE));
 	env->set("reduced", new_node_native_function("reduced", &native_reduced, false, NODE_FLAG_PRERESOLVE));
+	env->set("ensure-reduced", new_node_native_function("ensure-reduced", &native_ensure_reduced, false, NODE_FLAG_PRERESOLVE));
+	env->set("unreduced", new_node_native_function("unreduced", &native_unreduced, false, NODE_FLAG_PRERESOLVE));
+	env->set("reduced?", new_node_native_function("reduced?", &native_is_reduced, false, NODE_FLAG_PRERESOLVE));
 	env->set("delay", new_node_native_function("delay", &native_delay, true, NODE_FLAG_PRERESOLVE));
 	env->set("delay?", new_node_native_function("delay?", &native_is_delay, false, NODE_FLAG_PRERESOLVE));
 	env->set("constantly", new_node_native_function("constantly", &native_constantly, false, NODE_FLAG_PRERESOLVE));
