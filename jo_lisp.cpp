@@ -4800,53 +4800,12 @@ static node_idx_t native_empty(env_ptr_t env, list_ptr_t args) {
 // (not-empty coll)
 // If coll is empty, returns nil, else coll
 static node_idx_t native_not_empty(env_ptr_t env, list_ptr_t args) {
-	if(args->size() != 1) {
-		warnf("(not-empty) requires 1 argument\n");
+	node_idx_t coll_idx = args->first_value();
+	node_t *coll = get_node(coll_idx);
+	if(coll->seq_empty()) {
 		return NIL_NODE;
 	}
-	node_idx_t coll_idx = args->first_value();
-	int coll_type = get_node_type(coll_idx);
-	if(coll_type == NODE_LIST) {
-		list_ptr_t coll = get_node_list(coll_idx);
-		if(coll->empty()) {
-			return NIL_NODE;
-		}
-		return coll_idx;
-	} else if(coll_type == NODE_VECTOR) {
-		vector_ptr_t coll = get_node_vector(coll_idx);
-		if(coll->empty()) {
-			return NIL_NODE;
-		}
-		return coll_idx;
-	} else if(coll_type == NODE_MAP) {
-		map_ptr_t coll = get_node_map(coll_idx);
-		if(coll->empty()) {
-			return NIL_NODE;
-		}
-		return coll_idx;
-	} else if(coll_type == NODE_HASH_SET) {
-		hash_set_ptr_t coll = get_node_set(coll_idx);
-		if(coll->empty()) {
-			return NIL_NODE;
-		}
-		return coll_idx;
-	} else if(coll_type == NODE_STRING) {
-		jo_string coll = get_node_string(coll_idx);
-		if(coll.empty()) {
-			return NIL_NODE;
-		}
-		return coll_idx;
-	} else if(coll_type == NODE_LAZY_LIST) {
-		lazy_list_iterator_t lit(coll_idx);
-		if(!lit) {
-			return NIL_NODE;
-		}
-		return coll_idx;
-	} else if(coll_type == NODE_NIL) {
-		return NIL_NODE;
-	} 
-	warnf("(not-empty) requires a collection\n");
-	return NIL_NODE;
+	return coll_idx;
 }
 
 
