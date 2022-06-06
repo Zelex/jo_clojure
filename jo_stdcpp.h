@@ -350,30 +350,57 @@ static inline double jo_time() {
 #endif
 }
 
-static void jo_yield() {
-    std::this_thread::yield();
-}
-
 void jo_sleep(float seconds) {
-	double A,B;
-    while(seconds > 0.002) {
-        A = jo_time();
 #ifdef _WIN32
-        Sleep(1);
-#else
-        usleep(1000);
-#endif
+#if 0
+    LARGE_INTEGER due;
+    due.QuadPart = -int64_t(seconds * 1e7);
+    HANDLE timer = CreateWaitableTimer(NULL, FALSE, NULL);
+    SetWaitableTimerEx(timer, &due, 0, NULL, NULL, NULL, 0);
+    WaitForSingleObject(timer, INFINITE);
+    CloseHandle(timer);
+#elif 1
+    static thread_local double estimate = 5e-3;
+    static thread_local double mean = 5e-3;
+    static thread_local double m2 = 0;
+    static thread_local int64_t count = 1;
+
+	double A,B;
+    while (seconds - estimate > 1e-7) {
+        double toWait = seconds - estimate;
+        LARGE_INTEGER due;
+        due.QuadPart = -int64_t(toWait * 1e7);
+
+        A = jo_time();
+        HANDLE timer = CreateWaitableTimer(NULL, FALSE, NULL);
+        SetWaitableTimerEx(timer, &due, 0, NULL, NULL, NULL, 0);
+        WaitForSingleObject(timer, INFINITE);
+        CloseHandle(timer);
         B = jo_time();
-        seconds -= (B - A);
+        double observed = B - A;
+        seconds -= observed;
+    
+        ++count;
+        double error = observed - toWait;
+        double delta = error - mean;
+        mean += delta / count;
+        m2   += delta * (error - mean);
+        double stddev = sqrt(m2 / (count - 1));
+        estimate = mean + stddev;
     }
     if(seconds > 0) {
         A = B = jo_time();
-        // This actually works... wth windows?
         while(B - A < seconds) {
-            jo_yield();
+            std::this_thread::yield();
             B = jo_time();
         }
     }
+#else  
+    Sleep(seconds * 1000);
+#endif
+#else
+    usleep(seconds * 1000000);
+#endif
 }
 
 // yield exponential backoff
@@ -381,19 +408,20 @@ static void jo_yield_backoff(int *count) {
     if(*count == 0) {
         // do nothing, just try again
     } else if(*count == 1) {
-        jo_yield();
-    } else {
+        std::this_thread::yield();
+    } else if(*count < 16) {
         const int lmin_ns = 1000;
-        const int lmax_ns = 2000000;
+        const int lmax_ns = 1000000;
         int sleep_ns = jo_min(lmin_ns + (int)((pow(*count + 1, 2) - 1) / 2), lmax_ns);
-        jo_sleep(sleep_ns / 2000000.0f);
+        jo_sleep(sleep_ns / 1000000.0f);
+    } else {
+#ifdef _WIN32
+        Sleep(1);
+#else
+        usleep(1000);
+#endif
     }
     (*count)++;
-}
-
-// get current thread id
-static uint64_t jo_thread_id() {
-    return std::hash<std::thread::id>()(std::this_thread::get_id());
 }
 
 static FILE *jo_fmemopen(void *buf, size_t size, const char *mode) {
@@ -1332,7 +1360,7 @@ struct jo_mpmcq {
         T res;
         int count = 0;
         while ((res = slots[idx].load()) == invalid_value) {
-            jo_yield();
+            jo_yield_backoff(&count);
         }
         slots[idx].store(invalid_value);
         push_sem.notify();

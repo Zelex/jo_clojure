@@ -672,7 +672,7 @@ struct node_t {
 		double t_float;
 		FILE *t_file;
 		void *t_dir;
-		unsigned long long t_thread_id;
+		volatile unsigned long long t_thread_id;
 	};
 
 	node_t() 
@@ -1246,7 +1246,7 @@ static void collect_garbage() {
 			free_nodes.push(idx);
 		}
 		if(idx == NIL_NODE) break;
-		jo_yield();
+		std::this_thread::yield();
 	}
 }
 

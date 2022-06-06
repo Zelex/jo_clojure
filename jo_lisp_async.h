@@ -4,7 +4,9 @@
 #include <vector>
 #include <deque>
 
-
+// get current thread id
+static std::atomic<size_t> thread_uid(0);
+static thread_local size_t thread_id = thread_uid.fetch_add(1);
 
 typedef std::packaged_task<node_idx_t()> jo_task_t;
 typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
@@ -23,6 +25,7 @@ public:
 	jo_threadpool(int nr = 1) : pool(), stop(false), access(), cond(), tasks() {
 		while(nr-- > 0) {
 			std::thread t([this]() {
+				thread_id = thread_uid.fetch_add(1);
 				while(!stop) {
 					std::function<void()> task;
 					{
@@ -803,6 +806,9 @@ static node_idx_t native_is_future(env_ptr_t env, list_ptr_t args) { return get_
 
 static node_idx_t native_thread_sleep(env_ptr_t env, list_ptr_t args) {
 	double ms = get_node_float(args->first_value());
+	#if 1
+		jo_sleep(ms / 1000.0);
+	#else
 	double A,B;
 	A = B = jo_time();
 	// This actually works... though poorly.. wth windows?
@@ -810,6 +816,7 @@ static node_idx_t native_thread_sleep(env_ptr_t env, list_ptr_t args) {
 		jo_yield();
 		B = jo_time();
 	}
+	#endif
 	//std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 	//jo_sleep(ms / 1000.0);
 	//printf("slept for %f ms, should be %f ms\n", (B-A) * 1000, ms);
@@ -963,7 +970,7 @@ static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
 
 	node_idx_t old_val;
 
-	unsigned long long current_thread_id = jo_thread_id();
+	size_t current_thread_id = thread_id;
 
 	// mutexes in transactions (does this even make sense?)
 	if(env->tx.ptr) {
@@ -997,7 +1004,9 @@ static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
 	node_idx_t ret = eval_node_list(env, args->rest());
 
 	// unlock the atom
-	atom->t_atom.store(old_val);
+	if(old_val != TX_HOLD_NODE) {
+		atom->t_atom.store(old_val);
+	}
 
 	return ret;
 }
