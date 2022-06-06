@@ -113,7 +113,7 @@
 
 ;(doseq [num-cores (range 1 64)]
     ;(Thread/workers num-cores)
-    ;(println (time (doall (map deref (doall (pmap compile-file-stm-fast files-1))))))
+    ;(println (time (doall (map deref (doall (pmap compile-file-stm-fast files))))))
 ;)
 
 
@@ -184,11 +184,11 @@
     (Thread/atom-retries-reset)
     (Thread/stm-retries-reset))
 
-(def files-1 (for [idx (range 1000)] [idx 1]))
-;(def files-1 (for [idx (range 1000)] [idx (rand 0.1 2)]))
-;(def files-1 (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])) ; Diachomatic
+(def files (for [idx (range 1000)] [idx 1]))
+;(def files (for [idx (range 1000)] [idx (rand 0.1 2)]))
+;(def files (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])) ; Diachomatic
 
-(let [results (doall (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
+(->> (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
         ; Set the number of worker threads...
         (Thread/workers num-cores)
         (println "Testing with" num-cores "cores")
@@ -199,24 +199,22 @@
                 ; First we reset our internal counters to measure stuff
                 (reset-all) 
                 ; Second we run the STM tests
-                (->> files-1                    ; The files to "compile"
+                (->> files                    ; The files to "compile"
                     (pmap compile-file-mutex)   ; Compile in parallel
                     (doall)                     ; Kick
                     (map deref)                 ; Wait until done
                     (dorun))))                  ; Kick
-            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files-1))))))
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files))))))
             (Thread/atom-retries)
-            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm files-1))))))
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm files))))))
             (Thread/stm-retries)
-            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm-fast files-1))))))
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm-fast files))))))
             (Thread/stm-retries)
         ]
-    )))]
-    ; Output Results to csv file
-    (->> results
-        (map (fn [[a b c d e f g h]] (str a ", " b ", " c ", " d ", " e ", " f ", " g ", " h "\n")))
-        (reduce str)
-        (spit "stm.csv"))
+    ))
+    (map (fn [[a b c d e f g h]] (str a ", " b ", " c ", " d ", " e ", " f ", " g ", " h "\n")))
+    (reduce str)
+    (spit "stm.csv"))
 
 (println "Done")
 

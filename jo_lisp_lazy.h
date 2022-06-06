@@ -105,8 +105,8 @@ static node_idx_t native_concat_next(env_ptr_t env, list_ptr_t args) {
 		node_idx_t nidx = eval_node(env, args->first_value());
 		args = args->rest();
 		node_t *n = get_node(nidx);
-		if(!n->seq_empty()) {
-			auto fr = n->seq_first_rest();
+		auto fr = n->seq_first_rest();
+		if(fr.third) {
 			val = fr.first;
 			args->cons_inplace(fr.second);
 			break;
@@ -173,10 +173,10 @@ static node_idx_t native_map_next(env_ptr_t env, list_ptr_t args) {
 	for(; it; it++) {
 		node_idx_t arg_idx = *it;
 		node_t *arg = get_node(arg_idx);
-		if(arg->seq_empty()) {
+		auto fr = arg->seq_first_rest();
+		if(!fr.third) {
 			return NIL_NODE;
 		}
-		auto fr = arg->seq_first_rest();
 		arg_list->push_back_inplace(fr.first);
 		next_list->push_back_inplace(fr.second);
 	}
@@ -210,10 +210,8 @@ static node_idx_t native_map_indexed_next(env_ptr_t env, list_ptr_t args) {
 	// pull off the first element of each list and call f with it
 
 	node_t *coll = get_node(coll_idx);
-	if(coll->seq_empty()) {
-		return NIL_NODE;
-	}
 	auto fr = coll->seq_first_rest();
+	if(!fr.third) return NIL_NODE;
 
 	list_ptr_t arg_list = new_list();
 	arg_list->push_back_inplace(f_idx);
@@ -703,10 +701,11 @@ static node_idx_t native_partition_next(env_ptr_t env, list_ptr_t args) {
 	node_t *coll = get_node(coll_idx);
 	long long n = get_node_int(n_idx);
 	long long step = get_node_int(step_idx);
-	if(coll->seq_empty()) {
+	auto t = coll->seq_take(n);
+	if(!t.second) {
 		return NIL_NODE;
 	}
-	node_idx_t ret_idx = coll->seq_take(n);
+	node_idx_t ret_idx = t.first;
 	node_idx_t new_coll = coll->seq_drop(step);
 	node_t *ret = get_node(ret_idx);
 	size_t ret_size = ret->seq_size();
@@ -741,12 +740,11 @@ static node_idx_t native_partition_by_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = *it++;
 	node_idx_t coll_idx = *it++;
 	node_t *coll = get_node(coll_idx);
-	if(coll->seq_empty()) {
-		return NIL_NODE;
-	}
-	node_idx_t ret_idx = coll->seq_take(1);
+	auto t = coll->seq_take(1);
+	if(!t.second) return NIL_NODE;
+	node_idx_t ret_idx = t.first;
 	node_t *ret = get_node(ret_idx);
-	node_idx_t first_idx = eval_va(env, f_idx, ret->seq_first());
+	node_idx_t first_idx = eval_va(env, f_idx, ret->seq_first().first);
 	int num_drop = 0;
 	seq_iterate(coll_idx, [&](node_idx_t idx) {
 		node_idx_t pred_idx = eval_va(env, f_idx, idx);
@@ -870,12 +868,12 @@ static node_idx_t native_flatten(env_ptr_t env, list_ptr_t args) {
 	node_idx_t lazy_func_idx = new_node(NODE_LIST, 0);
 	node_t *lazy_func = get_node(lazy_func_idx);
 	lazy_func->t_list = new_list();
-	lazy_func->t_list->push_front_inplace(get_node(x)->seq_rest());
+	lazy_func->t_list->push_front_inplace(get_node(x)->seq_rest().first);
 	while(n->is_seq()) {
-		x = n->seq_first();
+		x = n->seq_first().first;
 		n = get_node(x);
 		if(n->is_seq()) {
-			lazy_func->t_list->push_front_inplace(get_node(x)->seq_rest());
+			lazy_func->t_list->push_front_inplace(get_node(x)->seq_rest().first);
 		} else {
 			lazy_func->t_list->push_front_inplace(x);
 		}
@@ -949,10 +947,8 @@ static node_idx_t native_lazy_seq(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_lazy_seq_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t ll_idx = args->first_value();
 	node_t *ll = get_node(ll_idx);
-	if(!ll->is_seq() || ll->seq_empty()) {
-		return NIL_NODE;
-	}
 	auto fr = ll->seq_first_rest();
+	if(!fr.third) return NIL_NODE;
 	return new_node_list(list_va(fr.first, env->get("lazy-seq-next").value, fr.second));
 }
 
@@ -981,10 +977,8 @@ static node_idx_t native_seq_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_t *n = get_node(x);
-	if(!n->is_seq() || n->seq_empty()) {
-		return NIL_NODE;
-	}
 	auto fr = n->seq_first_rest();
+	if(!fr.third) return NIL_NODE;
 	return new_node_list(list_va(fr.first, env->get("seq-next").value, fr.second));
 }
 
@@ -1377,7 +1371,6 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 					expr_it = seq_exprs->begin() + (size_t)get_node_int(PC_list->nth_clamp(PC));
 				}
 			} else {
-				jo_pair<node_idx_t, node_idx_t> fr;
 				node_idx_t val_idx = eval_node(E, *expr_it++);
 				node_t *val = get_node(val_idx);
 				auto cur = state_rest->find(binding_idx, node_eq);
@@ -1385,14 +1378,14 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 					val_idx = cur.second;
 					val = get_node(val_idx);
 				}
-				if(val->seq_empty()) {
+				auto fr = val->seq_first_rest();
+				if(!fr.third) {
 					// Drop back to the last loop instruction
 					PC -= 1;
 					if(PC < 0) return NIL_NODE;
 					expr_it = seq_exprs->begin() + (size_t)get_node_int(PC_list->nth_clamp(PC));
 					state_rest = state_rest->dissoc(binding_idx, node_eq);
 				} else {
-					fr = val->seq_first_rest();
 					node_let(E, binding_idx, fr.first);
 					state_first = state_first->assoc(binding_idx, fr.first, node_eq);
 					state_rest = state_rest->assoc(binding_idx, fr.second, node_eq);
@@ -1424,10 +1417,8 @@ static node_idx_t native_interpose(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_interpose_next_elem(env_ptr_t env, list_ptr_t args) {
 	node_idx_t sep_idx = args->first_value();
 	node_idx_t coll_idx = args->second_value();
-	if(get_node(coll_idx)->seq_empty()) {
-		return NIL_NODE;
-	}
 	auto fr = get_node(coll_idx)->seq_first_rest();
+	if(!fr.third) return NIL_NODE;
 	return new_node_list(list_va(fr.first, env->get("interpose-next-sep").value, sep_idx, fr.second));
 }
 
@@ -1458,10 +1449,8 @@ static node_idx_t native_keep_indexed_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t result_idx;
 	do {
 		node_t *coll = get_node(coll_idx);
-		if(coll->seq_empty()) {
-			return NIL_NODE;
-		}
 		auto fr = coll->seq_first_rest();
+		if(!fr.third) return NIL_NODE;
 		result_idx = eval_va(env, f_idx, new_node_int(cnt), fr.first);
 		coll_idx = fr.second;
 		++cnt;
@@ -1499,10 +1488,8 @@ static node_idx_t native_mapcat_next(env_ptr_t env, list_ptr_t args) {
 	while(coll->seq_empty()) {
 		// advance map
 		node_t *map = get_node(map_idx);
-		if(map->seq_empty()) {
-			return NIL_NODE;
-		}
 		auto mapfr = map->seq_first_rest();
+		if(!mapfr.third) return NIL_NODE;
 		coll_idx = mapfr.first;
 		map_idx = mapfr.second;
 		coll = get_node(coll_idx);

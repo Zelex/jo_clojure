@@ -817,49 +817,92 @@ struct node_t {
 	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_hash_set() || is_vector(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
 
-	node_idx_t seq_first() const {
-		if(is_list()) return t_list->first_value();
-		if(is_vector()) return t_vector->first_value();
+	// first, more?
+	typedef jo_pair<node_idx_t, bool> seq_first_t;
+	seq_first_t seq_first() const {
+		if(is_list()) return seq_first_t(t_list->first_value(), !t_list->empty());
+		if(is_vector()) return seq_first_t(t_vector->first_value(), !t_vector->empty());
 		if(is_map()) {
+			if(t_map->empty()) return seq_first_t(NIL_NODE, false);
 			auto e = t_map->first();
-			return new_node_vector(vector_va(e.first, e.second));
+			return seq_first_t(new_node_vector(vector_va(e.first, e.second)), true);
 		}
-		if(is_hash_set()) return t_hash_set->first_value();
+		if(is_hash_set()) {
+			if(t_hash_set->empty()) return seq_first_t(NIL_NODE, false);
+			return seq_first_t(t_hash_set->first_value(), true);
+		}
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
-			return lit.val;
+			if(lit.done()) return seq_first_t(NIL_NODE, false);
+			return seq_first_t(lit.val, true);
 		}
-		if(is_string() && t_string.size()) return new_node_int(t_string.c_str()[0], NODE_FLAG_CHAR);
-		return NIL_NODE;
+		if(is_string()) {
+			if(!t_string.size()) return seq_first_t(NIL_NODE, false);
+			return seq_first_t(new_node_int(t_string.c_str()[0], NODE_FLAG_CHAR), true);
+		}
+		return seq_first_t(NIL_NODE, false);
 	}
 
-	node_idx_t seq_rest() const {
-		if(is_list()) return new_node_list(t_list->rest());
-		if(is_vector()) return new_node_vector(t_vector->rest());
-		if(is_map()) return new_node_map(t_map->rest());
-		if(is_hash_set()) return new_node_hash_set(t_hash_set->rest());
+	typedef jo_pair<node_idx_t, bool> seq_rest_t;
+	seq_rest_t seq_rest() const {
+		if(is_list()) {
+			if(t_list->empty()) return seq_rest_t(NIL_NODE, false);
+			return seq_rest_t(new_node_list(t_list->rest()), true);
+		}
+		if(is_vector()) {
+			if(t_vector->empty()) return seq_rest_t(NIL_NODE, false);
+			return seq_rest_t(new_node_vector(t_vector->rest()), true);
+		}
+		if(is_map()) {
+			if(t_map->empty()) return seq_rest_t(NIL_NODE, false);
+			return seq_rest_t(new_node_map(t_map->rest()), true);
+		}
+		if(is_hash_set()) {
+			if(t_hash_set->empty()) return seq_rest_t(NIL_NODE, false);
+			return seq_rest_t(new_node_hash_set(t_hash_set->rest()), true);
+		}
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
-			return new_node_lazy_list(t_env, lit.next_fn());
+			if(lit.done()) return seq_rest_t(NIL_NODE, false);
+			return seq_rest_t(new_node_lazy_list(t_env, lit.next_fn()), true);
 		}
-		if(is_string()) return new_node_string(t_string.substr(1));
-		return NIL_NODE;
+		if(is_string()) {
+			if(!t_string.size()) return seq_rest_t(NIL_NODE, false);
+			return seq_rest_t(new_node_string(t_string.substr(1)), true);
+		}
+		return seq_rest_t(NIL_NODE, false);
 	}
 
-	jo_pair<node_idx_t, node_idx_t> seq_first_rest() const {
-		if(is_list()) return jo_pair<node_idx_t, node_idx_t>(t_list->first_value(), new_node_list(t_list->rest()));
-		if(is_vector()) return jo_pair<node_idx_t, node_idx_t>(t_vector->first_value(), new_node_vector(t_vector->rest()));
-		if(is_map()) {
-			auto e = t_map->first();
-			return jo_pair<node_idx_t, node_idx_t>(new_node_vector(vector_va(e.first, e.second)), new_node_map(t_map->rest()));
+	// first, rest, more?
+	typedef jo_triple<node_idx_t, node_idx_t, bool> seq_first_rest_t;
+	seq_first_rest_t seq_first_rest() const {
+		if(is_list()) {
+			if(t_list->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
+			return seq_first_rest_t(t_list->first_value(), new_node_list(t_list->rest()), true);
 		}
-		if(is_hash_set()) return jo_pair<node_idx_t, node_idx_t>(t_hash_set->first_value(), new_node_hash_set(t_hash_set->rest()));
+		if(is_vector()) {
+			if(t_vector->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
+			return seq_first_rest_t(t_vector->first_value(), new_node_vector(t_vector->rest()), true);
+		} 
+		if(is_map()) {
+			if(t_map->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
+			auto e = t_map->first();
+			return seq_first_rest_t(new_node_vector(vector_va(e.first, e.second)), new_node_map(t_map->rest()), true);
+		}
+		if(is_hash_set()) {
+			if(t_hash_set->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
+			return seq_first_rest_t(t_hash_set->first_value(), new_node_hash_set(t_hash_set->rest()), true);
+		}
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
-			return jo_pair<node_idx_t, node_idx_t>(lit.val, new_node_lazy_list(t_env, lit.next_fn()));
+			if(lit.done()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
+			return seq_first_rest_t(lit.val, new_node_lazy_list(t_env, lit.next_fn()), true);
 		}
-		if(is_string() && t_string.size()) return jo_pair<node_idx_t, node_idx_t>(INT_0_NODE + t_string.c_str()[0], new_node_string(t_string.substr(1)));
-		return jo_pair<node_idx_t, node_idx_t>(NIL_NODE, NIL_NODE);
+		if(is_string() && t_string.size()) {
+			 if(!t_string.size()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
+			 return seq_first_rest_t(INT_0_NODE + t_string.c_str()[0], new_node_string(t_string.substr(1)), true);
+		}
+		return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
 	}
 
 	bool seq_empty() const {
@@ -875,17 +918,34 @@ struct node_t {
 		return true;
 	}
 
-	node_idx_t seq_take(size_t n) const {
-		if(is_list()) return new_node_list(t_list->take(n));
-		if(is_vector()) return new_node_vector(t_vector->take(n));
-		if(is_map()) return new_node_map(t_map->take(n));
-		if(is_hash_set()) return new_node_hash_set(t_hash_set->take(n));
+	typedef jo_pair<node_idx_t, bool> seq_take_t;
+	seq_take_t seq_take(size_t n) const {
+		if(is_list()) {
+			if(t_list->empty()) return seq_take_t(NIL_NODE, false);
+			return seq_take_t(new_node_list(t_list->take(n)), true);
+		} 
+		if(is_vector()) {
+			if(t_vector->empty()) return seq_take_t(NIL_NODE, false);
+			return seq_take_t(new_node_vector(t_vector->take(n)), true);
+		}
+		if(is_map()) {
+			if(t_map->empty()) return seq_take_t(NIL_NODE, false);
+			return seq_take_t(new_node_map(t_map->take(n)), true);
+		}
+		if(is_hash_set()) {
+			if(t_hash_set->empty()) return seq_take_t(NIL_NODE, false);
+			return seq_take_t(new_node_hash_set(t_hash_set->take(n)), true);
+		}
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
-			return new_node_list(lit.all(n));
+			if(lit.done()) return seq_take_t(NIL_NODE, false);
+			return seq_take_t(new_node_list(lit.all(n)), true);
 		}
-		if(is_string() && t_string.size()) return new_node_string(t_string.substr(0, n));
-		return NIL_NODE;
+		if(is_string()) {
+			if(!t_string.size()) return seq_take_t(NIL_NODE, false);
+			return seq_take_t(new_node_string(t_string.substr(0, n)), true);
+		}
+		return seq_take_t(NIL_NODE, false);
 	}
 
 	node_idx_t seq_drop(size_t n) const {
@@ -3054,6 +3114,52 @@ static node_idx_t native_doall(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (doall-vec coll)
+// (doall-vec n coll)
+// When lazy sequences are produced via functions that have side
+// effects, any effects other than those needed to produce the first
+// element in the seq do not occur until the seq is consumed. doall can
+// be used to force any effects. Walks through the successive nexts of
+// the seq, retains the head and returns it, thus causing the entire
+// seq to reside in memory at one time.
+static node_idx_t native_doall_vec(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator i(args);
+
+	if(args->size() == 1) {
+		node_idx_t coll = eval_node(env, args->first_value());
+		node_t *n = get_node(coll);
+		if(!n->is_seq()) {
+			return NIL_NODE;
+		}
+		vector_ptr_t ret = new_vector();
+		seq_iterate(coll, [&ret](node_idx_t ni) {
+			ret->push_back_inplace(ni);
+			return true;
+		});
+		return new_node_vector(ret);
+	}
+
+	if(args->size() == 2) {
+		long long n = get_node(eval_node(env, *i++))->as_int();
+		node_idx_t coll = eval_node(env, *i++);
+		node_t *n4 = get_node(coll);
+		if(!n4->is_seq()) {
+			return NIL_NODE;
+		}
+		vector_ptr_t ret = new_vector();
+		seq_iterator_t it(coll);
+		for(--n; it && n; it.next(), n--) {
+			ret->push_back_inplace(it.val);
+		}
+		if(it.val != NIL_NODE && n) {
+			ret->push_back_inplace(it.val);
+		}
+		return new_node_vector(ret);
+	}
+
+	return NIL_NODE;
+}
+
 // (dorun coll)(dorun n coll)
 // When lazy sequences are produced via functions that have side
 // effects, any effects other than those needed to produce the first
@@ -3607,7 +3713,11 @@ static node_idx_t native_pop(env_ptr_t env, list_ptr_t args) {
 		if(list_str.size() == 0) return NIL_NODE;
 		return new_node_string(list_str.substr(1));
 	}
-	if(list->is_lazy_list()) return list->seq_rest();
+	if(list->is_lazy_list()) {
+		auto r = list->seq_rest();
+		if(!r.second) return NIL_NODE;
+		return r.first;
+	}
 	return NIL_NODE;
 }
 
@@ -3630,7 +3740,11 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 		if(s.size() == 0) return NIL_NODE;
 		return new_node_int(s.c_str()[0]);
 	}
-	if(list->is_lazy_list()) return list->seq_first();
+	if(list->is_lazy_list()) {
+		auto f = list->seq_first();
+		if(!f.second) return NIL_NODE;
+		return f.first;
+	}
 	return NIL_NODE;
 }
 
@@ -3655,17 +3769,19 @@ static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) { return get_no
 // Returns the first item in the collection. Calls seq on its argument. If coll is nil, returns nil.
 static node_idx_t native_first(env_ptr_t env, list_ptr_t args) {
 	node_t *node = get_node(args->first_value());
-	if(node->seq_empty()) return NIL_NODE;
-	return node->seq_first();
+	auto f = node->seq_first();
+	if(!f.second) return NIL_NODE;
+	return f.first;
 }
 
 static node_idx_t native_second(env_ptr_t env, list_ptr_t args) {
 	node_t *node = get_node(args->first_value());
-	if(node->seq_empty()) return NIL_NODE;
-	node_idx_t node_idx = node->seq_rest();
-	node = get_node(node_idx);
-	if(node->seq_empty()) return NIL_NODE;
-	return node->seq_first();
+	auto r = node->seq_rest();
+	if(!r.second) return NIL_NODE;
+	node = get_node(r.first);
+	auto f = node->seq_first();
+	if(!f.second) return NIL_NODE;
+	return f.first;
 }
 
 static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
@@ -3809,8 +3925,9 @@ static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
-	if(node->seq_empty()) return NIL_NODE;
-	return node->seq_rest();
+	auto r = node->seq_rest();
+	if(!r.second) return NIL_NODE;
+	return r.first;
 }
 
 static node_idx_t native_nfirst(env_ptr_t env, list_ptr_t args) { return native_next(env, list_va(native_first(env, args))); }
@@ -3818,7 +3935,7 @@ static node_idx_t native_nnext(env_ptr_t env, list_ptr_t args) { return native_n
 static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) { return native_first(env, list_va(native_next(env, args))); }
 
 // like next, but always returns a list
-static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_rest(); }
+static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_rest().first; }
 
 static node_idx_t native_when_not(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? eval_node_list(env, args->rest()) : NIL_NODE; }
 
@@ -5355,11 +5472,11 @@ static node_idx_t native_mapv(env_ptr_t env, list_ptr_t args) {
 		for(list_t::iterator it(colls); it; it++) {
 			node_idx_t arg_idx = *it;
 			node_t *arg = get_node(arg_idx);
-			if(arg->seq_empty()) {
+			auto fr = arg->seq_first_rest();
+			if(!fr.third) {
 				done = true;
 				break;
 			}
-			auto fr = arg->seq_first_rest();
 			arg_list->push_back_inplace(fr.first);
 			new_colls->push_back_inplace(fr.second);
 		}
@@ -5729,6 +5846,7 @@ int main(int argc, char **argv) {
 	env->set("letter?", new_node_native_function("letter?", &native_is_letter, false, NODE_FLAG_PRERESOLVE));
 	env->set("do", new_node_native_function("do", &native_do, false, NODE_FLAG_PRERESOLVE));
 	env->set("doall", new_node_native_function("doall", &native_doall, true, NODE_FLAG_PRERESOLVE));
+	env->set("doall-vec", new_node_native_function("doall-vec", &native_doall_vec, true, NODE_FLAG_PRERESOLVE));
 	env->set("dorun", new_node_native_function("dorun", &native_dorun, true, NODE_FLAG_PRERESOLVE));
 	env->set("conj", new_node_native_function("conj", &native_conj, false, NODE_FLAG_PRERESOLVE));
 	env->set("into", new_node_native_function("info", &native_into, false, NODE_FLAG_PRERESOLVE));

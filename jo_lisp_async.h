@@ -886,10 +886,8 @@ static node_idx_t native_pmap_next(env_ptr_t env, list_ptr_t args) {
 	for(; it; it++) {
 		node_idx_t arg_idx = *it;
 		node_t *arg = get_node(arg_idx);
-		if(arg->seq_empty()) {
-			return NIL_NODE;
-		}
 		auto fr = arg->seq_first_rest();
+		if(!fr.third) return NIL_NODE;
 		arg_list->push_back_inplace(fr.first);
 		next_list->push_back_inplace(fr.second);
 	}

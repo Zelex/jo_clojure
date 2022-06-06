@@ -482,12 +482,8 @@ struct jo_pair {
     jo_pair() : first(), second() {}
     jo_pair(const T1 &a, const T2 &b) : first(a), second(b) {}
 
-    bool operator==(const jo_pair<T1, T2> &other) const {
-        return first == other.first && second == other.second;
-    }
-    bool operator!=(const jo_pair<T1, T2> &other) const {
-        return !(*this == other);
-    }
+    bool operator==(const jo_pair<T1, T2> &other) const { return first == other.first && second == other.second; }
+    bool operator!=(const jo_pair<T1, T2> &other) const { return !(*this == other); }
     bool operator<(const jo_pair<T1, T2> &other) const {
         if(first < other.first) return true;
         if(first > other.first) return false;
@@ -505,12 +501,8 @@ struct jo_triple {
     jo_triple() : first(), second(), third() {}
     jo_triple(const T1 &a, const T2 &b, const T3 &c) : first(a), second(b), third(c) {}
 
-    bool operator==(const jo_triple<T1, T2, T3> &other) const {
-        return first == other.first && second == other.second && third == other.third;
-    }
-    bool operator!=(const jo_triple<T1, T2, T3> &other) const {
-        return !(*this == other);
-    }
+    bool operator==(const jo_triple<T1, T2, T3> &other) const { return first == other.first && second == other.second && third == other.third; }
+    bool operator!=(const jo_triple<T1, T2, T3> &other) const { return !(*this == other); }
     bool operator<(const jo_triple<T1, T2, T3> &other) const {
         if(first < other.first) return true;
         if(first > other.first) return false;
