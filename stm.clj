@@ -184,9 +184,9 @@
     (Thread/atom-retries-reset)
     (Thread/stm-retries-reset))
 
-(def files (for [idx (range 1000)] [idx 1]))
-;(def files (for [idx (range 1000)] [idx (rand 0.1 2)]))
-;(def files (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])) ; Diachomatic
+;(def files (doall-vec (for [idx (range 1000)] [idx 1])))
+;(def files (doall-vec (for [idx (range 1000)] [idx (rand 0.1 2)])))
+(def files (doall-vec (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])))
 
 (->> (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
         ; Set the number of worker threads...
@@ -214,6 +214,7 @@
     ))
     (map (fn [[a b c d e f g h]] (str a ", " b ", " c ", " d ", " e ", " f ", " g ", " h "\n")))
     (reduce str)
+    (str "num-cores, mutex, atomics, atom-retries, stm, stm-retries, stm-fast, stm-fast-retries\n")
     (spit "stm.csv"))
 
 (println "Done")

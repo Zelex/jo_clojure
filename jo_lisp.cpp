@@ -1,4 +1,7 @@
 // TODO: arbitrary precision numbers... really? do I need to support this?
+#define _SCL_SECURE 0
+#define _HAS_ITERATOR_DEBUGGING 0
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -271,26 +274,26 @@ static hash_set_ptr_t new_hash_set() { return hash_set_ptr_t(new hash_set_t()); 
 static transaction_ptr_t new_transaction();
 
 static inline node_t *get_node(long long idx);
-static inline int get_node_type(node_idx_t idx);
+static inline int get_node_type(long long idx);
 static inline int get_node_type(const node_t *n);
-static inline int get_node_flags(node_idx_t idx);
-static inline jo_string get_node_string(node_idx_t idx);
-static inline node_idx_t get_node_var(node_idx_t idx);
-static inline bool get_node_bool(node_idx_t idx);
-static inline list_ptr_t get_node_list(node_idx_t idx);
-static inline vector_ptr_t get_node_vector(node_idx_t idx);
-static inline map_ptr_t get_node_map(node_idx_t idx);
-static inline hash_set_ptr_t get_node_hash_set(node_idx_t idx);
-static inline long long get_node_int(node_idx_t idx);
-static inline double get_node_float(node_idx_t idx);
-static inline vector_ptr_t get_node_func_args(node_idx_t idx);
-static inline list_ptr_t get_node_func_body(node_idx_t idx);
-static inline node_idx_t get_node_lazy_fn(node_idx_t idx);
+static inline int get_node_flags(long long idx);
+static inline jo_string get_node_string(long long idx);
+static inline node_idx_t get_node_var(long long idx);
+static inline bool get_node_bool(long long idx);
+static inline list_ptr_t get_node_list(long long idx);
+static inline vector_ptr_t get_node_vector(long long idx);
+static inline map_ptr_t get_node_map(long long idx);
+static inline hash_set_ptr_t get_node_hash_set(long long idx);
+static inline long long get_node_int(long long idx);
+static inline double get_node_float(long long idx);
+static inline vector_ptr_t get_node_func_args(long long idx);
+static inline list_ptr_t get_node_func_body(long long idx);
+static inline node_idx_t get_node_lazy_fn(long long idx);
 static inline node_idx_t get_node_lazy_fn(const node_t *n);
-static inline FILE *get_node_file(node_idx_t idx);
-static inline void *get_node_dir(node_idx_t idx);
-static inline atomic_node_idx_t &get_node_atom(node_idx_t idx);
-static inline env_ptr_t get_node_env(node_idx_t idx);
+static inline FILE *get_node_file(long long idx);
+static inline void *get_node_dir(long long idx);
+static inline atomic_node_idx_t &get_node_atom(long long idx);
+static inline env_ptr_t get_node_env(long long idx);
 static inline env_ptr_t get_node_env(const node_t *n);
 
 static node_idx_t new_node_int(long long i, int flags = 0);
@@ -345,11 +348,13 @@ struct transaction_t {
 		node_idx_t new_val;
 		tx_t() : old_val(INV_NODE), new_val(INV_NODE) {}
 	};
-	std::map<node_idx_t, tx_t> tx_map;
+	//typedef node_idx_t atom_idx_t;
+	typedef long long atom_idx_t;
+	std::map<atom_idx_t, tx_t> tx_map;
 
 	transaction_t() : tx_map() {}
 
-	node_idx_t read(node_idx_t atom_idx) {
+	node_idx_t read(atom_idx_t atom_idx) {
 		if(tx_map.find(atom_idx) != tx_map.end()) {
 			tx_t &tx = tx_map[atom_idx];
 			return tx.new_val != INV_NODE ? tx.new_val : tx.old_val;
@@ -367,7 +372,7 @@ struct transaction_t {
 		return old_val;
 	}
 
-	void write(node_idx_t atom_idx, node_idx_t new_val) {
+	void write(atom_idx_t atom_idx, node_idx_t new_val) {
 		debugf("stm write %d %d\n", atom_idx, new_val);
 		tx_t &tx = tx_map[atom_idx];
 		tx.new_val = new_val;
@@ -1118,7 +1123,7 @@ struct node_t {
 			}
 		case NODE_LAZY_LIST:
 			{
-				int left = 256;
+				int left = 1024;
 				jo_string s;
 				s = '(';
 				for(lazy_list_iterator_t lit(this); !lit.done() && left; --left) {
@@ -1185,7 +1190,7 @@ struct node_t {
 static jo_pinned_vector<node_t> nodes;
 static jo_mpmcq<long long, NIL_NODE, (1<<16)> free_nodes; // available for allocation...
 static const int num_garbage_sectors = 8;
-static jo_mpmcq<long long, NIL_NODE, (1<<10)> garbage_nodes[num_garbage_sectors]; // need resource release 
+static jo_mpmcq<long long, NIL_NODE, (1<<14)> garbage_nodes[num_garbage_sectors]; // need resource release 
 
 
 static inline void node_add_ref(long long idx) { 
@@ -1241,31 +1246,32 @@ static void collect_garbage() {
 			free_nodes.push(idx);
 		}
 		if(idx == NIL_NODE) break;
+		jo_yield();
 	}
 }
 
 static inline node_t *get_node(long long idx) { return &nodes[idx]; }
-static inline int get_node_type(node_idx_t idx) { return get_node(idx)->type; }
+static inline int get_node_type(long long idx) { return get_node(idx)->type; }
 static inline int get_node_type(const node_t *n) { return n->type; }
-static inline int get_node_flags(node_idx_t idx) { return get_node(idx)->flags; }
-static inline jo_string get_node_string(node_idx_t idx) { return get_node(idx)->as_string(); }
-static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_extra; }
-static inline bool get_node_bool(node_idx_t idx) { return get_node(idx)->as_bool(); }
-static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->as_list(); }
-static inline vector_ptr_t get_node_vector(node_idx_t idx) { return get_node(idx)->as_vector(); }
-static inline map_ptr_t get_node_map(node_idx_t idx) { return get_node(idx)->as_map(); }
-static inline hash_set_ptr_t get_node_set(node_idx_t idx) { return get_node(idx)->as_set(); }
-static inline long long get_node_int(node_idx_t idx) { return get_node(idx)->as_int(); }
-static inline double get_node_float(node_idx_t idx) { return get_node(idx)->as_float(); }
-static inline const char *get_node_type_string(node_idx_t idx) { return get_node(idx)->type_name(); }
-static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
-static inline list_ptr_t get_node_func_body(node_idx_t idx) { return get_node(idx)->t_func.body; }
-static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)->t_extra; }
+static inline int get_node_flags(long long idx) { return get_node(idx)->flags; }
+static inline jo_string get_node_string(long long idx) { return get_node(idx)->as_string(); }
+static inline node_idx_t get_node_var(long long idx) { return get_node(idx)->t_extra; }
+static inline bool get_node_bool(long long idx) { return get_node(idx)->as_bool(); }
+static inline list_ptr_t get_node_list(long long idx) { return get_node(idx)->as_list(); }
+static inline vector_ptr_t get_node_vector(long long idx) { return get_node(idx)->as_vector(); }
+static inline map_ptr_t get_node_map(long long idx) { return get_node(idx)->as_map(); }
+static inline hash_set_ptr_t get_node_set(long long idx) { return get_node(idx)->as_set(); }
+static inline long long get_node_int(long long idx) { return get_node(idx)->as_int(); }
+static inline double get_node_float(long long idx) { return get_node(idx)->as_float(); }
+static inline const char *get_node_type_string(long long idx) { return get_node(idx)->type_name(); }
+static inline vector_ptr_t get_node_func_args(long long idx) { return get_node(idx)->t_func.args; }
+static inline list_ptr_t get_node_func_body(long long idx) { return get_node(idx)->t_func.body; }
+static inline node_idx_t get_node_lazy_fn(long long idx) { return get_node(idx)->t_extra; }
 static inline node_idx_t get_node_lazy_fn(const node_t *n) { return n->t_extra; }
-static inline FILE *get_node_file(node_idx_t idx) { return get_node(idx)->t_file; }
-static inline void *get_node_dir(node_idx_t idx) { return get_node(idx)->t_dir; }
-static inline atomic_node_idx_t &get_node_atom(node_idx_t idx) { return get_node(idx)->t_atom; }
-static inline env_ptr_t get_node_env(node_idx_t idx) { return get_node(idx)->t_env; }
+static inline FILE *get_node_file(long long idx) { return get_node(idx)->t_file; }
+static inline void *get_node_dir(long long idx) { return get_node(idx)->t_dir; }
+static inline atomic_node_idx_t &get_node_atom(long long idx) { return get_node(idx)->t_atom; }
+static inline env_ptr_t get_node_env(long long idx) { return get_node(idx)->t_env; }
 static inline env_ptr_t get_node_env(const node_t *n) { return n->t_env; }
 
 static inline void free_node(node_idx_t idx) {

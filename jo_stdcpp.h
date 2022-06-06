@@ -326,50 +326,77 @@ static const char *jo_strrstr(const char *haystack, const char *needle)
     return NULL;
 }
 
-void jo_sleep(float seconds) {
-#ifdef _WIN32
-    Sleep((int)(seconds * 1000));
+static inline double jo_time() {
+#if defined(__APPLE__)
+    static mach_timebase_info_data_t sTimebaseInfo;
+    if (sTimebaseInfo.denom == 0) {
+        (void) mach_timebase_info(&sTimebaseInfo);
+    }
+    uint64_t time = mach_absolute_time();
+    return (double)time * sTimebaseInfo.numer / sTimebaseInfo.denom / 1000000000.0;
+#elif defined(_WIN32)
+    static LARGE_INTEGER sFrequency;
+    static BOOL sInitialized = FALSE;
+    if (!sInitialized) {
+        sInitialized = QueryPerformanceFrequency(&sFrequency);
+    }
+    LARGE_INTEGER time;
+    QueryPerformanceCounter(&time);
+    return (double)time.QuadPart / sFrequency.QuadPart;
 #else
-    usleep((int)(seconds * 1000000));
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 #endif
-    //std::chrono::nanoseconds ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<float>(seconds));
-    //std::this_thread::sleep_for(ns);
 }
 
-// yield
-static void jo_yield()
-{
+static void jo_yield() {
+    std::this_thread::yield();
+}
+
+void jo_sleep(float seconds) {
+	double A,B;
+    while(seconds > 0.002) {
+        A = jo_time();
 #ifdef _WIN32
-    Sleep(0);
+        Sleep(1);
 #else
-    sched_yield();
+        usleep(1000);
 #endif
+        B = jo_time();
+        seconds -= (B - A);
+    }
+    if(seconds > 0) {
+        A = B = jo_time();
+        // This actually works... wth windows?
+        while(B - A < seconds) {
+            jo_yield();
+            B = jo_time();
+        }
+    }
 }
 
 // yield exponential backoff
-static void jo_yield_backoff(int *count)
-{
+static void jo_yield_backoff(int *count) {
     if(*count == 0) {
         // do nothing, just try again
     } else if(*count == 1) {
         jo_yield();
     } else {
         const int lmin_ns = 1000;
-        const int lmax_ns = 1000000;
+        const int lmax_ns = 2000000;
         int sleep_ns = jo_min(lmin_ns + (int)((pow(*count + 1, 2) - 1) / 2), lmax_ns);
-        jo_sleep(sleep_ns / 1000000.0f);
+        jo_sleep(sleep_ns / 2000000.0f);
     }
     (*count)++;
 }
 
 // get current thread id
-static uint64_t jo_thread_id()
-{
+static uint64_t jo_thread_id() {
     return std::hash<std::thread::id>()(std::this_thread::get_id());
 }
 
-static FILE *jo_fmemopen(void *buf, size_t size, const char *mode)
-{
+static FILE *jo_fmemopen(void *buf, size_t size, const char *mode) {
     if (!size) {
         return 0;
     }
@@ -1261,7 +1288,7 @@ struct jo_fastsemaphore {
     }
 
     void wait() {
-        if (count.fetch_add(-1) < 1) {
+        if (count.fetch_sub(1) < 1) {
             wait_set.wait();
         }
     }
@@ -1612,30 +1639,6 @@ T *jo_upper_bound(T *begin, T *end, T &needle) {
         }
     }
     return begin + first;
-}
-
-static inline double jo_time() {
-#if defined(__APPLE__)
-    static mach_timebase_info_data_t sTimebaseInfo;
-    if (sTimebaseInfo.denom == 0) {
-        (void) mach_timebase_info(&sTimebaseInfo);
-    }
-    uint64_t time = mach_absolute_time();
-    return (double)time * sTimebaseInfo.numer / sTimebaseInfo.denom / 1000000000.0;
-#elif defined(_WIN32)
-    static LARGE_INTEGER sFrequency;
-    static BOOL sInitialized = FALSE;
-    if (!sInitialized) {
-        sInitialized = QueryPerformanceFrequency(&sFrequency);
-    }
-    LARGE_INTEGER time;
-    QueryPerformanceCounter(&time);
-    return (double)time.QuadPart / sFrequency.QuadPart;
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
-#endif
 }
 
 // Maintains a linked list of blocks of objects which can be allocated from
