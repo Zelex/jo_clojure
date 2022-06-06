@@ -3952,41 +3952,16 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 	// If coll has only 1 item, it is returned and f is not called.  
 	if(args->size() == 2) {
 		node_idx_t coll_idx = eval_node(env, *it++);
-		node_t *coll = get_node(coll_idx);
-		if(coll->is_list()) {
-			list_ptr_t list_list = coll->as_list();
-			if(list_list->size() == 0) {
-				return eval_va(env, f_idx);
+		node_idx_t reti = INV_NODE;
+		seq_iterate(coll_idx, [env,&reti,f_idx](node_idx_t node_idx) {
+			if(reti == INV_NODE) {
+				reti = node_idx;
+			} else {
+				reti = eval_va(env, f_idx, reti, node_idx);
 			}
-			list_t::iterator it2(list_list);
-			node_idx_t reti = *it2++;
-			while(it2) {
-				reti = eval_va(env, f_idx, reti, *it2++);
-			}
-			return reti;
-		}
-		if(coll->is_vector()) {
-			vector_ptr_t vector_list = coll->as_vector();
-			if(vector_list->size() == 0) {
-				return eval_va(env, f_idx);
-			}
-			vector_t::iterator it2 = vector_list->begin();
-			node_idx_t reti = *it2++;
-			while(it2) {
-				reti = eval_va(env, f_idx, reti, *it2++);
-			}
-			return reti;
-		}
-		if(coll->is_lazy_list()) {
-			lazy_list_iterator_t lit(coll_idx);
-			node_idx_t reti = lit.val;
-			for(lit.next(); !lit.done(); lit.next()) {
-				reti = eval_va(env, f_idx, reti, lit.val);
-			}
-			return reti;
-		}
-		warnf("reduce: expected list or lazy list\n");
-		return NIL_NODE;
+			return true;
+		});
+		return reti;
 	}
 	// (reduce f val coll)
 	// returns the result of applying f to val and the first item in coll,
@@ -3995,38 +3970,11 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 	if(args->size() == 3) {
 		node_idx_t reti = eval_node(env, *it++);
 		node_idx_t coll = eval_node(env, *it++);
-		node_t *coll_node = get_node(coll);
-		if(coll_node->is_list()) {
-			list_ptr_t list_list = coll_node->as_list();
-			if(list_list->size() == 0) {
-				return reti;
-			}
-			list_t::iterator it2(list_list);
-			while(it2) {
-				reti = eval_va(env, f_idx, reti, *it2++);
-			}
-			return reti;
-		}
-		if(coll_node->is_vector()) {
-			vector_ptr_t vector_list = coll_node->as_vector();
-			if(vector_list->size() == 0) {
-				return reti;
-			}
-			vector_t::iterator it2 = vector_list->begin();
-			while(it2) {
-				reti = eval_va(env, f_idx, reti, *it2++);
-			}
-			return reti;
-		}
-		if(coll_node->is_lazy_list()) {
-			lazy_list_iterator_t lit(coll);
-			for(; !lit.done(); lit.next()) {
-				reti = eval_va(env, f_idx, reti, lit.val);
-			}
-			return reti;
-		}
-		warnf("reduce: expected list or lazy list\n");
-		return NIL_NODE;
+		seq_iterate(coll, [env,&reti,f_idx](node_idx_t node_idx) {
+			reti = eval_va(env, f_idx, reti, node_idx);
+			return true;
+		});
+		return reti;
 	}
 	return NIL_NODE;
 }
