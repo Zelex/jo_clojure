@@ -96,6 +96,7 @@ enum {
 	NODE_FUTURE,
 	NODE_PROMISE,
 	NODE_RECUR,
+	NODE_REDUCED,
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
@@ -657,9 +658,8 @@ struct node_t {
 		vector_ptr_t args;
 		list_ptr_t body;
 	} t_func;
-	node_idx_t t_var; // link to the variable
-	node_idx_t t_delay; // cached result // TODO: this can be a future with async::delay execution
-	node_idx_t t_lazy_fn;
+	// var, delay, lazy_fn, reduced
+	node_idx_t t_extra;
 	union {
 		bool t_bool;
 		// most implementations combine these as "number", but at the moment that sounds silly
@@ -685,9 +685,7 @@ struct node_t {
 		, t_promise()
 		, t_env()
 		, t_func()
-		, t_var()
-		, t_delay()
-		, t_lazy_fn()
+		, t_extra()
 		, t_int(0)
 	{
 	} 
@@ -707,9 +705,7 @@ struct node_t {
 	, t_promise()
 	, t_env(other.t_env)
 	, t_func(other.t_func)
-	, t_var(other.t_var)
-	, t_delay(other.t_delay)
-	, t_lazy_fn(other.t_lazy_fn)
+	, t_extra(other.t_extra)
 	, t_int(other.t_int) 
 	, t_atom(other.t_atom)
 	{
@@ -729,9 +725,7 @@ struct node_t {
 	, t_promise(std::move(other.t_promise))
 	, t_env(std::move(other.t_env))
 	, t_func(std::move(other.t_func))
-	, t_var(other.t_var)
-	, t_delay(other.t_delay)
-	, t_lazy_fn(other.t_lazy_fn)
+	, t_extra(other.t_extra)
 	, t_int(other.t_int)
 	, t_atom(other.t_atom)
 	{
@@ -754,9 +748,7 @@ struct node_t {
 		t_promise.set_value(NIL_NODE);
 		t_env = other.t_env;
 		t_func = other.t_func;
-		t_var = other.t_var;
-		t_delay = other.t_delay;
-		t_lazy_fn = other.t_lazy_fn;
+		t_extra = other.t_extra;
 		t_int = other.t_int;
 		return *this;
 	}
@@ -779,9 +771,7 @@ struct node_t {
 		t_promise = std::move(other.t_promise);
 		t_env = std::move(other.t_env);
 		t_func = std::move(other.t_func);
-		t_var = other.t_var;
-		t_delay = other.t_delay;
-		t_lazy_fn = other.t_lazy_fn;
+		t_extra = other.t_extra;
 		t_int = other.t_int;
 		return *this;
 	}
@@ -801,9 +791,7 @@ struct node_t {
 		t_env = nullptr;
 		t_func.args = nullptr;
 		t_func.body = nullptr;
-		t_var = 0;
-		t_delay = 0;
-		t_lazy_fn = 0;
+		t_extra = 0;
 		t_int = 0;
 	}
 
@@ -1201,7 +1189,7 @@ static inline int get_node_type(node_idx_t idx) { return get_node(idx)->type; }
 static inline int get_node_type(const node_t *n) { return n->type; }
 static inline int get_node_flags(node_idx_t idx) { return get_node(idx)->flags; }
 static inline jo_string get_node_string(node_idx_t idx) { return get_node(idx)->as_string(); }
-static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_var; }
+static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_extra; }
 static inline bool get_node_bool(node_idx_t idx) { return get_node(idx)->as_bool(); }
 static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->as_list(); }
 static inline vector_ptr_t get_node_vector(node_idx_t idx) { return get_node(idx)->as_vector(); }
@@ -1212,8 +1200,8 @@ static inline double get_node_float(node_idx_t idx) { return get_node(idx)->as_f
 static inline const char *get_node_type_string(node_idx_t idx) { return get_node(idx)->type_name(); }
 static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
 static inline list_ptr_t get_node_func_body(node_idx_t idx) { return get_node(idx)->t_func.body; }
-static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)->t_lazy_fn; }
-static inline node_idx_t get_node_lazy_fn(const node_t *n) { return n->t_lazy_fn; }
+static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)->t_extra; }
+static inline node_idx_t get_node_lazy_fn(const node_t *n) { return n->t_extra; }
 static inline FILE *get_node_file(node_idx_t idx) { return get_node(idx)->t_file; }
 static inline void *get_node_dir(node_idx_t idx) { return get_node(idx)->t_dir; }
 static inline atomic_node_idx_t &get_node_atom(node_idx_t idx) { return get_node(idx)->t_atom; }
@@ -1271,7 +1259,7 @@ static node_idx_t new_node_vector(vector_ptr_t nodes, int flags) {
 
 static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags) {
 	node_idx_t idx = new_node(NODE_LAZY_LIST, NODE_FLAG_LAZY | flags);
-	get_node(idx)->t_lazy_fn = lazy_fn;
+	get_node(idx)->t_extra = lazy_fn;
 	get_node(idx)->t_env = env;
 	return idx;
 }
@@ -1348,7 +1336,7 @@ static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flag
 	node_t n;
 	n.type = NODE_VAR;
 	n.t_string = name;
-	n.t_var = value;
+	n.t_extra = value;
 	n.flags = flags;
 	return new_node(std::move(n));
 }
@@ -2061,8 +2049,8 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			env_ptr_t fn_env = new_env(proto_env);
 			list_ptr_t args1(list->rest());
 
-			if(sym_type == NODE_DELAY && get_node(sym_idx)->t_delay != INV_NODE) {
-				return get_node(sym_idx)->t_delay;
+			if(sym_type == NODE_DELAY && get_node(sym_idx)->t_extra != INV_NODE) {
+				return get_node(sym_idx)->t_extra;
 			}
 
 			if(proto_args.ptr) {
@@ -2094,7 +2082,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			}
 
 			if(sym_type == NODE_DELAY) {
-				get_node(sym_idx)->t_delay = last;
+				get_node(sym_idx)->t_extra = last;
 			}
 			return last;
 		} else if(sym_type == NODE_MAP) {
@@ -2295,7 +2283,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf(")");
 	} else if(type == NODE_LAZY_LIST) {
 		printf("%*s(<lazy-list> ", depth, "");
-		print_node(get_node(node)->t_lazy_fn, depth + 1);
+		print_node(get_node(node)->t_extra, depth + 1);
 		printf("%*s)", depth, "");
 	} else if(type == NODE_VECTOR) {
 		vector_ptr_t vector = get_node(node)->t_vector;
@@ -2363,7 +2351,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf("%*s)\n", depth, "");
 	} else if(n->type == NODE_LAZY_LIST) {
 		printf("%*s(lazy-list\n", depth, "");
-		print_node(n->t_lazy_fn, depth + 1);
+		print_node(n->t_extra, depth + 1);
 		printf("%*s)\n", depth, "");
 	} else if(n->type == NODE_STRING) {
 		printf("%*s\"%s\"\n", depth, "", get_node(node).t_string.c_str());
@@ -2390,7 +2378,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		printf("%*s)\n", depth, "");
 	} else if(n->type == NODE_VAR) {
 		printf("%*s%s = ", depth, "", get_node(node).t_string.c_str());
-		print_node(n->t_var, depth + 1);
+		print_node(n->t_extra, depth + 1);
 	} else if(n->type == NODE_MAP) {
 		printf("%*s<map>\n", depth, "");
 	} else if(n->type == NODE_HASH_SET) {
@@ -3518,7 +3506,7 @@ static node_idx_t native_delay(env_ptr_t env, list_ptr_t args) {
 	//ret->t_func.args  // no args for delays...
 	ret->t_func.body = args;
 	ret->t_env = env;
-	ret->t_delay = INV_NODE;
+	ret->t_extra = INV_NODE;
 	return reti;
 }
 
@@ -3874,6 +3862,14 @@ static node_idx_t native_apply(env_ptr_t env, list_ptr_t args) {
 	return eval_list(env, arg_list);
 }
 
+// (reduced x)
+// Wraps x in a way such that a reduce will terminate with the value x
+static node_idx_t native_reduced(env_ptr_t env, list_ptr_t args) {
+	node_idx_t ret_idx = new_node(NODE_REDUCED, 0);
+	get_node(ret_idx)->t_extra = args->first_value();
+	return ret_idx;
+}
+
 // (reduce f coll)
 // (reduce f val coll)
 // f should be a function of 2 arguments. 
@@ -3900,6 +3896,10 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 			} else {
 				reti = eval_va(env, f_idx, reti, node_idx);
 			}
+			if(get_node_type(reti) == NODE_REDUCED) {
+				reti = get_node(reti)->t_extra;
+				return false;
+			}
 			return true;
 		});
 		return reti;
@@ -3913,6 +3913,10 @@ static node_idx_t native_reduce(env_ptr_t env, list_ptr_t args) {
 		node_idx_t coll = eval_node(env, *it++);
 		seq_iterate(coll, [env,&reti,f_idx](node_idx_t node_idx) {
 			reti = eval_va(env, f_idx, reti, node_idx);
+			if(get_node_type(reti) == NODE_REDUCED) {
+				reti = get_node(reti)->t_extra;
+				return false;
+			}
 			return true;
 		});
 		return reti;
@@ -4801,10 +4805,7 @@ static node_idx_t native_empty(env_ptr_t env, list_ptr_t args) {
 // If coll is empty, returns nil, else coll
 static node_idx_t native_not_empty(env_ptr_t env, list_ptr_t args) {
 	node_idx_t coll_idx = args->first_value();
-	node_t *coll = get_node(coll_idx);
-	if(coll->seq_empty()) {
-		return NIL_NODE;
-	}
+	if(get_node(coll_idx)->seq_empty()) return NIL_NODE;
 	return coll_idx;
 }
 
@@ -5529,6 +5530,9 @@ static node_idx_t native_reduce_kv(env_ptr_t env, list_ptr_t args) {
 		node_idx_t result = init;
 		for(size_t i = 0; i < size; i++) {
 			result = eval_va(env, f, result, new_node_int(i), coll_vec->nth(i));
+			if(get_node_type(result) == NODE_REDUCED) {
+				return get_node(result)->t_extra;
+			}
 		}
 		return result;
 	}
@@ -5540,6 +5544,9 @@ static node_idx_t native_reduce_kv(env_ptr_t env, list_ptr_t args) {
 		node_idx_t result = init; 
 		for(map_t::iterator it2 = coll_map->begin(); it2; it2++) {
 			result = eval_va(env, f, result, it2->first, it2->second);
+			if(get_node_type(result) == NODE_REDUCED) {
+				return get_node(result)->t_extra;
+			}
 		}
 		return result;
 	}
@@ -5754,6 +5761,7 @@ int main(int argc, char **argv) {
 	env->set("case", new_node_native_function("case", &native_case, true, NODE_FLAG_PRERESOLVE));
 	env->set("apply", new_node_native_function("apply", &native_apply, true, NODE_FLAG_PRERESOLVE));
 	env->set("reduce", new_node_native_function("reduce", &native_reduce, true, NODE_FLAG_PRERESOLVE));
+	env->set("reduced", new_node_native_function("reduced", &native_reduced, false, NODE_FLAG_PRERESOLVE));
 	env->set("delay", new_node_native_function("delay", &native_delay, true, NODE_FLAG_PRERESOLVE));
 	env->set("delay?", new_node_native_function("delay?", &native_is_delay, false, NODE_FLAG_PRERESOLVE));
 	env->set("constantly", new_node_native_function("constantly", &native_constantly, false, NODE_FLAG_PRERESOLVE));

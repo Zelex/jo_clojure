@@ -800,7 +800,7 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 					return NIL_NODE;
 				}
 			} else if(ntype == NODE_LAZY_LIST) {
-				if(eval_node(env, n->t_lazy_fn) == NIL_NODE) {
+				if(eval_node(env, n->t_extra) == NIL_NODE) {
 					return NIL_NODE;
 				}
 			} else if(ntype == NODE_STRING) {
@@ -826,8 +826,8 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 		val = n->first_value();
 		args->cons_inplace(new_node_vector(n->pop_front()));
 	} else if(ntype == NODE_LAZY_LIST) {
-		// call the t_lazy_fn, and grab the first element of the return and return that.
-		node_idx_t reti = eval_node(env, get_node(nidx)->t_lazy_fn);
+		// call the t_extra, and grab the first element of the return and return that.
+		node_idx_t reti = eval_node(env, get_node(nidx)->t_extra);
 		node_t *ret = get_node(reti);
 		if(ret->is_list()) {
 			list_ptr_t list_list = ret->as_list();
