@@ -3398,12 +3398,13 @@ static node_idx_t native_defmacro(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_is_nil(env_ptr_t env, list_ptr_t args) { return args->first_value() == NIL_NODE ? TRUE_NODE : FALSE_NODE; }
 
 static node_idx_t native_is_zero(env_ptr_t env, list_ptr_t args) {
-	node_idx_t n = args->first_value();
-	if(get_node_type(n) == NODE_INT) {
-		return get_node(n)->as_int() == 0 ? TRUE_NODE : FALSE_NODE;
-	}
-	if(get_node_type(n) == NODE_FLOAT) {
-		return get_node(n)->as_float() == 0.0 ? TRUE_NODE : FALSE_NODE;
+	node_idx_t n_idx = args->first_value();
+	node_t *n = get_node(n_idx);
+	int n_type = get_node_type(n_idx);
+	if(n_type == NODE_INT) {
+		return n->t_int == 0 ? TRUE_NODE : FALSE_NODE;
+	} else if(n_type == NODE_FLOAT) {
+		return n->t_float == 0.0 ? TRUE_NODE : FALSE_NODE;
 	}
 	return FALSE_NODE;
 }
@@ -3653,19 +3654,7 @@ static node_idx_t native_constantly(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it(args);
-	node_idx_t list_idx = *it++;
-	node_t *list = get_node(list_idx);
-	if(list->is_string()) { return new_node_int(list->t_string.size()); }
-	if(list->is_list()) { return new_node_int(list->t_list->size()); }
-	if(list->is_vector()) { return new_node_int(list->t_vector->size()); }
-	if(list->is_map()) { return new_node_int(list->t_map->size()); }
-	if(list->is_hash_set()) { return new_node_int(list->t_hash_set->size()); }
-	if(list->is_lazy_list()) {
-		lazy_list_iterator_t lit(list_idx);
-		return new_node_int(lit.all()->size());
-	}
-	return ZERO_NODE;
+	return new_node_int(get_node(args->first_value())->seq_size());
 }
 
 static node_idx_t native_is_delay(env_ptr_t env, list_ptr_t args) {	return get_node_type(args->first_value()) == NODE_DELAY ? TRUE_NODE : FALSE_NODE; }
@@ -3677,33 +3666,22 @@ static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) { return get_no
 // (first coll)
 // Returns the first item in the collection. Calls seq on its argument. If coll is nil, returns nil.
 static node_idx_t native_first(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it(args);
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	if(node->seq_empty()) {
-		return NIL_NODE;
-	}
+	node_t *node = get_node(args->first_value());
+	if(node->seq_empty()) return NIL_NODE;
 	return node->seq_first();
 }
 
 static node_idx_t native_second(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it(args);
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	if(node->seq_empty()) {
-		return NIL_NODE;
-	}
-	node_idx = node->seq_rest();
+	node_t *node = get_node(args->first_value());
+	if(node->seq_empty()) return NIL_NODE;
+	node_idx_t node_idx = node->seq_rest();
 	node = get_node(node_idx);
-	if(node->seq_empty()) {
-		return NIL_NODE;
-	}
+	if(node->seq_empty()) return NIL_NODE;
 	return node->seq_first();
 }
 
 static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it(args);
-	node_idx_t node_idx = *it++;
+	node_idx_t node_idx = args->first_value();
 	node_t *node = get_node(node_idx);
 	if(node->is_string()) {
 		jo_string &str = node->t_string;
@@ -3843,22 +3821,8 @@ static node_idx_t native_next(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
-	if(node->is_list()) {
-		list_ptr_t list_list = node->as_list();
-		if(list_list->size() == 0) return NIL_NODE;
-		return new_node_list(list_list->rest());
-	}
-	if(node->is_vector()) {
-		vector_ptr_t vec = node->as_vector();
-		if(vec->size() == 0) return NIL_NODE;
-		return new_node_vector(vec->rest());
-	}
-	if(node->is_lazy_list()) {
-		lazy_list_iterator_t lit(node_idx);
-		if(lit.done()) return NIL_NODE;
-		return new_node_lazy_list(lit.env, lit.next_fn());
-	}
-	return NIL_NODE;
+	if(node->seq_empty()) return NIL_NODE;
+	return node->seq_rest();
 }
 
 static node_idx_t native_nfirst(env_ptr_t env, list_ptr_t args) { return native_next(env, list_va(native_first(env, args))); }
@@ -3866,30 +3830,7 @@ static node_idx_t native_nnext(env_ptr_t env, list_ptr_t args) { return native_n
 static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) { return native_first(env, list_va(native_next(env, args))); }
 
 // like next, but always returns a list
-static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) {
-	list_t::iterator it(args);
-	node_idx_t node_idx = *it++;
-	node_t *node = get_node(node_idx);
-	if(node->is_string()) {
-		jo_string &str = node->t_string;
-		if(str.size() == 0) return NIL_NODE;
-		return new_node_string(str.substr(1));
-	}
-	if(node->is_list()) {
-		list_ptr_t list_list = node->as_list();
-		return new_node_list(list_list->rest());
-	}
-	if(node->is_vector()) {
-		vector_ptr_t vec = node->as_vector();
-		return new_node_vector(vec->rest());	
-	}
-	if(node->is_lazy_list()) {
-		lazy_list_iterator_t lit(node_idx);
-		if(lit.done()) return EMPTY_LIST_NODE;
-		return new_node_lazy_list(lit.env, lit.next_fn());
-	}
-	return NIL_NODE;
-}
+static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_rest(); }
 
 static node_idx_t native_when_not(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? eval_node_list(env, args->rest()) : NIL_NODE; }
 
