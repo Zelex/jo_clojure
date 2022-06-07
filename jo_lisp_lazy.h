@@ -1559,6 +1559,45 @@ static node_idx_t native_reductions_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(list_va(reti, env->get("reductions-next").value, f_idx, reti, fr.second));
 }
 
+// (remove pred)(remove pred coll)
+// Returns a lazy sequence of the items in coll for which
+// (pred item) returns logical false. pred must be free of side-effects.
+// Returns a transducer when no collection is provided.
+static node_idx_t native_remove(env_ptr_t env, list_ptr_t args) {
+	if(args->size() != 2) {
+		warnf("(remove pred coll) expected.\n");
+		return NIL_NODE;
+	}
+	node_idx_t pred_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("remove-next").value, pred_idx, coll_idx)));
+}
+
+static node_idx_t native_remove_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t pred_idx = *it++;
+	node_idx_t coll_idx = *it++;
+	node_t *coll = get_node(coll_idx);
+	auto collfr = coll->seq_first_rest();
+
+	node_idx_t reti;
+	do {
+		if(!collfr.third) return NIL_NODE;
+		reti = eval_va(env, pred_idx, collfr.first);
+		if(reti == FALSE_NODE) break;
+		coll_idx = collfr.second;
+		coll = get_node(coll_idx);
+		collfr = coll->seq_first_rest();
+	} while(true);
+
+	list_ptr_t ret = new_list();
+	ret->push_back_inplace(collfr.first);
+	ret->push_back_inplace(env->get("remove-next").value);
+	ret->push_back_inplace(pred_idx);
+	ret->push_back_inplace(collfr.second);
+	return new_node_list(ret);
+}
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false, NODE_FLAG_PRERESOLVE));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true, NODE_FLAG_PRERESOLVE));
@@ -1625,4 +1664,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("vals", new_node_native_function("vals", &native_vals, false, NODE_FLAG_PRERESOLVE));
 	env->set("reductions", new_node_native_function("reductions", &native_reductions, false, NODE_FLAG_PRERESOLVE));
 	env->set("reductions-next", new_node_native_function("reductions-next", &native_reductions_next, true, NODE_FLAG_PRERESOLVE));
+	env->set("remove", new_node_native_function("remove", &native_remove, false, NODE_FLAG_PRERESOLVE));
+	env->set("remove-next", new_node_native_function("remove-next", &native_remove_next, true, NODE_FLAG_PRERESOLVE));
 }
