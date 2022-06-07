@@ -244,7 +244,6 @@ read-string
 reader-conditional
 reader-conditional?
 record?
-reductions
 ref
 ref-history-count
 ref-max-history
