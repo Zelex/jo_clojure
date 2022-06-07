@@ -409,17 +409,11 @@ static void jo_yield_backoff(int *count) {
         // do nothing, just try again
     } else if(*count == 1) {
         std::this_thread::yield();
-    } else if(*count < 16) {
+    } else {
         const int lmin_ns = 1000;
         const int lmax_ns = 1000000;
         int sleep_ns = jo_min(lmin_ns + (int)((pow(*count + 1, 2) - 1) / 2), lmax_ns);
         jo_sleep(sleep_ns / 1000000.0f);
-    } else {
-#ifdef _WIN32
-        Sleep(1);
-#else
-        usleep(1000);
-#endif
     }
     (*count)++;
 }
