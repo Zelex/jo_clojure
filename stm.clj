@@ -139,7 +139,35 @@
 ;(println "STM/Atom 50/50 random mix")
 ;(println (time (doall (map deref (doall (pmap compile-file-rand files))))))
 
-(comment
+(do
+
+(println "STM Infinite Live-Lock simulation")
+(let 
+            [
+             ; Our Atomic that we will use as a shared variable between
+             ; both STM transactions
+             A (atom "test") 
+             ; A slow transaction that takes a while to complete
+             slow-task (future 
+                (dosync 
+                    ; Make sure we read A
+                    @A
+                    ; Write into A 
+                    (reset! A "slow commit success") 
+                    ; Don't commit immediately, so some other work
+                    (Thread/sleep 200)
+                    (print ".")))
+             ; A fast transaction that completes faster than the slow one
+             fast-task (future 
+                (loop [i 0] 
+                    (dosync 
+                        (when (not= @A "slow commit success")
+                            (reset! A (str "force commit fail " i)) 
+                            (Thread/sleep 200)
+                            (recur (inc i))))))
+            ]
+    @slow-task @fast-task
+    (println "STM Infinite Live-Lock simulation complete"))
 
 ; Test Live-lock situations where things take twice as long as they should
 (println "STM Live-Lock simulation (just shows how it fails conceptually)")

@@ -86,7 +86,7 @@ static node_idx_t native_atom(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_idx_t x_idx = eval_node(env, args->first_value());
+	node_idx_t x_idx = args->first_value();
 	list_ptr_t options = args->rest();
 
 	node_idx_t meta_idx = NIL_NODE;
@@ -98,9 +98,9 @@ static node_idx_t native_atom(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		if(get_node_string(*it) == "meta") {
-			meta_idx = eval_node(env, *++it);
+			meta_idx = *++it;
 		} else if(get_node_string(*it) == "validator") {
-			validator_idx = eval_node(env, *++it);
+			validator_idx = *++it;
 		} else {
 			warnf("(atom) unknown option: %s\n", get_node_string(*it).c_str());
 			return NIL_NODE;
@@ -127,16 +127,16 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	node_idx_t ref_idx = args->first_value();
-	node_idx_t timeout_ms_idx = args->second_value();
-	node_idx_t timeout_val_idx = args->third_value();
+	node_idx_t ref_idx = eval_node(env, args->first_value());
+	node_idx_t timeout_ms_idx = eval_node(env, args->second_value());
+	node_idx_t timeout_val_idx = eval_node(env, args->third_value());
 
 	node_t *ref = get_node(ref_idx);
 	int type = ref->type;
 	if(type == NODE_VAR || type == NODE_AGENT) {
 	} else if(type == NODE_ATOM) {
 		if(env->tx.ptr) {
-			env->tx->read(ref_idx);
+			return env->tx->read(ref_idx);
 		} else {
 			node_idx_t ret = ref->t_atom.load();
 			int count = 0;
@@ -1041,8 +1041,8 @@ static node_idx_t native_realized(env_ptr_t env, list_ptr_t args) {
 
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
-    env->set("atom", new_node_native_function("atom", &native_atom, true, NODE_FLAG_PRERESOLVE));
-    env->set("deref", new_node_native_function("deref", &native_deref, false, NODE_FLAG_PRERESOLVE));
+    env->set("atom", new_node_native_function("atom", &native_atom, false, NODE_FLAG_PRERESOLVE));
+    env->set("deref", new_node_native_function("deref", &native_deref, true, NODE_FLAG_PRERESOLVE));
     env->set("swap!", new_node_native_function("swap!", &native_swap_e, false, NODE_FLAG_PRERESOLVE));
     env->set("reset!", new_node_native_function("reset!", &native_reset_e, false, NODE_FLAG_PRERESOLVE));
     env->set("compare-and-set!", new_node_native_function("compare-and-set!", &native_compare_and_set_e, false, NODE_FLAG_PRERESOLVE));

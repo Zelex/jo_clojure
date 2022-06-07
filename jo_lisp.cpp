@@ -359,7 +359,7 @@ struct transaction_t {
 			tx_t &tx = tx_map[atom_idx];
 			return tx.new_val != INV_NODE ? tx.new_val : tx.old_val;
 		}
-		debugf("stm read %d\n", atom_idx);
+		debugf("stm read %lld\n", atom_idx);
 		auto &atom = get_node_atom(atom_idx);
 		node_idx_t old_val = atom.load();
 		int count = 0;
@@ -373,7 +373,7 @@ struct transaction_t {
 	}
 
 	void write(atom_idx_t atom_idx, node_idx_t new_val) {
-		debugf("stm write %d %d\n", atom_idx, new_val);
+		debugf("stm write %lld %lld\n", atom_idx, new_val);
 		tx_t &tx = tx_map[atom_idx];
 		tx.new_val = new_val;
 	}
@@ -486,7 +486,7 @@ struct env_t {
 	}
 
 	inline fast_val_t get(const jo_string &name) const {
-		return find(name.c_str());
+		return find(name);
 	}
 
 	inline bool has(const jo_string &name) const {
@@ -3951,12 +3951,12 @@ static node_idx_t native_let(env_ptr_t env, list_ptr_t args) {
 	node_idx_t node_idx = *it++;
 	node_t *node = get_node(node_idx);
 	if(!node->is_vector()) {
-		printf("let: expected vector\n");
+		warnf("let: expected vector\n");
 		return NIL_NODE;
 	}
 	vector_ptr_t list_list = node->as_vector();
 	if(list_list->size() % 2 != 0) {
-		printf("let: expected even number of elements\n");
+		warnf("let: expected even number of elements\n");
 		return NIL_NODE;
 	}
 	env_ptr_t env2 = new_env(env);
