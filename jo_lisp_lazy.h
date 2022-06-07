@@ -1518,6 +1518,47 @@ static node_idx_t native_vals(env_ptr_t env, list_ptr_t args) {
 	return native_map(env, list_va(env->get("val").value, args->first_value()));
 }
 
+// (reductions f coll)(reductions f init coll)
+// Returns a lazy seq of the intermediate values of the reduction (as
+// per reduce) of coll by f, starting with init.
+static node_idx_t native_reductions(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f_idx, init_idx, coll_idx;
+	if(args->size() == 2) {
+		f_idx = args->first_value();
+		coll_idx = args->second_value();
+		node_t *coll = get_node(coll_idx);
+		auto fr = coll->seq_first_rest();
+		init_idx = INV_NODE;
+	} else if(args->size() == 3) {
+		f_idx = args->first_value();
+		init_idx = args->second_value();
+		coll_idx = args->third_value();
+	} else {
+		warnf("(reductions f coll) or (reductions f init coll) expected.\n");
+		return NIL_NODE;
+	}
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("reductions-next").value, f_idx, init_idx, coll_idx)));
+}
+
+static node_idx_t native_reductions_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t f_idx = *it++;
+	node_idx_t init_idx = *it++;
+	node_idx_t coll_idx = *it++;
+	node_t *coll = get_node(coll_idx);
+	auto fr = coll->seq_first_rest();
+	if(!fr.third) {
+		return NIL_NODE;
+	}
+	node_idx_t reti;
+	if(init_idx == INV_NODE) {
+		reti = fr.first;
+	} else {
+		reti = eval_va(env, f_idx, init_idx, fr.first);
+	}
+	return new_node_list(list_va(reti, env->get("reductions-next").value, f_idx, reti, fr.second));
+}
+
 void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false, NODE_FLAG_PRERESOLVE));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true, NODE_FLAG_PRERESOLVE));
@@ -1582,4 +1623,6 @@ void jo_lisp_lazy_init(env_ptr_t env) {
 	env->set("keep-indexed-next", new_node_native_function("keep-indexed-next", &native_keep_indexed_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("keys", new_node_native_function("keys", &native_keys, false, NODE_FLAG_PRERESOLVE));
 	env->set("vals", new_node_native_function("vals", &native_vals, false, NODE_FLAG_PRERESOLVE));
+	env->set("reductions", new_node_native_function("reductions", &native_reductions, false, NODE_FLAG_PRERESOLVE));
+	env->set("reductions-next", new_node_native_function("reductions-next", &native_reductions_next, true, NODE_FLAG_PRERESOLVE));
 }

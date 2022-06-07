@@ -1,2 +1,2 @@
 
-(println "Math" (- 1 2 3))
+(reductions + [1 1 1 1])

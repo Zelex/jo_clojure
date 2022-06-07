@@ -943,6 +943,8 @@
 
 (is (= (reduce-kv #(assoc %1 %3 %2) {} {:a 1 :b 2 :c 3}) {1 :a, 2 :b, 3 :c}))
 
+(is (= (reductions + [1 1 1 1]) (1 2 3 4)))
+(is (= (reductions + [1 2 3]) (1 3 6)))
 
 (string-test)
 (if-test)
