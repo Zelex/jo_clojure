@@ -1584,7 +1584,7 @@ static node_idx_t native_remove_next(env_ptr_t env, list_ptr_t args) {
 	do {
 		if(!collfr.third) return NIL_NODE;
 		reti = eval_va(env, pred_idx, collfr.first);
-		if(reti == FALSE_NODE) break;
+		if(!get_node_bool(reti)) break;
 		coll_idx = collfr.second;
 		coll = get_node(coll_idx);
 		collfr = coll->seq_first_rest();

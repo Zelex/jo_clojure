@@ -317,26 +317,26 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
 static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
 
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
+static node_idx_t eval_va(env_ptr_t env, long long a);
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b);
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c);
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d);
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d, long long e);
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d, long long e, long long f);
 
-static inline list_ptr_t list_va(node_idx_t a);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
+static inline list_ptr_t list_va(long long a);
+static inline list_ptr_t list_va(long long a, long long b);
+static inline list_ptr_t list_va(long long a, long long b, long long c);
+static inline list_ptr_t list_va(long long a, long long b, long long c, long long d);
+static inline list_ptr_t list_va(long long a, long long b, long long c, long long d, long long e);
+static inline list_ptr_t list_va(long long a, long long b, long long c, long long d, long long e, long long f);
 
-static vector_ptr_t vector_va(node_idx_t a);
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b);
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c);
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
+static vector_ptr_t vector_va(long long a);
+static vector_ptr_t vector_va(long long a, long long b);
+static vector_ptr_t vector_va(long long a, long long b, long long c);
+static vector_ptr_t vector_va(long long a, long long b, long long c, long long d);
+static vector_ptr_t vector_va(long long a, long long b, long long c, long long d, long long e);
+static vector_ptr_t vector_va(long long a, long long b, long long c, long long d, long long e, long long f);
 
 static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
 static void print_node_type(node_idx_t node);
@@ -2087,6 +2087,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 	|| n1_type == NODE_NATIVE_FUNC
 	|| n1_type == NODE_FUNC
 	|| n1_type == NODE_MAP
+	|| n1_type == NODE_HASH_SET
 	) {
 		node_idx_t sym_idx = n1i;
 		int sym_type = n1_type;
@@ -2166,6 +2167,17 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				auto it2 = get_node(sym_idx)->t_map->find(n2i, node_eq);
 				if(it2.third) {
 					return it2.second;
+				}
+				return n3i;
+			}
+		} else if(sym_type == NODE_HASH_SET) {
+			if(it) {
+				// lookup the key in the map
+				node_idx_t n2i = eval_node(env, *it++);
+				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
+				auto it2 = get_node(sym_idx)->t_hash_set->find(n2i, node_eq);
+				if(it2.second) {
+					return it2.first;
 				}
 				return n3i;
 			}
@@ -2271,34 +2283,34 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 	return res;
 }
 
-static list_ptr_t list_va(node_idx_t a) { list_ptr_t L = new_list(); L->push_front_inplace(a); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b) { list_ptr_t L = new_list(); L->push_front2_inplace(a, b); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c) { list_ptr_t L = new_list(); L->push_front3_inplace(a, b, c); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) { list_ptr_t L = new_list(); L->push_front4_inplace(a, b, c, d); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) { list_ptr_t L = new_list(); L->push_front5_inplace(a, b, c, d, e); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) { list_ptr_t L = new_list(); L->push_front6_inplace(a, b, c, d, e, f); return L; }
+static list_ptr_t list_va(long long a) { list_ptr_t L = new_list(); L->push_front_inplace(a); return L; }
+static list_ptr_t list_va(long long a, long long b) { list_ptr_t L = new_list(); L->push_front2_inplace(a, b); return L; }
+static list_ptr_t list_va(long long a, long long b, long long c) { list_ptr_t L = new_list(); L->push_front3_inplace(a, b, c); return L; }
+static list_ptr_t list_va(long long a, long long b, long long c, long long d) { list_ptr_t L = new_list(); L->push_front4_inplace(a, b, c, d); return L; }
+static list_ptr_t list_va(long long a, long long b, long long c, long long d, long long e) { list_ptr_t L = new_list(); L->push_front5_inplace(a, b, c, d, e); return L; }
+static list_ptr_t list_va(long long a, long long b, long long c, long long d, long long e, long long f) { list_ptr_t L = new_list(); L->push_front6_inplace(a, b, c, d, e, f); return L; }
 
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a) { return eval_list(env, list_va(a)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b) { return eval_list(env, list_va(a, b)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c) { return eval_list(env, list_va(a, b, c)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) { return eval_list(env, list_va(a, b, c, d)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) { return eval_list(env, list_va(a, b, c, d, e)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) { return eval_list(env, list_va(a, b, c, d, e, f)); }
+static node_idx_t eval_va(env_ptr_t env, long long a) { return eval_list(env, list_va(a)); }
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b) { return eval_list(env, list_va(a, b)); }
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c) { return eval_list(env, list_va(a, b, c)); }
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d) { return eval_list(env, list_va(a, b, c, d)); }
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d, long long e) { return eval_list(env, list_va(a, b, c, d, e)); }
+static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d, long long e, long long f) { return eval_list(env, list_va(a, b, c, d, e, f)); }
 
-static vector_ptr_t vector_va(node_idx_t a) {
+static vector_ptr_t vector_va(long long a) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	return vec;
 }
 
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b) {
+static vector_ptr_t vector_va(long long a, long long b) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
 	return vec;
 }
 
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c) {
+static vector_ptr_t vector_va(long long a, long long b, long long c) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
@@ -2306,7 +2318,7 @@ static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c) {
 	return vec;
 }
 
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) {
+static vector_ptr_t vector_va(long long a, long long b, long long c, long long d) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
@@ -2315,7 +2327,7 @@ static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx
 	return vec;
 }
 
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) {
+static vector_ptr_t vector_va(long long a, long long b, long long c, long long d, long long e) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
@@ -2325,7 +2337,7 @@ static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx
 	return vec;
 }
 
-static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) {
+static vector_ptr_t vector_va(long long a, long long b, long long c, long long d, long long e, long long f) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
