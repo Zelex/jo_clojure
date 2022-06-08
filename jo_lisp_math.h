@@ -567,6 +567,23 @@ static node_idx_t native_is_float(env_ptr_t env, list_ptr_t args) { return get_n
 static node_idx_t native_is_double(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FLOAT ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_int(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_INT ? TRUE_NODE : FALSE_NODE; }
 
+static node_idx_t native_math_quantize(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	float x = get_node_float(*it++);
+	float step = get_node_float(*it++);
+	return new_node_float(roundf(x / step) * step);
+}
+
+// Calculates the average of all the values in the list.
+static node_idx_t native_math_average(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	float sum = 0;
+	for(; it; it++) {
+		sum += get_node_float(*it);
+	}
+	return new_node_float(sum / args->size());
+}
+
 void jo_lisp_math_init(env_ptr_t env) {
 	env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -645,6 +662,8 @@ void jo_lisp_math_init(env_ptr_t env) {
 	env->set("Math/to-degrees", new_node_native_function("Math/to-degrees", &native_math_to_degrees, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/to-radians", new_node_native_function("Math/to-radians", &native_math_to_radians, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/interp", new_node_native_function("Math/interp", &native_math_interp, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/quantize", new_node_native_function("Math/quantize", &native_math_quantize, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/average", new_node_native_function("Math/average", &native_math_average, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
 	env->set("Math/E", new_node_float(JO_M_E, NODE_FLAG_PRERESOLVE));
 	env->set("Math/LN2", new_node_float(JO_M_LN2, NODE_FLAG_PRERESOLVE));

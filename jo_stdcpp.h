@@ -326,7 +326,12 @@ static const char *jo_strrstr(const char *haystack, const char *needle)
     return NULL;
 }
 
+// returns in floating point seconds
 static inline double jo_time() {
+    // c++11 monotonic
+    //return std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() / 1000000000.0;
+    /*
 #if defined(__APPLE__)
     static mach_timebase_info_data_t sTimebaseInfo;
     if (sTimebaseInfo.denom == 0) {
@@ -348,6 +353,7 @@ static inline double jo_time() {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 #endif
+*/
 }
 
 void jo_sleep(float seconds) {

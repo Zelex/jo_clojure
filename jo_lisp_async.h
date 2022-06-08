@@ -176,10 +176,11 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
+
     list_t::iterator it(args);
 
-	node_idx_t atom_idx = *it++;
-	node_idx_t f_idx = *it++;
+	node_idx_t atom_idx = eval_node(env, *it++);
+	node_idx_t f_idx = eval_node(env, *it++);
 	list_ptr_t args2 = args->rest(it);
 
 	node_t *atom = get_node(atom_idx);
@@ -191,9 +192,14 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 	node_t *f = get_node(f_idx);
 	node_idx_t old_val, new_val;
 
+	list_ptr_t tmp = new_list();
+	for(list_t::iterator it2 = it; it2; ++it2) {
+		tmp->push_front_inplace(eval_node(env, *it2));
+	}
+
 	if(env->tx.ptr) {
 		old_val = env->tx->read(atom_idx);
-		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
+		new_val = eval_list(env, tmp->push_front2(f_idx, old_val));
 		env->tx->write(atom_idx, new_val);
 		return new_val;
 	}
@@ -205,7 +211,7 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
-		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
+		new_val = eval_list(env, tmp->push_front2(f_idx, old_val));
 		if(atom->t_atom.compare_exchange_weak(old_val, new_val)) {
 			break;
 		}
@@ -1039,11 +1045,21 @@ static node_idx_t native_realized(env_ptr_t env, list_ptr_t args) {
 	return new_node_bool(false);
 }
 
+static node_idx_t native_tx_start_time(env_ptr_t env, list_ptr_t args) {
+	assert(env->tx.ptr);
+	return env->tx.ptr ? new_node_float(env->tx.ptr->start_time) : ZERO_NODE;
+}
+
+static node_idx_t native_tx_retries(env_ptr_t env, list_ptr_t args) {
+	assert(env->tx.ptr);
+	return env->tx.ptr ? new_node_int(env->tx.ptr->num_retries) : ZERO_NODE;
+}
+
 void jo_lisp_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, false, NODE_FLAG_PRERESOLVE));
     env->set("deref", new_node_native_function("deref", &native_deref, true, NODE_FLAG_PRERESOLVE));
-    env->set("swap!", new_node_native_function("swap!", &native_swap_e, false, NODE_FLAG_PRERESOLVE));
+    env->set("swap!", new_node_native_function("swap!", &native_swap_e, true, NODE_FLAG_PRERESOLVE));
     env->set("reset!", new_node_native_function("reset!", &native_reset_e, false, NODE_FLAG_PRERESOLVE));
     env->set("compare-and-set!", new_node_native_function("compare-and-set!", &native_compare_and_set_e, false, NODE_FLAG_PRERESOLVE));
     env->set("swap-vals!", new_node_native_function("swap-vals!", &native_swap_vals_e, false, NODE_FLAG_PRERESOLVE));
@@ -1092,4 +1108,6 @@ void jo_lisp_async_init(env_ptr_t env) {
 	env->set("Thread/atom-retries-reset", new_node_native_function("Thread/atom-retries-reset", &native_atom_retries_reset, false, NODE_FLAG_PRERESOLVE));
 	env->set("Thread/stm-retries", new_node_native_function("Thread/stm-retries", &native_stm_retries, false, NODE_FLAG_PRERESOLVE));
 	env->set("Thread/stm-retries-reset", new_node_native_function("Thread/stm-retries-reset", &native_stm_retries_reset, false, NODE_FLAG_PRERESOLVE));
+	env->set("Thread/tx-start-time", new_node_native_function("Thread/tx-start-time", &native_tx_start_time, false, NODE_FLAG_PRERESOLVE));
+	env->set("Thread/tx-retries", new_node_native_function("Thread/tx-retries", &native_tx_retries, false, NODE_FLAG_PRERESOLVE));
 }

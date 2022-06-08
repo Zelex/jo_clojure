@@ -35,7 +35,7 @@
 
 (def global-lock (atom nil))
 
-(def compile-files-done (atom ()))
+(def compile-files-done (atom []))
 
 (def errors ())
 (def warnings ())
@@ -43,31 +43,28 @@
 (def compiler 'clang)
 (def linker 'clang)
 
+(def job-start-time (atom (Time/now)))
+
 (defn compile-file-internal [[file T]]
     ;(println 'Compiling file T)
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
     (Thread/sleep T)
     ;(print ".")
-    true)
+    { 
+      :retry-time (- (Time/now) (Thread/tx-start-time)), 
+      :file file, 
+      :job-time T, 
+      :retry-num (Thread/tx-retries)})
 
-(defn compile-result-success [result] true)
+(defn compile-result-success [_] true)
     
-(defn compile-result-message [result] "")
-
-(defn compile-file-st [filename] 
-    (let [compile-result (compile-file-internal filename)]
-        (if (compile-result-success compile-result)
-            (do (swap! compile-files-done conj filename)
-                (compile-result-message compile-result))
-            (do (swap! errors cons (compile-result-message compile-result))
-                (swap! warnings cons (compile-result-message compile-result))
-                (swap! compile-files-done cons filename)))))
+(defn compile-result-message [result] result)
 
 (defn compile-file-stm [filename] 
     (dosync
         (let [compile-result (compile-file-internal filename)]
             (if (compile-result-success compile-result)
-                (do (swap! compile-files-done conj filename)
+                (do (swap! compile-files-done conj compile-result)
                     (compile-result-message compile-result))
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
@@ -77,7 +74,7 @@
     (let [compile-result (compile-file-internal filename)]
         (dosync
             (if (compile-result-success compile-result)
-                (do (swap! compile-files-done conj filename)
+                (do (swap! compile-files-done conj compile-result)
                     (compile-result-message compile-result))
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
@@ -86,7 +83,7 @@
 (defn compile-file-atom [filename] 
     (let [compile-result (compile-file-internal filename)]
         (if (compile-result-success compile-result)
-            (do (swap! compile-files-done conj filename)
+            (do (swap! compile-files-done conj compile-result)
                 (compile-result-message compile-result))
             (do (swap! errors conj (compile-result-message compile-result))
                 (swap! warnings conj (compile-result-message compile-result))
@@ -96,7 +93,7 @@
     (let [compile-result (compile-file-internal filename)]
         (locking global-lock
             (if (compile-result-success compile-result)
-                (do (swap! compile-files-done conj filename)
+                (do (swap! compile-files-done conj compile-result)
                     (compile-result-message compile-result))
                 (do (swap! errors conj (compile-result-message compile-result))
                     (swap! warnings conj (compile-result-message compile-result))
@@ -139,7 +136,7 @@
 ;(println "STM/Atom 50/50 random mix")
 ;(println (time (doall (map deref (doall (pmap compile-file-rand files))))))
 
-(do
+(comment
 
 (println "STM Infinite Live-Lock simulation")
 (let 
@@ -207,10 +204,12 @@
     @thread-1 @thread-2)
 )
 
+
 (defn reset-all [] 
-    (reset! compile-files-done ())
+    (reset! compile-files-done [])
     (Thread/atom-retries-reset)
-    (Thread/stm-retries-reset))
+    (Thread/stm-retries-reset)
+    (reset! job-start-time (Time/now)))
 
 ;(def files (doall-vec (for [idx (range 1000)] [idx 1])))
 ;(def files (doall-vec (for [idx (range 1000)] [idx (rand 0.1 2)])))
@@ -223,26 +222,57 @@
         ; Now lets kick off some STM tests and return results in a vector
         [
             num-cores 
-            (time (do 
-                ; First we reset our internal counters to measure stuff
-                (reset-all) 
-                ; Second we run the STM tests
-                (->> files                    ; The files to "compile"
-                    (pmap compile-file-mutex)   ; Compile in parallel
-                    (doall)                     ; Kick
-                    (map deref)                 ; Wait until done
-                    (dorun))))                  ; Kick
-            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files))))))
-            (Thread/atom-retries)
+            ;(time (do 
+                ;; First we reset our internal counters to measure stuff
+                ;(reset-all) 
+                ;; Second we run the STM tests
+                ;(->> files                      ; The files to "compile"
+                    ;(pmap compile-file-mutex)   ; Compile in parallel
+                    ;(doall)                     ; Kick
+                    ;(map deref)                 ; Wait until done
+                    ;(dorun))))                  ; Kick
+            ;(time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files))))))
+            ;(Thread/atom-retries)
             (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm files))))))
             (Thread/stm-retries)
-            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm-fast files))))))
-            (Thread/stm-retries)
+            (->> @compile-files-done
+                (group-by :job-time) 
+                (map (fn [[k _]] (/ (float k) 1000.0)))
+                (interpose ", ")
+                (apply str)
+                )
+            (->> @compile-files-done
+                (group-by :job-time) 
+                (map (fn [[_ v]] (apply Math/average (map :retry-time v))))
+                (interpose ", ")
+                (apply str)
+                )
+            (->> @compile-files-done
+                (group-by :job-time) 
+                (map (fn [[_ v]] (apply max (map :retry-time v))))
+                (interpose ", ")
+                (apply str)
+                )
+            (->> @compile-files-done
+                (group-by :job-time) 
+                (map (fn [[_ v]] (apply Math/average (map :retry-num v))))
+                (interpose ", ")
+                (apply str)
+                )
+            (->> @compile-files-done
+                (group-by :job-time) 
+                (map (fn [[_ v]] (apply max (map :retry-num v))))
+                (interpose ", ")
+                (apply str)
+                )
+            ;(time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm-fast files))))))
+            ;(Thread/stm-retries)
         ]
     ))
-    (map (fn [[a b c d e f g h]] (str a ", " b ", " c ", " d ", " e ", " f ", " g ", " h "\n")))
+    (map (fn [x] (str (apply str (interpose ", " x)) "\n")))
     (reduce str)
-    (str "num-cores, mutex, atomics, atom-retries, stm, stm-retries, stm-fast, stm-fast-retries\n")
+    ;(str "num-cores, mutex, atomics, atom-retries, stm, stm-retries, stm-fast, stm-fast-retries\n")
+    (str "num-cores, stm, stm-retries, job-time-1, job-time-2, avg-actual-time-1, avg-actual-time-2, max-actual-time-1, max-actual-time-2, avg-#retry-1, avg-#retry-2, max-#retry-1, max-#retry-2\n")
     (spit "stm.csv"))
 
 (println "Done")

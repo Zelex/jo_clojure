@@ -28,6 +28,9 @@
 #define warnf sizeof
 #endif
 
+// should be first static in entire program to get actual program start.
+static double time_program_start = jo_time();
+
 static std::atomic<size_t> atom_retries(0);
 static std::atomic<size_t> stm_retries(0);
 
@@ -351,8 +354,10 @@ struct transaction_t {
 	//typedef node_idx_t atom_idx_t;
 	typedef long long atom_idx_t;
 	std::map<atom_idx_t, tx_t> tx_map;
+	double start_time;
+	int num_retries;
 
-	transaction_t() : tx_map() {}
+	transaction_t() : tx_map(), start_time(jo_time() - time_program_start), num_retries() {}
 
 	node_idx_t read(atom_idx_t atom_idx) {
 		if(tx_map.find(atom_idx) != tx_map.end()) {
@@ -393,11 +398,12 @@ struct transaction_t {
 			auto &atom = get_node_atom(tx->first);
 			if(!atom.compare_exchange_strong(tx->second.old_val, TX_HOLD_NODE)) {
 				// restore old values... we failed
-				 for(auto tx2 = tx_map.begin(); tx2 != tx; tx2++) {
+				for(auto tx2 = tx_map.begin(); tx2 != tx; tx2++) {
 					auto &atom2 = get_node_atom(tx2->first);
 					atom2.store(tx2->second.old_val);
 				}
 				tx_map.clear();
+				++num_retries;
 				return false;
 			}
 		}
@@ -467,7 +473,7 @@ struct env_t {
 	bool end_transaction() {
 		bool ret = tx->commit();
 		if(ret) {
-			tx = nullptr;
+			tx = parent ? parent->tx : nullptr;
 		} else {
 			stm_retries++;
 		}
@@ -1204,7 +1210,6 @@ static inline void node_add_ref(long long idx) {
 	}
 }
 
-// TODO: Can do actual memory releases on separate thread... just queue them up or something to be released by it.
 static inline void node_release(long long idx) { 
 	if(idx >= START_USER_NODES) {
 		node_t *n = &nodes[idx];
@@ -2109,15 +2114,17 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			// call the function
 			return (*get_node(sym_idx)->t_native_function.ptr)(env, args);
 		} else if(sym_type == NODE_FUNC || sym_type == NODE_DELAY) {
-			vector_ptr_t proto_args = get_node(sym_idx)->t_func.args;
-			list_ptr_t proto_body = get_node(sym_idx)->t_func.body;
-			env_ptr_t proto_env = get_node(sym_idx)->t_env;
-			env_ptr_t fn_env = new_env(proto_env);
-			list_ptr_t args1(list->rest());
-
 			if(sym_type == NODE_DELAY && get_node(sym_idx)->t_extra != INV_NODE) {
 				return get_node(sym_idx)->t_extra;
 			}
+
+			vector_ptr_t proto_args = get_node(sym_idx)->t_func.args;
+			list_ptr_t proto_body = get_node(sym_idx)->t_func.body;
+			env_ptr_t proto_env = get_node(sym_idx)->t_env;
+			list_ptr_t args1(list->rest());
+			env_ptr_t fn_env = new_env(proto_env);
+
+			fn_env->tx = env->tx;
 
 			if(proto_args.ptr) {
 				int is_macro = (sym_flags|list_flags) & NODE_FLAG_MACRO;
@@ -2152,25 +2159,29 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			}
 			return last;
 		} else if(sym_type == NODE_MAP) {
-			// lookup the key in the map
-			node_idx_t n2i = eval_node(env, *it++);
-			node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
-			auto it2 = get_node(sym_idx)->t_map->find(n2i, node_eq);
-			if(it2.third) {
-				return it2.second;
-			}
-			return n3i;
-		} else if(sym_type == NODE_KEYWORD) {
-			// lookup the key in the map
-			node_idx_t n2i = eval_node(env, *it++);
-			node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
-			if(get_node_type(n2i) == NODE_MAP) {
-				auto it2 = get_node(n2i)->t_map->find(sym_idx, node_eq);
+			if(it) {
+				// lookup the key in the map
+				node_idx_t n2i = eval_node(env, *it++);
+				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
+				auto it2 = get_node(sym_idx)->t_map->find(n2i, node_eq);
 				if(it2.third) {
 					return it2.second;
 				}
+				return n3i;
 			}
-			return n3i;
+		} else if(sym_type == NODE_KEYWORD) {
+			if(it) {
+				// lookup the key in the map
+				node_idx_t n2i = eval_node(env, *it++);
+				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
+				if(get_node_type(n2i) == NODE_MAP) {
+					auto it2 = get_node(n2i)->t_map->find(sym_idx, node_eq);
+					if(it2.third) {
+						return it2.second;
+					}
+				}
+				return n3i;
+			}
 		}
 	}
 
@@ -2215,10 +2226,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 				vec = vec->assoc(i, new_n);
 			}
 		}
-		if(vec != node->t_vector) {
-			return new_node_vector(vec);
-		}
-		return root;
+		return new_node_vector(vec, NODE_FLAG_LITERAL);
 	} else if(type == NODE_MAP) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the map
@@ -2235,10 +2243,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 				map = map->assoc(new_k, new_v, node_eq);
 			}
 		}
-		if(map != node->t_map) {
-			return new_node_map(map);
-		}
-		return root;
+		return new_node_map(map, NODE_FLAG_LITERAL);
 	} else if(type == NODE_HASH_SET) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the hash set
@@ -2251,10 +2256,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 				set = set->assoc(new_k, node_eq);
 			}
 		}
-		if(set != node->t_hash_set) {
-			return new_node_hash_set(set);
-		}
-		return root;
+		return new_node_hash_set(set, NODE_FLAG_LITERAL);
 	} else if(type == NODE_FUTURE && (flags & NODE_FLAG_AUTO_DEREF)) {
 		return eval_node(env, get_node(root)->deref());
 	}
@@ -2392,7 +2394,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	} else if(type == NODE_STRING) {
 		printf("\"%s\"", get_node(node)->t_string.c_str());
 	} else if(type == NODE_NATIVE_FUNC) {
-		printf("%s", get_node(node)->t_string.c_str());
+		printf("<%s>", get_node(node)->t_string.c_str());
 	} else if(type == NODE_FUNC) {
 		print_node_vector(get_node_func_args(node), depth+1);
 		print_node_list(get_node_func_body(node), depth+1);
@@ -3181,6 +3183,7 @@ static node_idx_t native_dorun(env_ptr_t env, list_ptr_t args) {
 		if(!n->is_seq()) {
 			return NIL_NODE;
 		}
+		node_idx_t ret = NIL_NODE;
 		seq_iterator_t it(coll);
 		for(; it; it.next()) {}
 		return NIL_NODE;
@@ -3669,34 +3672,31 @@ static node_idx_t native_when_let(env_ptr_t env, list_ptr_t args) {
 // happen at different 'places' depending on the concrete type.
 static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
-	node_idx_t first_idx = *it++;
-	int first_type = get_node_type(first_idx);
+	node_idx_t first_idx = eval_node(env, *it++);
+	node_t *first = get_node(first_idx);
+	int first_type = first->type;
 	list_ptr_t list;
 	vector_ptr_t vec;
 	if(first_type == NODE_NIL) {
 		list = new_list();
-		debugf("conj: nil\n");
 	} else if(first_type == NODE_LIST) {
-		list = get_node(first_idx)->t_list;
-		debugf("conj: list\n");
+		list = first->t_list;
 	} else if(first_type == NODE_VECTOR) {
-		vec = get_node(first_idx)->t_vector;
-		debugf("conj: vector\n");
+		vec = first->t_vector;
 	} else {
 		list = new_list();
 		list->push_front_inplace(first_idx);
-		debugf("conj: default %s\n", get_node_type_string(first_idx));
 	}
 	if(list.ptr) {
 		for(; it; it++) {
-			list = list->push_front(*it);
+			list = list->push_front(eval_node(env, *it));
 		}
-		return new_node_list(list);
+		return new_node_list(list, NODE_FLAG_LITERAL);
 	} else {
 		for(; it; it++) {
-			vec = vec->push_back(*it);
+			vec = vec->push_back(eval_node(env, *it));
 		}
-		return new_node_vector(vec);
+		return new_node_vector(vec, NODE_FLAG_LITERAL);
 	}
 }
 
@@ -3976,10 +3976,12 @@ static node_idx_t native_apply(env_ptr_t env, list_ptr_t args) {
 		node_t *arg = get_node(arg_idx);
 		if(arg->is_list()) {
 			arg_list->conj_inplace(*arg->as_list().ptr);
-		} else {
+		} else if(arg->is_seq()) {
 			if(!seq_iterate(arg_idx, [&](node_idx_t node_idx) { arg_list->push_back_inplace(node_idx); return true; })) {
 				arg_list->push_back_inplace(arg_idx);
 			}
+		} else {
+			arg_list->push_back_inplace(arg_idx);
 		}
 	}
 	return eval_list(env, arg_list);
@@ -5854,7 +5856,7 @@ int main(int argc, char **argv) {
 	env->set("doall", new_node_native_function("doall", &native_doall, true, NODE_FLAG_PRERESOLVE));
 	env->set("doall-vec", new_node_native_function("doall-vec", &native_doall_vec, true, NODE_FLAG_PRERESOLVE));
 	env->set("dorun", new_node_native_function("dorun", &native_dorun, true, NODE_FLAG_PRERESOLVE));
-	env->set("conj", new_node_native_function("conj", &native_conj, false, NODE_FLAG_PRERESOLVE));
+	env->set("conj", new_node_native_function("conj", &native_conj, true, NODE_FLAG_PRERESOLVE));
 	env->set("into", new_node_native_function("info", &native_into, false, NODE_FLAG_PRERESOLVE));
 	env->set("pop", new_node_native_function("pop", &native_pop, false, NODE_FLAG_PRERESOLVE));
 	env->set("peek", new_node_native_function("peek", &native_peek, false, NODE_FLAG_PRERESOLVE));

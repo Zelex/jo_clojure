@@ -1014,11 +1014,11 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 		return new_node_string(s3);
 	}
 	if(second->type == NODE_LIST) {
-		list_ptr_t second_list = second->as_list();
+		list_ptr_t second_list = second->t_list;
 		return new_node_list(second_list->cons(first_idx));
 	}
 	if(second->type == NODE_VECTOR) {
-		vector_ptr_t second_vector = second->as_vector();
+		vector_ptr_t second_vector = second->t_vector;
 		return new_node_vector(second_vector->cons(first_idx));
 	}
 	if(second->type == NODE_LAZY_LIST) {

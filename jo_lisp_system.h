@@ -2,7 +2,6 @@
 
 #include "jo_stdcpp.h"
 
-static double time_program_start = jo_time();
 
 // execute a shell command
 static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
