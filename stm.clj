@@ -37,8 +37,8 @@
 
 (def compile-files-done (atom []))
 
-(def errors ())
-(def warnings ())
+(def errors [])
+(def warnings [])
 
 (def compiler 'clang)
 (def linker 'clang)
@@ -50,11 +50,11 @@
     ;(System/exec compiler "-c" file "-o" (System/tmpnam))
     (Thread/sleep T)
     ;(print ".")
-    { 
-      :retry-time (- (Time/now) (Thread/tx-start-time)), 
-      :file file, 
+    { :file file, 
       :job-time T, 
-      :retry-num (Thread/tx-retries)})
+      :retry-num (Thread/tx-retries),
+      :retry-time (- (Time/now) (Thread/tx-start-time))})
+
 
 (defn compile-result-success [_] true)
     
