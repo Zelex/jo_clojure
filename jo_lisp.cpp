@@ -168,10 +168,10 @@ struct node_idx_t {
 	operator long long() const { return idx; }
 	bool operator==(const node_idx_t& other) const { return idx == other.idx; }
 	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
-	bool operator==(long long idx) const { return this->idx == idx; }
-	bool operator!=(long long idx) const { return this->idx != idx; }
-	bool operator==(int idx) const { return this->idx == idx; }
-	bool operator!=(int idx) const { return this->idx != idx; }
+	bool operator==(long long _idx) const { return idx == _idx; }
+	bool operator!=(long long _idx) const { return idx != _idx; }
+	bool operator==(int _idx) const { return idx == _idx; }
+	bool operator!=(int _idx) const { return idx != _idx; }
 };
 
 struct atomic_node_idx_t {
@@ -219,10 +219,10 @@ struct atomic_node_idx_t {
 	operator long long() const { return idx; }
 	bool operator==(const atomic_node_idx_t& other) const { return idx == other.idx; }
 	bool operator!=(const atomic_node_idx_t& other) const { return idx != other.idx; }
-	bool operator==(long long idx) const { return this->idx == idx; }
-	bool operator!=(long long idx) const { return this->idx != idx; }
-	bool operator==(int idx) const { return this->idx == idx; }
-	bool operator!=(int idx) const { return this->idx != idx; }
+	bool operator==(long long _idx) const { return idx == _idx; }
+	bool operator!=(long long _idx) const { return idx != _idx; }
+	bool operator==(int _idx) const { return idx == _idx; }
+	bool operator!=(int _idx) const { return idx != _idx; }
 
 	node_idx_t load() const { 
 		return idx.load(); 
@@ -567,7 +567,7 @@ struct lazy_list_iterator_t {
 	}
 
 	bool done() const {
-		return next_idx >= next_list.size() && !get_node_list(cur);
+		return next_idx >= (long long)next_list.size() && !get_node_list(cur);
 	}
 
 	node_idx_t next() {

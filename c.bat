@@ -1,1 +1,1 @@
-cl /O2 /Zi jo_lisp.cpp /EHsc-
+cl /O2 /Zi jo_lisp.cpp /EHsc- /D_CRT_SECURE_NO_WARNINGS

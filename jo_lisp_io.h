@@ -216,7 +216,7 @@ static node_idx_t native_io_file_executable(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_io_delete_file(env_ptr_t env, list_ptr_t args) {
     jo_string path = get_node_string(args->first_value());
 #ifdef _WIN32
-    if(!DeleteFile(path.c_str())) {
+    if(!DeleteFileA(path.c_str())) {
 #else
     if(unlink(path.c_str())) {
 #endif
@@ -379,7 +379,7 @@ static node_idx_t native_io_read_str(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_io_open_dir(env_ptr_t env, list_ptr_t args) {
     jo_string str = get_node_string(args->first_value());
 #ifdef _WIN32
-    HANDLE h = FindFirstFile(str.c_str(), NULL);
+    HANDLE h = FindFirstFileA(str.c_str(), NULL);
     if(h == INVALID_HANDLE_VALUE) {
         return NIL_NODE;
     }
@@ -417,8 +417,8 @@ static node_idx_t native_io_read_dir(env_ptr_t env, list_ptr_t args) {
         return NIL_NODE;
     }
 #ifdef _WIN32
-    WIN32_FIND_DATA fd;
-    if(!FindNextFile(n->t_dir, &fd)) {
+    WIN32_FIND_DATAA fd;
+    if(!FindNextFileA(n->t_dir, &fd)) {
         return NIL_NODE;
     }
     return new_node_string(fd.cFileName);
@@ -441,8 +441,8 @@ static node_idx_t native_io_read_dir_all(env_ptr_t env, list_ptr_t args) {
     list_ptr_t list = new_list();
     while(1) {
 #ifdef _WIN32
-        WIN32_FIND_DATA fd;
-        if(!FindNextFile(n->t_dir, &fd)) {
+        WIN32_FIND_DATAA fd;
+        if(!FindNextFileA(n->t_dir, &fd)) {
             break;
         }
         list->push_back_inplace(new_node_string(fd.cFileName));
@@ -467,8 +467,8 @@ static node_idx_t native_io_read_dir_files(env_ptr_t env, list_ptr_t args) {
     list_ptr_t list = new_list();
     while(1) {
 #ifdef _WIN32
-        WIN32_FIND_DATA fd;
-        if(!FindNextFile(n->t_dir, &fd)) {
+        WIN32_FIND_DATAA fd;
+        if(!FindNextFileA(n->t_dir, &fd)) {
             break;
         }
         if(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -498,8 +498,8 @@ static node_idx_t native_io_read_dir_dirs(env_ptr_t env, list_ptr_t args) {
     list_ptr_t list = new_list();
     while(1) {
 #ifdef _WIN32
-        WIN32_FIND_DATA fd;
-        if(!FindNextFile(n->t_dir, &fd)) {
+        WIN32_FIND_DATAA fd;
+        if(!FindNextFileA(n->t_dir, &fd)) {
             break;
         }
         if(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {

@@ -176,7 +176,7 @@ static bool jo_file_copy(const char *src, const char *dst)
     }
     char buf[16384];
     size_t nread = 0;
-    while((nread = fread(buf, 1, sizeof(buf), fsrc))) {
+    while((nread = fread(buf, 1, sizeof(buf), fsrc)) != 0) {
         fwrite(buf, 1, nread, fdst);
     }
     fclose(fsrc);
@@ -356,7 +356,7 @@ static inline double jo_time() {
 */
 }
 
-void jo_sleep(float seconds) {
+void jo_sleep(double seconds) {
 #ifdef _WIN32
 #if 0
     LARGE_INTEGER due;
@@ -430,6 +430,7 @@ static FILE *jo_fmemopen(void *buf, size_t size, const char *mode) {
     }
 
 #ifdef _WIN32
+    (void)mode;
     int fd;
     FILE *fp;
     char tp[MAX_PATH - 13];
@@ -786,14 +787,14 @@ struct jo_string {
 
     jo_string &lower() {
         for(size_t i = 0; i < size(); i++) {
-            str[i] = jo_tolower(str[i]);
+            str[i] = (char)jo_tolower(str[i]);
         }
         return *this;
     }
 
     jo_string &upper() {
         for(size_t i = 0; i < size(); i++) {
-            str[i] = jo_toupper(str[i]);
+            str[i] = (char)jo_toupper(str[i]);
         }
         return *this;
     }
@@ -822,9 +823,9 @@ struct jo_string {
     // Converts first character of the string to upper-case, all other characters to lower-case.
     jo_string &capitalize() {
         if(size() == 0) return *this;
-        str[0] = jo_toupper(str[0]);
+        str[0] = (char)jo_toupper(str[0]);
         for(size_t i = 1; i < size(); i++) {
-            str[i] = jo_tolower(str[i]);
+            str[i] = (char)jo_tolower(str[i]);
         }
         return *this;
     }
@@ -4801,7 +4802,7 @@ struct jo_bigint {
             negative = true;
             str++;
         }
-        for(int i = strlen(str)-1; i >= 0; i--) {
+        for(long long i = strlen(str)-1; i >= 0; i--) {
             digits->append_inplace(str[i] - '0');
         }
     }
@@ -4996,7 +4997,7 @@ struct jo_bigint {
         if(digits->size() == 0) {
             return false;
         }
-        for(int i = digits->size()-1; i >= 0; --i) {
+        for(long long i = digits->size()-1; i >= 0; --i) {
             if(digits->nth(i) != other.digits->nth(i)) {
                 return digits->nth(i) < other.digits->nth(i);
             }
@@ -5022,8 +5023,8 @@ struct jo_bigint {
         if(negative) {
             ret += '-';
         }
-        for(int i = digits->size() - 1; i >= 0; i--) {
-            ret += digits->nth(i) + '0';
+        for(long long i = digits->size() - 1; i >= 0; i--) {
+            ret += (char)(digits->nth(i) + '0');
         }
         return ret;
     }
@@ -5033,7 +5034,7 @@ struct jo_bigint {
         if(negative) {
             printf("-");
         }
-        for(int i = digits->size() - 1; i >= 0; i--) {
+        for(long long i = digits->size() - 1; i >= 0; i--) {
             printf("%d", digits->nth(i));
         }
         printf("\n");
@@ -5041,7 +5042,7 @@ struct jo_bigint {
 
     int to_int() const {
         int ret = 0;
-        for(int i = digits->size() - 1; i >= 0; i--) {
+        for(long long i = digits->size() - 1; i >= 0; i--) {
             ret *= 10;
             ret += digits->nth(i);
         }
@@ -5058,7 +5059,7 @@ struct jo_bigint {
 struct jo_bigfloat {
     bool negative;
     jo_bigint mantissa;
-    int exponent;
+    long long exponent;
 
     jo_bigfloat() {
         negative = false;
@@ -5084,7 +5085,7 @@ struct jo_bigfloat {
         exponent = 0;
     }
 
-    jo_bigfloat(const double &other) {
+    jo_bigfloat(double other) {
         negative = other < 0;
         mantissa = jo_bigint(other);
         exponent = 0;
