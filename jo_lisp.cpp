@@ -1255,7 +1255,10 @@ static void collect_garbage() {
 	}
 }
 
-static inline node_t *get_node(long long idx) { return &nodes[idx]; }
+static inline node_t *get_node(long long idx) {
+	 assert(!(nodes[idx].flags & NODE_FLAG_GARBAGE));
+	 return &nodes[idx]; 
+}
 static inline int get_node_type(long long idx) { return get_node(idx)->type; }
 static inline int get_node_type(const node_t *n) { return n->type; }
 static inline int get_node_flags(long long idx) { return get_node(idx)->flags; }
