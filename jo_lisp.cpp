@@ -2100,6 +2100,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 	|| n1_type == NODE_FUNC
 	|| n1_type == NODE_MAP
 	|| n1_type == NODE_HASH_SET
+	|| n1_type == NODE_VECTOR
 	) {
 		node_idx_t sym_idx = n1i;
 		int sym_type = n1_type;
@@ -2206,6 +2207,8 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				}
 				return n3i;
 			}
+		} else if(sym_type == NODE_VECTOR) {
+			if(it) return get_node(sym_idx)->t_vector->nth(get_node_int(eval_node(env, *it++)));
 		}
 	}
 
@@ -5730,6 +5733,23 @@ static node_idx_t native_read_string(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(env, list_va(parse_next(env, &parse_state, 0)));
 }
 
+static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	vector_ptr_t r = new_vector();
+	do {
+		node_t *coll = get_node(coll_idx);
+		auto fr = coll->seq_first_rest();
+		if(!fr.third) {
+			break;
+		}
+		node_idx_t tmp = eval_va(env, f, fr.first);
+		coll_idx = fr.second;
+		r->push_back_inplace(tmp ? tmp : fr.first);
+	} while(true);
+	return new_node_vector(r);
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -6024,6 +6044,7 @@ int main(int argc, char **argv) {
 	env->set("namespace", new_node_native_function("namespace", &native_namespace, false, NODE_FLAG_PRERESOLVE));
 	env->set("newline", new_node_native_function("newline", &native_newline, false, NODE_FLAG_PRERESOLVE));
 	env->set("reduce-kv", new_node_native_function("reduce-kv", &native_reduce_kv, false, NODE_FLAG_PRERESOLVE));
+	env->set("replace", new_node_native_function("replace", &native_replace, false, NODE_FLAG_PRERESOLVE));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);

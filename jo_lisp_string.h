@@ -21,8 +21,8 @@ static node_idx_t native_trim(env_ptr_t env, list_ptr_t args) { return new_node_
 static node_idx_t native_triml(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).ltrim()); }
 static node_idx_t native_trimr(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).rtrim()); }
 static node_idx_t native_trim_newline(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).chomp()); }
-static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).replace(get_node_string(args->second_value()).c_str(), get_node_string(args->third_value()).c_str())); }
-static node_idx_t native_replace_first(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).replace_first(get_node_string(args->second_value()).c_str(), get_node_string(args->third_value()).c_str())); }
+static node_idx_t native_string_replace(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).replace(get_node_string(args->second_value()).c_str(), get_node_string(args->third_value()).c_str())); }
+static node_idx_t native_string_replace_first(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).replace_first(get_node_string(args->second_value()).c_str(), get_node_string(args->third_value()).c_str())); }
 static node_idx_t native_is_string(env_ptr_t env, list_ptr_t args) { return new_node_bool(get_node(args->first_value())->is_string()); }
 static node_idx_t native_ston(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_int(args->first_value())); }
 static node_idx_t native_ntos(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value())); }
@@ -90,8 +90,8 @@ void jo_lisp_string_init(env_ptr_t env) {
 	env->set("triml", new_node_native_function("triml", &native_triml, false, NODE_FLAG_PRERESOLVE));
 	env->set("trimr", new_node_native_function("trimr", &native_trimr, false, NODE_FLAG_PRERESOLVE));
 	env->set("trim-newline", new_node_native_function("trim-newline", &native_trim_newline, false, NODE_FLAG_PRERESOLVE));
-	env->set("replace", new_node_native_function("replace", &native_replace, false, NODE_FLAG_PRERESOLVE));
-	env->set("replace-first", new_node_native_function("replace-first", &native_replace_first, false, NODE_FLAG_PRERESOLVE));
+	env->set("String/replace", new_node_native_function("String/replace", &native_string_replace, false, NODE_FLAG_PRERESOLVE));
+	env->set("String/replace-first", new_node_native_function("String/replace-first", &native_string_replace_first, false, NODE_FLAG_PRERESOLVE));
 	env->set("split-lines", new_node_native_function("split-lines", &native_split_lines, false, NODE_FLAG_PRERESOLVE));
 	env->set("join", new_node_native_function("join", &native_join, false, NODE_FLAG_PRERESOLVE));
 	env->set("blank?", new_node_native_function("blank", &native_is_blank, false, NODE_FLAG_PRERESOLVE));

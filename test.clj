@@ -956,6 +956,14 @@
 
 (is (= (read-string "1.1") 1.1))
 
+(is (= (map {} [0]) (nil)))
+(is (= (replace {} [0]) (0)))
+(is (= (replace [:zeroth :first :second :third :fourth] [0 2 4 0]) [:zeroth :second :fourth :zeroth]))
+(is (= (replace [10 9 8 7 6] [0 2 4]) [10 8 6]))
+(is (= (replace {2 :two, 4 :four} [4 2 3 4 5 6 2]) [:four :two 3 :four 5 6 :two]))
+;(is (= (replace {0 ZERO, 1 ONE, 2 TWO} '(This is the code 0 1 2 0)) '(This is the code ZERO ONE TWO ZERO)))
+(is (= (replace {2 :a, 4 :b} [1 2 3 4]) [1 :a 3 :b]))
+
 
 (string-test)
 (if-test)

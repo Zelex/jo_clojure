@@ -252,13 +252,11 @@ refer
 refer-clojure
 reify
 release-pending-sends
-remove
 remove-all-methods
 remove-method
 remove-ns
 remove-tap
 remove-watch
-replace
 replicate
 require
 requiring-resolve
