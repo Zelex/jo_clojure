@@ -1,4 +1,4 @@
-# jo_lisp
+# jo_clojure
 
 Author Jon Olick. @JonOlick on twitter. 
 
