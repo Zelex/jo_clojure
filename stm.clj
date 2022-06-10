@@ -211,9 +211,9 @@
     (Thread/stm-retries-reset)
     (reset! job-start-time (Time/now)))
 
-;(def files (doall-vec (for [idx (range 1000)] [idx 1])))
+(def files (doall-vec (for [idx (range 1000)] [idx 1])))
 ;(def files (doall-vec (for [idx (range 1000)] [idx (rand 0.1 2)])))
-(def files (doall-vec (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])))
+;(def files (doall-vec (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])))
 
 (def total-time (as-> files F
     (reduce (fn [a [_ b]] (+ a b)) 0 F)
