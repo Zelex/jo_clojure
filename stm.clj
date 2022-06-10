@@ -211,14 +211,13 @@
     (Thread/stm-retries-reset)
     (reset! job-start-time (Time/now)))
 
-(def files (doall-vec (for [idx (range 1000)] [idx 1])))
+;(def files (doall-vec (for [idx (range 1000)] [idx 1])))
 ;(def files (doall-vec (for [idx (range 1000)] [idx (rand 0.1 2)])))
-;(def files (doall-vec (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])))
+(def files (doall-vec (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])))
 
 (def total-time (as-> files F
     (reduce (fn [a [_ b]] (+ a b)) 0 F)
     (/ (float F) 1000.0)))
-(println "Total time: " total-time)
 
 (->> (for [num-cores (range 1 (+ 1 *hardware-concurrency*)) :let [optimal-time (/ total-time num-cores)]] (do 
         ; Set the number of worker threads...
@@ -227,7 +226,7 @@
         ; Now lets kick off some STM tests and return results in a vector
         [
             num-cores 
-            (time (do 
+            (/ (time (do 
                 ; First we reset our internal counters to measure stuff
                 (reset-all) 
                 ; Second we run the STM tests
@@ -236,6 +235,7 @@
                     (doall)                     ; Kick
                     (map deref)                 ; Wait until done
                     (dorun))))                  ; Kick
+                optimal-time)
             (/ (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files)))))) optimal-time)
             (Thread/atom-retries)
             (/ (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm files)))))) optimal-time)

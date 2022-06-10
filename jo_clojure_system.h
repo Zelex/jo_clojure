@@ -76,7 +76,7 @@ static node_idx_t native_system_tmpnam(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
-void jo_lisp_system_init(env_ptr_t env) {
+void jo_clojure_system_init(env_ptr_t env) {
 	env->set("System/setenv", new_node_native_function("System/setenv", &native_system_setenv, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/getenv", new_node_native_function("System/getenv", &native_system_getenv, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/exec", new_node_native_function("System/exec", &native_system_exec, false, NODE_FLAG_PRERESOLVE));

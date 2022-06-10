@@ -573,7 +573,7 @@ static node_idx_t native_io_line_seq_next(env_ptr_t env, list_ptr_t args) {
 }
 
 
-void jo_lisp_io_init(env_ptr_t env) {
+void jo_clojure_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false, NODE_FLAG_PRERESOLVE));
     env->set("line-seq", new_node_native_function("line-seq", &native_io_line_seq, false, NODE_FLAG_PRERESOLVE));
     env->set("line-seq-next", new_node_native_function("line-seq-next", &native_io_line_seq_next, true, NODE_FLAG_PRERESOLVE));

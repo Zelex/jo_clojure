@@ -5766,12 +5766,12 @@ static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) {
 }
 
 
-#include "jo_lisp_math.h"
-#include "jo_lisp_string.h"
-#include "jo_lisp_system.h"
-#include "jo_lisp_io.h"
-#include "jo_lisp_lazy.h"
-#include "jo_lisp_async.h"
+#include "jo_clojure_math.h"
+#include "jo_clojure_string.h"
+#include "jo_clojure_system.h"
+#include "jo_clojure_io.h"
+#include "jo_clojure_lazy.h"
+#include "jo_clojure_async.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -5804,7 +5804,7 @@ int main(int argc, char **argv) {
 #ifdef _MSC_VER
     if(argc == 1) {
 		GetModuleFileNameA(GetModuleHandle(NULL), real_exe_path, MAX_PATH);
-		bool register_clj = !IsRegistered("CLJ") && (MessageBoxA(0, "Do you want to register .CLJ files with this program?", "JO_LISP", MB_OKCANCEL) == 1);
+		bool register_clj = !IsRegistered("CLJ") && (MessageBoxA(0, "Do you want to register .CLJ files with this program?", "JO_CLOJURE", MB_OKCANCEL) == 1);
 		if(register_clj) {
 			char tmp[128];
 			sprintf(tmp, "%s.reg", tmpnam(0));
@@ -6062,12 +6062,12 @@ int main(int argc, char **argv) {
 	env->set("replace", new_node_native_function("replace", &native_replace, false, NODE_FLAG_PRERESOLVE));
 	env->set("reversible?", new_node_native_function("reversible?", &native_is_reversible, false, NODE_FLAG_PRERESOLVE));
 
-	jo_lisp_math_init(env);
-	jo_lisp_string_init(env);
-	jo_lisp_system_init(env);
-	jo_lisp_lazy_init(env);
-	jo_lisp_io_init(env);
-	jo_lisp_async_init(env);
+	jo_clojure_math_init(env);
+	jo_clojure_string_init(env);
+	jo_clojure_system_init(env);
+	jo_clojure_lazy_init(env);
+	jo_clojure_io_init(env);
+	jo_clojure_async_init(env);
 	
 	FILE *fp = fopen(argv[1], "r");
 	if(!fp) {

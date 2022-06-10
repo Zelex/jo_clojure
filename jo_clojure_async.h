@@ -1053,7 +1053,7 @@ static node_idx_t native_tx_retries(env_ptr_t env, list_ptr_t args) {
 	return env->tx.ptr ? new_node_int(env->tx.ptr->num_retries) : ZERO_NODE;
 }
 
-void jo_lisp_async_init(env_ptr_t env) {
+void jo_clojure_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, false, NODE_FLAG_PRERESOLVE));
     env->set("deref", new_node_native_function("deref", &native_deref, true, NODE_FLAG_PRERESOLVE));

@@ -584,7 +584,7 @@ static node_idx_t native_math_average(env_ptr_t env, list_ptr_t args) {
 	return new_node_float(sum / args->size());
 }
 
-void jo_lisp_math_init(env_ptr_t env) {
+void jo_clojure_math_init(env_ptr_t env) {
 	env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("integer?", new_node_native_function("integer?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -680,7 +680,7 @@ void jo_lisp_math_init(env_ptr_t env) {
 	//new_node_var("Math/isInteger", new_node_native_function(&native_math_isinteger, false, NODE_FLAG_PRERESOLVE)));
 	//new_node_var("Math/isSafeInteger", new_node_native_function(&native_math_issafeinteger, false, NODE_FLAG_PRERESOLVE)));
 
-	// These are the same in this lisp...
+	// These are the same in this clojure...
 	env->set("unchecked-add", new_node_native_function("unchecked-add", &native_add, false, NODE_FLAG_PRERESOLVE));
 	env->set("unchecked-add-int", new_node_native_function("unchecked-add-int", &native_add_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("unchecked-subtract", new_node_native_function("unchecked-subtract", &native_sub, false, NODE_FLAG_PRERESOLVE));

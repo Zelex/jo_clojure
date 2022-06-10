@@ -1598,7 +1598,7 @@ static node_idx_t native_remove_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
-void jo_lisp_lazy_init(env_ptr_t env) {
+void jo_clojure_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false, NODE_FLAG_PRERESOLVE));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("repeat", new_node_native_function("repeat", &native_repeat, true, NODE_FLAG_PRERESOLVE));
