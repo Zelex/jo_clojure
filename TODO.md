@@ -264,7 +264,6 @@ reset-meta!
 resolve
 restart-agent
 resultset-seq
-reversible?
 rseq
 rsubseq
 run!
