@@ -4607,9 +4607,10 @@ static node_idx_t native_thread_last(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_as_thread(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t expr_idx = eval_node(env, *it++);
-	node_idx_t name_idx = eval_node(env, *it++);
+	node_idx_t name_idx = *it++;
 	jo_string name = get_node(name_idx)->t_string;
 	env_ptr_t env2 = new_env(env);
+	env2->set_temp(name, expr_idx);
 	for(; it; it++) {
 		node_idx_t form_idx = *it;
 		node_t *form_node = get_node(form_idx);

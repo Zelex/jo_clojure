@@ -215,6 +215,12 @@
 ;(def files (doall-vec (for [idx (range 1000)] [idx (rand 0.1 2)])))
 (def files (doall-vec (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])))
 
+(def optimal-time (as-> files V
+    (reduce (fn [[[_ T] p]] ) V)
+    (/ (float V) 1000.0)
+    ))
+(println "Optimal time: " optimal-time)
+
 (->> (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
         ; Set the number of worker threads...
         (Thread/workers num-cores)
@@ -222,17 +228,35 @@
         ; Now lets kick off some STM tests and return results in a vector
         [
             num-cores 
-            ;(time (do 
-                ;; First we reset our internal counters to measure stuff
-                ;(reset-all) 
-                ;; Second we run the STM tests
-                ;(->> files                      ; The files to "compile"
-                    ;(pmap compile-file-mutex)   ; Compile in parallel
-                    ;(doall)                     ; Kick
-                    ;(map deref)                 ; Wait until done
-                    ;(dorun))))                  ; Kick
-            ;(time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files))))))
-            ;(Thread/atom-retries)
+            (time (do 
+                ; First we reset our internal counters to measure stuff
+                (reset-all) 
+                ; Second we run the STM tests
+                (->> files                      ; The files to "compile"
+                    (pmap compile-file-mutex)   ; Compile in parallel
+                    (doall)                     ; Kick
+                    (map deref)                 ; Wait until done
+                    (dorun))))                  ; Kick
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-atom files))))))
+            (Thread/atom-retries)
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm files))))))
+            (Thread/stm-retries)
+            (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm-fast files))))))
+            (Thread/stm-retries)
+        ]
+    ))
+    (map (fn [x] (str (apply str (interpose ", " x)) "\n")))
+    (reduce str)
+    (str "num-cores, mutex, atomics, atom-retries, stm, stm-retries, stm-fast, stm-fast-retries\n")
+    (spit "stm.csv"))
+
+(comment ->> (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
+        ; Set the number of worker threads...
+        (Thread/workers num-cores)
+        (println "Testing with" num-cores "cores")
+        ; Now lets kick off some STM tests and return results in a vector
+        [
+            num-cores 
             (time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm files))))))
             (Thread/stm-retries)
             (->> @compile-files-done
@@ -265,13 +289,10 @@
                 (interpose ", ")
                 (apply str)
                 )
-            ;(time (do (reset-all) (dorun (map deref (doall (pmap compile-file-stm-fast files))))))
-            ;(Thread/stm-retries)
         ]
     ))
     (map (fn [x] (str (apply str (interpose ", " x)) "\n")))
     (reduce str)
-    ;(str "num-cores, mutex, atomics, atom-retries, stm, stm-retries, stm-fast, stm-fast-retries\n")
     (str "num-cores, stm, stm-retries, job-time-1, job-time-2, avg-actual-time-1, avg-actual-time-2, max-actual-time-1, max-actual-time-2, avg-#retry-1, avg-#retry-2, max-#retry-1, max-#retry-2\n")
     (spit "stm.csv"))
 

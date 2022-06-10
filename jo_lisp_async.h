@@ -1046,12 +1046,10 @@ static node_idx_t native_realized(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_tx_start_time(env_ptr_t env, list_ptr_t args) {
-	assert(env->tx.ptr);
 	return env->tx.ptr ? new_node_float(env->tx.ptr->start_time) : ZERO_NODE;
 }
 
 static node_idx_t native_tx_retries(env_ptr_t env, list_ptr_t args) {
-	assert(env->tx.ptr);
 	return env->tx.ptr ? new_node_int(env->tx.ptr->num_retries) : ZERO_NODE;
 }
 
