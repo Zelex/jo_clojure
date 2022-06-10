@@ -5651,8 +5651,7 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t f = *it++;
-	list_ptr_t colls = args->rest();
-	node_idx_t map_first_idx = colls->first_value();
+	node_idx_t map_first_idx = *it++;
 	node_t *map_first_node = get_node(map_first_idx);
 	map_ptr_t r;
 	if(map_first_node->type != NODE_MAP) {
@@ -5668,7 +5667,12 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 		}
 		map_ptr_t map = map_node->t_map;
 		for(map_t::iterator it2 = map->begin(); it2; it2++) {
-			r = r->assoc(it2->first, eval_va(env, f, r->get(it2->first, node_eq), it2->second), node_eq);
+			auto e = r->find(it2->first, node_eq);
+			if(e.third) {
+				r = r->assoc(it2->first, eval_va(env, f, e.second, it2->second), node_eq);
+			} else {
+				r = r->assoc(it2->first, it2->second, node_eq);
+			}
 		}
 	}
 	if(r->size() == 0) {
