@@ -1274,7 +1274,10 @@ static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->a
 static inline vector_ptr_t get_node_vector(node_idx_t idx) { return get_node(idx)->as_vector(); }
 static inline map_ptr_t get_node_map(node_idx_t idx) { return get_node(idx)->as_map(); }
 static inline hash_set_ptr_t get_node_set(node_idx_t idx) { return get_node(idx)->as_set(); }
-static inline long long get_node_int(node_idx_t idx) { return get_node(idx)->as_int(); }
+static inline long long get_node_int(node_idx_t idx) { 
+	if(idx >= INT_0_NODE && idx <= INT_256_NODE) return idx - INT_0_NODE;
+	return get_node(idx)->as_int(); 
+}
 static inline double get_node_float(node_idx_t idx) { return get_node(idx)->as_float(); }
 static inline const char *get_node_type_string(node_idx_t idx) { return get_node(idx)->type_name(); }
 static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
@@ -2736,9 +2739,9 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 		return true;
 	} else if(n1->type == NODE_MAP && n2->type == NODE_MAP) {
 		for(auto i1 = n1->t_map->begin(); i1; i1++) {
-			if(!n2->t_map->contains(i1->first, node_eq)) {
-				return false;
-			}
+			auto elem = n2->t_map->find(i1->first, node_eq);
+			if(!elem.third) return false;
+			if(!node_eq(i1->second, elem.second)) return false;
 		}
 		return true;
 	} else if(n1->is_seq() && n2->is_seq()) {
@@ -5212,10 +5215,10 @@ static node_idx_t native_frequencies(env_ptr_t env, list_ptr_t args) {
 	int coll_type = get_node_type(coll_idx);
 	map_ptr_t map = new_map();
 	if(!seq_iterate(coll_idx, [&](node_idx_t item) {
-		map = map->assoc(item, new_node_int(get_node_int(map->get(item, node_eq)) + 1), node_eq);
+		map->assoc_inplace(item, new_node_int(get_node_int(map->get(item, node_eq)) + 1), node_eq);
 		return true;
 	})) {
-		warnf("(frequencies) requires a list, string, vector, or lazy-list\n");
+		warnf("(frequencies) requires a collection\n");
 		return NIL_NODE;
 	}
 	return new_node_map(map);
@@ -5306,7 +5309,7 @@ static node_idx_t native_hash_set(env_ptr_t env, list_ptr_t args) {
 	hash_set_ptr_t set = new_hash_set();
 	if(args->size() == 1) {
 		if(seq_iterate(args->first_value(), [&](node_idx_t item) {
-			set = set->assoc(item);
+			set = set->assoc(item, node_eq);
 			return true;
 		})) {
 			return new_node_hash_set(set);
@@ -5631,7 +5634,7 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 		}
 		map_ptr_t map = map_node->t_map;
 		for(map_t::iterator it2 = map->begin(); it2; it2++) {
-			r = r->assoc(it2->first, it2->second);
+			r = r->assoc(it2->first, it2->second, node_eq);
 		}
 	}
 	if(r->size() == 0) {
@@ -5665,7 +5668,7 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 		}
 		map_ptr_t map = map_node->t_map;
 		for(map_t::iterator it2 = map->begin(); it2; it2++) {
-			r = r->assoc(it2->first, eval_va(env, f, r->get(it2->first), it2->second));
+			r = r->assoc(it2->first, eval_va(env, f, r->get(it2->first, node_eq), it2->second), node_eq);
 		}
 	}
 	if(r->size() == 0) {
@@ -6037,6 +6040,7 @@ int main(int argc, char **argv) {
 	env->set("hash-unordered-coll", new_node_native_function("hash-unordered-coll", &native_hash, false, NODE_FLAG_PRERESOLVE));
 	env->set("hash-combine", new_node_native_function("hash-combine", &native_hash_combine, false, NODE_FLAG_PRERESOLVE));
 	env->set("hash-set", new_node_native_function("hash-set", &native_hash_set, false, NODE_FLAG_PRERESOLVE));
+	env->set("set", new_node_native_function("set", &native_hash_set, false, NODE_FLAG_PRERESOLVE));
 	env->set("identical?", new_node_native_function("identical?", &native_is_identical, false, NODE_FLAG_PRERESOLVE));
 	env->set("juxt", new_node_native_function("juxt", &native_juxt, false, NODE_FLAG_PRERESOLVE));
 	env->set("name", new_node_native_function("name", &native_name, false, NODE_FLAG_PRERESOLVE));

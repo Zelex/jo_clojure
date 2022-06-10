@@ -1305,7 +1305,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 	}
 
 	// for storing the state of the iterators
-	node_idx_t state_first_idx = new_node_map(new_map()->assoc(K_PC_NODE, INT_0_NODE));
+	node_idx_t state_first_idx = new_node_map(new_map()->assoc(K_PC_NODE, INT_0_NODE, node_eq));
 	node_idx_t state_rest_idx = new_node_map(new_map());
 	node_idx_t nfn_idx = new_node(NODE_NATIVE_FUNC, NODE_FLAG_MACRO);
 	node_t *nfn = get_node(nfn_idx);
@@ -1317,7 +1317,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		map_ptr_t state_first = get_node_map(state_first_idx);
 		map_ptr_t state_rest = get_node_map(state_rest_idx);
 
-		int PC = get_node_int(state_first->get(K_PC_NODE));
+		int PC = get_node_int(state_first->get(K_PC_NODE, node_eq));
 
 		// Setup the initial sub env with current values
 		// TODO: Ideally we can persist this across calls - however there's problems with that
@@ -1356,7 +1356,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 						return NIL_NODE;
 					}
 					expr_it = seq_exprs->begin() + (size_t)get_node_int(PC_list->nth_clamp(PC));
-					state_rest = state_rest->dissoc(*expr_it);
+					state_rest = state_rest->dissoc(*expr_it, node_eq);
 					PC -= 1;
 					if(PC < 0) {
 						return NIL_NODE;

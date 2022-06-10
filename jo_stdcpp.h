@@ -4125,56 +4125,6 @@ struct jo_persistent_unordered_map {
         return this;
     }
 
-    // remove a value from the map
-    jo_persistent_unordered_map *erase(const K &key) const {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        int index = jo_hash_value(key) % copy->vec.size();
-        while(copy->vec[index].third) {
-            if(copy->vec[index].first == key) {
-                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, V(), true));
-                return copy;
-            }
-            index = (index + 1) % copy->vec.size();
-        } 
-        return copy;
-    }
-
-    // insert a new value into the map, if the value already exists, replaces it
-    jo_persistent_unordered_map *assoc(const K &key, const V &value) const {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        if(copy->vec.size() - copy->length < copy->vec.size() / 8) {
-            copy->resize_inplace(copy->vec.size() * 2);
-        }
-        int index = jo_hash_value(key) % copy->vec.size();
-        while(copy->vec[index].third) {
-            if(copy->vec[index].first == key) {
-                copy->vec.assoc_inplace(index, entry_t(key, value, true));
-                return copy;
-            }
-            index = (index + 1) % copy->vec.size();
-        } 
-        copy->vec.assoc_inplace(index, entry_t(key, value, true));
-        ++copy->length;
-        return copy;
-    }
-
-    jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value) {
-        if(vec.size() - length < vec.size() / 8) {
-            resize_inplace(vec.size() * 2);
-        }
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].third) {
-            if(vec[index].first == key) {
-                vec.assoc_inplace(index, entry_t(key, value, true));
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        vec.assoc_inplace(index, entry_t(key, value, true));
-        ++length;
-        return this;
-    }
-
     // assoc with lambda for equality
     template<typename F>
     jo_persistent_unordered_map *assoc(const K &key, const V &value, F eq) const {
@@ -4214,26 +4164,6 @@ struct jo_persistent_unordered_map {
         return this;
     }
 
-    // remove a value from the map
-    jo_persistent_unordered_map *erase(const iterator &it) const {
-        return erase(it.cur->first);
-    }
-
-    // dissoc
-    jo_persistent_unordered_map *dissoc(const K &key) const {
-        jo_persistent_unordered_map *copy = new jo_persistent_unordered_map(*this);
-        int index = jo_hash_value(key) % copy->vec.size();
-        while(copy->vec[index].third) {
-            if(copy->vec[index].first == key) {
-                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, V(), false));
-                --copy->length;
-                return copy;
-            }
-            index = (index + 1) % copy->vec.size();
-        } 
-        return copy;
-    }
-
     // dissoc with lambda for equality
     template<typename F>
     jo_persistent_unordered_map *dissoc(const K &key, F eq) const {
@@ -4248,21 +4178,6 @@ struct jo_persistent_unordered_map {
             index = (index + 1) % copy->vec.size();
         } 
         return copy;
-    }
-
-    // find a value in the map
-    entry_t find(const K &key) {
-        if(vec.size() == 0) {
-            return entry_t();
-        }
-        size_t index = jo_hash_value(key) % vec.size();
-        while(vec[index].third) {
-            if(vec[index].first == key) {
-                return vec[index];
-            }
-            index = (index + 1) % vec.size();
-        } 
-        return entry_t();
     }
 
     // find using lambda
@@ -4280,30 +4195,11 @@ struct jo_persistent_unordered_map {
         } 
         return entry_t();
     }
-
-    bool contains(const K &key) {
-        return find(key).third;
-    }
      
     // contains using lambda
     template<typename F>
     bool contains(const K &key, const F &f) {
         return find(key, f).third;
-    }
-
-    V get(const K &key) const {
-        if(vec.size() == 0) {
-            return V();
-        }
-        size_t index = jo_hash_value(key) % vec.size();
-        auto it = vec.begin() + index;
-        while(it && it->first != key && it->third) {
-            it++;
-        }
-        if(!it) {
-            return V();
-        }
-        return it->second;
     }
 
     template<typename F>
@@ -4312,14 +4208,13 @@ struct jo_persistent_unordered_map {
             return V();
         }
         size_t index = jo_hash_value(key) % vec.size();
-        auto it = vec.begin() + index;
-        while(it && !f(it->first, key) && it->third) {
-            it++;
-        }
-        if(!it) {
-            return V();
-        }
-        return it->second;
+        while(vec[index].third) {
+            if(f(vec[index].first, key)) {
+                return vec[index].second;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        return V();
     }
 
     // conj with lambda
@@ -4409,6 +4304,26 @@ struct jo_persistent_unordered_map {
         }
         return copy;
     }
+
+private:
+
+    jo_persistent_unordered_map *assoc_inplace(const K &key, const V &value) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize_inplace(vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].third) {
+            if(vec[index].first == key) {
+                vec.assoc_inplace(index, entry_t(key, value, true));
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        vec.assoc_inplace(index, entry_t(key, value, true));
+        ++length;
+        return this;
+    }
+
 };
 
 // jo_persistent_unordered_set
@@ -4516,55 +4431,6 @@ public:
         return this;
     }
 
-    // remove a value from the set
-    jo_persistent_unordered_set *erase(const K &key) const {
-        jo_persistent_unordered_set *copy = new jo_persistent_unordered_set(*this);
-        int index = jo_hash_value(key) % vec.size();
-        while(copy->vec[index].second) {
-            if(copy->vec[index].first == key) {
-                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, true));
-                return copy;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        return copy;
-    }
-
-    // insert a new value into the set, if the value already exists, replaces it
-    jo_persistent_unordered_set *assoc(const K &key) const {
-        jo_persistent_unordered_set *copy = new jo_persistent_unordered_set(*this);
-        if(copy->vec.size() - copy->length < copy->vec.size() / 8) {
-            copy->resize_inplace(copy->vec.size() * 2);
-        }
-        int index = jo_hash_value(key) % copy->vec.size();
-        while(copy->vec[index].second) {
-            if(copy->vec[index].first == key) {
-                copy->vec.assoc_inplace(index, entry_t(key, true));
-                return copy;
-            }
-            index = (index + 1) % copy->vec.size();
-        } 
-        copy->vec.assoc_inplace(index, entry_t(key, true));
-        ++copy->length;
-        return copy;
-    }
-
-    jo_persistent_unordered_set *assoc_inplace(const K &key) {
-        if(vec.size() - length < vec.size() / 8) {
-            resize_inplace(vec.size() * 2);
-        }
-        int index = jo_hash_value(key) % vec.size();
-        while(vec[index].second) {
-            if(vec[index].first == key) {
-                vec.assoc_inplace(index, entry_t(key, true));
-                return this;
-            }
-            index = (index + 1) % vec.size();
-        } 
-        vec.assoc_inplace(index, entry_t(key, true));
-        ++length;
-        return this;
-    }
 
     // assoc with lambda for equality
     template<typename F>
@@ -4604,26 +4470,6 @@ public:
         return this;
     }
 
-    // remove a key from the set
-    jo_persistent_unordered_set *erase(const iterator &it) const {
-        return erase(it.cur->first);
-    }
-
-    // dissoc
-    jo_persistent_unordered_set *dissoc(const K &key) const {
-        jo_persistent_unordered_set *copy = new jo_persistent_unordered_set(*this);
-        int index = jo_hash_value(key) % copy->vec.size();
-        while(copy->vec[index].second) {
-            if(copy->vec[index].first == key) {
-                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, false));
-                --copy->length;
-                return copy;
-            }
-            index = (index + 1) % copy->vec.size();
-        } 
-        return copy;
-    }
-
     // dissoc with lambda for equality
     template<typename F>
     jo_persistent_unordered_set *dissoc(const K &key, F eq) const {
@@ -4640,21 +4486,6 @@ public:
         return copy;
     }
 
-    // find a key in the set
-    entry_t find(const K &key) {
-        if(vec.size() == 0) {
-            return entry_t();
-        }
-        size_t index = jo_hash_value(key) % vec.size();
-        while(vec[index].second) {
-            if(vec[index].first == key) {
-                return vec[index];
-            }
-            index = (index + 1) % vec.size();
-        } 
-        return entry_t();
-    }
-
     // find using lambda
     template<typename F>
     entry_t find(const K &key, const F &f) {
@@ -4669,10 +4500,6 @@ public:
             index = (index + 1) % vec.size();
         } 
         return entry_t();
-    }
-
-    bool contains(const K &key) {
-        return find(key).second;
     }
      
     // contains using lambda
@@ -4757,6 +4584,25 @@ public:
             }
         }
         return copy;
+    }
+
+private:
+
+    jo_persistent_unordered_set *assoc_inplace(const K &key) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize_inplace(vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        while(vec[index].second) {
+            if(vec[index].first == key) {
+                vec.assoc_inplace(index, entry_t(key, true));
+                return this;
+            }
+            index = (index + 1) % vec.size();
+        } 
+        vec.assoc_inplace(index, entry_t(key, true));
+        ++length;
+        return this;
     }
 };
 
