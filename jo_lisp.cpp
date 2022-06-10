@@ -4138,6 +4138,16 @@ static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+static node_idx_t native_is_reversible(env_ptr_t env, list_ptr_t args) {
+	node_idx_t node_idx = args->first_value();
+	node_t *node = get_node(node_idx);
+	if(node->is_string()) return TRUE_NODE;
+	if(node->is_list()) return TRUE_NODE;
+	if(node->is_vector()) return TRUE_NODE;
+	if(node->is_lazy_list()) return TRUE_NODE;
+	return FALSE_NODE;
+}
+
 static node_idx_t native_eval(env_ptr_t env, list_ptr_t args) { return eval_node(env, args->first_value()); }
 
 // (into) 
@@ -6045,6 +6055,7 @@ int main(int argc, char **argv) {
 	env->set("newline", new_node_native_function("newline", &native_newline, false, NODE_FLAG_PRERESOLVE));
 	env->set("reduce-kv", new_node_native_function("reduce-kv", &native_reduce_kv, false, NODE_FLAG_PRERESOLVE));
 	env->set("replace", new_node_native_function("replace", &native_replace, false, NODE_FLAG_PRERESOLVE));
+	env->set("reversible?", new_node_native_function("reversible?", &native_is_reversible, false, NODE_FLAG_PRERESOLVE));
 
 	jo_lisp_math_init(env);
 	jo_lisp_string_init(env);
