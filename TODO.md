@@ -240,7 +240,6 @@ re-pattern
 re-seq
 read
 read+string
-read-string
 reader-conditional
 reader-conditional?
 record?

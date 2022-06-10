@@ -1459,10 +1459,18 @@ struct token_t {
 };
 
 struct parse_state_t {
-	FILE *fp;
-	int line_num;
+	FILE *fp = 0;
+	const char *buf = 0;
+	const char *buf_end = 0;
+	char unget_buf[32];
+	int unget_cnt = 0;
+	int line_num = 1;
 	int getc() {
-		int c = fgetc(fp);
+		int c;
+		if(unget_cnt) c = unget_buf[--unget_cnt];
+		else if(fp) c = fgetc(fp);
+		else if(buf && buf < buf_end) c = *buf++;
+		else c = EOF;
 		if(c == '\n') {
 			line_num++;
 		}
@@ -1471,8 +1479,9 @@ struct parse_state_t {
 	void ungetc(int c) {
 		if(c == '\n') {
 			line_num--;
-		}
-		::ungetc(c, fp);
+		};
+		assert(unget_cnt < sizeof(unget_buf));
+		unget_buf[unget_cnt++] = (char)c;
 	}
 };
 
@@ -5380,7 +5389,6 @@ static node_idx_t native_load_file(env_ptr_t env, list_ptr_t args) {
 
 	parse_state_t parse_state;
 	parse_state.fp = fp;
-	parse_state.line_num = 1;
 
 	// parse the base list
 	list_ptr_t main_list = new_list();
@@ -5407,7 +5415,6 @@ static node_idx_t native_load_reader(env_ptr_t env, list_ptr_t args) {
 	if(!parse_state.fp) {
 		return NIL_NODE;
 	}
-	parse_state.line_num = 1;
 
 	// parse the base list
 	list_ptr_t main_list = new_list();
@@ -5422,16 +5429,12 @@ static node_idx_t native_load_reader(env_ptr_t env, list_ptr_t args) {
 // Sequentially read and evaluate the set of forms contained in the
 // string
 static node_idx_t native_load_string(env_ptr_t env, list_ptr_t args) {
-	node_idx_t s_idx = args->first_value();
-	if(get_node_type(s_idx) != NODE_STRING) {
-		warnf("(load-string) requires a string\n");
-		return NIL_NODE;
-	}
-	jo_string s = get_node_string(s_idx);
+	jo_string s = get_node_string(args->first_value());
 
 	parse_state_t parse_state;
-	parse_state.fp = jo_fmemopen((void*)s.c_str(), s.size(), "r");
-	parse_state.line_num = 1;
+	//parse_state.fp = jo_fmemopen((void*)s.c_str(), s.size(), "r");
+	parse_state.buf = s.c_str();
+	parse_state.buf_end = s.c_str() + s.size();
 
 	// parse the base list
 	list_ptr_t main_list = new_list();
@@ -5717,6 +5720,16 @@ static node_idx_t native_reduce_kv(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+static node_idx_t native_read_string(env_ptr_t env, list_ptr_t args) {
+	jo_string s = get_node_string(args->first_value());
+
+	parse_state_t parse_state;
+	parse_state.buf = s.c_str();
+	parse_state.buf_end = s.c_str() + s.size();
+
+	return eval_node_list(env, list_va(parse_next(env, &parse_state, 0)));
+}
+
 
 #include "jo_lisp_math.h"
 #include "jo_lisp_string.h"
@@ -5997,6 +6010,7 @@ int main(int argc, char **argv) {
 	env->set("load-file", new_node_native_function("load-file", &native_load_file, false, NODE_FLAG_PRERESOLVE));
 	env->set("load-reader", new_node_native_function("load-reader", &native_load_reader, false, NODE_FLAG_PRERESOLVE));
 	env->set("load-string", new_node_native_function("load-string", &native_load_string, false, NODE_FLAG_PRERESOLVE));
+	env->set("read-string", new_node_native_function("read-string", &native_read_string, false, NODE_FLAG_PRERESOLVE));
 	env->set("loop", new_node_native_function("loop", &native_loop, true, NODE_FLAG_PRERESOLVE));
 	env->set("recur", new_node_native_function("recur", &native_recur, false, NODE_FLAG_PRERESOLVE));
 	env->set("mapv", new_node_native_function("mapv", &native_mapv, false, NODE_FLAG_PRERESOLVE));
@@ -6027,7 +6041,6 @@ int main(int argc, char **argv) {
 
 	parse_state_t parse_state;
 	parse_state.fp = fp;
-	parse_state.line_num = 1;
 
 	// parse the base list
 	list_ptr_t main_list = new_list();
