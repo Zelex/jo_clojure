@@ -178,7 +178,7 @@ static node_idx_t native_div(env_ptr_t env, list_ptr_t args) {
 
 	for(; i; i++) {
 		n = get_node(*i);
-		if(n->type == NODE_INT) {
+		if(is_int && n->type == NODE_INT) {
 			i_sum /= n->t_int;
 			d_sum = i_sum;
 		} else {

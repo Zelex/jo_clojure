@@ -1,4 +1,5 @@
-(replace {0 ZERO, 1 ONE, 2 TWO} '(This is the code 0 1 2 0))
+
+(reduce (fn [a [_ b]] (+ a b)) 0 [[0 1] [1 2] [2 3]])
 
 
 

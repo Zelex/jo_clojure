@@ -121,14 +121,16 @@ struct env_t;
 struct transaction_t;
 struct node_t;
 struct lazy_list_iterator_t;
+typedef long long node_idx_unsafe_t;
 
-static inline void node_add_ref(long long idx);
-static inline void node_release(long long idx);
+
+static inline void node_add_ref(node_idx_unsafe_t idx);
+static inline void node_release(node_idx_unsafe_t idx);
 
 struct node_idx_t {
-	long long idx;
+	node_idx_unsafe_t idx;
 	node_idx_t() : idx() {}
-	node_idx_t(long long _idx) : idx(_idx) { 
+	node_idx_t(node_idx_unsafe_t _idx) : idx(_idx) { 
 		node_add_ref(idx); 
 	}
 	~node_idx_t() { 
@@ -140,7 +142,7 @@ struct node_idx_t {
 	node_idx_t(node_idx_t&& other) : idx(other.idx) { 
 		other.idx = 0; 
 	}
-	node_idx_t& operator=(long long _idx) {  
+	node_idx_t& operator=(node_idx_unsafe_t _idx) {  
 		if(idx != _idx) {
 			node_add_ref(_idx);
 			node_release(idx);
@@ -165,17 +167,17 @@ struct node_idx_t {
 		return *this; 
 	}
 
-	operator long long() const { return idx; }
+	operator node_idx_unsafe_t() const { return idx; }
 	bool operator==(const node_idx_t& other) const { return idx == other.idx; }
 	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
-	bool operator==(long long _idx) const { return idx == _idx; }
-	bool operator!=(long long _idx) const { return idx != _idx; }
+	bool operator==(node_idx_unsafe_t _idx) const { return idx == _idx; }
+	bool operator!=(node_idx_unsafe_t _idx) const { return idx != _idx; }
 	bool operator==(int _idx) const { return idx == _idx; }
 	bool operator!=(int _idx) const { return idx != _idx; }
 };
 
 struct atomic_node_idx_t {
-	std::atomic<long long> idx;
+	std::atomic<node_idx_unsafe_t> idx;
 	atomic_node_idx_t() : idx() {}
 	~atomic_node_idx_t() { 
 		node_release(idx.load()); 
@@ -210,17 +212,17 @@ struct atomic_node_idx_t {
 	}
 	atomic_node_idx_t& operator=(atomic_node_idx_t&& other) {  
 		if(idx != other.idx) {
-			long long tmp = idx.exchange(other.idx);
+			node_idx_unsafe_t tmp = idx.exchange(other.idx);
 			node_release(tmp);
 			other.idx = 0;
 		}
 		return *this; 
 	}
-	operator long long() const { return idx; }
+	operator node_idx_unsafe_t() const { return idx; }
 	bool operator==(const atomic_node_idx_t& other) const { return idx == other.idx; }
 	bool operator!=(const atomic_node_idx_t& other) const { return idx != other.idx; }
-	bool operator==(long long _idx) const { return idx == _idx; }
-	bool operator!=(long long _idx) const { return idx != _idx; }
+	bool operator==(node_idx_unsafe_t _idx) const { return idx == _idx; }
+	bool operator!=(node_idx_unsafe_t _idx) const { return idx != _idx; }
 	bool operator==(int _idx) const { return idx == _idx; }
 	bool operator!=(int _idx) const { return idx != _idx; }
 
@@ -231,7 +233,7 @@ struct atomic_node_idx_t {
 		node_add_ref(_idx);
 		node_release(idx.exchange(_idx));
 	}
-	bool compare_exchange_strong(long long expected, long long desired) { 
+	bool compare_exchange_strong(node_idx_unsafe_t expected, node_idx_unsafe_t desired) { 
 		if(idx.compare_exchange_strong(expected, desired)) {
 			node_add_ref(desired);
 			node_release(expected);
@@ -239,7 +241,7 @@ struct atomic_node_idx_t {
 		}
 		return false;
 	}
-	bool compare_exchange_weak(long long expected, long long desired) { 
+	bool compare_exchange_weak(node_idx_unsafe_t expected, node_idx_unsafe_t desired) { 
 		if(idx.compare_exchange_weak(expected, desired)) {
 			node_add_ref(desired);
 			node_release(expected);
@@ -276,27 +278,27 @@ static map_ptr_t new_map() { return map_ptr_t(new map_t()); }
 static hash_set_ptr_t new_hash_set() { return hash_set_ptr_t(new hash_set_t()); }
 static transaction_ptr_t new_transaction();
 
-static inline node_t *get_node(long long idx);
-static inline int get_node_type(long long idx);
+static inline node_t *get_node(node_idx_t idx);
+static inline int get_node_type(node_idx_t idx);
 static inline int get_node_type(const node_t *n);
-static inline int get_node_flags(long long idx);
-static inline jo_string get_node_string(long long idx);
-static inline node_idx_t get_node_var(long long idx);
-static inline bool get_node_bool(long long idx);
-static inline list_ptr_t get_node_list(long long idx);
-static inline vector_ptr_t get_node_vector(long long idx);
-static inline map_ptr_t get_node_map(long long idx);
-static inline hash_set_ptr_t get_node_hash_set(long long idx);
-static inline long long get_node_int(long long idx);
-static inline double get_node_float(long long idx);
-static inline vector_ptr_t get_node_func_args(long long idx);
-static inline list_ptr_t get_node_func_body(long long idx);
-static inline node_idx_t get_node_lazy_fn(long long idx);
+static inline int get_node_flags(node_idx_t idx);
+static inline jo_string get_node_string(node_idx_t idx);
+static inline node_idx_t get_node_var(node_idx_t idx);
+static inline bool get_node_bool(node_idx_t idx);
+static inline list_ptr_t get_node_list(node_idx_t idx);
+static inline vector_ptr_t get_node_vector(node_idx_t idx);
+static inline map_ptr_t get_node_map(node_idx_t idx);
+static inline hash_set_ptr_t get_node_hash_set(node_idx_t idx);
+static inline long long get_node_int(node_idx_t idx);
+static inline double get_node_float(node_idx_t idx);
+static inline vector_ptr_t get_node_func_args(node_idx_t idx);
+static inline list_ptr_t get_node_func_body(node_idx_t idx);
+static inline node_idx_t get_node_lazy_fn(node_idx_t idx);
 static inline node_idx_t get_node_lazy_fn(const node_t *n);
-static inline FILE *get_node_file(long long idx);
-static inline void *get_node_dir(long long idx);
-static inline atomic_node_idx_t &get_node_atom(long long idx);
-static inline env_ptr_t get_node_env(long long idx);
+static inline FILE *get_node_file(node_idx_t idx);
+static inline void *get_node_dir(node_idx_t idx);
+static inline atomic_node_idx_t &get_node_atom(node_idx_t idx);
+static inline env_ptr_t get_node_env(node_idx_t idx);
 static inline env_ptr_t get_node_env(const node_t *n);
 
 static node_idx_t new_node_int(long long i, int flags = 0);
@@ -317,26 +319,26 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
 static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
 
-static node_idx_t eval_va(env_ptr_t env, long long a);
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b);
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c);
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d);
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d, long long e);
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d, long long e, long long f);
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a);
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b);
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c);
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
 
-static inline list_ptr_t list_va(long long a);
-static inline list_ptr_t list_va(long long a, long long b);
-static inline list_ptr_t list_va(long long a, long long b, long long c);
-static inline list_ptr_t list_va(long long a, long long b, long long c, long long d);
-static inline list_ptr_t list_va(long long a, long long b, long long c, long long d, long long e);
-static inline list_ptr_t list_va(long long a, long long b, long long c, long long d, long long e, long long f);
+static inline list_ptr_t list_va(node_idx_t a);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
+static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
 
-static vector_ptr_t vector_va(long long a);
-static vector_ptr_t vector_va(long long a, long long b);
-static vector_ptr_t vector_va(long long a, long long b, long long c);
-static vector_ptr_t vector_va(long long a, long long b, long long c, long long d);
-static vector_ptr_t vector_va(long long a, long long b, long long c, long long d, long long e);
-static vector_ptr_t vector_va(long long a, long long b, long long c, long long d, long long e, long long f);
+static vector_ptr_t vector_va(node_idx_t a);
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b);
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c);
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
 
 static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
 static void print_node_type(node_idx_t node);
@@ -352,7 +354,7 @@ struct transaction_t {
 		tx_t() : old_val(INV_NODE), new_val(INV_NODE) {}
 	};
 	//typedef node_idx_t atom_idx_t;
-	typedef long long atom_idx_t;
+	typedef node_idx_unsafe_t atom_idx_t;
 	std::map<atom_idx_t, tx_t> tx_map;
 	double start_time;
 	int num_retries;
@@ -544,7 +546,7 @@ struct lazy_list_iterator_t {
 	node_idx_t cur;
 	node_idx_t val;
 	jo_vector<node_idx_t> next_list;
-	long long next_idx;
+	node_idx_unsafe_t next_idx;
 
 	lazy_list_iterator_t(const node_t *node) : env(), cur(), val(NIL_NODE), next_list(), next_idx() {
 		if(get_node_type(node) == NODE_LAZY_LIST) {
@@ -567,7 +569,7 @@ struct lazy_list_iterator_t {
 	}
 
 	bool done() const {
-		return next_idx >= (long long)next_list.size() && !get_node_list(cur);
+		return next_idx >= (node_idx_unsafe_t)next_list.size() && !get_node_list(cur);
 	}
 
 	node_idx_t next() {
@@ -1194,12 +1196,12 @@ struct node_t {
 };
 
 static jo_pinned_vector<node_t> nodes;
-static jo_mpmcq<long long, NIL_NODE, (1<<16)> free_nodes; // available for allocation...
+static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<16)> free_nodes; // available for allocation...
 static const int num_garbage_sectors = 8;
-static jo_mpmcq<long long, NIL_NODE, (1<<14)> garbage_nodes[num_garbage_sectors]; // need resource release 
+static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<14)> garbage_nodes[num_garbage_sectors]; // need resource release 
 
 
-static inline void node_add_ref(long long idx) { 
+static inline void node_add_ref(node_idx_unsafe_t idx) { 
 	if(idx >= START_USER_NODES) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
@@ -1210,7 +1212,7 @@ static inline void node_add_ref(long long idx) {
 	}
 }
 
-static inline void node_release(long long idx) { 
+static inline void node_release(node_idx_unsafe_t idx) { 
 	if(idx >= START_USER_NODES) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
@@ -1236,7 +1238,7 @@ static inline void node_release(long long idx) {
 }
 
 static void collect_garbage() {
-	long long idx = INV_NODE;
+	node_idx_unsafe_t idx = INV_NODE;
 	while(true) {
 		for(int i = 0; i < num_garbage_sectors; ++i) {
 			if(garbage_nodes[i].closing) {
@@ -1255,31 +1257,34 @@ static void collect_garbage() {
 	}
 }
 
-static inline node_t *get_node(long long idx) {
-	 assert(!(nodes[idx].flags & NODE_FLAG_GARBAGE));
+static inline node_t *get_node(node_idx_t idx) {
+	 //assert(!(nodes[idx].flags & NODE_FLAG_GARBAGE));
+	 if(nodes[idx].flags & NODE_FLAG_GARBAGE) {
+		idx = NIL_NODE;
+	 }
 	 return &nodes[idx]; 
 }
-static inline int get_node_type(long long idx) { return get_node(idx)->type; }
+static inline int get_node_type(node_idx_t idx) { return get_node(idx)->type; }
 static inline int get_node_type(const node_t *n) { return n->type; }
-static inline int get_node_flags(long long idx) { return get_node(idx)->flags; }
-static inline jo_string get_node_string(long long idx) { return get_node(idx)->as_string(); }
-static inline node_idx_t get_node_var(long long idx) { return get_node(idx)->t_extra; }
-static inline bool get_node_bool(long long idx) { return get_node(idx)->as_bool(); }
-static inline list_ptr_t get_node_list(long long idx) { return get_node(idx)->as_list(); }
-static inline vector_ptr_t get_node_vector(long long idx) { return get_node(idx)->as_vector(); }
-static inline map_ptr_t get_node_map(long long idx) { return get_node(idx)->as_map(); }
-static inline hash_set_ptr_t get_node_set(long long idx) { return get_node(idx)->as_set(); }
-static inline long long get_node_int(long long idx) { return get_node(idx)->as_int(); }
-static inline double get_node_float(long long idx) { return get_node(idx)->as_float(); }
-static inline const char *get_node_type_string(long long idx) { return get_node(idx)->type_name(); }
-static inline vector_ptr_t get_node_func_args(long long idx) { return get_node(idx)->t_func.args; }
-static inline list_ptr_t get_node_func_body(long long idx) { return get_node(idx)->t_func.body; }
-static inline node_idx_t get_node_lazy_fn(long long idx) { return get_node(idx)->t_extra; }
+static inline int get_node_flags(node_idx_t idx) { return get_node(idx)->flags; }
+static inline jo_string get_node_string(node_idx_t idx) { return get_node(idx)->as_string(); }
+static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_extra; }
+static inline bool get_node_bool(node_idx_t idx) { return get_node(idx)->as_bool(); }
+static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->as_list(); }
+static inline vector_ptr_t get_node_vector(node_idx_t idx) { return get_node(idx)->as_vector(); }
+static inline map_ptr_t get_node_map(node_idx_t idx) { return get_node(idx)->as_map(); }
+static inline hash_set_ptr_t get_node_set(node_idx_t idx) { return get_node(idx)->as_set(); }
+static inline long long get_node_int(node_idx_t idx) { return get_node(idx)->as_int(); }
+static inline double get_node_float(node_idx_t idx) { return get_node(idx)->as_float(); }
+static inline const char *get_node_type_string(node_idx_t idx) { return get_node(idx)->type_name(); }
+static inline vector_ptr_t get_node_func_args(node_idx_t idx) { return get_node(idx)->t_func.args; }
+static inline list_ptr_t get_node_func_body(node_idx_t idx) { return get_node(idx)->t_func.body; }
+static inline node_idx_t get_node_lazy_fn(node_idx_t idx) { return get_node(idx)->t_extra; }
 static inline node_idx_t get_node_lazy_fn(const node_t *n) { return n->t_extra; }
-static inline FILE *get_node_file(long long idx) { return get_node(idx)->t_file; }
-static inline void *get_node_dir(long long idx) { return get_node(idx)->t_dir; }
-static inline atomic_node_idx_t &get_node_atom(long long idx) { return get_node(idx)->t_atom; }
-static inline env_ptr_t get_node_env(long long idx) { return get_node(idx)->t_env; }
+static inline FILE *get_node_file(node_idx_t idx) { return get_node(idx)->t_file; }
+static inline void *get_node_dir(node_idx_t idx) { return get_node(idx)->t_dir; }
+static inline atomic_node_idx_t &get_node_atom(node_idx_t idx) { return get_node(idx)->t_atom; }
+static inline env_ptr_t get_node_env(node_idx_t idx) { return get_node(idx)->t_env; }
 static inline env_ptr_t get_node_env(const node_t *n) { return n->t_env; }
 
 static inline void free_node(node_idx_t idx) {
@@ -1290,7 +1295,7 @@ static inline void free_node(node_idx_t idx) {
 static inline node_idx_t new_node(node_t &&n) {
 	// TODO: need try-pop really...
 	if(free_nodes.size() > processor_count * 2) {
-		long long ni = free_nodes.pop();
+		node_idx_unsafe_t ni = free_nodes.pop();
 		if(ni >= START_USER_NODES) {
 			node_t *nn = &nodes[ni];
 			*nn = std::move(n);
@@ -1363,7 +1368,7 @@ static node_idx_t new_node_bool(bool b) {
 	return b ? TRUE_NODE : FALSE_NODE;
 }
 
-static node_idx_t new_node_int(long long i, int flags) {
+static node_idx_t new_node_int(node_idx_unsafe_t i, int flags) {
 	if(i >= 0 && i <= 256 && flags == 0) {
 		return INT_0_NODE + i;
 	}
@@ -2298,34 +2303,34 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 	return res;
 }
 
-static list_ptr_t list_va(long long a) { list_ptr_t L = new_list(); L->push_front_inplace(a); return L; }
-static list_ptr_t list_va(long long a, long long b) { list_ptr_t L = new_list(); L->push_front2_inplace(a, b); return L; }
-static list_ptr_t list_va(long long a, long long b, long long c) { list_ptr_t L = new_list(); L->push_front3_inplace(a, b, c); return L; }
-static list_ptr_t list_va(long long a, long long b, long long c, long long d) { list_ptr_t L = new_list(); L->push_front4_inplace(a, b, c, d); return L; }
-static list_ptr_t list_va(long long a, long long b, long long c, long long d, long long e) { list_ptr_t L = new_list(); L->push_front5_inplace(a, b, c, d, e); return L; }
-static list_ptr_t list_va(long long a, long long b, long long c, long long d, long long e, long long f) { list_ptr_t L = new_list(); L->push_front6_inplace(a, b, c, d, e, f); return L; }
+static list_ptr_t list_va(node_idx_t a) { list_ptr_t L = new_list(); L->push_front_inplace(a); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b) { list_ptr_t L = new_list(); L->push_front2_inplace(a, b); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c) { list_ptr_t L = new_list(); L->push_front3_inplace(a, b, c); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) { list_ptr_t L = new_list(); L->push_front4_inplace(a, b, c, d); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) { list_ptr_t L = new_list(); L->push_front5_inplace(a, b, c, d, e); return L; }
+static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) { list_ptr_t L = new_list(); L->push_front6_inplace(a, b, c, d, e, f); return L; }
 
-static node_idx_t eval_va(env_ptr_t env, long long a) { return eval_list(env, list_va(a)); }
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b) { return eval_list(env, list_va(a, b)); }
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c) { return eval_list(env, list_va(a, b, c)); }
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d) { return eval_list(env, list_va(a, b, c, d)); }
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d, long long e) { return eval_list(env, list_va(a, b, c, d, e)); }
-static node_idx_t eval_va(env_ptr_t env, long long a, long long b, long long c, long long d, long long e, long long f) { return eval_list(env, list_va(a, b, c, d, e, f)); }
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a) { return eval_list(env, list_va(a)); }
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b) { return eval_list(env, list_va(a, b)); }
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c) { return eval_list(env, list_va(a, b, c)); }
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) { return eval_list(env, list_va(a, b, c, d)); }
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) { return eval_list(env, list_va(a, b, c, d, e)); }
+static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) { return eval_list(env, list_va(a, b, c, d, e, f)); }
 
-static vector_ptr_t vector_va(long long a) {
+static vector_ptr_t vector_va(node_idx_t a) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	return vec;
 }
 
-static vector_ptr_t vector_va(long long a, long long b) {
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
 	return vec;
 }
 
-static vector_ptr_t vector_va(long long a, long long b, long long c) {
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
@@ -2333,7 +2338,7 @@ static vector_ptr_t vector_va(long long a, long long b, long long c) {
 	return vec;
 }
 
-static vector_ptr_t vector_va(long long a, long long b, long long c, long long d) {
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
@@ -2342,7 +2347,7 @@ static vector_ptr_t vector_va(long long a, long long b, long long c, long long d
 	return vec;
 }
 
-static vector_ptr_t vector_va(long long a, long long b, long long c, long long d, long long e) {
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
@@ -2352,7 +2357,7 @@ static vector_ptr_t vector_va(long long a, long long b, long long c, long long d
 	return vec;
 }
 
-static vector_ptr_t vector_va(long long a, long long b, long long c, long long d, long long e, long long f) {
+static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
 	vec->push_back_inplace(b);
