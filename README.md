@@ -11,7 +11,7 @@ The near-term goal is to re-make clojure in an embedable form which is as fast a
 The long-term goal is to add types/functions for machine learning, matrices, tensors, etc... And specifically try to do automatic parallelization. 
 
 # Currently:
-* Native implementation. Can be (in some cases) as fast as or faster than original Clojure (which uses Java's JVM). 
+* Native implementation. Can be (in some cases) as fast as or approaching JVM Clojure performance. Though not in all/most cases - YMMV. 
 * Parses code into native structures (AST), then executes. Essentially interpreted - though does some clever things here and there. 
 * Lazy sequences
 * Startup time is ridiculously fast by comparison
