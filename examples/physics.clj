@@ -11,7 +11,15 @@
      :color [0.5 0.5 0.5]
      :life 1
      :dead? false
-     :collided? false})
+     :collided? false
+     :tick (fn [entity timestep]
+             (swap! entity
+                     {:position (*+ timestep (get @entity :velocity) (get @entity :position))
+                      :velocity (*+ timestep (get @entity :acceleration) (get @entity :velocity))
+                      :acceleration [0 0]
+                      :dead? (= (get @entity :life) 0)
+                      :collided? false})
+             entity)})
 
 (defn new-ball [x y vx vy]
     (into (new-entity :ball)
