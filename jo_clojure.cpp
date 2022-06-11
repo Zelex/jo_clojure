@@ -313,6 +313,9 @@ static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flag
 static bool node_eq(node_idx_t n1i, node_idx_t n2i);
 static bool node_lt(node_idx_t n1i, node_idx_t n2i);
 static bool node_lte(node_idx_t n1i, node_idx_t n2i);
+static node_idx_t node_add(node_idx_t n1i, node_idx_t n2i);
+static node_idx_t node_mul(node_idx_t n1i, node_idx_t n2i);
+static node_idx_t node_fma(node_idx_t n1i, node_idx_t n2i, node_idx_t n3i);
 static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
@@ -2920,6 +2923,192 @@ size_t jo_hash_value(node_idx_t n) {
 		return jo_hash_value(n1->as_float());
 	}
 	return 0;
+}
+
+// add with destructuring 
+static node_idx_t node_add(node_idx_t n1i, node_idx_t n2i) {
+	if(n1i == INV_NODE || n2i == INV_NODE) {
+		return ZERO_NODE;
+	}
+
+	node_t *n1 = get_node(n1i), *n2 = get_node(n2i);
+	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
+		n1i = n1->deref();
+		n1 = get_node(n1i);
+	}
+	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
+		n2i = n2->deref();
+		n2 = get_node(n2i);
+	}
+
+	if(n1->is_list() && n2->is_list()) {
+		list_ptr_t r = new_list();
+		list_t::iterator it1(n1->t_list), it2(n2->t_list);
+		for(; it1 && it2; it1++, it2++) {
+			r->push_back_inplace(node_add(n1->t_vector->nth(*it1), n2->t_vector->nth(*it2)));
+		}
+		for(; it1; it1++) r->push_back_inplace(n1->t_vector->nth(*it1));
+		for(; it2; it2++) r->push_back_inplace(n2->t_vector->nth(*it2));
+		return new_node_list(r);
+	}
+	if(n1->is_vector() && n2->is_vector()) {
+		vector_ptr_t r = new_vector();
+		vector_ptr_t v1 = n1->t_vector, v2 = n2->t_vector;
+		size_t s1 = v1->size(), s2 = v2->size();
+		size_t i = 0;
+		for(; i < s1 && i < s2; i++) {
+			r->push_back_inplace(node_add(v1->nth(i), v2->nth(i)));
+		}
+		for(; i < s1; i++) r->push_back_inplace(v1->nth(i));
+		for(; i < s2; i++) r->push_back_inplace(v2->nth(i));
+		return new_node_vector(r);
+	}
+	if(n1->is_map() && n2->is_map()) {
+		map_ptr_t r = new_map();
+		map_ptr_t m1 = n1->t_map, m2 = n2->t_map;
+		for(map_t::iterator it = m1->begin(); it; it++) {
+			if(!m2->contains(it->first, node_eq)) {
+				r->assoc_inplace(it->first, it->second, node_eq);
+				continue;
+			}
+			r->assoc_inplace(it->first, node_add(it->second, m2->get(it->first, node_eq)), node_eq);
+		}
+		for(map_t::iterator it = m2->begin(); it; it++) {
+			if(r->contains(it->first, node_eq)) continue;
+			r->assoc_inplace(it->first, it->second, node_eq);
+		}
+		return new_node_map(r);
+	}
+	return new_node_float(n1->as_float() + n2->as_float());
+}
+
+// mul with destructuring 
+static node_idx_t node_mul(node_idx_t n1i, node_idx_t n2i) {
+	if(n1i == INV_NODE || n2i == INV_NODE) {
+		return ZERO_NODE;
+	}
+
+	node_t *n1 = get_node(n1i), *n2 = get_node(n2i);
+	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
+		n1i = n1->deref();
+		n1 = get_node(n1i);
+	}
+	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
+		n2i = n2->deref();
+		n2 = get_node(n2i);
+	}
+
+	if(n1->is_list() && n2->is_list()) {
+		list_ptr_t r = new_list();
+		list_t::iterator it1(n1->t_list), it2(n2->t_list);
+		for(; it1 && it2; it1++, it2++) {
+			r->push_back_inplace(node_mul(n1->t_vector->nth(*it1), n2->t_vector->nth(*it2)));
+		}
+		for(; it1; it1++) r->push_back_inplace(n1->t_vector->nth(*it1));
+		for(; it2; it2++) r->push_back_inplace(n2->t_vector->nth(*it2));
+		return new_node_list(r);
+	}
+	if(n1->is_vector() && n2->is_vector()) {
+		vector_ptr_t r = new_vector();
+		vector_ptr_t v1 = n1->t_vector, v2 = n2->t_vector;
+		size_t s1 = v1->size(), s2 = v2->size();
+		size_t i = 0;
+		for(; i < s1 && i < s2; i++) {
+			r->push_back_inplace(node_mul(v1->nth(i), v2->nth(i)));
+		}
+		for(; i < s1; i++) r->push_back_inplace(v1->nth(i));
+		for(; i < s2; i++) r->push_back_inplace(v2->nth(i));
+		return new_node_vector(r);
+	}
+	if(n1->is_map() && n2->is_map()) {
+		map_ptr_t r = new_map();
+		map_ptr_t m1 = n1->t_map, m2 = n2->t_map;
+		for(map_t::iterator it = m1->begin(); it; it++) {
+			if(!m2->contains(it->first, node_eq)) {
+				r->assoc_inplace(it->first, it->second, node_eq);
+				continue;
+			}
+			r->assoc_inplace(it->first, node_mul(it->second, m2->get(it->first, node_eq)), node_eq);
+		}
+		for(map_t::iterator it = m2->begin(); it; it++) {
+			if(r->contains(it->first, node_eq)) continue;
+			r->assoc_inplace(it->first, it->second, node_eq);
+		}
+		return new_node_map(r);
+	}
+	return new_node_float(n1->as_float() * n2->as_float());
+}
+
+// fma with destructuring
+static node_idx_t node_fma(node_idx_t n1i, node_idx_t n2i, node_idx_t n3i) {
+	if(n1i == INV_NODE || n2i == INV_NODE || n3i == INV_NODE) {
+		return ZERO_NODE;
+	}
+
+	node_t *n1 = get_node(n1i), *n2 = get_node(n2i), *n3 = get_node(n3i);
+	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
+		n1i = n1->deref();
+		n1 = get_node(n1i);
+	}
+	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
+		n2i = n2->deref();
+		n2 = get_node(n2i);
+	}
+	if(n3->type == NODE_FUTURE && (n3->flags & NODE_FLAG_AUTO_DEREF)) {
+		n3i = n3->deref();
+		n3 = get_node(n3i);
+	}
+
+	if(n1->is_list() && n2->is_list() && n3->is_list()) {
+		list_ptr_t r = new_list();
+		list_t::iterator it1(n1->t_list), it2(n2->t_list), it3(n3->t_list);
+		for(; it1 && it2 && it3; it1++, it2++, it3++) {
+			r->push_back_inplace(node_fma(n1->t_vector->nth(*it1), n2->t_vector->nth(*it2), n3->t_vector->nth(*it3)));
+		}
+		for(; it1; it1++) r->push_back_inplace(n1->t_vector->nth(*it1));
+		for(; it2; it2++) r->push_back_inplace(n2->t_vector->nth(*it2));
+		for(; it3; it3++) r->push_back_inplace(n3->t_vector->nth(*it3));
+		return new_node_list(r);
+	}
+	if(n1->is_vector() && n2->is_vector() && n3->is_vector()) {
+		vector_ptr_t r = new_vector();
+		vector_ptr_t v1 = n1->t_vector, v2 = n2->t_vector, v3 = n3->t_vector;
+		size_t s1 = v1->size(), s2 = v2->size(), s3 = v3->size();
+		size_t min_s = jo_min(s1, jo_min(s2, s3));
+		size_t i = 0;
+		for(; i < min_s; i++) {
+			r->push_back_inplace(node_fma(v1->nth(i), v2->nth(i), v3->nth(i)));
+		}
+		for(; i < s1; i++) r->push_back_inplace(v1->nth(i));
+		for(; i < s2; i++) r->push_back_inplace(v2->nth(i));
+		for(; i < s3; i++) r->push_back_inplace(v3->nth(i));
+		return new_node_vector(r);
+	}
+	if(n1->is_map() && n2->is_map() && n3->is_map()) {
+		map_ptr_t r = new_map();
+		map_ptr_t m1 = n1->t_map, m2 = n2->t_map, m3 = n3->t_map;
+		for(map_t::iterator it = m1->begin(); it; it++) {
+			if(!m2->contains(it->first, node_eq)) {
+				r->assoc_inplace(it->first, it->second, node_eq);
+				continue;
+			}
+			if(!m3->contains(it->first, node_eq)) {
+				r->assoc_inplace(it->first, it->second, node_eq);
+				continue;
+			}
+			r->assoc_inplace(it->first, node_fma(it->second, m2->get(it->first, node_eq), m3->get(it->first, node_eq)), node_eq);
+		}
+		for(map_t::iterator it = m2->begin(); it; it++) {
+			if(r->contains(it->first, node_eq)) continue;
+			r->assoc_inplace(it->first, it->second, node_eq);
+		}
+		for(map_t::iterator it = m3->begin(); it; it++) {
+			if(r->contains(it->first, node_eq)) continue;
+			r->assoc_inplace(it->first, it->second, node_eq);
+		}
+		return new_node_map(r);
+	}
+	return new_node_float(fmaf(n1->as_float(), n2->as_float(), n3->as_float()));
 }
 
 // Tests the equality between two or more objects

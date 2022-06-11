@@ -43,16 +43,12 @@ static node_idx_t native_sub(env_ptr_t env, list_ptr_t args) {
 	double d_sum = 0.0;
 
 	size_t size = args->size();
-	if(size == 0) {
-		return ZERO_NODE;
-	}
+	if(size == 0) return ZERO_NODE;
 
 	// Special case. 1 argument return the negative of that argument
 	if(size == 1) {
 		node_t *n = get_node(args->first_value());
-		if(n->type == NODE_INT) {
-			return new_node_int(-n->t_int);
-		}
+		if(n->type == NODE_INT) return new_node_int(-n->t_int);
 		return new_node_float(-n->as_float());
 	}
 
@@ -79,9 +75,7 @@ static node_idx_t native_sub_int(env_ptr_t env, list_ptr_t args) {
 	long long i_sum = 0;
 
 	size_t size = args->size();
-	if(size == 0) {
-		return ZERO_NODE;
-	}
+	if(size == 0) return ZERO_NODE;
 
 	// Special case. 1 argument return the negative of that argument
 	if(size == 1) {
@@ -112,40 +106,36 @@ static node_idx_t native_sub_int(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_mul(env_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
-		return ONE_NODE; 
-	}
+	if(args->size() == 0) return ONE_NODE; 
 
 	long long i = 1;
 	double d = 1.0;
 	for(list_t::iterator it(args); it; it++) {
 		node_t *n = get_node(*it);
 		int type = n->type;
-		if(type == NODE_INT) {
-			i *= n->t_int;
-		} else if(type == NODE_FLOAT) {
-			d *= n->t_float;
-		} else {
-			d *= n->as_float();
-		}
+		if(type == NODE_INT) 		i *= n->t_int;
+		else if(type == NODE_FLOAT) d *= n->t_float;
+		else 						d *= n->as_float();
 	}
 	return d == 1.0 ? new_node_int(i) : new_node_float(d * i);
 }
 
+static node_idx_t native_fma(env_ptr_t env, list_ptr_t args) {
+	if(args->size() < 3) return ZERO_NODE;
+	list_t::iterator i(args);
+	node_idx_t a = *i++, b = *i++, c = *i++;
+	return new_node_float(node_fma(a, b, c));
+}
+
 static node_idx_t native_mul_int(env_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
-		return ONE_NODE; 
-	}
+	if(args->size() == 0) return ONE_NODE; 
 
 	long long i = 1;
 	for(list_t::iterator it(args); it; it++) {
 		node_t *n = get_node(*it);
 		int type = n->type;
-		if(type == NODE_INT) {
-			i *= n->t_int;
-		} else {
-			i *= n->as_int();
-		}
+		if(type == NODE_INT) 	i *= n->t_int;
+		else					i *= n->as_int();
 	}
 	return new_node_int(i);
 }
@@ -157,9 +147,7 @@ static node_idx_t native_div(env_ptr_t env, list_ptr_t args) {
 	bool is_int = true;
 
 	size_t size = args->size();
-	if(size == 0) {
-		return ONE_NODE;
-	}
+	if(size == 0) return ONE_NODE;
 
 	// special case of 1 argument, compute 1.0 / value
 	if(size == 1) {
@@ -194,9 +182,7 @@ static node_idx_t native_div_int(env_ptr_t env, list_ptr_t args) {
 	long long i_sum = 1;
 
 	size_t size = args->size();
-	if(size == 0) {
-		return ONE_NODE;
-	}
+	if(size == 0) return ONE_NODE;
 
 	// special case of 1 argument, compute 1.0 / value
 	if(size == 1) {
@@ -225,79 +211,54 @@ static node_idx_t native_div_int(env_ptr_t env, list_ptr_t args) {
 	return new_node_int(i_sum);
 }
 
-// modulo the first argument by the second
 static node_idx_t native_mod(env_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
-		return ZERO_NODE;
-	}
-
+	if(args->size() == 0) return ZERO_NODE;
 	node_t *n = get_node(args->first_value());
-	if(n->type == NODE_INT) {
-		return new_node_int(n->t_int % get_node(args->second_value())->as_int());
-	}
+	if(n->type == NODE_INT) return new_node_int(n->t_int % get_node(args->second_value())->as_int());
 	return new_node_float(fmod(n->as_float(), get_node(args->second_value())->as_float()));
 }
 
 static node_idx_t native_remainder(env_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
-		return ZERO_NODE;
-	}
-
+	if(args->size() == 0) return ZERO_NODE;
 	node_t *n = get_node(args->first_value());
-	if(n->type == NODE_INT) {
-		return new_node_int(n->t_int % get_node(args->second_value())->as_int());
-	}
+	if(n->type == NODE_INT) return new_node_int(n->t_int % get_node(args->second_value())->as_int());
 	return new_node_float(remainder(n->as_float(), get_node(args->second_value())->as_float()));
 }
 
 static node_idx_t native_remainder_int(env_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
-		return ZERO_NODE;
-	}
+	if(args->size() == 0) return ZERO_NODE;
 	node_t *n = get_node(args->first_value());
-	if(n->type == NODE_INT) {
-		return new_node_int(n->t_int % get_node(args->second_value())->as_int());
-	}
+	if(n->type == NODE_INT) return new_node_int(n->t_int % get_node(args->second_value())->as_int());
 	return new_node_int(n->as_int() % get_node(args->second_value())->as_int());
 }
 
 static node_idx_t native_math_abs(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
-	if(n1->type == NODE_INT) {
-		return new_node_int(abs(n1->t_int));
-	}
+	if(n1->type == NODE_INT) return new_node_int(abs(n1->t_int));
 	return new_node_float(fabs(n1->as_float()));
 }
 
 static node_idx_t native_inc(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
-	if(n1->type == NODE_INT) {
-		return new_node_int(n1->t_int + 1);
-	}
+	if(n1->type == NODE_INT) return new_node_int(n1->t_int + 1);
 	return new_node_float(n1->as_float() + 1.0f);
 }
 
 static node_idx_t native_inc_int(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
-	if(n1->type == NODE_INT) {
-		return new_node_int(n1->t_int + 1);
-	}
+	if(n1->type == NODE_INT) return new_node_int(n1->t_int + 1);
 	return new_node_int(n1->as_int() + 1);
 }
 
 static node_idx_t native_dec(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
-	if(n1->type == NODE_INT) {
-		return new_node_int(n1->t_int - 1);
-	}
+	if(n1->type == NODE_INT) return new_node_int(n1->t_int - 1);
 	return new_node_float(n1->as_float() - 1.0f);
 }
 
 static node_idx_t native_dec_int(env_ptr_t env, list_ptr_t args) {
 	node_t *n1 = get_node(args->first_value());
-	if(n1->type == NODE_INT) {
-		return new_node_int(n1->t_int - 1);
-	}
+	if(n1->type == NODE_INT) return new_node_int(n1->t_int - 1);
 	return new_node_int(n1->as_int() - 1);
 }
 
@@ -370,21 +331,13 @@ static node_idx_t native_math_to_radians(env_ptr_t env, list_ptr_t args) { retur
 
 // Computes the minimum value of any number of arguments
 static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
-		return ZERO_NODE;
-	}
+	if(args->size() == 0) return ZERO_NODE;
 
 	list_t::iterator it(args);
-
-	// Get the first argument
 	node_idx_t min_node = *it++;
-
-	if(args->size() == 1) {
-		return min_node;
-	}
+	if(args->size() == 1) return min_node;
 
 	node_t *n = get_node(min_node);
-
 	if(n->type == NODE_INT) {
 		bool is_int = true;
 		long long min_int = n->t_int;
@@ -425,21 +378,15 @@ static node_idx_t native_math_min(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_math_max(env_ptr_t env, list_ptr_t args) {
-	if(args->size() == 0) {
-		return ZERO_NODE;
-	}
+	if(args->size() == 0) return ZERO_NODE;
 	
 	list_t::iterator it(args);
 	
 	// Get the first argument
 	node_idx_t max_node = *it++;
-
-	if(args->size() == 1) {
-		return max_node;
-	}
+	if(args->size() == 1) return max_node;
 
 	node_t *n = get_node(max_node);
-
 	if(n->type == NODE_INT) {
 		bool is_int = true;
 		long long max_int = n->t_int;
@@ -481,12 +428,9 @@ static node_idx_t native_math_max(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_math_clip(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
-	node_idx_t n1i = *it++;
-	node_t *n1 = get_node(n1i);
-	node_idx_t n2i = *it++;
-	node_t *n2 = get_node(n2i);
-	node_idx_t n3i = *it++;
-	node_t *n3 = get_node(n3i);
+	node_t *n1 = get_node(*it++);
+	node_t *n2 = get_node(*it++);
+	node_t *n3 = get_node(*it++);
 	if(n1->type == NODE_INT && n2->type == NODE_INT && n3->type == NODE_INT) {
 		long long val = n1->t_int;
 		long long min = n2->t_int;
@@ -596,6 +540,7 @@ void jo_clojure_math_init(env_ptr_t env) {
 	env->set("+", new_node_native_function("+", &native_add, false, NODE_FLAG_PRERESOLVE));
 	env->set("-", new_node_native_function("-", &native_sub, false, NODE_FLAG_PRERESOLVE));
 	env->set("*", new_node_native_function("*", &native_mul, false, NODE_FLAG_PRERESOLVE));
+	env->set("*+", new_node_native_function("*+", &native_fma, false, NODE_FLAG_PRERESOLVE));
 	env->set("/", new_node_native_function("/", &native_div, false, NODE_FLAG_PRERESOLVE));
 	env->set("rem", new_node_native_function("rem", &native_remainder, false, NODE_FLAG_PRERESOLVE));
 	env->set("mod", new_node_native_function("mod", &native_mod, false, NODE_FLAG_PRERESOLVE));
