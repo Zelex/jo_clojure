@@ -23,8 +23,8 @@
 
 (defn new-ball [x y vx vy]
     (into (new-entity :ball)
-    {:position [x y]
-     :velocity [vx vy]}))
+          {:position [x y]
+           :velocity [vx vy]}))
 
     
 
