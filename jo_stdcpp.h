@@ -529,6 +529,10 @@ inline typename lambda_traits<F>::pointer jo_cify(F&& f) {
     return lambda_traits<F>::jo_cify(std::forward<F>(f));
 }
 
+struct jo_object {
+    virtual ~jo_object() {}
+};
+
 // jo_pair is a simple pair of values
 template<typename T1, typename T2>
 struct jo_pair {
@@ -2050,7 +2054,19 @@ struct jo_shared_ptr {
 
     bool operator!() const { return ptr == nullptr; }
     operator bool() const { return ptr != nullptr; }
+
+    template<typename U> jo_shared_ptr<U> &cast() { 
+        static_assert(std::is_base_of<T, U>::value || std::is_base_of<U, T>::value, "type parameter of this class must derive from T or U");
+        return (jo_shared_ptr<U>&)(*this); 
+    }
+    template<typename U> const jo_shared_ptr<U> &cast() const { 
+        static_assert(std::is_base_of<T, U>::value || std::is_base_of<U, T>::value, "type parameter of this class must derive from T or U");
+        return (const jo_shared_ptr<U>&)(*this); 
+    }
 };
+
+template<typename T> jo_shared_ptr<T> jo_make_shared() { return jo_shared_ptr<T>(new T()); }
+template<typename T> jo_shared_ptr<T> jo_make_shared(const T& other) { return jo_shared_ptr<T>(new T(other)); }
 
 // jo_unqiue_ptr
 template<typename T>
@@ -2078,8 +2094,7 @@ struct jo_unique_ptr {
 // Persistent Vector implementation (vector that supports versioning)
 // For use in purely functional languages
 template<typename T>
-struct jo_persistent_vector
-{
+struct jo_persistent_vector : jo_object {
     struct node {
         jo_shared_ptr<node> children[32];
         T elements[32];
@@ -2089,7 +2104,9 @@ struct jo_persistent_vector
         ~node() {
             for (int i = 0; i < 32; ++i) {
                 children[i] = NULL;
-                elements[i] = std::move(T());
+                if(!std::is_pod<T>::value) {
+                    elements[i] = std::move(T());
+                }
             }
         }
 
@@ -2874,344 +2891,130 @@ struct jo_persistent_vector
     }
 };
 
-// A persistent vector class which is fast to both push to front and back
+// A persistent vector2d structure. broken up into a tree of 8x8 blocks. Like jo_persistent_vector, but 2D
 template<typename T>
-struct jo_persistent_vector_bidirectional {
-    jo_persistent_vector<T> positive;
-    jo_persistent_vector<T> negative;
+struct jo_persistent_vector2d : jo_object {
+    struct block_t {
+        // block size is 8x8 = 64 pixels
+        jo_shared_ptr<block_t> children[64];
+        T elements[64];
 
-    jo_persistent_vector_bidirectional() {}
-
-    jo_persistent_vector_bidirectional(const jo_persistent_vector<T> &positive, const jo_persistent_vector<T> &negative) :
-        positive(positive), negative(negative) {}
-
-    jo_persistent_vector_bidirectional(const jo_persistent_vector_bidirectional &other) :
-        positive(other.positive), negative(other.negative) {}
-
-    jo_persistent_vector_bidirectional &operator=(const jo_persistent_vector_bidirectional &other) {
-        positive = other.positive;
-        negative = other.negative;
-        return *this;
-    }
-
-    size_t size() const {
-        return positive.size() + negative.size();
-    }
-
-    jo_persistent_vector_bidirectional *push_back(const T &value) const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
-        if(copy->positive.length > 0) {
-            copy->positive.push_back(value);
-        } else if(copy->negative.head_offset > 0) {
-            copy->negative = copy->negative.push_front(value);
-        } else {
-            copy->positive = copy->positive.push_back(value);
+        block_t() : children(), elements() {}
+        
+        ~block_t() {
+            for(int i = 0; i < 64; ++i) {
+                children[i] = nullptr;
+                if(!std::is_pod<T>::value) {
+                    elements[i] = std::move(T());
+                }
+            }
         }
-        return copy;
-    }
 
-    jo_persistent_vector_bidirectional *push_back_inplace(const T &value) {
-        if(positive.length > 0) {
-            positive.push_back_inplace(value);
-        } else if(negative.head_offset > 0) {
-            negative.push_front_inplace(value);
-        } else {
-            positive.push_back_inplace(value);
+        block_t(const jo_shared_ptr<block_t> &other) : children(), elements() {
+            if(other.ptr) {
+                for (int i = 0; i < 64; ++i) {
+                    children[i] = other->children[i];
+                    elements[i] = other->elements[i];
+                }
+            }
         }
-        return this;
-    }
 
-    jo_persistent_vector_bidirectional *push_front(const T &value) const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
-        if(copy->negative.length > 0) {
-            copy->negative.push_back_inplace(value);
-        } else if(copy->positive.head_offset > 0) {
-            copy->positive.push_front_inplace(value);
-        } else {
-            copy->negative.push_back_inplace(value);
-        }
-        return copy;
-    }
 
-    jo_persistent_vector_bidirectional *push_front_inplace(const T &value) {
-        if(negative.length > 0) {
-            negative.push_back_inplace(value);
-        } else if(positive.head_offset > 0) {
-            positive.push_front_inplace(value);
-        } else {
-            negative.push_back_inplace(value);
-        }
-        return this;
-    }
-
-    jo_persistent_vector_bidirectional *pop_front() const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
-        if(copy->negative.length > 0) {
-            copy->negative.pop_back_inplace();
-        } else {
-            copy->positive.pop_front_inplace();
-        }
-        return copy;
-    }
-
-    jo_persistent_vector_bidirectional *pop_front_inplace() {
-        if(negative.length > 0) {
-            negative.pop_back_inplace();
-        } else {
-            positive.pop_front_inplace();
-        }
-        return this;
-    }
-
-    jo_persistent_vector_bidirectional *pop_back() const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
-        if(copy->positive.length > 0) {
-            copy->positive = copy->positive.pop_back();
-        } else {
-            copy->negative = copy->negative.pop_front();
-        }
-        return copy;
-    }
-
-    jo_persistent_vector_bidirectional *pop_back_inplace() {
-        if(positive.length > 0) {
-            positive.pop_back_inplace();
-        } else {
-            negative.pop_front_inplace();
-        }
-        return this;
-    }
-
-    T &back() {
-        if(positive.length > 0) {
-            return positive.back();
-        } else {
-            return negative.front();
-        }
-    }
-
-    const T &back() const {
-        if(positive.length > 0) {
-            return positive.back();
-        } else {
-            return negative.front();
-        }
-    }
-
-    T &front() {
-        if(positive.length > 0) {
-            return positive.front();
-        } else {
-            return negative.back();
-        }
-    }
-
-    const T &front() const {
-        if(positive.length > 0) {
-            return positive.front();
-        } else {
-            return negative.back();
-        }
-    }
-
-    T &first_value() {
-        return front();
-    }
-
-    T &last_value() {
-        return back();
-    }
-
-    jo_persistent_vector<T> *to_vector() {
-        jo_persistent_vector<T> *vec = new jo_persistent_vector<T>();
-        for(jo_persistent_vector_bidirectional::iterator it = begin(); it; ++it) {
-            vec->push_back_inplace(*it);
-        }
-        return vec;
-    }
-
-    T &operator[](size_t index) {
-        if(index < negative.length) {
-            return negative[negative.length - index - 1];
-        } else {
-            return positive[index - negative.length];
-        }
-    }
-
-    const T &operator[](size_t index) const {
-        if(index < negative.length) {
-            return negative[negative.length - index - 1];
-        } else {
-            return positive[index - negative.length];
-        }
-    }
-
-    T &nth(size_t index) {
-        return (*this)[index];
-    }
-
-    const T &nth(size_t index) const {
-        return (*this)[index];
-    }
-
-    jo_persistent_vector_bidirectional *copy() const {
-        return new jo_persistent_vector_bidirectional(*this);
-    }
-
-    jo_persistent_vector_bidirectional *cons(const T &value) const {
-        return push_front(value);
-    }
-
-    jo_persistent_vector_bidirectional *cons_inplace(const T &value) {
-        return push_front_inplace(value);
-    }
-
-    jo_persistent_vector_bidirectional *rest() const {
-        return pop_front();
-    }
-
-    jo_persistent_vector_bidirectional *pop() const {
-        return pop_front();
-    }
-
-    jo_persistent_vector_bidirectional *drop(size_t n) const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
-        for(size_t i = 0; i < n; ++i) {
-            copy = copy->pop_front();
-        }
-        return copy;
-    }
-
-    jo_persistent_vector_bidirectional *conj(const jo_persistent_vector_bidirectional &other) const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
-        for(jo_persistent_vector_bidirectional::iterator it = other.begin(); it; ++it) {
-            copy->push_back_inplace(*it);
-        }
-        return copy;
-    }
-
-    jo_persistent_vector_bidirectional *conj_inplace(const jo_persistent_vector_bidirectional &other) {
-        for(jo_persistent_vector_bidirectional::iterator it = other.begin(); it; ++it) {
-            push_back_inplace(*it);
-        }
-        return this;
-    }
-
-    // subvec (this could be faster)
-    jo_persistent_vector_bidirectional *subvec(size_t start, size_t end) const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional();
-        for(size_t i = start; i < end; ++i) {
-            copy->push_back_inplace((*this)[i]);
-        }
-        return copy;
-    }
-
-    // reverse
-    jo_persistent_vector_bidirectional *reverse() const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional();
-        for(jo_persistent_vector_bidirectional::iterator it = begin(); it; ++it) {
-            copy->push_front_inplace(*it);
-        }
-        return copy;
-    }
-
-    // clone
-    jo_persistent_vector_bidirectional *clone() const {
-        return copy();
-    }
-
-    class iterator {
-    public:
-        iterator() : vec(NULL), index(0) {}
-        iterator(const jo_persistent_vector_bidirectional *vec, size_t index) : vec(vec), index(index) {}
-        iterator(const iterator &other) : vec(other.vec), index(other.index) {}
-        iterator &operator++() {
-            ++index;
-            return *this;
-        }
-        iterator &operator--() {
-            --index;
-            return *this;
-        }
-        iterator operator++(int) {
-            iterator copy(*this);
-            ++index;
-            return copy;
-        }
-        iterator operator--(int) {
-            iterator copy(*this);
-            --index;
-            return copy;
-        }
-        bool operator==(const iterator &other) const {
-            return vec == other.vec && index == other.index;
-        }
-        bool operator!=(const iterator &other) const {
-            return vec != other.vec || index != other.index;
-        }
-        operator bool() const {
-            return index < vec->size();
-        }
-        const T &operator*() const {
-            return (*vec)[index];
-        }
-        const T *operator->() const {
-            return &(*vec)[index];
-        }
-    private:
-        const jo_persistent_vector_bidirectional *vec;
-        size_t index;
     };
 
-    iterator begin() const {
-        return iterator(this, 0);
+    // The root of the vector2d tree
+    jo_shared_ptr<block_t> root;
+    // Dimensions of the vector2d
+    size_t width,height;
+    // Depth of the tree
+    size_t depth;
+
+    jo_persistent_vector2d() : root(), width(0), height(0), depth(0) {}
+
+    jo_persistent_vector2d(size_t w, size_t h) {
+        width = w;
+        height = h;
+        depth = (size_t)ceil(log2(jo_max(w, h))) / 3; // / 3 cause its 8x8
+        root = jo_make_shared<block_t>();
     }
 
-    iterator end() const {
-        return iterator(this, size());
+    jo_persistent_vector2d(const jo_persistent_vector2d &other) {
+        width = other.width;
+        height = other.height;
+        depth = other.depth;
+        root = jo_make_shared<block_t>(other.root);
     }
 
-    jo_persistent_vector_bidirectional::iterator find(const T &value) const {
-        for(int i = 0; i < size(); ++i) {
-            if(operator[](i) == value) {
-                return iterator(this, i);
+    jo_persistent_vector2d(jo_persistent_vector2d &&other) {
+        width = other.width;
+        height = other.height;
+        depth = other.depth;
+        root = other.root;
+        other.root = nullptr;
+    }
+
+    jo_persistent_vector2d *clone() {
+        return new jo_persistent_vector2d(*this);
+    }
+
+    void set(size_t x, size_t y, T value) {
+        int shift = 3 * (depth + 1);
+
+        root = new block_t(root);
+
+        jo_shared_ptr<block_t> cur = NULL;
+        jo_shared_ptr<block_t> prev = root;
+        for (int level = shift; level > 0; level -= 3) {
+            size_t xx = (x >> level) & 7;
+            size_t yy = (y >> level) & 7;
+            size_t i = yy * 8 + xx;
+
+            // copy nodes as we traverse
+            cur = new block_t(prev->children[i]);
+            prev->children[i] = cur;
+            prev = cur;
+        }
+        prev->elements[(y & 7) * 8 + (x & 7)] = value;
+    }
+
+    T get(size_t x, size_t y) const {
+        int shift = 3 * (depth + 1);
+
+        jo_shared_ptr<block_t> cur = root;
+
+        for (int level = shift; level > 0; level -= 3) {
+            size_t xx = (x >> level) & 7;
+            size_t yy = (y >> level) & 7;
+            size_t i = yy * 8 + xx;
+
+            cur = cur->children[i];
+            if (!cur) {
+                return T();
             }
         }
-        return iterator(this, size());
+        return cur->elements[(y & 7) * 8 + (x & 7)];
     }
 
-    // find with lambda for comparison
-    template<typename F>
-    jo_persistent_vector_bidirectional::iterator find(const F &f) const {
-        for(int i = 0; i < size(); ++i) {
-            if(f(operator[](i))) {
-                return iterator(this, i);
+    void clear() {
+        root = nullptr;
+    }
+
+    T *c_array() {
+        T *arr = new T[width * height];
+        // TODO: could be MUCH faster
+        for (size_t y = 0; y < height; ++y) {
+            for (size_t x = 0; x < width; ++x) {
+                arr[y * width + x] = get(x, y);
             }
         }
-        return iterator(this, size());
-    }
-
-    bool contains(const T &value) const {
-        return find(value) != end();
-    }
-
-    // contains with lambda for comparison
-    template<typename F>
-    bool contains(const F &f) const {
-        return find(f) != end();
-    }
-
-    jo_persistent_vector_bidirectional *erase(const T &value) const {
-        jo_persistent_vector_bidirectional *copy = new jo_persistent_vector_bidirectional(*this);
-        copy->negative.erase_value_inplace(value);
-        copy->positive.erase_value_inplace(value);
-        return copy;
+        return arr;
     }
 };
 
+
 // A persistent (non-destructive) linked list implementation.
 template<typename T>
-struct jo_persistent_list {
+struct jo_persistent_list : jo_object {
     struct node {
         T value;
         jo_shared_ptr<node> next;
@@ -3935,16 +3738,32 @@ struct jo_persistent_list {
             return copy;
         }
         T &operator*() {
-            return cur->value;
+            if(cur) {
+                return cur->value;
+            }
+            static T dummy;
+            return dummy;
         }
         T *operator->() {
-            return &cur->value;
+            if(cur) {
+                return &cur->value;
+            }
+            static T dummy;
+            return &dummy;
         }
         const T &operator*() const {
-            return cur->value;
+            if(cur) {
+                return cur->value;
+            }
+            static T dummy;
+            return dummy;
         }
         const T *operator->() const {
-            return &cur->value;
+            if(cur) {
+                return &cur->value;
+            }
+            static T dummy;
+            return &dummy;
         }
 
     };
@@ -4022,7 +3841,7 @@ template<> size_t jo_hash_value(const jo_string &value) { return jo_hash_value(v
 // that uses a persistent vector as the underlying data structure
 // for the map.
 template<typename K, typename V>
-struct jo_persistent_unordered_map {
+struct jo_persistent_unordered_map : jo_object {
     // the way this works is that you make your hash value of K and
     // then use that as an index into the vector.
     typedef jo_triple<K, V, bool> entry_t;
@@ -4328,7 +4147,7 @@ private:
 
 // jo_persistent_unordered_set
 template<typename K>
-class jo_persistent_unordered_set {
+class jo_persistent_unordered_set : jo_object {
     // the way this works is that you make your hash value of K and
     // then use that as an index into the vector.
     typedef jo_pair<K, bool> entry_t;

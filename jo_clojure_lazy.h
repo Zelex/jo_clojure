@@ -518,7 +518,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 	}
 	if(get_node_type(coll_idx) == NODE_HASH_SET) {
 		// don't do it lazily if not given lazy inputs... thats dumb
-		hash_set_ptr_t list_list = get_node(coll_idx)->as_set();
+		hash_set_ptr_t list_list = get_node(coll_idx)->as_hash_set();
 		hash_set_ptr_t ret = new_hash_set();
 		list_ptr_t args = new_list();
 		args->push_back_inplace(pred_idx);
@@ -595,7 +595,7 @@ static node_idx_t native_keep_next(env_ptr_t env, list_ptr_t args) {
 		}
 	}
 	if(coll_type == NODE_VECTOR) {
-		vector_ptr_t vec_list = get_node(coll_idx)->t_vector;
+		vector_ptr_t vec_list = get_node(coll_idx)->as_vector();
 		while(!vec_list->empty()) {
 			node_idx_t item_idx = vec_list->first_value();
 			vec_list = vec_list->pop_front();
@@ -794,7 +794,7 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 					return NIL_NODE;
 				}
 			} else if(ntype == NODE_VECTOR) {
-				if(n->t_vector->size() == 0) {
+				if(n->as_vector()->size() == 0) {
 					return NIL_NODE;
 				}
 			} else if(ntype == NODE_LAZY_LIST) {
@@ -820,7 +820,7 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 		val = n->first_value();
 		args->cons_inplace(new_node_list(n->pop()));
 	} else if(ntype == NODE_VECTOR) {
-		vector_ptr_t n = get_node(nidx)->t_vector;
+		vector_ptr_t n = get_node(nidx)->as_vector();
 		val = n->first_value();
 		args->cons_inplace(new_node_vector(n->pop_front()));
 	} else if(ntype == NODE_LAZY_LIST) {
@@ -1018,7 +1018,7 @@ static node_idx_t native_cons(env_ptr_t env, list_ptr_t args) {
 		return new_node_list(second_list->cons(first_idx));
 	}
 	if(second->type == NODE_VECTOR) {
-		vector_ptr_t second_vector = second->t_vector;
+		vector_ptr_t second_vector = second->as_vector();
 		return new_node_vector(second_vector->cons(first_idx));
 	}
 	if(second->type == NODE_LAZY_LIST) {
@@ -1293,7 +1293,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 
 	// pre-calculate where the loop points are
 	vector_ptr_t PC_list = new_vector();
-	vector_ptr_t exprs = seq_exprs->t_vector;
+	vector_ptr_t exprs = seq_exprs->as_vector();
 	auto expr_it = exprs->begin();
 	for(int PC = 0; expr_it; PC++) {
 		node_idx_t expr_idx = *expr_it++;

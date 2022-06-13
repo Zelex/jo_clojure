@@ -858,7 +858,7 @@ static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 		node_idx_t args_idx = new_node_list(args);
 		node_idx_t C_idx = native_deref(env, list_va(cache_idx));
 		node_t *C = get_node(C_idx);
-		map_ptr_t mem = C->t_map;
+		map_ptr_t mem = C->as_map();
 		if(mem->contains(args_idx, node_eq)) {
 			return mem->get(args_idx, node_eq);
 		}
