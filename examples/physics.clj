@@ -3,7 +3,7 @@
 (def entities (atom []))
 
 ; Reflex the walls of the box
-(defn physics-reflect-walls [x vx] (if (or (< x 0) (> x 100)) -vx vx))
+(defn physics-reflect-walls [x vx] (if (or (< x 0) (> x 128)) -vx vx))
 
 ; Run physics, return new state
 (defn tick-physics [{:position [x y] :velocity [vx vy] :acceleration [ax ay] :mass m :radius r} timestep]
@@ -17,7 +17,7 @@
 (defn new-entity [type]
     {:type type
      :physics (atom {
-        :position [(rand 0 100) (rand 0 100)]
+        :position [(rand 0 128) (rand 0 128)]
         :velocity [(rand -1 1) (rand -1 1)]
         :acceleration [0 0]
         :mass 1
@@ -31,20 +31,20 @@
     })
 
 ; Make a bunch of balls
-(doseq [i (range 100)]
+(doseq [i (range 128)]
     (swap! entities conj (atom (new-entity :ball))))
 
 ; Create an output gif file
 
 ; Simulate N frames
-(doseq [frame (range 100)]
+(doseq [frame (range 128)]
     (let [canvas (vector2d 128 128)]
         (doseq [entity @entities]
             ; run the tick function
             ((@entity :tick) 0.01)
-            ; render dot to canvas
+            ; render dot to canvas at entity location
             )
-        ; output image to gif
+        ; output canvas as frame to gif
     ))
 
 ; Close output gif file
