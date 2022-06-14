@@ -3,14 +3,17 @@
 (def entities (atom []))
 
 ; Reflex the walls of the box
-(defn physics-reflect-walls [x vx] (if (or (< x 0) (> x 128)) (- vx) vx))
+(defn physics-reflect-walls [x vx] (if (or (< x 0) (>= x 128)) (- vx) vx))
 
 ; Run physics, return new state
 (defn tick-physics [{:position [x y] :velocity [vx vy] :acceleration [ax ay] :mass m :radius r} timestep]
     (let [nx (*+ timestep vx x)
           ny (*+ timestep vy y)
           nvx (physics-reflect-walls nx (*+ timestep ax vx))
-          nvy (physics-reflect-walls ny (*+ timestep ay vy))]
+          nvy (physics-reflect-walls ny (*+ timestep ay vy))
+          nx (*+ timestep nvx x)
+          ny (*+ timestep nvy y)
+          ]
           {:position [nx ny] :velocity [nvx nvy] :acceleration [0 0] :mass m :radius r}))
 
 ; Construct a new entity 
