@@ -1,23 +1,20 @@
 
 (def dim 128) ; dimension of the world
-(def num-balls 128) ; to bounce around
+(def num-balls 256) ; to bounce around
 (def num-frames 128) ; to simulate
 
-; Limit worker threads?
-;(Thread/workers 8)
 
 ; Make the collision hash
 (def collision-hash (atom []))
-(def collision-buckets 16)
-(doseq [_ (range collision-buckets)] (swap! collision-hash conj (atom #{})))
+(def collision-buckets 256)
 
-(defn get-pos-hash [x y] (mod (hash (str (Math/quantize x 8) (Math/quantize y 8))) collision-buckets))
-;(defn get-pos-hash [x y] (hash (str (Math/quantize x 8) (Math/quantize y 8))))
+(defn get-pos-hash [x y] (mod (hash (str (Math/quantize x 1) (Math/quantize y 1))) collision-buckets))
 
 (defn add-collision-hash [entity] 
     (let [phys (@entity :physics)
           [x y] (@phys :position)]
-    (swap! (@collision-hash (get-pos-hash x y)) conj entity)))
+    (swap! (@collision-hash (get-pos-hash x y)) conj entity)
+    ))
 
 ; Function to update the collision hash for old/new positions
 (defn update-collision-hash [entity x y nx ny] 
@@ -45,11 +42,8 @@
                  ]
             :when (< d (+ o-r r))
             ]
-            true
-            ))))
+            true))))
 
-; List of entities
-(def entities (atom []))
 
 ; Reflect the walls of the box, or if we bumped into something else
 (defn physics-reflect [x vx bump?] (if (or (< x 0) (>= x dim) bump?) (- vx) vx))
@@ -62,8 +56,7 @@
           nvx (physics-reflect nx (*+ timestep ax vx) bump?)
           nvy (physics-reflect ny (*+ timestep ay vy) bump?)
           nx (*+ timestep nvx x)
-          ny (*+ timestep nvy y)
-          ]
+          ny (*+ timestep nvy y)]
           (update-collision-hash entity x y nx ny)
           {:position [nx ny] :velocity [nvx nvy] :acceleration [0 0] :mass m :radius r}))
 
@@ -75,30 +68,19 @@
         :velocity [(rand -1 1) (rand -1 1)]
         :acceleration [0 0]
         :mass 1
-        :radius 0.5
-     })
+        :radius 0.5})
      :color 0xFFFFFFFF
      :life 1
      :dead? false
      :tick (fn [entity timestep]
-             (swap! (@entity :physics) tick-physics entity timestep)
-             )
-    })
-
-; Make a bunch of balls
-(println "Make balls...")
-(doseq [_ (range num-balls)]
-    (let [entity (atom (new-entity :ball))]
-        (swap! entities conj entity)
-        (add-collision-hash entity)))
-
+             (swap! (@entity :physics) tick-physics entity timestep))})
 
 ; Create an output gif file
-(println "Render gif...")
-(let [gif-file (gif/open "physics.gif" dim dim 0 8)]
+(println "Simulate...")
+(comment let [gif-file (gif/open "physics.gif" dim dim 0 8)]
     ; Simulate N frames
-    (doseq [frame (range num-frames)]
-        (println "Frame: " frame)
+    (println "Time: " (time (doseq [frame (range num-frames)]
+        ;(println "Frame: " frame)
         (let [canvas (atom (vector2d dim dim))]
             (->> @entities
                 (pmap (fn [entity] 
@@ -108,10 +90,29 @@
                 (map deref)
                 (dorun))
             ; Write frame to gif-file
-            (gif/frame gif-file @canvas 0 false)))
+            ;(gif/frame gif-file @canvas 0 false)
+            ))))
     ; Write gif footer to gif-file
     (gif/close gif-file))
 
+(doseq [num-cores (range 1 (+ 1 *hardware-concurrency*))]
+    (Thread/workers num-cores)
+    (println "Testing with" num-cores "cores")
+    (let [entities (atom [])]
+        (Math/srand 0)
+        (reset! collision-hash [])
+        (doseq [_ (range collision-buckets)] (swap! collision-hash conj (atom #{})))
+        (doseq [_ (range num-balls)]
+            (let [entity (atom (new-entity :ball))]
+                (swap! entities conj entity)
+                (add-collision-hash entity)))
+        (println "Time: " (time (doseq [_ (range num-frames)]
+                (->> @entities
+                    (pmap (fn [entity] ((@entity :tick) entity 1)))
+                    (doall)
+                    (map deref)
+                    (dorun))
+                )))))
 
 
     

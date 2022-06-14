@@ -528,6 +528,11 @@ static node_idx_t native_math_average(env_ptr_t env, list_ptr_t args) {
 	return new_node_float(sum / args->size());
 }
 
+static node_idx_t native_math_srand(env_ptr_t env, list_ptr_t args) {
+	srand(get_node_int(args->first_value()));
+	return NIL_NODE;
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
 	env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -548,6 +553,7 @@ void jo_clojure_math_init(env_ptr_t env) {
 	env->set("dec", new_node_native_function("dec", &native_dec, false, NODE_FLAG_PRERESOLVE));
 	env->set("rand-int", new_node_native_function("rand-int", &native_rand_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("rand", new_node_native_function("rand", &native_rand, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/srand", new_node_native_function("Math/srand", &native_math_srand, false, NODE_FLAG_PRERESOLVE));
 	env->set("even?", new_node_native_function("even?", &native_is_even, false, NODE_FLAG_PRERESOLVE));
 	env->set("odd?", new_node_native_function("odd?", &native_is_odd, false, NODE_FLAG_PRERESOLVE));
 	env->set("pos?", new_node_native_function("pos?", &native_is_pos, false, NODE_FLAG_PRERESOLVE));
