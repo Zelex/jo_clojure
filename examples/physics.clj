@@ -35,8 +35,7 @@
     (swap! entities conj (atom (new-entity :ball))))
 
 ; Create an output gif file
-(let [gif-file (io/open-file "wb" "physics.gif")]
-    ; Write gif header to gif-file
+(let [gif-file (gif/open "physics.gif" 128 128 0 8)]
     ; Simulate N frames
     (doseq [_ (range 128)]
         (let [canvas (atom (vector2d 128 128))]
@@ -46,9 +45,10 @@
                 (let [physics (@entity :physics)]
                     (swap! canvas assoc (@physics :position) (@entity :color)))
             ; Write frame to gif-file
+            (gif/frame gif-file canvas 0 true)
         )))
     ; Write gif footer to gif-file
-    (io/close-file gif-file))
+    (gif/close gif-file))
 
 
 

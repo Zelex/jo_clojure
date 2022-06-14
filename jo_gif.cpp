@@ -293,7 +293,7 @@ jo_gif_t jo_gif_start(const char *filename, short width, short height, short rep
 
 	gif.fp = fopen(filename, "wb");
 	if(!gif.fp) {
-		printf("Error: Could not WriteGif to %s\n", filename);
+		printf("Error: Could not jo_gif_start to %s\n", filename);
 		return gif;
 	}
 
@@ -394,5 +394,6 @@ void jo_gif_end(jo_gif_t *gif) {
 	}
 	putc(0x3b, gif->fp); // gif trailer
 	fclose(gif->fp);
+	memset(gif, 0, sizeof(*gif));
 }
 #endif

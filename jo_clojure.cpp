@@ -18,8 +18,6 @@
 #include "debugbreak.h"
 #include "jo_stdcpp.h"
 
-#include "jo_gif.cpp"
-
 //#define debugf printf
 #ifndef debugf
 #define debugf sizeof
@@ -106,6 +104,7 @@ enum {
 	NODE_PROMISE,
 	NODE_RECUR,
 	NODE_REDUCED,
+	NODE_GIF, // jo_gif library
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
@@ -5977,6 +5976,7 @@ static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) {
 #include "jo_clojure_io.h"
 #include "jo_clojure_lazy.h"
 #include "jo_clojure_async.h"
+#include "jo_clojure_gif.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -6275,6 +6275,7 @@ int main(int argc, char **argv) {
 	jo_clojure_lazy_init(env);
 	jo_clojure_io_init(env);
 	jo_clojure_async_init(env);
+	jo_clojure_gif_init(env);
 	
 	FILE *fp = fopen(argv[1], "r");
 	if(!fp) {
