@@ -35,19 +35,20 @@
     (swap! entities conj (atom (new-entity :ball))))
 
 ; Create an output gif file
-
-; Simulate N frames
-(doseq [frame (range 128)]
-    (let [canvas (vector2d 128 128)]
-        (doseq [entity @entities]
-            ; run the tick function
-            ((@entity :tick) 0.01)
-            ; render dot to canvas at entity location
-            )
-        ; output canvas as frame to gif
-    ))
-
-; Close output gif file
+(let [gif-file (io/open-file "wb" "physics.gif")]
+    ; Write gif header to gif-file
+    ; Simulate N frames
+    (doseq [_ (range 128)]
+        (let [canvas (atom (vector2d 128 128))]
+            (doseq [entity @entities]
+                ; run the tick function
+                ((@entity :tick) 0.01)
+                (let [physics (@entity :physics)]
+                    (swap! canvas assoc (@physics :position) (@entity :color)))
+            ; Write frame to gif-file
+        )))
+    ; Write gif footer to gif-file
+    (io/close-file gif-file))
 
 
 

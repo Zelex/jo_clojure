@@ -2918,8 +2918,6 @@ struct jo_persistent_vector2d : jo_object {
                 }
             }
         }
-
-
     };
 
     // The root of the vector2d tree
@@ -2975,6 +2973,12 @@ struct jo_persistent_vector2d : jo_object {
             prev = cur;
         }
         prev->elements[(y & 7) * 8 + (x & 7)] = value;
+    }
+
+    jo_persistent_vector2d *set_new(size_t x, size_t y, T value) const {
+        jo_persistent_vector2d *copy = new jo_persistent_vector2d(*this);
+        copy->set(x, y, value);
+        return copy;
     }
 
     T get(size_t x, size_t y) const {
@@ -4067,10 +4071,36 @@ struct jo_persistent_unordered_map : jo_object {
         return entry_t();
     }
 
+    entry_t second() const {
+        for(auto it = this->vec.begin(); it; ++it) {
+            if(it->third) {
+                for(++it; it; ++it) {
+                    if(it->third) {
+                        return *it;
+                    }
+                }
+            }
+        }
+        return entry_t();
+    }
+
     V first_value() const {
         for(auto it = vec.begin(); it; ++it) {
             if(it->third) {
                 return it->second;
+            }
+        }
+        return V();
+    }
+
+    V second_value() const {
+        for(auto it = vec.begin(); it; ++it) {
+            if(it->third) {
+                for(++it; it; ++it) {
+                    if(it->third) {
+                        return it->second;
+                    }
+                }
             }
         }
         return V();
@@ -4352,6 +4382,19 @@ public:
         for(auto it = vec.begin(); it; ++it) {
             if(it->second) {
                 return it->first;
+            }
+        }
+        return K();
+    }
+
+    K second_value() const {
+        for(auto it = vec.begin(); it; ++it) {
+            if(it->second) {
+                for(++it; it; ++it) {
+                    if(it->second) {
+                        return it->first;
+                    }
+                }
             }
         }
         return K();

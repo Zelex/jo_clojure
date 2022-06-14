@@ -836,6 +836,34 @@ struct node_t {
 		return seq_first_t(NIL_NODE, false);
 	}
 
+	// second
+	typedef jo_pair<node_idx_t, bool> seq_second_t;
+	seq_second_t seq_second() const {
+		if(is_list()) return seq_second_t(t_list->second_value(), t_list->size() >= 2);
+		if(is_vector()) return seq_second_t(as_vector()->nth(1), t_list->size() >= 2);
+		if(is_map()) {
+			if(as_map()->size() < 2) return seq_second_t(NIL_NODE, false);
+			auto e = as_map()->second();
+			return seq_second_t(new_node_vector(vector_va(e.first, e.second)), true);
+		}
+		if(is_hash_set()) {
+			if(as_hash_set()->size() < 2) return seq_second_t(NIL_NODE, false);
+			return seq_second_t(as_hash_set()->second_value(), true);
+		}
+		if(is_lazy_list()) {
+			lazy_list_iterator_t lit(this);
+			if(lit.done()) return seq_second_t(NIL_NODE, false);
+			lit.next();
+			if(lit.done()) return seq_second_t(NIL_NODE, false);
+			return seq_second_t(lit.val, true);
+		}
+		if(is_string()) {
+			if(t_string.size() < 2) return seq_second_t(NIL_NODE, false);
+			return seq_second_t(new_node_int(t_string.c_str()[1], NODE_FLAG_CHAR), true);
+		}
+		return seq_second_t(NIL_NODE, false);
+	}
+
 	typedef jo_pair<node_idx_t, bool> seq_rest_t;
 	seq_rest_t seq_rest() const {
 		if(is_list()) {
@@ -4423,6 +4451,18 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 			vec = vec->assoc(get_node_int(key_idx), val_idx);
 		}
 		return new_node_vector(vec);
+	}
+	if(map_node->is_vector2d()) {
+		vector2d_ptr_t vec = map_node->as_vector2d();
+		while(it) {
+			node_idx_t key_idx = *it++;
+			node_idx_t val_idx = *it++;
+			node_t *key_node = get_node(key_idx);
+			size_t x = get_node_int(key_node->seq_first().first);
+			size_t y = get_node_int(key_node->seq_second().first);
+			vec = vec->set_new(x, y, val_idx);
+		}
+		return new_node_vector2d(vec);
 	}
 	warnf("assoc: not a map, set, or vector\n");
 	return NIL_NODE;
