@@ -40,7 +40,7 @@ static node_idx_t native_gif_frame(env_ptr_t env, list_ptr_t args) {
     bool local_palette = get_node_bool(*it++);
 
     if(!gif.ptr || !canvas.ptr) {
-        warnf("invalid gif or canvas\n");
+        warnf("invalid gif or not a vector2d\n");
         return NIL_NODE;
     }
 
@@ -56,7 +56,8 @@ static node_idx_t native_gif_frame(env_ptr_t env, list_ptr_t args) {
     // TODO: could be MUCH faster
     for (size_t y = 0; y < height; ++y) {
         for (size_t x = 0; x < width; ++x) {
-            rgba[y * width + x] = (unsigned)get_node_int(canvas->get(x, y));
+            unsigned color = (unsigned)get_node_int(canvas->get(x, y));
+            rgba[y * width + x] = color;
         }
     }
 

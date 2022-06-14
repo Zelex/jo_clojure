@@ -176,9 +176,7 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-
     list_t::iterator it(args);
-
 	node_idx_t atom_idx = eval_node(env, *it++);
 	node_idx_t f_idx = eval_node(env, *it++);
 	list_ptr_t args2 = args->rest(it);
@@ -194,7 +192,7 @@ static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
 
 	list_ptr_t tmp = new_list();
 	for(list_t::iterator it2 = it; it2; ++it2) {
-		tmp->push_front_inplace(eval_node(env, *it2));
+		tmp->push_back_inplace(eval_node(env, *it2));
 	}
 
 	if(env->tx.ptr) {

@@ -2920,48 +2920,44 @@ struct jo_persistent_vector2d : jo_object {
         }
     };
 
-    // The root of the vector2d tree
-    jo_shared_ptr<block_t> root;
+    // The head of the vector2d tree
+    jo_shared_ptr<block_t> head;
     // Dimensions of the vector2d
     size_t width,height;
     // Depth of the tree
     size_t depth;
 
-    jo_persistent_vector2d() : root(), width(0), height(0), depth(0) {}
+    jo_persistent_vector2d() : head(), width(0), height(0), depth(0) {}
 
     jo_persistent_vector2d(size_t w, size_t h) {
         width = w;
         height = h;
         depth = (size_t)ceil(log2(jo_max(w, h))) / 3; // / 3 cause its 8x8
-        root = jo_make_shared<block_t>();
+        head = jo_make_shared<block_t>();
     }
 
     jo_persistent_vector2d(const jo_persistent_vector2d &other) {
         width = other.width;
         height = other.height;
         depth = other.depth;
-        root = jo_make_shared<block_t>(other.root);
-    }
-
-    jo_persistent_vector2d(jo_persistent_vector2d &&other) {
-        width = other.width;
-        height = other.height;
-        depth = other.depth;
-        root = other.root;
-        other.root = nullptr;
+        head = other.head;
     }
 
     jo_persistent_vector2d *clone() {
         return new jo_persistent_vector2d(*this);
     }
 
-    void set(size_t x, size_t y, T value) {
+    void set(size_t x, size_t y, T &value) {
+        if(x >= width || y >= height) {
+            return;
+        }
+
         int shift = 3 * (depth + 1);
 
-        root = new block_t(root);
+        head = new block_t(head);
 
         jo_shared_ptr<block_t> cur = NULL;
-        jo_shared_ptr<block_t> prev = root;
+        jo_shared_ptr<block_t> prev = head;
         for (int level = shift; level > 0; level -= 3) {
             size_t xx = (x >> level) & 7;
             size_t yy = (y >> level) & 7;
@@ -2975,7 +2971,7 @@ struct jo_persistent_vector2d : jo_object {
         prev->elements[(y & 7) * 8 + (x & 7)] = value;
     }
 
-    jo_persistent_vector2d *set_new(size_t x, size_t y, T value) const {
+    jo_persistent_vector2d *set_new(size_t x, size_t y, T &value) const {
         jo_persistent_vector2d *copy = new jo_persistent_vector2d(*this);
         copy->set(x, y, value);
         return copy;
@@ -2984,7 +2980,7 @@ struct jo_persistent_vector2d : jo_object {
     T get(size_t x, size_t y) const {
         int shift = 3 * (depth + 1);
 
-        jo_shared_ptr<block_t> cur = root;
+        jo_shared_ptr<block_t> cur = head;
 
         for (int level = shift; level > 0; level -= 3) {
             size_t xx = (x >> level) & 7;
@@ -3000,7 +2996,7 @@ struct jo_persistent_vector2d : jo_object {
     }
 
     void clear() {
-        root = nullptr;
+        head = nullptr;
     }
 
     T *c_array() {

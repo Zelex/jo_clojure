@@ -839,7 +839,7 @@ struct node_t {
 	typedef jo_pair<node_idx_t, bool> seq_second_t;
 	seq_second_t seq_second() const {
 		if(is_list()) return seq_second_t(t_list->second_value(), t_list->size() >= 2);
-		if(is_vector()) return seq_second_t(as_vector()->nth(1), t_list->size() >= 2);
+		if(is_vector()) return seq_second_t(as_vector()->nth(1), as_vector()->size() >= 2);
 		if(is_map()) {
 			if(as_map()->size() < 2) return seq_second_t(NIL_NODE, false);
 			auto e = as_map()->second();
@@ -2433,7 +2433,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	} else if(type == NODE_FLOAT) {
 		printf("%f", get_node_float(node));
 	} else if(type == NODE_INT) {
-		printf("%d", (int)get_node_int(node));
+		printf("%lld", get_node_int(node));
 	} else if(type == NODE_BOOL) {
 		printf("%s", get_node_bool(node) ? "true" : "false");
 	} else if(type == NODE_NIL) {
@@ -4460,6 +4460,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 			size_t x = get_node_int(key_node->seq_first().first);
 			size_t y = get_node_int(key_node->seq_second().first);
 			vec = vec->set_new(x, y, val_idx);
+			assert(vec->get(x, y) == val_idx);
 		}
 		return new_node_vector2d(vec);
 	}
