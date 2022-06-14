@@ -7,6 +7,79 @@
 // o tensor type
 // o check for divide by 0!
 
+// fma with destructuring
+static node_idx_t node_fma(node_idx_t n1i, node_idx_t n2i, node_idx_t n3i) {
+	if(n1i == INV_NODE || n2i == INV_NODE || n3i == INV_NODE) {
+		return ZERO_NODE;
+	}
+
+	node_t *n1 = get_node(n1i), *n2 = get_node(n2i), *n3 = get_node(n3i);
+	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
+		n1i = n1->deref();
+		n1 = get_node(n1i);
+	}
+	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
+		n2i = n2->deref();
+		n2 = get_node(n2i);
+	}
+	if(n3->type == NODE_FUTURE && (n3->flags & NODE_FLAG_AUTO_DEREF)) {
+		n3i = n3->deref();
+		n3 = get_node(n3i);
+	}
+
+	if(n1->is_list() && n2->is_list() && n3->is_list()) {
+		list_ptr_t r = new_list();
+		list_t::iterator it1(n1->t_list), it2(n2->t_list), it3(n3->t_list);
+		for(; it1 && it2 && it3; it1++, it2++, it3++) {
+			r->push_back_inplace(node_fma(n1->as_vector()->nth(*it1), n2->as_vector()->nth(*it2), n3->as_vector()->nth(*it3)));
+		}
+		for(; it1; it1++) r->push_back_inplace(n1->as_vector()->nth(*it1));
+		for(; it2; it2++) r->push_back_inplace(n2->as_vector()->nth(*it2));
+		for(; it3; it3++) r->push_back_inplace(n3->as_vector()->nth(*it3));
+		return new_node_list(r);
+	}
+	if(n1->is_vector() && n2->is_vector() && n3->is_vector()) {
+		vector_ptr_t r = new_vector();
+		vector_ptr_t v1 = n1->as_vector(), v2 = n2->as_vector(), v3 = n3->as_vector();
+		size_t s1 = v1->size(), s2 = v2->size(), s3 = v3->size();
+		size_t min_s = jo_min(s1, jo_min(s2, s3));
+		size_t i = 0;
+		for(; i < min_s; i++) {
+			r->push_back_inplace(node_fma(v1->nth(i), v2->nth(i), v3->nth(i)));
+		}
+		for(; i < s1; i++) r->push_back_inplace(v1->nth(i));
+		for(; i < s2; i++) r->push_back_inplace(v2->nth(i));
+		for(; i < s3; i++) r->push_back_inplace(v3->nth(i));
+		return new_node_vector(r);
+	}
+	if(n1->is_map() && n2->is_map() && n3->is_map()) {
+		map_ptr_t r = new_map();
+		map_ptr_t m1 = n1->as_map(), m2 = n2->as_map(), m3 = n3->as_map();
+		for(map_t::iterator it = m1->begin(); it; it++) {
+			if(!m2->contains(it->first, node_eq)) {
+				r->assoc_inplace(it->first, it->second, node_eq);
+				continue;
+			}
+			if(!m3->contains(it->first, node_eq)) {
+				r->assoc_inplace(it->first, it->second, node_eq);
+				continue;
+			}
+			r->assoc_inplace(it->first, node_fma(it->second, m2->get(it->first, node_eq), m3->get(it->first, node_eq)), node_eq);
+		}
+		for(map_t::iterator it = m2->begin(); it; it++) {
+			if(r->contains(it->first, node_eq)) continue;
+			r->assoc_inplace(it->first, it->second, node_eq);
+		}
+		for(map_t::iterator it = m3->begin(); it; it++) {
+			if(r->contains(it->first, node_eq)) continue;
+			r->assoc_inplace(it->first, it->second, node_eq);
+		}
+		return new_node_map(r);
+	}
+	return new_node_float(fmaf(n1->as_float(), n2->as_float(), n3->as_float()));
+}
+
+
 // native function to add any number of arguments
 static node_idx_t native_add(env_ptr_t env, list_ptr_t args) { 
 	long long i = 0;
@@ -533,6 +606,50 @@ static node_idx_t native_math_srand(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+static node_idx_t native_math_reflect(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t I_idx = *it++; // incident vector
+	node_idx_t N_idx = *it++; // normal vector
+	node_t *I = get_node(I_idx);
+	node_t *N = get_node(N_idx);
+	if(!I->is_vector() || !N->is_vector()) {
+		return NIL_NODE;
+	}
+	vector_ptr_t I_vec = I->as_vector();
+	vector_ptr_t N_vec = N->as_vector();
+	size_t min_dim = I_vec->size() < N_vec->size() ? I_vec->size() : N_vec->size();
+	double dot = 0;
+	for(size_t i = 0; i < min_dim; i++) {
+		dot += get_node_float(I_vec->nth(i)) * get_node_float(N_vec->nth(i));
+	}
+	dot *= 2;
+	vector_ptr_t res = new_vector();
+	for(size_t i = 0; i < min_dim; i++) {
+		res->push_back_inplace(new_node_float(get_node_float(I_vec->nth(i)) - dot * get_node_float(N_vec->nth(i))));
+	}
+	return new_node_vector(res);
+}
+
+static node_idx_t native_math_normalize(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t v_idx = *it++;
+	node_t *v = get_node(v_idx);
+	if(!v->is_vector()) {
+		return NIL_NODE;
+	}
+	vector_ptr_t vec = v->as_vector();
+	double len = 0;
+	for(size_t i = 0; i < vec->size(); i++) {
+		len += get_node_float(vec->nth(i)) * get_node_float(vec->nth(i));
+	}
+	len = len ? sqrt(len) : 1;
+	vector_ptr_t res = new_vector();
+	for(size_t i = 0; i < vec->size(); i++) {
+		res->push_back_inplace(new_node_float(get_node_float(vec->nth(i)) / len));
+	}
+	return new_node_vector(res);
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
 	env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -615,6 +732,8 @@ void jo_clojure_math_init(env_ptr_t env) {
 	env->set("Math/interp", new_node_native_function("Math/interp", &native_math_interp, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/quantize", new_node_native_function("Math/quantize", &native_math_quantize, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/average", new_node_native_function("Math/average", &native_math_average, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/reflect", new_node_native_function("Math/reflect", &native_math_reflect, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/normalize", new_node_native_function("Math/normalize", &native_math_normalize, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
 	env->set("Math/E", new_node_float(JO_M_E, NODE_FLAG_PRERESOLVE));
 	env->set("Math/LN2", new_node_float(JO_M_LN2, NODE_FLAG_PRERESOLVE));
