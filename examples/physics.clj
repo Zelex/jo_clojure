@@ -3,6 +3,9 @@
 (def num-balls 128) ; to bounce around
 (def num-frames 128) ; to simulate
 
+; Limit worker threads?
+;(Thread/workers 8)
+
 ; Make the collision hash
 (def collision-hash (atom []))
 (def collision-buckets 16)
@@ -20,8 +23,6 @@
 (defn update-collision-hash [entity x y nx ny] 
     (let [old-h (get-pos-hash x y)
           new-h (get-pos-hash nx ny)]
-         ;(println "old-h: " old-h "x:" x "y:" y)
-         ;(println "new-h: " new-h "nx:" nx "ny:" ny)
          (when (not= old-h new-h)
             ; Remove entity from prev location
             (swap! (@collision-hash old-h) disj entity)
@@ -30,9 +31,10 @@
 
 ; Function to check for collisions with other entities
 (defn check-collision [entity x y]
-    (not-empty? (take 1 (drop-while false? (for [other @(@collision-hash (get-pos-hash x y))]
-        (if (= entity other) false
-            (let [phys   (@entity :physics)
+    (not-empty? (take 1 
+        (for [other @(@collision-hash (get-pos-hash x y))
+            :when (not= entity other)
+            :let [phys   (@entity :physics)
                   r      (@phys :radius)
                   o-phys (@other :physics)
                   [o-x o-y] (@o-phys :position)
@@ -41,7 +43,10 @@
                   dy     (Math/abs (- o-y y))
                   d      (Math/sqrt (+ (* dx dx) (* dy dy)))
                  ]
-                (< d (+ o-r r)))))))))
+            :when (< d (+ o-r r))
+            ]
+            true
+            ))))
 
 ; List of entities
 (def entities (atom []))
@@ -87,6 +92,7 @@
         (swap! entities conj entity)
         (add-collision-hash entity)))
 
+
 ; Create an output gif file
 (println "Render gif...")
 (let [gif-file (gif/open "physics.gif" dim dim 0 8)]
@@ -94,11 +100,13 @@
     (doseq [frame (range num-frames)]
         (println "Frame: " frame)
         (let [canvas (atom (vector2d dim dim))]
-            (doseq [entity @entities]
-                ; run the tick function
-                ((@entity :tick) entity 1)
-                (let [physics (@entity :physics)]
-                    (swap! canvas assoc (@physics :position) (@entity :color))))
+            (->> @entities
+                (pmap (fn [entity] 
+                    ((@entity :tick) entity 1)
+                    (swap! canvas assoc (@(@entity :physics) :position) (@entity :color))))
+                (doall)
+                (map deref)
+                (dorun))
             ; Write frame to gif-file
             (gif/frame gif-file @canvas 0 false)))
     ; Write gif footer to gif-file

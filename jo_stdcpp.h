@@ -1377,9 +1377,9 @@ struct jo_mpmcq {
         pop_sem.notify();
     }
 
-    size_t size() const {
-        return T_depth - push_sem.count.load();
-    }
+    size_t size() const { return T_depth - push_sem.count.load(); }
+    bool empty() const { return push_sem.count.load() == T_depth; }
+    bool full() const { return push_sem.count.load() == 0; }
 };
 
 // jo_pinned_vector
