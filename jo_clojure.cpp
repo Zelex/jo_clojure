@@ -4460,7 +4460,6 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 			size_t x = get_node_int(key_node->seq_first().first);
 			size_t y = get_node_int(key_node->seq_second().first);
 			vec = vec->set_new(x, y, val_idx);
-			assert(vec->get(x, y) == val_idx);
 		}
 		return new_node_vector2d(vec);
 	}

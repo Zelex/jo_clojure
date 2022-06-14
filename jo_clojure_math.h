@@ -124,7 +124,7 @@ static node_idx_t native_fma(env_ptr_t env, list_ptr_t args) {
 	if(args->size() < 3) return ZERO_NODE;
 	list_t::iterator i(args);
 	node_idx_t a = *i++, b = *i++, c = *i++;
-	return new_node_float(node_fma(a, b, c));
+	return node_fma(a, b, c);
 }
 
 static node_idx_t native_mul_int(env_ptr_t env, list_ptr_t args) {

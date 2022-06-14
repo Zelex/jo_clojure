@@ -3,7 +3,7 @@
 (def entities (atom []))
 
 ; Reflex the walls of the box
-(defn physics-reflect-walls [x vx] (if (or (< x 0) (> x 128)) -vx vx))
+(defn physics-reflect-walls [x vx] (if (or (< x 0) (> x 128)) (- vx) vx))
 
 ; Run physics, return new state
 (defn tick-physics [{:position [x y] :velocity [vx vy] :acceleration [ax ay] :mass m :radius r} timestep]
@@ -41,17 +41,16 @@
 (println "Render gif...")
 (let [gif-file (gif/open "physics.gif" 128 128 0 8)]
     ; Simulate N frames
-    (doseq [frame (range 4)]
+    (doseq [frame (range 128)]
         (println "Frame: " frame)
         (let [canvas (atom (vector2d 128 128))]
             (doseq [entity @entities]
                 ; run the tick function
-                ;((@entity :tick) entity 0.01)
+                ((@entity :tick) entity 1)
                 (let [physics (@entity :physics)]
-                    ;(swap! canvas assoc (@physics :position) (@entity :color)))
-                    (swap! canvas assoc (@physics :position) 0xFFFFFFFF)))
+                    (swap! canvas assoc (@physics :position) (@entity :color))))
             ; Write frame to gif-file
-            (gif/frame gif-file @canvas 0 true)))
+            (gif/frame gif-file @canvas 0 false)))
     ; Write gif footer to gif-file
     (gif/close gif-file))
 
