@@ -107,6 +107,8 @@
                 (swap! entities conj entity)
                 (add-collision-hash entity)))
         (println "Time: " (time (doseq [_ (range num-frames)]
+                (print ".")
+                ;(println (map deref @collision-hash))
                 (->> @entities
                     (pmap (fn [entity] ((@entity :tick) entity 1)))
                     (doall)

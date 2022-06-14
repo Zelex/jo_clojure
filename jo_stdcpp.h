@@ -2676,32 +2676,6 @@ struct jo_persistent_vector : jo_object {
         return copy;
     }
 
-    size_t find(const T &value) const {
-        size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length + head_offset - tail_length;
-
-        // Is it in the tail?
-        if(tail_length > 0) {
-            for(size_t i = 0; i < tail_length; ++i) {
-                if(tail->elements[i] == value) {
-                    return tail_offset + i;
-                }
-            }
-        }
-
-        for(size_t i = 0; i < tail_offset; ++i) {
-            if(nth(i) == value) {
-                return i;
-            }
-        }
-
-        return jo_npos;
-    }
-
-    bool contains(const T &value) const {
-        return find(value) != jo_npos;
-    }
-
     // find with lambda for comparison
     template<typename F>
     size_t find(const F &f) const {
@@ -3999,8 +3973,23 @@ struct jo_persistent_unordered_map : jo_object {
         int index = jo_hash_value(key) % copy->vec.size();
         while(copy->vec[index].third) {
             if(eq(copy->vec[index].first, key)) {
-                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, V(), false));
+                copy->vec.assoc_inplace(index, entry_t());
                 --copy->length;
+                // need to shuffle entries up to fill in the gap
+                int i = index;
+                while(true) {
+                    int j = (i + 1) % copy->vec.size();
+                    if(!copy->vec[j].third) {
+                        break;
+                    }
+                    entry_t next_entry = copy->vec[j];
+                    if(jo_hash_value(next_entry.first) % copy->vec.size() > i) {
+                        break;
+                    }
+                    copy->vec.assoc_inplace(i, next_entry);
+                    copy->vec.assoc_inplace(j, entry_t());
+                    i = j;
+                }
                 return copy;
             }
             index = (index + 1) % copy->vec.size();
@@ -4331,8 +4320,23 @@ public:
         int index = jo_hash_value(key) % copy->vec.size();
         while(copy->vec[index].second) {
             if(eq(copy->vec[index].first, key)) {
-                copy->vec.assoc_inplace(index, entry_t(copy->vec[index].first, false));
+                copy->vec.assoc_inplace(index, entry_t());
                 --copy->length;
+                // need to shuffle entries up to fill in the gap
+                int i = index;
+                while(true) {
+                    int j = (i + 1) % copy->vec.size();
+                    if(!copy->vec[j].second) {
+                        break;
+                    }
+                    entry_t next_entry = copy->vec[j];
+                    if((jo_hash_value(next_entry.first) % copy->vec.size()) > i) {
+                        break;
+                    }
+                    copy->vec.assoc_inplace(i, next_entry);
+                    copy->vec.assoc_inplace(j, entry_t());
+                    i = j;
+                }
                 return copy;
             }
             index = (index + 1) % copy->vec.size();

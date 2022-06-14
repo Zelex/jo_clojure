@@ -5131,10 +5131,12 @@ static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
 	int coll_type = get_node_type(coll_idx);
 	if(coll_type == NODE_LIST) {
 		list_ptr_t coll = get_node_list(coll_idx);
-		return coll->contains(key_idx) ? TRUE_NODE : FALSE_NODE;
+		long long key = get_node_int(key_idx);
+		return key >= 0 && key < coll->size() ? TRUE_NODE : FALSE_NODE;
 	} else if(coll_type == NODE_VECTOR) {
 		vector_ptr_t coll = get_node_vector(coll_idx);
-		return coll->contains(key_idx) ? TRUE_NODE : FALSE_NODE;
+		long long key = get_node_int(key_idx);
+		return key >= 0 && key < coll->size() ? TRUE_NODE : FALSE_NODE;
 	} else if(coll_type == NODE_MAP) {
 		map_ptr_t coll = get_node_map(coll_idx);
 		return coll->contains(key_idx, node_eq) ? TRUE_NODE : FALSE_NODE;
