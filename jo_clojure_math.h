@@ -513,15 +513,15 @@ static node_idx_t native_is_int(env_ptr_t env, list_ptr_t args) { return get_nod
 
 static node_idx_t native_math_quantize(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
-	float x = get_node_float(*it++);
-	float step = get_node_float(*it++);
+	double x = get_node_float(*it++);
+	double step = get_node_float(*it++);
 	return new_node_float(roundf(x / step) * step);
 }
 
 // Calculates the average of all the values in the list.
 static node_idx_t native_math_average(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
-	float sum = 0;
+	double sum = 0;
 	for(; it; it++) {
 		sum += get_node_float(*it);
 	}

@@ -1368,7 +1368,7 @@ static node_idx_t new_node_bool(bool b) {
 	return b ? TRUE_NODE : FALSE_NODE;
 }
 
-static node_idx_t new_node_int(node_idx_unsafe_t i, int flags) {
+static node_idx_t new_node_int(long long i, int flags) {
 	if(i >= 0 && i <= 256 && flags == 0) {
 		return INT_0_NODE + i;
 	}
@@ -2668,9 +2668,8 @@ static inline bool seq_iterate(node_idx_t seq, F f) {
 }
 
 static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
-	if(n1i == INV_NODE || n2i == INV_NODE) {
-		return false;
-	}
+	if(n1i == INV_NODE || n2i == INV_NODE) return false;
+	if(n1i == n2i) return true;
 
 	node_t *n1 = get_node(n1i);
 	node_t *n2 = get_node(n2i);
@@ -2693,6 +2692,8 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 		return n1->t_int == n2->t_int;
 	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
 		return n1->as_float() == n2->as_float();
+	} else if(n1->type == NODE_ATOM || n2->type == NODE_ATOM) {
+		return n1->t_atom == n2->t_atom;
 	} else if(n1->flags & n2->flags & NODE_FLAG_STRING) {
 		return n1->t_string == n2->t_string;
 	} else if(n1->is_func() && n2->is_func()) {
@@ -3715,6 +3716,7 @@ static node_idx_t native_defmacro(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_is_nil(env_ptr_t env, list_ptr_t args) { return args->first_value() == NIL_NODE ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_not_nil(env_ptr_t env, list_ptr_t args) { return args->first_value() != NIL_NODE ? TRUE_NODE : FALSE_NODE; }
 
 static node_idx_t native_is_zero(env_ptr_t env, list_ptr_t args) {
 	node_idx_t n_idx = args->first_value();
@@ -3892,13 +3894,22 @@ static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 	node_t *first = get_node(first_idx);
 	int first_type = first->type;
 	list_ptr_t list;
-	vector_ptr_t vec;
 	if(first_type == NODE_NIL) {
 		list = new_list();
 	} else if(first_type == NODE_LIST) {
 		list = first->t_list;
 	} else if(first_type == NODE_VECTOR) {
-		vec = first->as_vector();
+		vector_ptr_t vec = first->as_vector();
+		for(; it; it++) {
+			vec = vec->push_back(eval_node(env, *it));
+		}
+		return new_node_vector(vec, NODE_FLAG_LITERAL);
+	} else if(first_type == NODE_HASH_SET) {
+		hash_set_ptr_t set = first->as_hash_set();
+		for(; it; it++) {
+			set = set->assoc(eval_node(env, *it), node_eq);
+		}
+		return new_node_hash_set(set, NODE_FLAG_LITERAL);
 	} else {
 		list = new_list();
 		list->push_front_inplace(first_idx);
@@ -3908,12 +3919,8 @@ static node_idx_t native_conj(env_ptr_t env, list_ptr_t args) {
 			list = list->push_front(eval_node(env, *it));
 		}
 		return new_node_list(list, NODE_FLAG_LITERAL);
-	} else {
-		for(; it; it++) {
-			vec = vec->push_back(eval_node(env, *it));
-		}
-		return new_node_vector(vec, NODE_FLAG_LITERAL);
 	}
+	return NIL_NODE;
 }
 
 static node_idx_t native_pop(env_ptr_t env, list_ptr_t args) {
@@ -3983,6 +3990,7 @@ static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_is_delay(env_ptr_t env, list_ptr_t args) {	return get_node_type(args->first_value()) == NODE_DELAY ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_empty() ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_not_empty(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_empty() ? FALSE_NODE : TRUE_NODE; }
 static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? FALSE_NODE : TRUE_NODE; }
 static node_idx_t native_is_true(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) != NODE_NIL ? TRUE_NODE : FALSE_NODE; }
@@ -4409,10 +4417,6 @@ static node_idx_t native_hash_map(env_ptr_t env, list_ptr_t args) {
 // val(s). When applied to a vector, returns a new vector that
 // contains val at index. Note - index must be <= (count vector).
 static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 3) {
-		warnf("(assoc) requires at least 3 arguments\n");
-		return NIL_NODE;
-	}
 	list_t::iterator it(args);
 	node_idx_t map_idx = *it++;
 	if(map_idx == NIL_NODE) {
@@ -4437,8 +4441,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 	if(map_node->is_hash_set()) {
 		hash_set_ptr_t set = map_node->as_hash_set();
 		while(it) {
-			node_idx_t key_idx = *it++;
-			set = set->assoc(key_idx, node_eq);
+			set = set->assoc(*it++, node_eq);
 		}
 		return new_node_hash_set(set);
 	} 
@@ -5477,22 +5480,14 @@ static node_idx_t native_group_by(env_ptr_t env, list_ptr_t args) {
 // consistent with =, and thus is different than .hashCode for Integer,
 // Short, Byte and Clojure collections.
 static node_idx_t native_hash(env_ptr_t env, list_ptr_t args) {
-	if(args->size() != 1) {
-		warnf("(hash) requires 1 argument\n");
-		return NIL_NODE;
-	}
-	return new_node_int(jo_hash_value(args->first_value()));
+	return new_node_int(jo_hash_value(args->first_value()) & 0x7FFFFFFFFFFFFFFFull);
 }
 
 // (hash-combine x y)
 // Calculates the hashes for x and y and produces a new hash that represents
 // the combination of the two.
 static node_idx_t native_hash_combine(env_ptr_t env, list_ptr_t args) {
-	if(args->size() != 2) {
-		warnf("(hash-combine) requires 2 arguments\n");
-		return NIL_NODE;
-	}
-	return new_node_int(jo_hash_value(args->first_value()) ^ jo_hash_value(args->second_value()));
+	return new_node_int(jo_hash_value(new_node_list(list_va(args->first_value(), args->second_value()))));
 }
 
 // (hash-set)(hash-set & keys)
@@ -6116,6 +6111,7 @@ int main(int argc, char **argv) {
 	env->set("or", new_node_native_function("or", &native_or, true, NODE_FLAG_PRERESOLVE));
 	env->set("not", new_node_native_function("not", &native_not, false, NODE_FLAG_PRERESOLVE));
 	env->set("empty?", new_node_native_function("empty?", &native_is_empty, false, NODE_FLAG_PRERESOLVE));
+	env->set("not-empty?", new_node_native_function("not-empty?", &native_is_not_empty, false, NODE_FLAG_PRERESOLVE));
 	env->set("zero?", new_node_native_function("zero?", &native_is_zero, false, NODE_FLAG_PRERESOLVE));
 	env->set("false?", new_node_native_function("false?", &native_is_false, false, NODE_FLAG_PRERESOLVE));
 	env->set("true?", new_node_native_function("true?", &native_is_true, false, NODE_FLAG_PRERESOLVE));
@@ -6189,6 +6185,7 @@ int main(int argc, char **argv) {
 	env->set("dotimes", new_node_native_function("dotimes", &native_dotimes, true, NODE_FLAG_PRERESOLVE));
 	env->set("doseq", new_node_native_function("doseq", &native_doseq, true, NODE_FLAG_PRERESOLVE));
 	env->set("nil?", new_node_native_function("nil?", native_is_nil, false, NODE_FLAG_PRERESOLVE));
+	env->set("not-nil?", new_node_native_function("not-nil?", native_is_not_nil, false, NODE_FLAG_PRERESOLVE));
 	env->set("time", new_node_native_function("time", &native_time, true, NODE_FLAG_PRERESOLVE));
 	env->set("assoc", new_node_native_function("assoc", &native_assoc, false, NODE_FLAG_PRERESOLVE));
 	env->set("assoc-in", new_node_native_function("assoc-in", &native_assoc_in, false, NODE_FLAG_PRERESOLVE));

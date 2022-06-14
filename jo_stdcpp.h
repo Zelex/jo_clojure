@@ -2571,6 +2571,11 @@ struct jo_persistent_vector : jo_object {
     }
 
     T &operator[] (size_t index) {
+        if(index >= length) {
+            static T dummy;
+            return dummy;
+        }
+
         index += head_offset;
 
         size_t shift = 5 * (depth + 1);
@@ -2597,6 +2602,10 @@ struct jo_persistent_vector : jo_object {
     }
 
     const T &operator[] (size_t index) const {
+        if(index >= length) {
+            static T dummy;
+            return dummy;
+        }
         index += head_offset;
 
         size_t shift = 5 * (depth + 1);

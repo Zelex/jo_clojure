@@ -1146,7 +1146,7 @@ static node_idx_t native_drop_while_first(env_ptr_t env, list_ptr_t args) {
 	if(lit.done()) {
 		return NIL_NODE;
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(lit.val, env->get("drop-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn()))));
+	return new_node_list(list_va(lit.val, env->get("drop-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
@@ -1157,7 +1157,7 @@ static node_idx_t native_drop_while_next(env_ptr_t env, list_ptr_t args) {
 	if(lit.done()) {
 		return NIL_NODE;
 	}
-	return new_node_lazy_list(env, new_node_list(list_va(lit.val, env->get("drop-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn()))));
+	return new_node_list(list_va(lit.val, env->get("drop-while-next").value, pred, new_node_lazy_list(lit.env, lit.next_fn())));
 }
 
 static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
