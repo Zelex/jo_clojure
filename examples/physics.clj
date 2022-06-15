@@ -48,23 +48,28 @@
 (defn physics-reflect-walls [x vx] (if (or (< x 0) (>= x dim)) (- vx) vx))
 
 ; Run physics, return new state
-(defn tick-physics [{:position [x y] :velocity [vx vy] :acceleration [ax ay] :mass m :radius r} entity timestep]
+(defn tick-physics 
+    [{:position [x y] :velocity [vx vy] :acceleration [ax ay] :mass m :radius r} entity timestep]
     (let [nx (*+ timestep vx x)
           ny (*+ timestep vy y)
           nvx1 (physics-reflect-walls nx (*+ timestep ax vx))
           nvy1 (physics-reflect-walls ny (*+ timestep ay vy))
           bumpy (check-collision entity nx ny)
           bump-norm (Math/normalize ((first bumpy) :norm))
-          [nvx nvy] (if (not-empty? bumpy) (Math/reflect [nvx1 nvy1] bump-norm) [nvx1 nvy1])
+          [nvx nvy] (if (not-empty? bumpy) 
+            (Math/reflect [nvx1 nvy1] bump-norm) 
+            [nvx1 nvy1])
           nx (*+ timestep nvx x)
           ny (*+ timestep nvy y)]
           (update-collision-hash entity x y nx ny)
           ; Add acceleration to bumpy object
-          (when (not-empty? bumpy) ((@entity impulse) entity (Math/refract [nvx1 nvy1] bump-norm 1)))
+          (when (not-empty? bumpy) 
+            ((@entity impulse) entity (Math/refract [nvx1 nvy1] bump-norm 1)))
           {:position [nx ny] :velocity [nvx nvy] :acceleration [0 0] :mass m :radius r}))
 
-(defn impulse-physics [{:position [x y] :velocity [vx vy] :acceleration [ax ay] :mass m :radius r} entity ix iy]
-          {:position [x y] :velocity [vx vy] :acceleration [(+ ix ax) (+ iy ay)] :mass m :radius r})
+(defn impulse-physics 
+    [{:position p :velocity v :acceleration [ax ay] :mass m :radius r} ix iy]
+     {:position p :velocity v :acceleration [(+ ix ax) (+ iy ay)] :mass m :radius r})
 
 ; Construct a new entity 
 (defn new-entity [type]
@@ -78,8 +83,12 @@
      :color 0xFFFFFFFF
      :life 1
      :dead? false
-     :tick (fn [entity timestep] (swap! (@entity :physics) tick-physics entity timestep))
-     :impulse (fn [entity [x y]] (swap! (@entity :physics) impulse-physics x y))})
+     :tick (fn 
+        [entity timestep] 
+        (swap! (@entity :physics) tick-physics entity timestep))
+     :impulse (fn 
+        [entity [x y]] 
+        (swap! (@entity :physics) impulse-physics x y))})
 
 ; Create an output gif file
 (let [gif-file (gif/open "physics.gif" dim dim 0 8)]
@@ -88,7 +97,8 @@
     (let [entities (atom [])]
         (Math/srand 0)
         (reset! collision-hash [])
-        (doseq [_ (range collision-buckets)] (swap! collision-hash conj (atom #{})))
+        (doseq [_ (range collision-buckets)] 
+            (swap! collision-hash conj (atom #{})))
         (doseq [_ (range num-balls)]
             (let [entity (atom (new-entity :ball))]
                 (swap! entities conj entity)
@@ -119,7 +129,8 @@
         (let [entities (atom [])]
             (Math/srand 0)
             (reset! collision-hash [])
-            (doseq [_ (range collision-buckets)] (swap! collision-hash conj (atom #{})))
+            (doseq [_ (range collision-buckets)] 
+                (swap! collision-hash conj (atom #{})))
             (doseq [_ (range num-balls)]
                 (let [entity (atom (new-entity :ball))]
                     (swap! entities conj entity)
