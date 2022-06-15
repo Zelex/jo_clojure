@@ -11,33 +11,23 @@ static thread_local size_t thread_id = thread_uid.fetch_add(1);
 typedef std::packaged_task<node_idx_t()> jo_task_t;
 typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
 
-// Naiive implementation of a thread pool
-// TODO: Could be better...
 class jo_threadpool {
 	std::vector<std::thread> pool;
-	bool stop;
-
-	std::mutex access;
-	std::condition_variable cond;
-	std::deque<std::function<void()>> tasks;
+	typedef std::function<void()> task_t;
+	jo_mpmcq<task_t*, NULL, 4096> tasks;
 
 public:
-	jo_threadpool(int nr = 1) : pool(), stop(false), access(), cond(), tasks() {
+	jo_threadpool(int nr = 1) : pool(), tasks() {
 		while(nr-- > 0) {
 			std::thread t([this]() {
 				thread_id = thread_uid.fetch_add(1);
-				while(!stop) {
-					std::function<void()> task;
-					{
-						std::unique_lock<std::mutex> lock(access);
-						if(tasks.empty()) {
-							cond.wait_for(lock, std::chrono::duration<int, std::milli>(5));
-							continue;
-						}
-						task = std::move(tasks.front());
-						tasks.pop_front();
+				while(true) {
+					task_t *task = tasks.pop();
+					if(task == NULL) {
+						break;
 					}
-					task();
+					(*task)();
+					delete task;
 				}
 			});
 			pool.push_back(std::move(t));
@@ -45,7 +35,7 @@ public:
 	}
 
 	~jo_threadpool() {
-		stop = true;
+		tasks.close();
 		for(std::thread &t : pool) {
 			t.join();
 		}
@@ -53,9 +43,7 @@ public:
 	}
 
 	void add_task(jo_task_ptr_t pt) {
-		std::unique_lock<std::mutex> lock(access);
-		tasks.push_back([pt]{(*pt.ptr)();});
-		cond.notify_one();
+		tasks.push(new task_t([pt]{(*pt.ptr)();}));
 	}
 };
 
