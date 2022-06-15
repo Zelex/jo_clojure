@@ -650,6 +650,36 @@ static node_idx_t native_math_normalize(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(res);
 }
 
+static node_idx_t native_math_refract(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t I_idx = *it++; // incident vector
+	node_idx_t N_idx = *it++; // normal vector
+	node_idx_t eta_idx = *it++; // index of refraction
+	node_t *I = get_node(I_idx);
+	node_t *N = get_node(N_idx);
+	node_t *eta = get_node(eta_idx);
+	if(!I->is_vector() || !N->is_vector()) {
+		return NIL_NODE;
+	}
+	vector_ptr_t I_vec = I->as_vector();
+	vector_ptr_t N_vec = N->as_vector();
+	size_t min_dim = I_vec->size() < N_vec->size() ? I_vec->size() : N_vec->size();
+	double dot = 0;
+	for(size_t i = 0; i < min_dim; i++) {
+		dot += get_node_float(I_vec->nth(i)) * get_node_float(N_vec->nth(i));
+	}
+	double eta_val = eta->as_float();
+	double k = 1 - eta_val * eta_val * (1 - dot * dot);
+	if(k < 0) {
+		return NIL_NODE;
+	}
+	vector_ptr_t res = new_vector();
+	for(size_t i = 0; i < min_dim; i++) {
+		res->push_back_inplace(new_node_float(eta_val * get_node_float(I_vec->nth(i)) - (eta_val * dot + sqrt(k)) * get_node_float(N_vec->nth(i))));
+	}
+	return new_node_vector(res);
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
 	env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -733,6 +763,7 @@ void jo_clojure_math_init(env_ptr_t env) {
 	env->set("Math/quantize", new_node_native_function("Math/quantize", &native_math_quantize, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/average", new_node_native_function("Math/average", &native_math_average, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/reflect", new_node_native_function("Math/reflect", &native_math_reflect, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/refract", new_node_native_function("Math/refract", &native_math_refract, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/normalize", new_node_native_function("Math/normalize", &native_math_normalize, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
 	env->set("Math/E", new_node_float(JO_M_E, NODE_FLAG_PRERESOLVE));
