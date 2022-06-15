@@ -1598,6 +1598,30 @@ static node_idx_t native_remove_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(ret);
 }
 
+// (rseq rev)
+// Returns, in constant time, a seq of the items in rev (which
+// can be a vector or sorted-map), in reverse order. If rev is empty returns nil
+static node_idx_t native_rseq(env_ptr_t env, list_ptr_t args) {
+	node_idx_t rev_idx = args->first_value();
+	node_t *rev = get_node(rev_idx);
+	if(!rev->is_vector()) {
+		warnf("(rseq rev) expected a vector or sorted-map.\n");
+		return NIL_NODE;
+	}
+	size_t sz = rev->as_vector()->size();
+	return new_node_lazy_list(env, new_node_list(list_va(env->get("rseq-next").value, rev_idx, new_node_int(sz))));
+}
+
+static node_idx_t native_rseq_next(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t rev_idx = *it++;
+	int sz = get_node_int(*it++);
+	if(sz == 0) return NIL_NODE;
+	node_t *rev = get_node(rev_idx);
+	node_idx_t reti = rev->as_vector()->nth(sz - 1);
+	return new_node_list(list_va(reti, env->get("rseq-next").value, rev_idx, new_node_int(sz - 1)));
+}
+
 void jo_clojure_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false, NODE_FLAG_PRERESOLVE));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true, NODE_FLAG_PRERESOLVE));
@@ -1666,4 +1690,6 @@ void jo_clojure_lazy_init(env_ptr_t env) {
 	env->set("reductions-next", new_node_native_function("reductions-next", &native_reductions_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("remove", new_node_native_function("remove", &native_remove, false, NODE_FLAG_PRERESOLVE));
 	env->set("remove-next", new_node_native_function("remove-next", &native_remove_next, true, NODE_FLAG_PRERESOLVE));
+	env->set("rseq", new_node_native_function("rseq", &native_rseq, false, NODE_FLAG_PRERESOLVE));
+	env->set("rseq-next", new_node_native_function("rseq-next", &native_rseq_next, true, NODE_FLAG_PRERESOLVE));
 }

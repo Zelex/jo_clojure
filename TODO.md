@@ -264,7 +264,6 @@ reset-meta!
 resolve
 restart-agent
 resultset-seq
-rseq
 rsubseq
 run!
 satisfies
@@ -340,7 +339,6 @@ var-get
 var-set
 var?
 vary-meta
-vec
 vector-of
 volatile!
 volatile?

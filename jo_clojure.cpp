@@ -5893,6 +5893,15 @@ static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(r);
 }
 
+static node_idx_t native_vec(env_ptr_t env, list_ptr_t args) {
+	vector_ptr_t r = new_vector();
+	seq_iterate(args->first_value(), [&](node_idx_t idx) {
+		r->push_back_inplace(idx);
+		return true;
+	});
+	return new_node_vector(r);
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6194,6 +6203,8 @@ int main(int argc, char **argv) {
 	env->set("reduce-kv", new_node_native_function("reduce-kv", &native_reduce_kv, false, NODE_FLAG_PRERESOLVE));
 	env->set("replace", new_node_native_function("replace", &native_replace, false, NODE_FLAG_PRERESOLVE));
 	env->set("reversible?", new_node_native_function("reversible?", &native_is_reversible, false, NODE_FLAG_PRERESOLVE));
+	env->set("seqable?", new_node_native_function("seqable?", &native_is_seqable, false, NODE_FLAG_PRERESOLVE));
+	env->set("vec", new_node_native_function("vec", &native_vec, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

@@ -964,6 +964,8 @@
 ;(is (= (replace {0 ZERO, 1 ONE, 2 TWO} '(This is the code 0 1 2 0)) '(This is the code ZERO ONE TWO ZERO)))
 (is (= (replace {2 :a, 4 :b} [1 2 3 4]) [1 :a 3 :b]))
 
+(is (= (rseq (vec (range 10))) (9 8 7 6 5 4 3 2 1 0)))
+
 
 (string-test)
 (if-test)
