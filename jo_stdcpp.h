@@ -3811,12 +3811,20 @@ template<> size_t jo_hash_value(const unsigned long long &value) { return value;
 template<> size_t jo_hash_value(const double value) { return *(size_t *)&value; }
 template<> size_t jo_hash_value(const long double &value) { return *(size_t *)&value; }
 template<> size_t jo_hash_value(const char *value) {
+#if 1
+    // FNV1 https://cbloomrants.blogspot.com/2010/11/11-29-10-useless-hash-test.html
+    size_t hash = 2166136261;
+    while(*value) {
+        hash = (16777619 * hash) ^ (*value++);
+    }
+    return hash & 0x7FFFFFFFFFFFFFFFull;
+#else
     size_t hash = 0;
     while(*value) {
-        hash = hash * 31 + *value;
-        value++;
+        hash = hash * 31 + *value++;
     }
     return hash;
+#endif
 }
 template<> size_t jo_hash_value(const jo_string &value) { return jo_hash_value(value.c_str()); }
 

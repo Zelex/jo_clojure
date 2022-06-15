@@ -2896,6 +2896,14 @@ size_t jo_hash_value(node_idx_t n) {
 	if(n1->type == NODE_NIL) {
 		return 0;
 	} else if(n1->is_seq()) {
+		#if 1
+		size_t hash = 2166136261;
+		seq_iterate(n, [&](node_idx_t i) {
+			hash = (16777619 * hash) ^ jo_hash_value(i);
+			return true;
+		});
+		return hash & 0x7FFFFFFFFFFFFFFFull;
+		#else
 		uint32_t res = 0;
 		seq_iterator_t i(n);
 		for(; i; i.next()) {
@@ -2905,14 +2913,15 @@ size_t jo_hash_value(node_idx_t n) {
 			res = (res * 31) + jo_hash_value(i.val);
 		}
 		return res;
+		#endif
 	} else if(n1->type == NODE_BOOL) {
 		return n1->t_bool ? 1 : 0;
 	} else if(n1->flags & NODE_FLAG_STRING) {
-		return jo_hash_value(n1->t_string.c_str());
+		return jo_hash_value(n1->t_string.c_str()) & 0x7FFFFFFFFFFFFFFFull;
 	} else if(n1->type == NODE_INT) {
-		return n1->t_int;
+		return n1->t_int & 0x7FFFFFFFFFFFFFFFull;
 	} else if(n1->type == NODE_FLOAT) {
-		return jo_hash_value(n1->as_float());
+		return jo_hash_value(n1->as_float()) & 0x7FFFFFFFFFFFFFFFull;
 	}
 	return 0;
 }
