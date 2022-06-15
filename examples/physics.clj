@@ -1,9 +1,8 @@
 
 (def dim 128) ; dimension of the world
-(def num-balls 256) ; to bounce around
+(def num-balls 1024) ; to bounce around
 (def num-frames 128) ; to simulate
 (def collision-buckets 2048) ; More reduces data dependencies, at the cost of more memory
-
 
 ; Make the collision hash
 (def collision-hash (atom []))

@@ -1200,8 +1200,7 @@ struct node_t {
 
 static jo_pinned_vector<node_t> nodes;
 static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<18)> free_nodes; // available for allocation...
-static const int num_garbage_sectors = 8;
-static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<15)> garbage_nodes[num_garbage_sectors]; // need resource release 
+static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<18)> garbage_nodes; // need resource release 
 
 
 static inline void node_add_ref(node_idx_unsafe_t idx) { 
@@ -1230,7 +1229,7 @@ static inline void node_release(node_idx_unsafe_t idx) {
 #if 0 // no GC
 #elif 0 // delayed GC
 				n->flags |= NODE_FLAG_GARBAGE;
-				garbage_nodes[idx&(num_garbage_sectors-1)].push(idx);
+				garbage_nodes.push(idx);
 #else // immediate GC
 				n->release();
 				free_nodes.push(idx);
@@ -1243,6 +1242,15 @@ static inline void node_release(node_idx_unsafe_t idx) {
 static void collect_garbage() {
 	node_idx_unsafe_t idx = INV_NODE;
 	while(true) {
+		std::this_thread::yield();
+#if 1
+		if(garbage_nodes.size() <= 1) continue;
+		idx = garbage_nodes.pop();
+		if(idx == NIL_NODE) break;
+		node_t *n = &nodes[idx];
+		n->release();
+		free_nodes.push(idx);
+#else
 		for(int i = 0; i < num_garbage_sectors; ++i) {
 			if(garbage_nodes[i].closing) {
 				idx = NIL_NODE;
@@ -1255,8 +1263,8 @@ static void collect_garbage() {
 			n->release();
 			free_nodes.push(idx);
 		}
+#endif
 		if(idx == NIL_NODE) break;
-		std::this_thread::yield();
 	}
 }
 
@@ -6252,9 +6260,13 @@ int main(int argc, char **argv) {
 	}
 
 	debugf("Waiting for GC to stop...\n");
+#if 1
+	garbage_nodes.close();
+#else
 	for(int i = 0; i < num_garbage_sectors; ++i) {
 		garbage_nodes[i].close();
 	}
+#endif
 	gc_thread.join();
 
 	debugf("nodes.size() = %zu\n", nodes.size());

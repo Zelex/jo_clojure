@@ -3841,7 +3841,7 @@ struct jo_persistent_unordered_map : jo_object {
     // number of entries actually used in the hash table
     size_t length;
 
-    jo_persistent_unordered_map() : vec(16), length() {}
+    jo_persistent_unordered_map() : vec(32), length() {}
     jo_persistent_unordered_map(const jo_persistent_unordered_map &other) : vec(other.vec), length(other.length) {}
     jo_persistent_unordered_map &operator=(const jo_persistent_unordered_map &other) {
         vec = other.vec;
