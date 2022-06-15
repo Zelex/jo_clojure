@@ -3977,18 +3977,18 @@ struct jo_persistent_unordered_map : jo_object {
                 --copy->length;
                 // need to shuffle entries up to fill in the gap
                 int i = index;
+                int j = i;
                 while(true) {
-                    int j = (i + 1) % copy->vec.size();
+                    j = (j + 1) % copy->vec.size();
                     if(!copy->vec[j].third) {
                         break;
                     }
                     entry_t next_entry = copy->vec[j];
-                    if(jo_hash_value(next_entry.first) % copy->vec.size() > i) {
-                        break;
+                    if(jo_hash_value(next_entry.first) % copy->vec.size() <= i) {
+                        copy->vec.assoc_inplace(i, next_entry);
+                        copy->vec.assoc_inplace(j, entry_t());
+                        i = j;
                     }
-                    copy->vec.assoc_inplace(i, next_entry);
-                    copy->vec.assoc_inplace(j, entry_t());
-                    i = j;
                 }
                 return copy;
             }
@@ -4324,18 +4324,18 @@ public:
                 --copy->length;
                 // need to shuffle entries up to fill in the gap
                 int i = index;
+                int j = i;
                 while(true) {
-                    int j = (i + 1) % copy->vec.size();
+                    j = (j + 1) % copy->vec.size();
                     if(!copy->vec[j].second) {
                         break;
                     }
                     entry_t next_entry = copy->vec[j];
-                    if((jo_hash_value(next_entry.first) % copy->vec.size()) > i) {
-                        break;
+                    if((jo_hash_value(next_entry.first) % copy->vec.size()) <= i) {
+                        copy->vec.assoc_inplace(i, next_entry);
+                        copy->vec.assoc_inplace(j, entry_t());
+                        i = j;
                     }
-                    copy->vec.assoc_inplace(i, next_entry);
-                    copy->vec.assoc_inplace(j, entry_t());
-                    i = j;
                 }
                 return copy;
             }
