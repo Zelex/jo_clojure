@@ -21,15 +21,6 @@
 #pragma comment(lib,"rad_tm_win64.lib")
 #include "tm/rad_tm.h"
 #else
-#define tmTick sizeof
-#define tmZone sizeof
-#define tmEnter sizeof
-#define tmLeave sizeof
-#define tmPlot sizeof
-#define tmMessage sizeof
-#define tmOpen sizeof
-#define tmClose sizeof
-#define tmShutdown sizeof
 #define tmProfileThread sizeof
 #endif
 
@@ -682,8 +673,6 @@ struct node_t {
 	object_ptr_t t_object;
 	native_func_ptr_t t_native_function;
 	atomic_node_idx_t t_atom;
-	std::shared_future<node_idx_t> t_future;
-	std::promise<node_idx_t> t_promise;
 	env_ptr_t t_env;
 	struct {
 		vector_ptr_t args;
@@ -722,8 +711,6 @@ struct node_t {
 		, t_object()
 		, t_native_function()
 		, t_atom()
-		, t_future()
-		, t_promise()
 		, t_env()
 		, t_func()
 		, t_extra()
@@ -740,8 +727,6 @@ struct node_t {
 	, t_list(other.t_list)
 	, t_object(other.t_object)
 	, t_native_function(other.t_native_function)
-	, t_future(other.t_future)
-	, t_promise()
 	, t_env(other.t_env)
 	, t_func(other.t_func)
 	, t_extra(other.t_extra)
@@ -758,8 +743,6 @@ struct node_t {
 	, t_list(std::move(other.t_list))
 	, t_object(std::move(other.t_object))
 	, t_native_function(other.t_native_function)
-	, t_future(std::move(other.t_future))
-	, t_promise(std::move(other.t_promise))
 	, t_env(std::move(other.t_env))
 	, t_func(std::move(other.t_func))
 	, t_extra(other.t_extra)
@@ -777,9 +760,6 @@ struct node_t {
 		t_object = std::move(other.t_object);
 		t_native_function = other.t_native_function;
 		t_atom.store(other.t_atom.load());
-		//assert(!t_future.valid() || t_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready);
-		t_future = std::move(other.t_future);
-		t_promise = std::move(other.t_promise);
 		t_env = std::move(other.t_env);
 		t_func = std::move(other.t_func);
 		t_extra = other.t_extra;
@@ -795,8 +775,6 @@ struct node_t {
 		t_object = nullptr;
 		t_native_function = nullptr;
 		t_atom.store(0);
-		t_future = std::shared_future<node_idx_t>();
-		t_promise = std::promise<node_idx_t>();
 		t_env = nullptr;
 		t_func.args = nullptr;
 		t_func.body = nullptr;
@@ -1175,11 +1153,13 @@ struct node_t {
 
 	node_idx_t deref() const {
 		if(type == NODE_FUTURE) {
-			if(!t_future.valid()) {
-				return NIL_NODE;
+			node_idx_t ret = t_atom.load();
+			int count = 0;
+			while(ret == TX_HOLD_NODE || ret == INV_NODE) {
+				jo_yield_backoff(&count);
+				ret = t_atom.load();
 			}
-			t_future.wait();
-			return t_future.get();
+			return ret;
 		}
 		return NIL_NODE;
 	}
@@ -2365,7 +2345,6 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 	node_idx_t res = NIL_NODE;
 	for(list_t::iterator it(list); it; it++) {
 		res = eval_node(env, *it);
-		//tmTick(0);
 	}
 	return res;
 }
@@ -2966,24 +2945,22 @@ size_t jo_hash_value(node_idx_t n) {
 	if(n1->type == NODE_NIL) {
 		return 0;
 	} else if(n1->is_seq()) {
-		#if 1
-		size_t hash = 2166136261;
+		size_t hash0 = 2166136261, hash1 = 2166136261, hash2 = 2166136261, hash3 = 2166136261;
+		size_t hash4 = 2166136261, hash5 = 2166136261, hash6 = 2166136261, hash7 = 2166136261;
 		seq_iterate(n, [&](node_idx_t i) {
-			hash = (16777619 * hash) ^ jo_hash_value(i);
+			size_t h = jo_hash_value(i);
+			hash0 = (16777619 * hash0) ^ ((h>>0) & 255);
+			hash1 = (16777619 * hash1) ^ ((h>>8) & 255);
+			hash2 = (16777619 * hash2) ^ ((h>>16) & 255);
+			hash3 = (16777619 * hash3) ^ ((h>>24) & 255);
+			hash4 = (16777619 * hash4) ^ ((h>>32) & 255);
+			hash5 = (16777619 * hash5) ^ ((h>>40) & 255);
+			hash6 = (16777619 * hash6) ^ ((h>>48) & 255);
+			hash7 = (16777619 * hash7) ^ ((h>>56) & 255);
 			return true;
 		});
+		size_t hash = ((hash0 ^ hash1) ^ (hash2 ^ hash3)) ^ ((hash4 ^ hash5) ^ (hash6 ^ hash7));
 		return hash & 0x7FFFFFFFFFFFFFFFull;
-		#else
-		uint32_t res = 0;
-		seq_iterator_t i(n);
-		for(; i; i.next()) {
-			res = (res * 31) + jo_hash_value(i.val);
-		}
-		if(i.val != INV_NODE) {
-			res = (res * 31) + jo_hash_value(i.val);
-		}
-		return res;
-		#endif
 	} else if(n1->type == NODE_BOOL) {
 		return n1->t_bool ? 1 : 0;
 	} else if(n1->flags & NODE_FLAG_STRING) {
@@ -5488,7 +5465,21 @@ static node_idx_t native_group_by(env_ptr_t env, list_ptr_t args) {
 // consistent with =, and thus is different than .hashCode for Integer,
 // Short, Byte and Clojure collections.
 static node_idx_t native_hash(env_ptr_t env, list_ptr_t args) {
-	return new_node_int(jo_hash_value(args->first_value()) & 0x7FFFFFFFFFFFFFFFull);
+	size_t hash0 = 2166136261, hash1 = 2166136261, hash2 = 2166136261, hash3 = 2166136261;
+	size_t hash4 = 2166136261, hash5 = 2166136261, hash6 = 2166136261, hash7 = 2166136261;
+	for(list_t::iterator it(args); it; it++) {
+		size_t h = jo_hash_value(*it);
+		hash0 = (16777619 * hash0) ^ ((h>>0) & 255);
+		hash1 = (16777619 * hash1) ^ ((h>>8) & 255);
+		hash2 = (16777619 * hash2) ^ ((h>>16) & 255);
+		hash3 = (16777619 * hash3) ^ ((h>>24) & 255);
+		hash4 = (16777619 * hash4) ^ ((h>>32) & 255);
+		hash5 = (16777619 * hash5) ^ ((h>>40) & 255);
+		hash6 = (16777619 * hash6) ^ ((h>>48) & 255);
+		hash7 = (16777619 * hash7) ^ ((h>>56) & 255);
+	}
+	size_t hash = ((hash0 ^ hash1) ^ (hash2 ^ hash3)) ^ ((hash4 ^ hash5) ^ (hash6 ^ hash7));
+	return new_node_int(hash & 0x7FFFFFFFFFFFFFFFull);
 }
 
 // (hash-combine x y)

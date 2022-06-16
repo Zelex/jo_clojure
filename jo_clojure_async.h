@@ -14,7 +14,7 @@ typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
 class jo_threadpool {
 	std::vector<std::thread> pool;
 	typedef std::function<void()> task_t;
-	jo_mpmcq<task_t*, NULL, 4096> tasks;
+	jo_mpmcq<task_t*, nullptr, 4096> tasks;
 
 public:
 	jo_threadpool(int nr = 1) : pool(), tasks() {
@@ -24,7 +24,7 @@ public:
 				thread_id = thread_uid.fetch_add(1);
 				while(true) {
 					task_t *task = tasks.pop();
-					if(task == NULL) {
+					if(task == nullptr) {
 						break;
 					}
 					(*task)();
@@ -138,18 +138,26 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 	} else if(type == NODE_DELAY) {
 		return eval_node(env, ref_idx);
 	} else if(type == NODE_FUTURE || type == NODE_PROMISE) {
-		if(!ref->t_future.valid()) {
-			return NIL_NODE;
-		}
+		node_idx_t ret = ref->t_atom.load();
 		if(timeout_ms_idx != NIL_NODE) {
+			double A = jo_time();
 			long long timeout_ms = get_node_int(timeout_ms_idx);
-			if(ref->t_future.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::timeout) {
-				return timeout_val_idx;
+			int count = 0;
+			while(ret == TX_HOLD_NODE || ret == INV_NODE) {
+				if(jo_time() - A >= timeout_ms * 0.001) {
+					return timeout_val_idx;
+				}
+				jo_yield_backoff(&count);
+				ret = ref->t_atom;
 			}
 		} else {
-			ref->t_future.wait();
+			int count = 0;
+			while(ret == TX_HOLD_NODE || ret == INV_NODE) {
+				jo_yield_backoff(&count);
+				ret = ref->t_atom;
+			}
 		}
-		return ref->t_future.get();
+		return ret;
 	}
 	return NODE_NIL;
 }
@@ -654,18 +662,12 @@ static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
-#if USE_THREADPOOL
-	jo_task_ptr_t task = new jo_task_t([env,args]{
-		return eval_node_list(env, args); 
+	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
+		node_t *f = get_node(f_idx);
+		f->t_atom.store(eval_node_list(env, args)); 
+		return NIL_NODE;
 	});
-	f->t_future = task->get_future();
 	thread_pool->add_task(task);
-#else
-	f->t_future = std::async(std::launch::async, [env,args]() { 
-		jo_semaphore_waiter_notifier w(thread_limiter);
-		return eval_node_list(env, args); 
-	});
-#endif
 	return f_idx;
 }
 
@@ -678,18 +680,12 @@ static node_idx_t native_auto_future(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
-#if USE_THREADPOOL
-	jo_task_ptr_t task = new jo_task_t([env,args]{
-		return eval_node_list(env, args); 
+	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
+		node_t *f = get_node(f_idx);
+		f->t_atom.store(eval_node_list(env, args)); 
+		return NIL_NODE;
 	});
-	f->t_future = task->get_future();
 	thread_pool->add_task(task);
-#else
-	f->t_future = std::async(std::launch::async, [env,args]() { 
-		jo_semaphore_waiter_notifier w(thread_limiter);
-		return eval_node_list(env, args); 
-	});
-#endif
 	return f_idx;
 }
 
@@ -706,18 +702,12 @@ static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
-#if USE_THREADPOOL
-	jo_task_ptr_t task = new jo_task_t([env,args]{
-		return eval_list(env, args); 
+	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
+		node_t *f = get_node(f_idx);
+		f->t_atom.store(eval_list(env, args));
+		return NIL_NODE;
 	});
-	f->t_future = task->get_future();
 	thread_pool->add_task(task);
-#else
-	f->t_future = std::async(std::launch::async, [env,args]() { 
-		jo_semaphore_waiter_notifier w(thread_limiter);
-		return eval_list(env, args); 
-	});
-#endif
 	return f_idx;
 }
 
@@ -730,18 +720,12 @@ static node_idx_t native_auto_future_call(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
-#if USE_THREADPOOL
-	jo_task_ptr_t task = new jo_task_t([env,args]{
-		return eval_list(env, args); 
+	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
+		node_t *f = get_node(f_idx);
+		f->t_atom.store(eval_list(env, args));
+		return NIL_NODE;
 	});
-	f->t_future = task->get_future();
 	thread_pool->add_task(task);
-#else
-	f->t_future = std::async(std::launch::async, [env,args]() { 
-		jo_semaphore_waiter_notifier w(thread_limiter);
-		return eval_list(env, args); 
-	});
-#endif
 	return f_idx;
 }
 
@@ -792,7 +776,7 @@ static node_idx_t native_future_done(env_ptr_t env, list_ptr_t args) {
 		warnf("(future-done?) requires a future\n");
 		return NIL_NODE;
 	}
-	return f->t_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready ? TRUE_NODE : FALSE_NODE;
+	return f->t_atom.load() >= 0 ? TRUE_NODE : FALSE_NODE;
 }
 
 static node_idx_t native_is_future(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FUTURE ? TRUE_NODE : FALSE_NODE; }
@@ -938,7 +922,7 @@ static node_idx_t native_pvalues_next(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_promise(env_ptr_t env, list_ptr_t args) {
 	node_idx_t ret_idx = new_node(NODE_PROMISE, 0);
 	node_t *ret = get_node(ret_idx);
-	ret->t_future = ret->t_promise.get_future();
+	ret->t_atom.store(INV_NODE);
 	return ret_idx;
 }
 
@@ -948,8 +932,8 @@ static node_idx_t native_promise(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_deliver(env_ptr_t env, list_ptr_t args) {
 	node_idx_t promise_idx = args->first_value();
 	node_t *promise = get_node(promise_idx);
-	if(promise->t_future.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
-		promise->t_promise.set_value(args->second_value());
+	if(promise->t_atom.load() == INV_NODE) {
+		promise->t_atom.store(args->second_value());
 	}
 	return NIL_NODE;
 }
@@ -1026,10 +1010,7 @@ static node_idx_t native_stm_retries_reset(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_realized(env_ptr_t env, list_ptr_t args) {
 	node_idx_t promise_idx = args->first_value();
 	node_t *promise = get_node(promise_idx);
-	if(promise->t_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-		return new_node_bool(true);
-	}
-	return new_node_bool(false);
+	return promise->t_atom.load() != INV_NODE ? TRUE_NODE : NIL_NODE;
 }
 
 static node_idx_t native_tx_start_time(env_ptr_t env, list_ptr_t args) {

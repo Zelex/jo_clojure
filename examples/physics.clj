@@ -7,7 +7,7 @@
 ; Make the collision hash
 (def collision-hash (atom []))
 
-(defn get-pos-hash [x y] (mod (hash (str (Math/quantize x 1) (Math/quantize y 1))) collision-buckets))
+(defn get-pos-hash [x y] (mod (hash (Math/quantize x 1) (Math/quantize y 1)) collision-buckets))
 
 (defn add-collision-hash [entity] 
     (let [phys (@entity :physics)
