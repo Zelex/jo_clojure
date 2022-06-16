@@ -41,7 +41,7 @@ static node_idx_t native_system_chdir(env_ptr_t env, list_ptr_t args) { return n
 static node_idx_t native_system_kbhit(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_kbhit() != 0); }
 static node_idx_t native_system_getch(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_getch()); }
 // returns current time since program start in seconds
-static node_idx_t native_time_now(env_ptr_t env, list_ptr_t args) {	return new_node_float(jo_time() - time_program_start); }
+static node_idx_t native_time_now(env_ptr_t env, list_ptr_t args) { return new_node_float(jo_time() - time_program_start); }
 
 static node_idx_t native_system_getcwd(env_ptr_t env, list_ptr_t args) {
 	char cwd[256];

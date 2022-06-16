@@ -15,6 +15,24 @@
 #include <future>
 #include <thread>
 #include <shared_mutex>
+
+//#define WITH_TELEMETRY
+#ifdef WITH_TELEMETRY
+#pragma comment(lib,"rad_tm_win64.lib")
+#include "tm/rad_tm.h"
+#else
+#define tmTick sizeof
+#define tmZone sizeof
+#define tmEnter sizeof
+#define tmLeave sizeof
+#define tmPlot sizeof
+#define tmMessage sizeof
+#define tmOpen sizeof
+#define tmClose sizeof
+#define tmShutdown sizeof
+#define tmProfileThread sizeof
+#endif
+
 #include "debugbreak.h"
 #include "jo_stdcpp.h"
 
@@ -680,6 +698,7 @@ struct node_t {
 		double t_float;
 		FILE *t_file;
 		void *t_dir;
+		native_function_t t_nfunc_raw;
 		volatile unsigned long long t_thread_id;
 	};
 
@@ -1199,9 +1218,9 @@ struct node_t {
 };
 
 static jo_pinned_vector<node_t> nodes;
-static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<18)> free_nodes; // available for allocation...
-static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<18)> garbage_nodes; // need resource release 
-
+static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<20)> free_nodes; // available for allocation...
+static const int num_garbage_sectors = 8;
+static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<20)> garbage_nodes[num_garbage_sectors]; // need resource release 
 
 static inline void node_add_ref(node_idx_unsafe_t idx) { 
 	if(idx >= START_USER_NODES) {
@@ -1227,9 +1246,16 @@ static inline void node_release(node_idx_unsafe_t idx) {
 			if(rc <= 1) {
 				//assert(rc >= 0);
 #if 0 // no GC
-#elif 0 // delayed GC
+#elif 1 // delayed GC
 				n->flags |= NODE_FLAG_GARBAGE;
-				garbage_nodes.push(idx);
+				int sector = idx & (num_garbage_sectors-1);
+				if(garbage_nodes[sector].full()) {
+					n->release();
+					free_nodes.push(idx);
+				} else {
+					garbage_nodes[sector].push(idx);
+				}
+
 #else // immediate GC
 				n->release();
 				free_nodes.push(idx);
@@ -1239,17 +1265,23 @@ static inline void node_release(node_idx_unsafe_t idx) {
 	}
 }
 
-static void collect_garbage() {
+static void collect_garbage(int sector) {
+	tmProfileThread(0,0,0);
 	node_idx_unsafe_t idx = INV_NODE;
 	while(true) {
 		std::this_thread::yield();
 #if 1
-		if(garbage_nodes.size() <= 1) continue;
-		idx = garbage_nodes.pop();
-		if(idx == NIL_NODE) break;
-		node_t *n = &nodes[idx];
-		n->release();
-		free_nodes.push(idx);
+		if(garbage_nodes[sector].closing) {
+			idx = NIL_NODE;
+			break;
+		} 
+		while(garbage_nodes[sector].size() > 1) {
+			idx = garbage_nodes[sector].pop();
+			if(idx == NIL_NODE) break;
+			node_t *n = &nodes[idx];
+			n->release();
+			free_nodes.push(idx);
+		}
 #else
 		for(int i = 0; i < num_garbage_sectors; ++i) {
 			if(garbage_nodes[i].closing) {
@@ -1350,10 +1382,31 @@ static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flag
 	return idx;
 }
 
+static node_idx_t new_node_native_function(native_function_t f, bool is_macro, int flags=0) {
+	node_t n;
+	n.type = NODE_NATIVE_FUNC;
+	n.t_nfunc_raw = f;
+	n.flags = flags;
+	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
+	n.flags |= NODE_FLAG_LITERAL;
+	return new_node(std::move(n));
+}
+
 static node_idx_t new_node_native_function(std::function<node_idx_t(env_ptr_t,list_ptr_t)> f, bool is_macro, int flags=0) {
 	node_t n;
 	n.type = NODE_NATIVE_FUNC;
 	n.t_native_function = new native_func_t(f);
+	n.flags = flags;
+	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
+	n.flags |= NODE_FLAG_LITERAL;
+	return new_node(std::move(n));
+}
+
+static node_idx_t new_node_native_function(const char *name, native_function_t f, bool is_macro, int flags=0) {
+	node_t n;
+	n.type = NODE_NATIVE_FUNC;
+	n.t_nfunc_raw = f;
+	n.t_string = name;
 	n.flags = flags;
 	n.flags |= is_macro ? NODE_FLAG_MACRO : 0;
 	n.flags |= NODE_FLAG_LITERAL;
@@ -2123,12 +2176,16 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			sym_type = get_node_type(sym_idx);
 		}
 		sym_flags = get_node(sym_idx)->flags;
+		node_t *sym_node = get_node(sym_idx);
 
 		// get the symbol's value
 		if(sym_type == NODE_NATIVE_FUNC) {
 			debugf("nativefn: %s\n", get_node_string(sym_idx).c_str());
 			if((sym_flags|list_flags) & (NODE_FLAG_MACRO|NODE_FLAG_LITERAL_ARGS)) {
-				return (*get_node(sym_idx)->t_native_function.ptr)(env, list->rest());
+				if(sym_node->t_nfunc_raw) {
+					return sym_node->t_nfunc_raw(env, list->rest());
+				}
+				return (*sym_node->t_native_function.ptr)(env, list->rest());
 			}
 
 			list_ptr_t args = new_list();
@@ -2136,15 +2193,19 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				args->push_back_inplace(eval_node(env, *it));
 			}
 			// call the function
-			return (*get_node(sym_idx)->t_native_function.ptr)(env, args);
+			if(sym_node->t_nfunc_raw) {
+				return sym_node->t_nfunc_raw(env, args);
+			} else {
+				return (*sym_node->t_native_function.ptr)(env, args);
+			}
 		} else if(sym_type == NODE_FUNC || sym_type == NODE_DELAY) {
-			if(sym_type == NODE_DELAY && get_node(sym_idx)->t_extra != INV_NODE) {
-				return get_node(sym_idx)->t_extra;
+			if(sym_type == NODE_DELAY && sym_node->t_extra != INV_NODE) {
+				return sym_node->t_extra;
 			}
 
-			vector_ptr_t proto_args = get_node(sym_idx)->t_func.args;
-			list_ptr_t proto_body = get_node(sym_idx)->t_func.body;
-			env_ptr_t proto_env = get_node(sym_idx)->t_env;
+			vector_ptr_t proto_args = sym_node->t_func.args;
+			list_ptr_t proto_body = sym_node->t_func.body;
+			env_ptr_t proto_env = sym_node->t_env;
 			list_ptr_t args1(list->rest());
 			env_ptr_t fn_env = new_env(proto_env);
 
@@ -2179,7 +2240,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			}
 
 			if(sym_type == NODE_DELAY) {
-				get_node(sym_idx)->t_extra = last;
+				sym_node->t_extra = last;
 			}
 			return last;
 		} else if(sym_type == NODE_MAP) {
@@ -2187,7 +2248,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				// lookup the key in the map
 				node_idx_t n2i = eval_node(env, *it++);
 				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
-				auto it2 = get_node(sym_idx)->as_map()->find(n2i, node_eq);
+				auto it2 = sym_node->as_map()->find(n2i, node_eq);
 				if(it2.third) {
 					return it2.second;
 				}
@@ -2198,7 +2259,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				// lookup the key in the map
 				node_idx_t n2i = eval_node(env, *it++);
 				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
-				auto it2 = get_node(sym_idx)->as_hash_set()->find(n2i, node_eq);
+				auto it2 = sym_node->as_hash_set()->find(n2i, node_eq);
 				if(it2.second) {
 					return it2.first;
 				}
@@ -2218,7 +2279,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				return n3i;
 			}
 		} else if(sym_type == NODE_VECTOR) {
-			if(it) return get_node(sym_idx)->as_vector()->nth(get_node_int(eval_node(env, *it++)));
+			if(it) return sym_node->as_vector()->nth(get_node_int(eval_node(env, *it++)));
 		}
 	}
 
@@ -2304,6 +2365,7 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 	node_idx_t res = NIL_NODE;
 	for(list_t::iterator it(list); it; it++) {
 		res = eval_node(env, *it);
+		//tmTick(0);
 	}
 	return res;
 }
@@ -3932,7 +3994,7 @@ static node_idx_t native_count(env_ptr_t env, list_ptr_t args) {
 	return new_node_int(get_node(args->first_value())->seq_size());
 }
 
-static node_idx_t native_is_delay(env_ptr_t env, list_ptr_t args) {	return get_node_type(args->first_value()) == NODE_DELAY ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_delay(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_DELAY ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_empty() ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_not_empty(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_empty() ? FALSE_NODE : TRUE_NODE; }
 static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? FALSE_NODE : TRUE_NODE; }
@@ -5956,6 +6018,16 @@ static bool IsRegistered(const char *ext) {
 #endif
 
 int main(int argc, char **argv) {
+#ifdef WITH_TELEMETRY
+	tmLoadLibrary(TM_RELEASE);
+	tm_int32 telemetry_memory_size = 128 * 1024 * 1024;
+	char* telemetry_memory = (char*)malloc(telemetry_memory_size);
+	tmInitialize(telemetry_memory_size, telemetry_memory);
+	tm_error err = tmOpen(0, "jo_clojure", __DATE__ " " __TIME__, "localhost", TMCT_TCP, 4719, TMOF_INIT_NETWORKING, 100);
+	tmThreadName(0,0,"main");
+	tmProfileThread(0,0,0);
+#endif
+
 #ifdef _MSC_VER
     if(argc == 1) {
 		GetModuleFileNameA(GetModuleHandle(NULL), real_exe_path, MAX_PATH);
@@ -6251,7 +6323,11 @@ int main(int argc, char **argv) {
 	debugf("Evaluating...\n");
 
 	// start the GC
-	std::thread gc_thread(collect_garbage);
+	std::thread gc_thread[num_garbage_sectors];
+	
+	for(int i = 0; i < num_garbage_sectors; i++) {
+		gc_thread[i] = std::thread(collect_garbage, i);
+	}
 
 	{
 		node_idx_t res_idx = eval_node_list(env, main_list);
@@ -6260,14 +6336,17 @@ int main(int argc, char **argv) {
 	}
 
 	debugf("Waiting for GC to stop...\n");
-#if 1
+#if 0
 	garbage_nodes.close();
+	gc_thread.join();
 #else
 	for(int i = 0; i < num_garbage_sectors; ++i) {
 		garbage_nodes[i].close();
 	}
+	for(int i = 0; i < num_garbage_sectors; ++i) {
+		gc_thread[i].join();
+	}
 #endif
-	gc_thread.join();
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	debugf("free_nodes.size() = %zu\n", free_nodes.size());
@@ -6295,5 +6374,11 @@ int main(int argc, char **argv) {
 	//jo_float f("1.23456789");
 	//jo_string f_str = f.to_string();
 	//printf("f = %s\n", f_str.c_str());
+
+#ifdef WITH_TELEMETRY
+	tmClose(0);
+	tmShutdown();
+	free(telemetry_memory);
+#endif
 }
 

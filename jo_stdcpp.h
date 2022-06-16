@@ -1379,7 +1379,7 @@ struct jo_mpmcq {
 
     size_t size() const { return T_depth - push_sem.count.load(); }
     bool empty() const { return push_sem.count.load() == T_depth; }
-    bool full() const { return push_sem.count.load() == 0; }
+    bool full() const { return push_sem.count.load() <= 1; }
 };
 
 // jo_pinned_vector
