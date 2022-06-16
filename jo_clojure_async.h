@@ -143,7 +143,7 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 			double A = jo_time();
 			long long timeout_ms = get_node_int(timeout_ms_idx);
 			int count = 0;
-			while(ret == TX_HOLD_NODE || ret == INV_NODE) {
+			while(ret < 0) {
 				if(jo_time() - A >= timeout_ms * 0.001) {
 					return timeout_val_idx;
 				}
@@ -152,7 +152,7 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 			}
 		} else {
 			int count = 0;
-			while(ret == TX_HOLD_NODE || ret == INV_NODE) {
+			while(ret < 0) {
 				jo_yield_backoff(&count);
 				ret = ref->t_atom;
 			}
@@ -662,6 +662,7 @@ static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
+	f->t_atom.store(INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
 		node_t *f = get_node(f_idx);
 		f->t_atom.store(eval_node_list(env, args)); 
@@ -680,6 +681,7 @@ static node_idx_t native_auto_future(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
+	f->t_atom.store(INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
 		node_t *f = get_node(f_idx);
 		f->t_atom.store(eval_node_list(env, args)); 
@@ -702,6 +704,7 @@ static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_t *f = get_node(f_idx);
+	f->t_atom.store(INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
 		node_t *f = get_node(f_idx);
 		f->t_atom.store(eval_list(env, args));
@@ -720,6 +723,7 @@ static node_idx_t native_auto_future_call(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
 	node_t *f = get_node(f_idx);
+	f->t_atom.store(INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
 		node_t *f = get_node(f_idx);
 		f->t_atom.store(eval_list(env, args));
