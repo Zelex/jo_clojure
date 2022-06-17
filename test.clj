@@ -875,7 +875,7 @@
 (is (= (mapcat (fn [[k v]] (for [[k2 v2] v] (concat [k k2] v2)))
           {:a {:x (1 2) :y (3 4)}
            :b {:x (1 2) :z (5 6)}})
-    ((:a :x 1 2) (:a :y 3 4) (:b :x 1 2) (:b :z 5 6))))
+    ((:b :z 5 6) (:b :x 1 2) (:a :y 3 4) (:a :x 1 2))))
 
 (is (= (mapv inc [1 2 3 4 5]) [2 3 4 5 6]))
 (is (= (mapv + [1 2 3] [4 5 6]) [5 7 9]))
@@ -949,7 +949,7 @@
 (is (= (remove pos? [1 -2 2 -1 3 7 0]) (-2 -1 0)))
 (is (= (remove nil? [1 nil 2 nil 3 nil]) (1 2 3)))
 (is (= (remove #(zero? (mod % 3)) (range 1 21)) (1 2 4 5 7 8 10 11 13 14 16 17 19 20)))
-(is (= (remove #{:a} #{:b :c :d :a :e}) (:b :c :d :e)))
+(is (= (remove #{:a} #{:b :c :d :a :e}) (:e :d :c :b)))
 (is (= (remove #{:a} [:b :c :d :a :e :a :f]) (:b :c :d :e :f)))
 (is (= (remove {:a 42 :b 69} #{:a :b :c}) (:c)))
 ;(is (= (into [] (remove #{\-}) "3-598-21508-8") [\3 \5 \9 \8 \2 \1 \5 \0 \8 \8]))
