@@ -45,6 +45,7 @@ static std::atomic<size_t> stm_retries(0);
 
 static const auto processor_count = std::thread::hardware_concurrency();
 
+
 enum {
 
 	// hard coded nodes
@@ -1198,7 +1199,8 @@ struct node_t {
 };
 
 static jo_pinned_vector<node_t> nodes;
-static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<20)> free_nodes; // available for allocation...
+static const int num_free_sectors = 8;
+static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<20)> free_nodes[num_free_sectors]; // available for allocation...
 static const int num_garbage_sectors = 8;
 static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<20)> garbage_nodes[num_garbage_sectors]; // need resource release 
 
@@ -1224,22 +1226,14 @@ static inline void node_release(node_idx_unsafe_t idx) {
 				printf("Error in ref count: node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
 			}
 			if(rc <= 1) {
-				//assert(rc >= 0);
-#if 0 // no GC
-#elif 1 // delayed GC
 				n->flags |= NODE_FLAG_GARBAGE;
 				int sector = idx & (num_garbage_sectors-1);
 				if(garbage_nodes[sector].full()) {
 					n->release();
-					free_nodes.push(idx);
+					free_nodes[sector].push(idx);
 				} else {
 					garbage_nodes[sector].push(idx);
 				}
-
-#else // immediate GC
-				n->release();
-				free_nodes.push(idx);
-#endif
 			}
 		}
 	}
@@ -1250,7 +1244,6 @@ static void collect_garbage(int sector) {
 	node_idx_unsafe_t idx = INV_NODE;
 	while(true) {
 		std::this_thread::yield();
-#if 1
 		if(garbage_nodes[sector].closing) {
 			idx = NIL_NODE;
 			break;
@@ -1260,22 +1253,8 @@ static void collect_garbage(int sector) {
 			if(idx == NIL_NODE) break;
 			node_t *n = &nodes[idx];
 			n->release();
-			free_nodes.push(idx);
+			free_nodes[sector].push(idx);
 		}
-#else
-		for(int i = 0; i < num_garbage_sectors; ++i) {
-			if(garbage_nodes[i].closing) {
-				idx = NIL_NODE;
-				break;
-			} 
-			if(garbage_nodes[i].size() <= 1) continue;
-			idx = garbage_nodes[i].pop();
-			if(idx == NIL_NODE) break;
-			node_t *n = &nodes[idx];
-			n->release();
-			free_nodes.push(idx);
-		}
-#endif
 		if(idx == NIL_NODE) break;
 	}
 }
@@ -1313,15 +1292,12 @@ static inline atomic_node_idx_t &get_node_atom(node_idx_t idx) { return get_node
 static inline env_ptr_t get_node_env(node_idx_t idx) { return get_node(idx)->t_env; }
 static inline env_ptr_t get_node_env(const node_t *n) { return n->t_env; }
 
-static inline void free_node(node_idx_t idx) {
-	free_nodes.push(idx);
-}
-
 // TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
 static inline node_idx_t new_node(node_t &&n) {
 	// TODO: need try-pop really...
-	if(free_nodes.size() > processor_count * 2) {
-		node_idx_unsafe_t ni = free_nodes.pop();
+	int sector = jo_pcg32(&jo_rnd_state) % num_free_sectors;
+	if(free_nodes[sector].size() > processor_count * 2) {
+		node_idx_unsafe_t ni = free_nodes[sector].pop();
 		if(ni >= START_USER_NODES) {
 			node_t *nn = &nodes[ni];
 			*nn = std::move(n);
@@ -4060,15 +4036,15 @@ static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
 	if(list->is_string()) {
 		jo_string &str = list->t_string;
 		if(str.size() == 0) return NIL_NODE;
-		return new_node_int(str.c_str()[rand() % str.size()]);
+		return new_node_int(str.c_str()[jo_pcg32(&jo_rnd_state) % str.size()]);
 	}
 	if(list->is_list()) {
 		size_t size = list->as_list()->size();
-		if(size > 0) return list->as_list()->nth(rand() % size);
+		if(size > 0) return list->as_list()->nth(jo_pcg32(&jo_rnd_state) % size);
 	}
 	if(list->is_vector()) {
 		size_t size = list->as_vector()->size();
-		if(size > 0) return list->as_vector()->nth(rand() % size);
+		if(size > 0) return list->as_vector()->nth(jo_pcg32(&jo_rnd_state) % size);
 	}
 	return NIL_NODE;
 }
@@ -6054,6 +6030,7 @@ int main(int argc, char **argv) {
 	}
 
 	srand(0);
+	jo_rnd_state = jo_pcg32_init(0);
 
 	debugf("Setting up environment...\n");
 
@@ -6340,7 +6317,9 @@ int main(int argc, char **argv) {
 #endif
 
 	debugf("nodes.size() = %zu\n", nodes.size());
-	debugf("free_nodes.size() = %zu\n", free_nodes.size());
+	for(int i = 0; i < num_free_sectors; ++i) {
+		debugf("free_nodes.size() = %zu\n", free_nodes[i].size());
+	}
 	debugf("atom_retries = %zu\n", atom_retries.load());
 	debugf("stm_retries = %zu\n", stm_retries.load());
 

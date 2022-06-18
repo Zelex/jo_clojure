@@ -787,20 +787,7 @@ static node_idx_t native_is_future(env_ptr_t env, list_ptr_t args) { return get_
 
 static node_idx_t native_thread_sleep(env_ptr_t env, list_ptr_t args) {
 	double ms = get_node_float(args->first_value());
-	#if 1
-		jo_sleep(ms / 1000.0);
-	#else
-	double A,B;
-	A = B = jo_time();
-	// This actually works... though poorly.. wth windows?
-	while(B - A < ms / 1000.0) {
-		jo_yield();
-		B = jo_time();
-	}
-	#endif
-	//std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-	//jo_sleep(ms / 1000.0);
-	//printf("slept for %f ms, should be %f ms\n", (B-A) * 1000, ms);
+	jo_sleep(ms / 1000.0);
 	return NIL_NODE;
 }
 

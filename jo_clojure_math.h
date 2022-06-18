@@ -335,20 +335,20 @@ static node_idx_t native_dec_int(env_ptr_t env, list_ptr_t args) {
 	return new_node_int(n1->as_int() - 1);
 }
 
-static node_idx_t native_rand_int(env_ptr_t env, list_ptr_t args) { return new_node_int(rand() % get_node_int(args->first_value())); }
+static node_idx_t native_rand_int(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_pcg32(&jo_rnd_state) % get_node_int(args->first_value())); }
 static node_idx_t native_rand(env_ptr_t env, list_ptr_t args) { 
 	double bias = 0.0;
-	double scale = 1.0 / RAND_MAX;
+	double scale = 1.0 / (double)UINT32_MAX;
 	if(args->size() == 1) {
-		scale = get_node_float(args->first_value()) / RAND_MAX;
+		scale = get_node_float(args->first_value()) / (double)UINT32_MAX;
 	} else if(args->size() == 2) {
 		// compute scale/bias for random value between first and second number
 		double A = get_node_float(args->first_value());
 		double B = get_node_float(args->second_value());
 		bias = A;
-		scale = (B - A) / RAND_MAX;
+		scale = (B - A) / (double)UINT32_MAX;
 	}
-	return new_node_float(bias + rand() * scale); 
+	return new_node_float(bias + jo_pcg32(&jo_rnd_state) * scale); 
 }
 static node_idx_t native_math_sqrt(env_ptr_t env, list_ptr_t args) { return new_node_float(sqrt(get_node_float(args->first_value()))); }
 static node_idx_t native_math_cbrt(env_ptr_t env, list_ptr_t args) { return new_node_float(cbrt(get_node_float(args->first_value()))); }
@@ -602,7 +602,7 @@ static node_idx_t native_math_average(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_math_srand(env_ptr_t env, list_ptr_t args) {
-	srand(get_node_int(args->first_value()));
+	jo_rnd_state = jo_pcg32_init(get_node_int(args->first_value()));
 	return NIL_NODE;
 }
 

@@ -581,9 +581,34 @@ inline void jo_swap(T &a, T &b) {
     b = tmp;
 }
 
+static uint64_t thread_local jo_rnd_state = 0x4d595df4d0f33173; 
+
+static uint32_t jo_rotr32(uint32_t x, unsigned r) {
+#ifdef _WIN32
+    return _rotr(x, r);
+#else
+    return (x >> r) | (x << (32 - r));
+#endif
+}
+
+uint32_t jo_pcg32(uint64_t *state) {
+	uint64_t x = *state;
+	unsigned count = (unsigned)(x >> 59);		// 59 = 64 - 5
+
+	*state = x * 6364136223846793005u + 1442695040888963407u;
+	x ^= x >> 18;								// 18 = (64 - 27)/2
+	return jo_rotr32((uint32_t)(x >> 27), count);	// 27 = 32 - 5
+}
+
+uint64_t jo_pcg32_init(uint64_t seed) {
+	uint64_t state = seed + 1442695040888963407u;
+	(void)jo_pcg32(&state);
+    return state;
+}
+
 // jo_random_int
 inline int jo_random_int(int min, int max) {
-    return min + (rand() % (max - min + 1));
+    return min + (jo_pcg32(&jo_rnd_state) % (max - min + 1));
 }
 
 inline int jo_random_int(int max) {
@@ -591,11 +616,11 @@ inline int jo_random_int(int max) {
 }
 
 inline int jo_random_int() {
-    return jo_random_int(0, RAND_MAX);
+    return jo_random_int(0, 0x7ffffff0);
 }
 
-inline float jo_random_float() {
-    return (float)rand() / (float)RAND_MAX;
+inline double jo_random_float() {
+    return (double)jo_pcg32(&jo_rnd_state) / (double)UINT32_MAX;
 }
 
 // jo_random_shuffle
