@@ -4,7 +4,6 @@ template<typename T>
 struct jo_alloc_t;
 
 struct jo_alloc_base_t {
-	virtual void add_ref(void *n) = 0;
 	virtual void free(void *n) = 0;
 };
 
@@ -24,7 +23,8 @@ struct jo_alloc_t_type {
     jo_alloc_t_type(const jo_alloc_t_type &&other) {} 
 
     void add_ref() {
-        h.owner->add_ref(data);
+        assert(h.canary == 0xDEADBEEF);
+        h.ref_count.fetch_add(1);
     }
 
     void release() {
@@ -44,20 +44,25 @@ struct jo_alloc_t : jo_alloc_base_t {
         MAX_SECTORS = 256
     };
 
-    int NUM_SECTORS = jo_min(std::thread::hardware_concurrency(), MAX_SECTORS);
+    const int NUM_SECTORS = jo_min(std::thread::hardware_concurrency(), MAX_SECTORS);
 	jo_pinned_vector<T_t> vec;
-	std::atomic<unsigned long long> free_list[MAX_SECTORS];
+    char pad[64];
+    // Make sure each atomic is on its own cache-line
+    struct {
+        std::atomic<unsigned long long> head;
+        char pad[64 - sizeof(std::atomic<unsigned long long>)];
+    } free_list[MAX_SECTORS];
 
 	T *alloc() {
         unsigned sector = thread_id & (NUM_SECTORS-1);
-        for(int i = 0; i < 2; ++i) {
-            unsigned long long cnt_idx = free_list[sector].load();
+        for(int i = 0; i < 1; ++i) {
+            unsigned long long cnt_idx = free_list[sector].head.load();
             unsigned long long n_idx = cnt_idx & 0xffffffff;
             while (n_idx > 0) {
                 T_t *n = &vec[n_idx-1];
                 unsigned long long cnt = (cnt_idx + 0x100000000ull) & (-1ll << 32);
                 unsigned long long cnt_idx2 = n->h.next | cnt;
-                if(free_list[sector].compare_exchange_weak(cnt_idx, cnt_idx2)) {
+                if(free_list[sector].head.compare_exchange_weak(cnt_idx, cnt_idx2)) {
                     assert(n->h.canary == 0);
                     n->h.canary = 0xDEADBEEF;
                     n->h.next = 0;
@@ -85,12 +90,6 @@ struct jo_alloc_t : jo_alloc_base_t {
 		return new(alloc()) T(args...);
 	}
 
-	void add_ref(void *n) {
-		T_t *t = (T_t*)((char*)n - sizeof(t->h));
-        assert(t->h.canary == 0xDEADBEEF);
-        t->h.ref_count.fetch_add(1);
-    }
-
 	void free(void *n) {
 		T_t *t = (T_t*)((char*)n - sizeof(t->h));
         assert(t->h.canary == 0xDEADBEEF);
@@ -105,11 +104,11 @@ struct jo_alloc_t : jo_alloc_base_t {
             //memset(t->data, 0xCD, sizeof(T)); // DEBUG
             unsigned idx = t->h.idx;
             unsigned sector = thread_id & (NUM_SECTORS-1);
-            unsigned long long old_h = free_list[sector].load(), new_h;
+            unsigned long long old_h = free_list[sector].head.load(), new_h;
             do {
                 t->h.next = old_h & 0xffffffff;
                 new_h = (old_h & 0xffffffff00000000) | idx;
-            } while(!free_list[sector].compare_exchange_weak(old_h, new_h));
+            } while(!free_list[sector].head.compare_exchange_weak(old_h, new_h));
 		}
 	}
 };
