@@ -1868,6 +1868,9 @@ struct jo_persistent_vector2d : jo_object {
     }
 
     T get(size_t x, size_t y) const {
+        if(x >= width || y >= height) {
+            return T();
+        }
         int shift = 3 * (depth + 1);
 
         node_shared_ptr cur = head;

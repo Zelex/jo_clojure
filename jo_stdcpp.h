@@ -411,9 +411,9 @@ void jo_sleep(double seconds) {
 
 // yield exponential backoff
 static void jo_yield_backoff(int *count) {
-    if(*count == 0) {
+    if(*count <= 8) {
         // do nothing, just try again
-    } else if(*count == 1) {
+    } else if(*count <= 16+8) {
         std::this_thread::yield();
     } else {
         const int lmin_ns = 1000;
@@ -1352,11 +1352,17 @@ struct jo_fastsemaphore {
 template <typename T, T invalid_value, int T_depth>
 struct jo_mpmcq {
     std::atomic<T> slots[T_depth];
+    char pad1[64];
     std::atomic<size_t> push_idx;
+    char pad2[64];
     std::atomic<size_t> pop_idx;
+    char pad3[64];
     jo_fastsemaphore push_sem;
+    char pad4[64];
     jo_fastsemaphore pop_sem;
+    char pad5[64];
     volatile bool closing;
+    char pad6[64];
 
     jo_mpmcq() : push_idx(T_depth), pop_idx(0), push_sem(T_depth), pop_sem(0), closing(false) {
         for (size_t i = 0; i < T_depth; ++i) {

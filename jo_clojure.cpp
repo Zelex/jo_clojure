@@ -246,8 +246,9 @@ struct transaction_t {
 	transaction_t() : tx_map(), start_time(jo_time() - time_program_start), num_retries() {}
 
 	node_idx_t read(atom_idx_t atom_idx) {
-		if(tx_map.find(atom_idx) != tx_map.end()) {
-			tx_t &tx = tx_map[atom_idx];
+		auto it = tx_map.find(atom_idx);
+		if(it != tx_map.end()) {
+			tx_t &tx = it->second;
 			return tx.new_val != INV_NODE ? tx.new_val : tx.old_val;
 		}
 		debugf("stm read %lld\n", atom_idx);
@@ -1118,6 +1119,24 @@ static void collect_garbage(int sector) {
 	}
 }
 
+// TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
+static inline node_idx_t new_node(node_t &&n) {
+	// TODO: need try-pop really...
+	//int sector = thread_id & (num_free_sectors-1);
+	int sector = jo_pcg32(&jo_rnd_state) & (num_free_sectors-1);
+	//for(int i = 0; i < 1; ++i) {
+		if(free_nodes[sector].size() > processor_count * 2) {
+			node_idx_unsafe_t ni = free_nodes[sector].pop();
+			if(ni >= START_USER_NODES) {
+				node_t *nn = &nodes[ni];
+				*nn = std::move(n);
+				return ni;
+			}
+		}
+	//}
+	return nodes.push_back(std::move(n));
+}
+
 static inline node_t *get_node(node_idx_t idx) {
 	 //assert(!(nodes[idx].flags & NODE_FLAG_GARBAGE));
 	 if(nodes[idx].flags & NODE_FLAG_GARBAGE) {
@@ -1125,6 +1144,7 @@ static inline node_t *get_node(node_idx_t idx) {
 	 }
 	 return &nodes[idx]; 
 }
+
 static inline int get_node_type(node_idx_t idx) { return get_node(idx)->type; }
 static inline int get_node_type(const node_t *n) { return n->type; }
 static inline int get_node_flags(node_idx_t idx) { return get_node(idx)->flags; }
@@ -1150,21 +1170,6 @@ static inline void *get_node_dir(node_idx_t idx) { return get_node(idx)->t_dir; 
 static inline atomic_node_idx_t &get_node_atom(node_idx_t idx) { return get_node(idx)->t_atom; }
 static inline env_ptr_t get_node_env(node_idx_t idx) { return get_node(idx)->t_env; }
 static inline env_ptr_t get_node_env(const node_t *n) { return n->t_env; }
-
-// TODO: Should prefer to allocate nodes next to existing nodes which will be linked (for cache coherence)
-static inline node_idx_t new_node(node_t &&n) {
-	// TODO: need try-pop really...
-	int sector = jo_pcg32(&jo_rnd_state) % num_free_sectors;
-	if(free_nodes[sector].size() > processor_count * 2) {
-		node_idx_unsafe_t ni = free_nodes[sector].pop();
-		if(ni >= START_USER_NODES) {
-			node_t *nn = &nodes[ni];
-			*nn = std::move(n);
-			return ni;
-		}
-	}
-	return nodes.push_back(std::move(n));
-}
 
 static node_idx_t new_node(int type, int flags) {
 	node_t n;
@@ -2097,6 +2102,17 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			}
 		} else if(sym_type == NODE_VECTOR) {
 			if(it) return sym_node->as_vector()->nth(get_node_int(eval_node(env, *it++)));
+		} else if(sym_type == NODE_VECTOR2D) {
+			if(it) {
+				node_idx_t xy_idx = eval_node(env, *it++);
+				node_t *xy = get_node(xy_idx);
+				if(xy->is_vector()) {
+					vector_ptr_t xy_vec = xy->as_vector();
+					int x = get_node_int(xy_vec->nth(0));
+					int y = get_node_int(xy_vec->nth(1));
+					return sym_node->as_vector2d()->get(x,y);
+				}
+			} 
 		}
 	}
 
@@ -5856,6 +5872,9 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef _MSC_VER
+	// set thread priority to highest
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+
     if(argc == 1) {
 		GetModuleFileNameA(GetModuleHandle(NULL), real_exe_path, MAX_PATH);
 		bool register_clj = !IsRegistered("CLJ") && (MessageBoxA(0, "Do you want to register .CLJ files with this program?", "JO_CLOJURE", MB_OKCANCEL) == 1);

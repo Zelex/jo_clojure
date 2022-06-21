@@ -2,7 +2,7 @@
 (def dim 128) ; dimension of the world
 (def num-balls 256) ; to bounce around
 (def num-frames 128) ; to simulate
-(def collision-buckets 2048) ; More reduces data dependencies, at the cost of more memory
+(def collision-buckets (* num-balls 4)) ; More reduces data dependencies, at the cost of more memory
 
 ; Make the collision hash
 (def collision-hash (atom []))
@@ -90,7 +90,7 @@
         (swap! (@entity :physics) impulse-physics x y))})
 
 ; Create an output gif file
-(let [gif-file (gif/open "physics.gif" dim dim 0 8)]
+(let [gif-file (gif/open "physics.gif" dim dim 0 4)]
     (print "Making gif...")
     ; Simulate N frames
     (let [entities (atom [])]
