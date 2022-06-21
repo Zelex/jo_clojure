@@ -411,9 +411,9 @@ void jo_sleep(double seconds) {
 
 // yield exponential backoff
 static void jo_yield_backoff(int *count) {
-    if(*count <= 8) {
+    if(*count <= 3) {
         // do nothing, just try again
-    } else if(*count <= 16+8) {
+    } else if(*count <= 16) {
         std::this_thread::yield();
     } else {
         const int lmin_ns = 1000;

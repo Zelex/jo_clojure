@@ -144,9 +144,9 @@
     (Thread/stm-retries-reset)
     (reset! job-start-time (Time/now)))
 
-;(def files (doall-vec (for [idx (range 1000)] [idx 1])))
+(def files (doall-vec (for [idx (range 1000)] [idx 1])))
 ;(def files (doall-vec (for [idx (range 1000)] [idx (rand 0.1 2)])))
-(def files (doall-vec (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])))
+;(def files (doall-vec (for [idx (range 1000)] [idx (if (< (rand) 0.95) 0.01 20)])))
 
 (def total-time (as-> files F
     (reduce (fn [a [_ b]] (+ a b)) 0 F)
@@ -182,7 +182,7 @@
     (str "num-cores, mutex, atomics, atom-retries, stm, stm-retries, stm-fast, stm-fast-retries\n")
     (spit "stm.csv"))
 
-(comment ->> (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
+(->> (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do 
         ; Set the number of worker threads...
         (Thread/workers num-cores)
         (println "Testing with" num-cores "cores")
@@ -226,7 +226,7 @@
     (map (fn [x] (str (apply str (interpose ", " x)) "\n")))
     (reduce str)
     (str "num-cores, stm, stm-retries, job-time-1, job-time-2, avg-actual-time-1, avg-actual-time-2, max-actual-time-1, max-actual-time-2, avg-#retry-1, avg-#retry-2, max-#retry-1, max-#retry-2\n")
-    (spit "stm.csv"))
+    (spit "stm2.csv"))
 
 (println "Done")
 

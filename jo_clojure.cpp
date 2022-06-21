@@ -279,19 +279,22 @@ struct transaction_t {
 		// Transition all values to hold
 		for(auto tx = tx_map.begin(); tx != tx_map.end(); tx++) {
 			// Write stomp?
-			if(tx->second.old_val == INV_NODE) {
-				continue;
-			}
-			auto &atom = get_node_atom(tx->first);
-			if(!atom.compare_exchange_strong(tx->second.old_val, TX_HOLD_NODE)) {
-				// restore old values... we failed
-				for(auto tx2 = tx_map.begin(); tx2 != tx; tx2++) {
-					auto &atom2 = get_node_atom(tx2->first);
-					atom2.store(tx2->second.old_val);
+			if(tx->second.old_val != INV_NODE) {
+				auto &atom = get_node_atom(tx->first);
+				// use strong here since the cost of a spurious failure can be significant
+				if(!atom.compare_exchange_strong(tx->second.old_val, TX_HOLD_NODE)) {
+					// restore old values... we failed
+					for(auto tx2 = tx_map.begin(); tx2 != tx; tx2++) {
+						// Write stomp? ignore these... nothing to restore.
+						if(tx2->second.old_val != INV_NODE) {
+							auto &atom2 = get_node_atom(tx2->first);
+							atom2.store(tx2->second.old_val);
+						}
+					}
+					tx_map.clear();
+					++num_retries;
+					return false;
 				}
-				tx_map.clear();
-				++num_retries;
-				return false;
 			}
 		}
 
@@ -302,19 +305,14 @@ struct transaction_t {
 			auto &atom = get_node_atom(tx->first);
 			// If we don't have an old value, cause we only stored, grab one real quick so we can lock it.
 			if(tx->second.old_val == INV_NODE) {
-				node_idx_t old_val;
+				node_idx_t old_val = atom.load();
 				do {
-					old_val = atom.load();
 					int count = 0;
 					while(old_val == TX_HOLD_NODE) {
 						jo_yield_backoff(&count);
 						old_val = atom.load();
 					}
-					if(atom.compare_exchange_strong(old_val, store_val)) {
-						break;
-					}
-					jo_yield_backoff(&count);
-				} while(true);
+				} while(!atom.compare_exchange_weak(old_val, store_val));
 			} else {
 				atom.store(store_val);
 			}
