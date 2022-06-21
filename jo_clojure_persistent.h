@@ -44,7 +44,7 @@ struct jo_alloc_t : jo_alloc_base_t {
         MAX_SECTORS = 256
     };
 
-    int NUM_SECTORS = std::min(std::thread::hardware_concurrency(), MAX_SECTORS);
+    int NUM_SECTORS = jo_min(std::thread::hardware_concurrency(), MAX_SECTORS);
 	jo_pinned_vector<T_t> vec;
 	std::atomic<unsigned long long> free_list[MAX_SECTORS];
 

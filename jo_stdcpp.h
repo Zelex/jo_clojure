@@ -63,8 +63,8 @@
 #define jo_chdir chdir
 #endif
 
-template<typename T> static inline T jo_min(T a, T b) { return a < b ? a : b; }
-template<typename T> static inline T jo_max(T a, T b) { return a > b ? a : b; }
+template<typename T1, typename T2> static constexpr inline T1 jo_min(T1 a, T2 b) { return a < b ? a : b; }
+template<typename T1, typename T2> static constexpr inline T1 jo_max(T1 a, T2 b) { return a > b ? a : b; }
 
 #ifdef _WIN32
 #include <mutex>
