@@ -16,6 +16,12 @@
 #include <thread>
 #include <shared_mutex>
 
+/*
+#include "mimalloc/static.c"
+#include "mimalloc/mimalloc-override.h"
+#include "mimalloc/mimalloc-new-delete.h"
+*/
+
 //#define WITH_TELEMETRY
 #ifdef WITH_TELEMETRY
 #pragma comment(lib,"rad_tm_win64.lib")
@@ -26,7 +32,7 @@
 
 // get current thread id
 static std::atomic<size_t> thread_uid(0);
-static thread_local size_t thread_id = thread_uid.fetch_add(1);
+static thread_local size_t thread_id = thread_uid.fetch_add(1, std::memory_order_relaxed);
 
 #include "debugbreak.h"
 #include "jo_stdcpp.h"
@@ -1067,7 +1073,7 @@ static inline void node_add_ref(node_idx_unsafe_t idx) {
 		node_t *n = &nodes[idx];
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER|NODE_FLAG_GARBAGE)) == 0) {
-			int rc = n->ref_count.fetch_add(1);
+			int rc = n->ref_count.fetch_add(1, std::memory_order_relaxed);
 			debugf("node_add_ref(%lld,%i): %s of type %s\n", idx, rc+1, n->as_string().c_str(), n->type_name());
 		}
 	}
@@ -1086,12 +1092,12 @@ static inline void node_release(node_idx_unsafe_t idx) {
 			if(rc <= 1) {
 				n->flags |= NODE_FLAG_GARBAGE;
 				int sector = idx & (num_garbage_sectors-1);
-				if(garbage_nodes[sector].full()) {
+				//if(garbage_nodes[sector].full()) {
 					n->release();
 					free_nodes[sector].push(idx);
-				} else {
-					garbage_nodes[sector].push(idx);
-				}
+				//} else {
+					//garbage_nodes[sector].push(idx);
+				//}
 			}
 		}
 	}

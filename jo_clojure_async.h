@@ -18,7 +18,6 @@ public:
 		while(nr-- > 0) {
 			std::thread t([this]() {
 				tmProfileThread(0,0,0);
-				thread_id = thread_uid.fetch_add(1);
 				while(true) {
 					task_t *task = tasks.pop();
 					if(task == nullptr) {

@@ -90,7 +90,7 @@
         (swap! (@entity :physics) impulse-physics x y))})
 
 ; Create an output gif file
-(let [gif-file (gif/open "physics.gif" dim dim 0 4)]
+(comment let [gif-file (gif/open "physics.gif" dim dim 0 4)]
     (print "Making gif...")
     ; Simulate N frames
     (let [entities (atom [])]
@@ -121,6 +121,7 @@
 (println "Simulate...")
 (->> 
     (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do
+    ;(for [num-cores (range 32 40)] (do
         (Thread/workers num-cores)
         (Thread/atom-retries-reset)
         (Thread/stm-retries-reset)

@@ -24,7 +24,7 @@ struct jo_alloc_t_type {
 
     void add_ref() {
         assert(h.canary == 0xDEADBEEF);
-        h.ref_count.fetch_add(1);
+        h.ref_count.fetch_add(1, std::memory_order_relaxed);
     }
 
     void release() {
@@ -62,7 +62,7 @@ struct jo_alloc_t : jo_alloc_base_t {
                 T_t *n = &vec[n_idx-1];
                 unsigned long long cnt = (cnt_idx + 0x100000000ull) & (-1ll << 32);
                 unsigned long long cnt_idx2 = n->h.next | cnt;
-                if(free_list[sector].head.compare_exchange_weak(cnt_idx, cnt_idx2)) {
+                if(free_list[sector].head.compare_exchange_weak(cnt_idx, cnt_idx2, std::memory_order_relaxed)) {
                     assert(n->h.canary == 0);
                     n->h.canary = 0xDEADBEEF;
                     n->h.next = 0;
@@ -93,7 +93,7 @@ struct jo_alloc_t : jo_alloc_base_t {
 	void free(void *n) {
 		T_t *t = (T_t*)((char*)n - sizeof(t->h));
         assert(t->h.canary == 0xDEADBEEF);
-		if(t->h.ref_count.fetch_sub(1) == 1) {
+		if(t->h.ref_count.fetch_sub(1, std::memory_order_relaxed) == 1) {
 			assert(t->h.canary == 0xDEADBEEF);
 			t->h.canary = 0; // make sure it's not double free'd
             t->h.owner = 0;
@@ -108,7 +108,7 @@ struct jo_alloc_t : jo_alloc_base_t {
             do {
                 t->h.next = old_h & 0xffffffff;
                 new_h = (old_h & 0xffffffff00000000) | idx;
-            } while(!free_list[sector].head.compare_exchange_weak(old_h, new_h));
+            } while(!free_list[sector].head.compare_exchange_weak(old_h, new_h, std::memory_order_relaxed));
 		}
 	}
 };

@@ -1372,12 +1372,12 @@ struct jo_mpmcq {
 
     void push(T ptr) {
         push_sem.wait();
-        size_t idx = push_idx.fetch_add(1) & (T_depth - 1);
+        size_t idx = push_idx.fetch_add(1, std::memory_order_relaxed) & (T_depth - 1);
         int count = 0;
         while (slots[idx].load() != invalid_value) {
             jo_yield_backoff(&count);
         }
-        assert(slots[idx].load() == invalid_value);
+        //assert(slots[idx].load() == invalid_value);
         slots[idx].store(ptr);
         pop_sem.notify();
     }
@@ -1388,7 +1388,7 @@ struct jo_mpmcq {
             pop_sem.notify();
             return invalid_value;
         }
-        int idx = pop_idx.fetch_add(1) & (T_depth - 1);
+        int idx = pop_idx.fetch_add(1, std::memory_order_relaxed) & (T_depth - 1);
         T res;
         int count = 0;
         while ((res = slots[idx].load()) == invalid_value) {
@@ -1436,7 +1436,7 @@ struct jo_pinned_vector {
     inline size_t index_bottom(size_t i, int top) const { return i & (~0ull >> top); }
 
     size_t push_back(T &&val) {
-        size_t this_elem = num_elements.fetch_add(1);
+        size_t this_elem = num_elements.fetch_add(1, std::memory_order_relaxed);
         int top = index_top(this_elem);
         size_t bottom = index_bottom(this_elem, top);
         if(buckets[top] == 0) {
@@ -1450,7 +1450,7 @@ struct jo_pinned_vector {
     }
 
     size_t push_back(const T& val) {
-        size_t this_elem = num_elements.fetch_add(1);
+        size_t this_elem = num_elements.fetch_add(1, std::memory_order_relaxed);
         int top = index_top(this_elem);
         size_t bottom = index_bottom(this_elem, top);
         if(buckets[top] == 0) {
