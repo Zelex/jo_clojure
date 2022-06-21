@@ -140,21 +140,20 @@ enum {
 	NODE_FLAG_CHAR		   = 1<<9, // char	
 };
 
-struct transaction_t;
-struct env_t;
 struct node_t;
 struct lazy_list_iterator_t;
-
 
 //typedef jo_persistent_vector_bidirectional<node_idx_t> list_t;
 
 typedef jo_shared_ptr_t<jo_object> object_ptr_t;
 
+struct transaction_t;
 typedef jo_alloc_t<transaction_t> transaction_alloc_t;
 transaction_alloc_t transaction_alloc;
 typedef jo_shared_ptr_t<transaction_t> transaction_ptr_t;
 static transaction_ptr_t new_transaction() { return transaction_ptr_t(transaction_alloc.emplace()); }
 
+struct env_t;
 typedef jo_alloc_t<env_t> env_alloc_t;
 env_alloc_t env_alloc;
 typedef jo_shared_ptr_t<env_t> env_ptr_t;
@@ -1085,7 +1084,11 @@ static inline void node_release(node_idx_unsafe_t idx) {
 			int rc = n->ref_count.fetch_sub(1);
 			debugf("node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
 			if(rc <= 0) {
+#ifdef USE_64BIT_NODES
 				printf("Error in ref count: node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
+#else
+				printf("Error in ref count: node_release(%i,%i): %s\n", idx, rc-1, n->as_string().c_str());
+#endif
 			}
 			if(rc <= 1) {
 				n->flags |= NODE_FLAG_GARBAGE;

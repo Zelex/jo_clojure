@@ -176,7 +176,11 @@ struct jo_shared_ptr_t {
     }
 };
 
+#ifdef USE_64BIT_NODES
 typedef long long node_idx_unsafe_t;
+#else
+typedef int node_idx_unsafe_t;
+#endif
 
 static inline void node_add_ref(node_idx_unsafe_t idx);
 static inline void node_release(node_idx_unsafe_t idx);
@@ -226,8 +230,10 @@ struct node_idx_t {
 	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
 	bool operator==(node_idx_unsafe_t _idx) const { return idx == _idx; }
 	bool operator!=(node_idx_unsafe_t _idx) const { return idx != _idx; }
+#ifdef USE_64BIT_NODES
 	bool operator==(int _idx) const { return idx == _idx; }
 	bool operator!=(int _idx) const { return idx != _idx; }
+#endif
 };
 
 struct atomic_node_idx_t {
@@ -277,8 +283,10 @@ struct atomic_node_idx_t {
 	bool operator!=(const atomic_node_idx_t& other) const { return idx != other.idx; }
 	bool operator==(node_idx_unsafe_t _idx) const { return idx == _idx; }
 	bool operator!=(node_idx_unsafe_t _idx) const { return idx != _idx; }
+#ifdef USE_64BIT_NODES
 	bool operator==(int _idx) const { return idx == _idx; }
 	bool operator!=(int _idx) const { return idx != _idx; }
+#endif
 
 	node_idx_t load() const { 
 		return idx.load(); 

@@ -42,7 +42,6 @@
             ]
             {:other other :norm [dx dy]})))
 
-
 ; Reflect the walls of the box
 (defn physics-reflect-walls [x vx] (if (or (< x 0) (>= x dim)) (- vx) vx))
 
@@ -82,11 +81,9 @@
      :color 0xFFFFFFFF
      :life 1
      :dead? false
-     :tick (fn 
-        [entity timestep] 
+     :tick (fn [entity timestep] 
         (swap! (@entity :physics) tick-physics entity timestep))
-     :impulse (fn 
-        [entity [x y]] 
+     :impulse (fn [entity [x y]] 
         (swap! (@entity :physics) impulse-physics x y))})
 
 ; Create an output gif file
@@ -121,7 +118,6 @@
 (println "Simulate...")
 (->> 
     (for [num-cores (range 1 (+ 1 *hardware-concurrency*))] (do
-    ;(for [num-cores (range 32 40)] (do
         (Thread/workers num-cores)
         (Thread/atom-retries-reset)
         (Thread/stm-retries-reset)
