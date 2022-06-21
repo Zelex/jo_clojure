@@ -4,9 +4,6 @@
 #include <vector>
 #include <deque>
 
-// get current thread id
-static std::atomic<size_t> thread_uid(0);
-static thread_local size_t thread_id = thread_uid.fetch_add(1);
 
 typedef std::packaged_task<node_idx_t()> jo_task_t;
 typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
@@ -811,7 +808,7 @@ static node_idx_t native_io(env_ptr_t env, list_ptr_t args) {
 // higher performance at the expense of higher memory use.
 static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f = args->first_value();
-	map_ptr_t cache_map = new_map();
+	hash_map_ptr_t cache_map = new_hash_map();
 	node_idx_t cache_map_idx = new_node_map(cache_map);
 	node_idx_t cache_idx = new_node_atom(cache_map_idx);
 	node_idx_t func_idx = new_node(NODE_NATIVE_FUNC, 0);
@@ -820,7 +817,7 @@ static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 		node_idx_t args_idx = new_node_list(args);
 		node_idx_t C_idx = native_deref(env, list_va(cache_idx));
 		node_t *C = get_node(C_idx);
-		map_ptr_t mem = C->as_map();
+		hash_map_ptr_t mem = C->as_hash_map();
 		if(mem->contains(args_idx, node_eq)) {
 			return mem->get(args_idx, node_eq);
 		}

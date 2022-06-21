@@ -52,10 +52,10 @@ static node_idx_t node_fma(node_idx_t n1i, node_idx_t n2i, node_idx_t n3i) {
 		for(; i < s3; i++) r->push_back_inplace(v3->nth(i));
 		return new_node_vector(r);
 	}
-	if(n1->is_map() && n2->is_map() && n3->is_map()) {
-		map_ptr_t r = new_map();
-		map_ptr_t m1 = n1->as_map(), m2 = n2->as_map(), m3 = n3->as_map();
-		for(map_t::iterator it = m1->begin(); it; it++) {
+	if(n1->is_hash_map() && n2->is_hash_map() && n3->is_hash_map()) {
+		hash_map_ptr_t r = new_hash_map();
+		hash_map_ptr_t m1 = n1->as_hash_map(), m2 = n2->as_hash_map(), m3 = n3->as_hash_map();
+		for(hash_map_t::iterator it = m1->begin(); it; it++) {
 			if(!m2->contains(it->first, node_eq)) {
 				r->assoc_inplace(it->first, it->second, node_eq);
 				continue;
@@ -66,11 +66,11 @@ static node_idx_t node_fma(node_idx_t n1i, node_idx_t n2i, node_idx_t n3i) {
 			}
 			r->assoc_inplace(it->first, node_fma(it->second, m2->get(it->first, node_eq), m3->get(it->first, node_eq)), node_eq);
 		}
-		for(map_t::iterator it = m2->begin(); it; it++) {
+		for(hash_map_t::iterator it = m2->begin(); it; it++) {
 			if(r->contains(it->first, node_eq)) continue;
 			r->assoc_inplace(it->first, it->second, node_eq);
 		}
-		for(map_t::iterator it = m3->begin(); it; it++) {
+		for(hash_map_t::iterator it = m3->begin(); it; it++) {
 			if(r->contains(it->first, node_eq)) continue;
 			r->assoc_inplace(it->first, it->second, node_eq);
 		}

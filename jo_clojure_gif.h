@@ -7,11 +7,16 @@ struct jo_clojure_gif_t : jo_object {
     jo_gif_t g;
 };
 
-typedef jo_shared_ptr<jo_clojure_gif_t> jo_clojure_gif_ptr_t;
+typedef jo_alloc_t<jo_clojure_gif_t> jo_clojure_gif_alloc_t;
+jo_clojure_gif_alloc_t jo_clojure_gif_alloc;
+typedef jo_shared_ptr_t<jo_clojure_gif_t> jo_clojure_gif_ptr_t;
+template<typename...A>
+jo_clojure_gif_ptr_t new_gif(A...args) { return jo_clojure_gif_ptr_t(jo_clojure_gif_alloc.emplace(args...)); }
 
-static jo_clojure_gif_ptr_t new_gif() { return jo_clojure_gif_ptr_t(new jo_clojure_gif_t()); }
-
+//typedef jo_shared_ptr<jo_clojure_gif_t> jo_clojure_gif_ptr_t;
+//static jo_clojure_gif_ptr_t new_gif() { return jo_clojure_gif_ptr_t(new jo_clojure_gif_t()); }
 static node_idx_t new_node_gif(jo_clojure_gif_ptr_t nodes, int flags=0) { return new_node_object(NODE_GIF, nodes.cast<jo_object>(), flags); }
+
 
 static node_idx_t native_gif_open(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);

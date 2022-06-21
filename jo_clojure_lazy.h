@@ -501,11 +501,11 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 	}
 	if(get_node_type(coll_idx) == NODE_MAP) {
 		// don't do it lazily if not given lazy inputs... thats dumb
-		map_ptr_t list_list = get_node(coll_idx)->as_map();
-		map_ptr_t ret = new_map();
+		hash_map_ptr_t list_list = get_node(coll_idx)->as_hash_map();
+		hash_map_ptr_t ret = new_hash_map();
 		list_ptr_t args = new_list();
 		args->push_back_inplace(pred_idx);
-		for(map_t::iterator it = list_list->begin(); it; it++) {
+		for(hash_map_t::iterator it = list_list->begin(); it; it++) {
 			list_ptr_t key_val = new_list();
 			key_val->push_back_inplace(it->first);
 			key_val->push_back_inplace(it->second);
@@ -898,7 +898,7 @@ static node_idx_t native_flatten_next(env_ptr_t env, list_ptr_t args) {
 	node_idx_t seq_idx = args->first_value();
 	node_t *seq = get_node(seq_idx);
 
-	ret = ret->push_front(*args->clone());
+	ret = ret->push_front(args->clone());
 
 	if(!seq->is_seq()) {
 		ret->push_front_inplace(env->get("flatten-next").value);
@@ -1305,8 +1305,8 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 	}
 
 	// for storing the state of the iterators
-	node_idx_t state_first_idx = new_node_map(new_map()->assoc(K_PC_NODE, INT_0_NODE, node_eq));
-	node_idx_t state_rest_idx = new_node_map(new_map());
+	node_idx_t state_first_idx = new_node_map(new_hash_map()->assoc(K_PC_NODE, INT_0_NODE, node_eq));
+	node_idx_t state_rest_idx = new_node_map(new_hash_map());
 	node_idx_t nfn_idx = new_node(NODE_NATIVE_FUNC, NODE_FLAG_MACRO);
 	node_t *nfn = get_node(nfn_idx);
 	nfn->t_native_function = new native_func_t([nfn_idx,PC_list,seq_exprs_idx,body_expr_idx](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
@@ -1314,8 +1314,8 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		list_t::iterator it(args2);
 		node_idx_t state_first_idx = *it++;
 		node_idx_t state_rest_idx = *it++;
-		map_ptr_t state_first = get_node_map(state_first_idx);
-		map_ptr_t state_rest = get_node_map(state_rest_idx);
+		hash_map_ptr_t state_first = get_node_map(state_first_idx);
+		hash_map_ptr_t state_rest = get_node_map(state_rest_idx);
 
 		int PC = get_node_int(state_first->get(K_PC_NODE, node_eq));
 

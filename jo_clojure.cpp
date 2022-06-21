@@ -24,8 +24,13 @@
 #define tmProfileThread sizeof
 #endif
 
+// get current thread id
+static std::atomic<size_t> thread_uid(0);
+static thread_local size_t thread_id = thread_uid.fetch_add(1);
+
 #include "debugbreak.h"
 #include "jo_stdcpp.h"
+#include "jo_clojure_persistent.h"
 
 //#define debugf printf
 #ifndef debugf
@@ -129,173 +134,30 @@ enum {
 	NODE_FLAG_CHAR		   = 1<<9, // char	
 };
 
-struct env_t;
 struct transaction_t;
+struct env_t;
 struct node_t;
 struct lazy_list_iterator_t;
-typedef long long node_idx_unsafe_t;
 
 
-static inline void node_add_ref(node_idx_unsafe_t idx);
-static inline void node_release(node_idx_unsafe_t idx);
-
-struct node_idx_t {
-	node_idx_unsafe_t idx;
-	node_idx_t() : idx() {}
-	node_idx_t(node_idx_unsafe_t _idx) : idx(_idx) { 
-		node_add_ref(idx); 
-	}
-	~node_idx_t() { 
-		node_release(idx); 
-	}
-	node_idx_t(const node_idx_t& other) : idx(other.idx) { 
-		node_add_ref(idx); 
-	}
-	node_idx_t(node_idx_t&& other) : idx(other.idx) { 
-		other.idx = 0; 
-	}
-	node_idx_t& operator=(node_idx_unsafe_t _idx) {  
-		if(idx != _idx) {
-			node_add_ref(_idx);
-			node_release(idx);
-			idx = _idx;
-		}
-		return *this; 
-	}
-	node_idx_t& operator=(const node_idx_t& other) {  
-		if(idx != other.idx) {
-			node_add_ref(other.idx);
-			node_release(idx);
-			idx = other.idx;
-		}
-		return *this; 
-	}
-	node_idx_t& operator=(node_idx_t&& other) {  
-		if(idx != other.idx) {
-			node_release(idx);
-			idx = other.idx;
-			other.idx = 0;
-		}
-		return *this; 
-	}
-
-	operator node_idx_unsafe_t() const { return idx; }
-	bool operator==(const node_idx_t& other) const { return idx == other.idx; }
-	bool operator!=(const node_idx_t& other) const { return idx != other.idx; }
-	bool operator==(node_idx_unsafe_t _idx) const { return idx == _idx; }
-	bool operator!=(node_idx_unsafe_t _idx) const { return idx != _idx; }
-	bool operator==(int _idx) const { return idx == _idx; }
-	bool operator!=(int _idx) const { return idx != _idx; }
-};
-
-struct atomic_node_idx_t {
-	std::atomic<node_idx_unsafe_t> idx;
-	atomic_node_idx_t() : idx() {}
-	~atomic_node_idx_t() { 
-		node_release(idx.load()); 
-	}
-	atomic_node_idx_t(const atomic_node_idx_t& other) { 
-		idx.store(other.idx.load());
-		node_add_ref(idx.load()); 
-	}
-	atomic_node_idx_t(const node_idx_t& other) { 
-		idx.store(other.idx);
-		node_add_ref(idx); 
-	}
-	atomic_node_idx_t(atomic_node_idx_t&& other) { 
-		idx.store(other.idx.load());
-		other.idx.store(0); 
-	}
-	atomic_node_idx_t& operator=(const node_idx_t& other) {  
-		if(idx != other.idx) {
-			node_add_ref(other.idx);
-			node_release(idx);
-			idx.store(other.idx);
-		}
-		return *this; 
-	}
-	atomic_node_idx_t& operator=(const atomic_node_idx_t& other) {  
-		if(idx != other.idx) {
-			node_add_ref(other.idx);
-			node_release(idx);
-			idx.store(other.idx.load());
-		}
-		return *this; 
-	}
-	atomic_node_idx_t& operator=(atomic_node_idx_t&& other) {  
-		if(idx != other.idx) {
-			node_idx_unsafe_t tmp = idx.exchange(other.idx);
-			node_release(tmp);
-			other.idx = 0;
-		}
-		return *this; 
-	}
-	operator node_idx_unsafe_t() const { return idx; }
-	bool operator==(const atomic_node_idx_t& other) const { return idx == other.idx; }
-	bool operator!=(const atomic_node_idx_t& other) const { return idx != other.idx; }
-	bool operator==(node_idx_unsafe_t _idx) const { return idx == _idx; }
-	bool operator!=(node_idx_unsafe_t _idx) const { return idx != _idx; }
-	bool operator==(int _idx) const { return idx == _idx; }
-	bool operator!=(int _idx) const { return idx != _idx; }
-
-	node_idx_t load() const { 
-		return idx.load(); 
-	}
-	void store(node_idx_t _idx) {
-		node_add_ref(_idx);
-		node_release(idx.exchange(_idx));
-	}
-	bool compare_exchange_strong(node_idx_unsafe_t expected, node_idx_unsafe_t desired) { 
-		if(idx.compare_exchange_strong(expected, desired)) {
-			node_add_ref(desired);
-			node_release(expected);
-			return true;
-		}
-		return false;
-	}
-	bool compare_exchange_weak(node_idx_unsafe_t expected, node_idx_unsafe_t desired) { 
-		if(idx.compare_exchange_weak(expected, desired)) {
-			node_add_ref(desired);
-			node_release(expected);
-			return true;
-		}
-		return false;
-	}
-};
-
-typedef jo_persistent_list<node_idx_t> list_t;
 //typedef jo_persistent_vector_bidirectional<node_idx_t> list_t;
-typedef jo_shared_ptr<list_t> list_ptr_t;
 
-typedef jo_shared_ptr<jo_object> object_ptr_t;
+typedef jo_shared_ptr_t<jo_object> object_ptr_t;
 
-typedef jo_persistent_vector<node_idx_t> vector_t;
-typedef jo_shared_ptr<vector_t> vector_ptr_t;
+typedef jo_alloc_t<transaction_t> transaction_alloc_t;
+transaction_alloc_t transaction_alloc;
+typedef jo_shared_ptr_t<transaction_t> transaction_ptr_t;
+static transaction_ptr_t new_transaction() { return transaction_ptr_t(transaction_alloc.emplace()); }
 
-template<typename T> struct jo_persistent_vector2d;
-typedef jo_persistent_vector2d<node_idx_t> vector2d_t;
-typedef jo_shared_ptr<vector2d_t> vector2d_ptr_t;
-
-typedef jo_persistent_unordered_map<node_idx_t, node_idx_t> map_t;
-typedef jo_shared_ptr<map_t> map_ptr_t;
-
-typedef jo_persistent_unordered_set<node_idx_t> hash_set_t;
-typedef jo_shared_ptr<hash_set_t> hash_set_ptr_t;
-
-typedef jo_shared_ptr<transaction_t> transaction_ptr_t;
-typedef jo_shared_ptr<env_t> env_ptr_t;
+typedef jo_alloc_t<env_t> env_alloc_t;
+env_alloc_t env_alloc;
+typedef jo_shared_ptr_t<env_t> env_ptr_t;
+static env_ptr_t new_env(env_ptr_t parent) { return env_ptr_t(env_alloc.emplace(parent)); }
 
 typedef std::function<node_idx_t(env_ptr_t, list_ptr_t)> native_func_t;
 typedef jo_shared_ptr<native_func_t> native_func_ptr_t;
 
 typedef node_idx_t (*native_function_t)(env_ptr_t env, list_ptr_t args);
-
-static list_ptr_t new_list() { return list_ptr_t(new list_t()); }
-static vector_ptr_t new_vector() { return vector_ptr_t(new vector_t()); }
-static vector2d_ptr_t new_vector2d(size_t w, size_t h) { return vector2d_ptr_t(new vector2d_t(w, h)); }
-static map_ptr_t new_map() { return map_ptr_t(new map_t()); }
-static hash_set_ptr_t new_hash_set() { return hash_set_ptr_t(new hash_set_t()); }
-static transaction_ptr_t new_transaction();
 
 static inline node_t *get_node(node_idx_t idx);
 static inline int get_node_type(node_idx_t idx);
@@ -306,7 +168,7 @@ static inline node_idx_t get_node_var(node_idx_t idx);
 static inline bool get_node_bool(node_idx_t idx);
 static inline list_ptr_t get_node_list(node_idx_t idx);
 static inline vector_ptr_t get_node_vector(node_idx_t idx);
-static inline map_ptr_t get_node_map(node_idx_t idx);
+static inline hash_map_ptr_t get_node_map(node_idx_t idx);
 static inline hash_set_ptr_t get_node_hash_set(node_idx_t idx);
 static inline long long get_node_int(node_idx_t idx);
 static inline double get_node_float(node_idx_t idx);
@@ -323,7 +185,7 @@ static inline env_ptr_t get_node_env(const node_t *n);
 static node_idx_t new_node_int(long long i, int flags = 0);
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_string(const jo_string &s, int flags = 0);
-static node_idx_t new_node_map(map_ptr_t nodes, int flags = 0);
+static node_idx_t new_node_map(hash_map_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_vector2d(vector2d_ptr_t nodes, int flags = 0);
@@ -366,8 +228,8 @@ static void print_node(node_idx_t node, int depth = 0, bool same_line=false);
 static void print_node_type(node_idx_t node);
 static void print_node_list(list_ptr_t nodes, int depth = 0);
 static void print_node_vector(vector_ptr_t nodes, int depth = 0);
-static void print_node_map(map_ptr_t nodes, int depth = 0);
-static void print_node_set(map_ptr_t nodes, int depth = 0);
+static void print_node_map(hash_map_ptr_t nodes, int depth = 0);
+static void print_node_set(hash_map_ptr_t nodes, int depth = 0);
 
 struct transaction_t {
 	struct tx_t {
@@ -463,7 +325,6 @@ struct transaction_t {
 	}
 };
 
-static transaction_ptr_t new_transaction() { return transaction_ptr_t(new transaction_t()); }
 
 struct env_t {
 	// for iterating them all, otherwise unused.
@@ -560,8 +421,6 @@ struct env_t {
 		printf("%*s}\n", depth, "");
 	}
 };
-
-static env_ptr_t new_env(env_ptr_t parent) { return env_ptr_t(new env_t(parent)); }
 
 struct lazy_list_iterator_t {
 	env_ptr_t env;
@@ -695,12 +554,12 @@ struct node_t {
 	inline list_ptr_t &as_list() { return t_list; }
 	inline vector_ptr_t &as_vector() { return t_object.cast<vector_t>(); }
 	inline vector2d_ptr_t &as_vector2d() { return t_object.cast<vector2d_t>(); }
-	inline map_ptr_t &as_map() { return t_object.cast<map_t>(); }
+	inline hash_map_ptr_t &as_hash_map() { return t_object.cast<hash_map_t>(); }
 	inline hash_set_ptr_t &as_hash_set() { return t_object.cast<hash_set_t>(); }
 
 	inline const vector_ptr_t &as_vector() const { return t_object.cast<vector_t>(); }
 	inline const vector2d_ptr_t &as_vector2d() const { return t_object.cast<vector2d_t>(); }
-	inline const map_ptr_t &as_map() const { return t_object.cast<map_t>(); }
+	inline const hash_map_ptr_t &as_hash_map() const { return t_object.cast<hash_map_t>(); }
 	inline const hash_set_ptr_t &as_hash_set() const { return t_object.cast<hash_set_t>(); }
 
 	node_t() 
@@ -788,7 +647,7 @@ struct node_t {
 	bool is_list() const { return type == NODE_LIST; }
 	bool is_vector() const { return type == NODE_VECTOR; }
 	bool is_vector2d() const { return type == NODE_VECTOR2D; }
-	bool is_map() const { return type == NODE_MAP; }
+	bool is_hash_map() const { return type == NODE_MAP; }
 	bool is_hash_set() const { return type == NODE_HASH_SET; }
 	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
 	bool is_string() const { return type == NODE_STRING; }
@@ -803,7 +662,7 @@ struct node_t {
 	bool is_future() const { return type == NODE_FUTURE; }
 	bool is_promise() const { return type == NODE_PROMISE; }
 
-	bool is_seq() const { return is_list() || is_lazy_list() || is_map() || is_hash_set() || is_vector(); }
+	bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
 
 	// first, more?
@@ -811,9 +670,9 @@ struct node_t {
 	seq_first_t seq_first() const {
 		if(is_list()) return seq_first_t(t_list->first_value(), !t_list->empty());
 		if(is_vector()) return seq_first_t(as_vector()->first_value(), !as_vector()->empty());
-		if(is_map()) {
-			if(as_map()->empty()) return seq_first_t(NIL_NODE, false);
-			auto e = as_map()->first();
+		if(is_hash_map()) {
+			if(as_hash_map()->empty()) return seq_first_t(NIL_NODE, false);
+			auto e = as_hash_map()->first();
 			return seq_first_t(new_node_vector(vector_va(e.first, e.second)), true);
 		}
 		if(is_hash_set()) {
@@ -837,9 +696,9 @@ struct node_t {
 	seq_second_t seq_second() const {
 		if(is_list()) return seq_second_t(t_list->second_value(), t_list->size() >= 2);
 		if(is_vector()) return seq_second_t(as_vector()->nth(1), as_vector()->size() >= 2);
-		if(is_map()) {
-			if(as_map()->size() < 2) return seq_second_t(NIL_NODE, false);
-			auto e = as_map()->second();
+		if(is_hash_map()) {
+			if(as_hash_map()->size() < 2) return seq_second_t(NIL_NODE, false);
+			auto e = as_hash_map()->second();
 			return seq_second_t(new_node_vector(vector_va(e.first, e.second)), true);
 		}
 		if(is_hash_set()) {
@@ -870,9 +729,9 @@ struct node_t {
 			if(as_vector()->empty()) return seq_rest_t(NIL_NODE, false);
 			return seq_rest_t(new_node_vector(as_vector()->rest()), true);
 		}
-		if(is_map()) {
-			if(as_map()->empty()) return seq_rest_t(NIL_NODE, false);
-			return seq_rest_t(new_node_map(as_map()->rest()), true);
+		if(is_hash_map()) {
+			if(as_hash_map()->empty()) return seq_rest_t(NIL_NODE, false);
+			return seq_rest_t(new_node_map(as_hash_map()->rest()), true);
 		}
 		if(is_hash_set()) {
 			if(as_hash_set()->empty()) return seq_rest_t(NIL_NODE, false);
@@ -901,10 +760,10 @@ struct node_t {
 			if(as_vector()->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
 			return seq_first_rest_t(as_vector()->first_value(), new_node_vector(as_vector()->rest()), true);
 		} 
-		if(is_map()) {
-			if(as_map()->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
-			auto e = as_map()->first();
-			return seq_first_rest_t(new_node_vector(vector_va(e.first, e.second)), new_node_map(as_map()->rest()), true);
+		if(is_hash_map()) {
+			if(as_hash_map()->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
+			auto e = as_hash_map()->first();
+			return seq_first_rest_t(new_node_vector(vector_va(e.first, e.second)), new_node_map(as_hash_map()->rest()), true);
 		}
 		if(is_hash_set()) {
 			if(as_hash_set()->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
@@ -925,7 +784,7 @@ struct node_t {
 	bool seq_empty() const {
 		if(is_list()) return t_list->empty();
 		if(is_vector()) return as_vector()->empty();
-		if(is_map()) return as_map()->size() == 0;
+		if(is_hash_map()) return as_hash_map()->size() == 0;
 		if(is_hash_set()) return as_hash_set()->size() == 0;
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
@@ -945,9 +804,9 @@ struct node_t {
 			if(as_vector()->empty()) return seq_take_t(NIL_NODE, false);
 			return seq_take_t(new_node_vector(as_vector()->take(n)), true);
 		}
-		if(is_map()) {
-			if(as_map()->empty()) return seq_take_t(NIL_NODE, false);
-			return seq_take_t(new_node_map(as_map()->take(n)), true);
+		if(is_hash_map()) {
+			if(as_hash_map()->empty()) return seq_take_t(NIL_NODE, false);
+			return seq_take_t(new_node_map(as_hash_map()->take(n)), true);
 		}
 		if(is_hash_set()) {
 			if(as_hash_set()->empty()) return seq_take_t(NIL_NODE, false);
@@ -968,7 +827,7 @@ struct node_t {
 	node_idx_t seq_drop(size_t n) const {
 		if(is_list()) return new_node_list(t_list->drop(n));
 		if(is_vector()) return new_node_vector(as_vector()->drop(n));
-		if(is_map()) return new_node_map(as_map()->drop(n));
+		if(is_hash_map()) return new_node_map(as_hash_map()->drop(n));
 		if(is_hash_set()) return new_node_hash_set(as_hash_set()->drop(n));
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
@@ -981,7 +840,7 @@ struct node_t {
 	size_t seq_size() const {
 		if(is_list()) return t_list->size();
 		if(is_vector()) return as_vector()->size();
-		if(is_map()) return as_map()->size();
+		if(is_hash_map()) return as_hash_map()->size();
 		if(is_hash_set()) return as_hash_set()->size();
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
@@ -995,8 +854,8 @@ struct node_t {
 		if(is_list()) {
 			t_list = t_list->push_back(x);
 		} else if(is_vector()) {
-			t_object = as_vector()->push_back(x);
-		} else if(is_map()) {
+			t_object = as_vector()->push_back(x).cast<jo_object>();
+		} else if(is_hash_map()) {
 			warnf("map.push_back: not implemented");
 		} else if(is_hash_set()) {
 			warnf("hash_set.push_back: not implemented");
@@ -1103,7 +962,7 @@ struct node_t {
 			{
 				jo_string s;
 				s = '{';
-				if(as_map().ptr) for(auto it = as_map()->begin(); it;) {
+				if(as_hash_map().ptr) for(auto it = as_hash_map()->begin(); it;) {
 					s += get_node(it->first)->as_string(3);
 					s += " ";
 					s += get_node(it->second)->as_string(3);
@@ -1274,7 +1133,7 @@ static inline node_idx_t get_node_var(node_idx_t idx) { return get_node(idx)->t_
 static inline bool get_node_bool(node_idx_t idx) { return get_node(idx)->as_bool(); }
 static inline list_ptr_t get_node_list(node_idx_t idx) { return get_node(idx)->as_list(); }
 static inline vector_ptr_t get_node_vector(node_idx_t idx) { return get_node(idx)->as_vector(); }
-static inline map_ptr_t get_node_map(node_idx_t idx) { return get_node(idx)->as_map(); }
+static inline hash_map_ptr_t get_node_map(node_idx_t idx) { return get_node(idx)->as_hash_map(); }
 static inline hash_set_ptr_t get_node_set(node_idx_t idx) { return get_node(idx)->as_hash_set(); }
 static inline long long get_node_int(node_idx_t idx) { 
 	if(idx >= INT_0_NODE && idx <= INT_256_NODE) return idx - INT_0_NODE;
@@ -1326,7 +1185,7 @@ static node_idx_t new_node_object(int type, object_ptr_t object, int flags) {
 	return idx;
 }
 
-static node_idx_t new_node_map(map_ptr_t nodes, int flags) { return new_node_object(NODE_MAP, nodes.cast<jo_object>(), flags); }
+static node_idx_t new_node_map(hash_map_ptr_t nodes, int flags) { return new_node_object(NODE_MAP, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags) { return new_node_object(NODE_HASH_SET, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags) { return new_node_object(NODE_VECTOR, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_vector2d(vector2d_ptr_t nodes, int flags) { return new_node_object(NODE_VECTOR2D, nodes.cast<jo_object>(), flags); }
@@ -2060,16 +1919,17 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_t n;
 		n.type = NODE_VECTOR;
 		n.flags = NODE_FLAG_FOREVER;
-		n.as_vector() = new_vector(); 
+		vector_ptr_t v = new_vector();
 		int common_flags = ~0;
 		while(next != INV_NODE) {
 			common_flags &= get_node_flags(next);
-			n.as_vector()->push_back_inplace(next);
+			v->push_back_inplace(next);
 			next = parse_next(env, state, ']');
 		}
 		if(common_flags & NODE_FLAG_LITERAL) {
 			n.flags |= NODE_FLAG_LITERAL;
 		}
+		n.t_object = v.cast<jo_object>();
 		// @ If its all the same type, convert to simple array of values of type
 		debugf("vector end\n");
 		return new_node(std::move(n));
@@ -2082,7 +1942,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		node_t n;
 		n.type = NODE_MAP;
 		n.flags = NODE_FLAG_FOREVER;
-		n.as_map() = new_map();
+		hash_map_ptr_t m = new_hash_map();
 		node_idx_t next = parse_next(env, state, '}');
 		node_idx_t next2 = next != INV_NODE ? parse_next(env, state, '}') : INV_NODE;
 		if(next == INV_NODE || next2 == INV_NODE) {
@@ -2090,10 +1950,11 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			return EMPTY_MAP_NODE;
 		}
 		while(next != INV_NODE && next2 != INV_NODE) {
-			n.as_map() = n.as_map()->assoc(next, next2, node_eq);
+			m = m->assoc(next, next2, node_eq);
 			next = parse_next(env, state, '}');
 			next2 = next != INV_NODE ? parse_next(env, state, '}') : INV_NODE;
 		}
+		n.t_object = m.cast<jo_object>();
 		debugf("map end\n");
 		return new_node(std::move(n));
 	}
@@ -2204,7 +2065,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				// lookup the key in the map
 				node_idx_t n2i = eval_node(env, *it++);
 				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
-				auto it2 = sym_node->as_map()->find(n2i, node_eq);
+				auto it2 = sym_node->as_hash_map()->find(n2i, node_eq);
 				if(it2.third) {
 					return it2.second;
 				}
@@ -2227,7 +2088,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				node_idx_t n2i = eval_node(env, *it++);
 				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
 				if(get_node_type(n2i) == NODE_MAP) {
-					auto it2 = get_node(n2i)->as_map()->find(sym_idx, node_eq);
+					auto it2 = get_node(n2i)->as_hash_map()->find(sym_idx, node_eq);
 					if(it2.third) {
 						return it2.second;
 					}
@@ -2284,7 +2145,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 	} else if(type == NODE_MAP) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the map
-		map_ptr_t map = node->as_map();
+		hash_map_ptr_t map = node->as_hash_map();
 		for(auto it = map->begin(); it; it++) {
 			node_idx_t k = it->first;
 			node_idx_t v = it->second;
@@ -2416,7 +2277,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 		}
 		printf("]");
 	} else if(type == NODE_MAP) {
-		map_ptr_t map = get_node(node)->as_map();
+		hash_map_ptr_t map = get_node(node)->as_hash_map();
 		if(map->size() == 0) {
 			printf("{}");
 			return;
@@ -2543,7 +2404,7 @@ struct seq_iterator_t {
 	bool is_done;
 	list_t::iterator it;
 	vector_t::iterator vit;
-	map_t::iterator mit;
+	hash_map_t::iterator mit;
 	hash_set_t::iterator hsit;
 	lazy_list_iterator_t lit;
 
@@ -2561,7 +2422,7 @@ struct seq_iterator_t {
 				val = *vit;
 			}
 		} else if(type == NODE_MAP) {
-			mit = get_node(node_idx)->as_map()->begin();
+			mit = get_node(node_idx)->as_hash_map()->begin();
 			if(!done()) {
 				val = mit->second;
 			}
@@ -2666,7 +2527,7 @@ static inline bool seq_iterate(node_idx_t seq, F f) {
 		}
 		return true;
 	} else if(n->type == NODE_MAP) {
-		for(map_t::iterator i = n->as_map()->begin(); i; i++) {
+		for(hash_map_t::iterator i = n->as_hash_map()->begin(); i; i++) {
 			if(!f(new_node_vector(vector_va(i->first, i->second)))) break;
 		}
 		return true;
@@ -2758,8 +2619,8 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 		}
 		return true;
 	} else if(n1->type == NODE_MAP && n2->type == NODE_MAP) {
-		for(auto i1 = n1->as_map()->begin(); i1; i1++) {
-			auto elem = n2->as_map()->find(i1->first, node_eq);
+		for(auto i1 = n1->as_hash_map()->begin(); i1; i1++) {
+			auto elem = n2->as_hash_map()->find(i1->first, node_eq);
 			if(!elem.third) return false;
 			if(!node_eq(i1->second, elem.second)) return false;
 		}
@@ -2889,8 +2750,8 @@ static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 	if(n1->type == NODE_SYMBOL) {
 		env->set_temp(n1->t_string, n2i);
 	/*
-	} else if(n1->is_vector() && n2->is_map()) {
-		map_ptr_t m = n2->as_map();
+	} else if(n1->is_vector() && n2->is_hash_map()) {
+		hash_map_ptr_t m = n2->as_hash_map();
 		node_idx_t k = n1->as_vector()->nth(0);
 		node_idx_t v = n1->as_vector()->nth(1);
 		if(get_node_type(k) == NODE_SYMBOL) {
@@ -2915,7 +2776,6 @@ static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 }
 
 // jo_hash_value of node_idx_t
-template <>
 size_t jo_hash_value(node_idx_t n) {
 	node_t *n1 = get_node(n);
 	if(n1->type == NODE_NIL) {
@@ -2987,17 +2847,17 @@ static node_idx_t node_add(node_idx_t n1i, node_idx_t n2i) {
 		for(; i < s2; i++) r->push_back_inplace(v2->nth(i));
 		return new_node_vector(r);
 	}
-	if(n1->is_map() && n2->is_map()) {
-		map_ptr_t r = new_map();
-		map_ptr_t m1 = n1->as_map(), m2 = n2->as_map();
-		for(map_t::iterator it = m1->begin(); it; it++) {
+	if(n1->is_hash_map() && n2->is_hash_map()) {
+		hash_map_ptr_t r = new_hash_map();
+		hash_map_ptr_t m1 = n1->as_hash_map(), m2 = n2->as_hash_map();
+		for(hash_map_t::iterator it = m1->begin(); it; it++) {
 			if(!m2->contains(it->first, node_eq)) {
 				r->assoc_inplace(it->first, it->second, node_eq);
 				continue;
 			}
 			r->assoc_inplace(it->first, node_add(it->second, m2->get(it->first, node_eq)), node_eq);
 		}
-		for(map_t::iterator it = m2->begin(); it; it++) {
+		for(hash_map_t::iterator it = m2->begin(); it; it++) {
 			if(r->contains(it->first, node_eq)) continue;
 			r->assoc_inplace(it->first, it->second, node_eq);
 		}
@@ -3044,17 +2904,17 @@ static node_idx_t node_mul(node_idx_t n1i, node_idx_t n2i) {
 		for(; i < s2; i++) r->push_back_inplace(v2->nth(i));
 		return new_node_vector(r);
 	}
-	if(n1->is_map() && n2->is_map()) {
-		map_ptr_t r = new_map();
-		map_ptr_t m1 = n1->as_map(), m2 = n2->as_map();
-		for(map_t::iterator it = m1->begin(); it; it++) {
+	if(n1->is_hash_map() && n2->is_hash_map()) {
+		hash_map_ptr_t r = new_hash_map();
+		hash_map_ptr_t m1 = n1->as_hash_map(), m2 = n2->as_hash_map();
+		for(hash_map_t::iterator it = m1->begin(); it; it++) {
 			if(!m2->contains(it->first, node_eq)) {
 				r->assoc_inplace(it->first, it->second, node_eq);
 				continue;
 			}
 			r->assoc_inplace(it->first, node_mul(it->second, m2->get(it->first, node_eq)), node_eq);
 		}
-		for(map_t::iterator it = m2->begin(); it; it++) {
+		for(hash_map_t::iterator it = m2->begin(); it; it++) {
 			if(r->contains(it->first, node_eq)) continue;
 			r->assoc_inplace(it->first, it->second, node_eq);
 		}
@@ -3459,8 +3319,8 @@ static node_idx_t native_quasiquote_1(env_ptr_t env, node_idx_t arg) {
 		return new_node_list(ret);
 	}
 	if(n->type == NODE_MAP) {
-		map_ptr_t ret = new_map();
-		for(auto i = n->as_map()->begin(); i; i++) {
+		hash_map_ptr_t ret = new_hash_map();
+		for(auto i = n->as_hash_map()->begin(); i; i++) {
 			ret = ret->assoc(i->first, native_quasiquote_1(env, i->second), node_eq);
 		}
 		return new_node_map(ret);
@@ -3983,8 +3843,8 @@ static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
 	}
 	if(node->is_list()) return node->t_list->last_value();
 	if(node->is_vector()) return node->as_vector()->last_value();
-	if(node->is_map()) {
-		map_ptr_t map = node->as_map();
+	if(node->is_hash_map()) {
+		hash_map_ptr_t map = node->as_hash_map();
 		if(map->size() == 0) return NIL_NODE;
 		return map->last_value();
 	}
@@ -4067,7 +3927,7 @@ static node_idx_t native_is_ident(env_ptr_t env, list_ptr_t args) { int type =  
 static node_idx_t native_is_symbol(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_SYMBOL ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_keyword(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_list(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_LIST ? TRUE_NODE : FALSE_NODE; }
-static node_idx_t native_is_map(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_MAP ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_hash_map(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_MAP ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_set(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_HASH_SET ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_vector(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_VECTOR ? TRUE_NODE : FALSE_NODE; }
 
@@ -4281,7 +4141,7 @@ static node_idx_t native_reverse(env_ptr_t env, list_ptr_t args) {
 	if(node->is_string()) return new_node_string(node->as_string().reverse());
 	if(node->is_list()) return new_node_list(node->as_list()->reverse());
 	if(node->is_vector()) return new_node_vector(node->as_vector()->reverse());
-	if(node->is_map()) return node_idx; // nonsensical to reverse an "unordered" map. just give back the input.
+	if(node->is_hash_map()) return node_idx; // nonsensical to reverse an "unordered" map. just give back the input.
 	if(node->is_hash_set()) return node_idx; // nonsensical to reverse an "unordered" set. just give back the input.
 	if(node->is_lazy_list()) {
 		lazy_list_iterator_t lit(node_idx);
@@ -4316,27 +4176,27 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 	node_idx_t to = args->first_value();
 	node_idx_t from = args->second_value();
 	if(get_node_type(to) == NODE_LIST) {
-		list_ptr_t ret = new list_t(*get_node(to)->t_list);
+		list_ptr_t ret = new_list(*get_node(to)->t_list);
 		seq_iterate(from, [&ret](node_idx_t item) { ret->push_back_inplace(item); return true; });
 		return new_node_list(ret);
 	}
 	if(get_node_type(to) == NODE_VECTOR) {
-		vector_ptr_t ret = new vector_t(*get_node(to)->as_vector());
+		vector_ptr_t ret = new_vector(*get_node(to)->as_vector());
 		seq_iterate(from, [&ret](node_idx_t item) { ret->push_back_inplace(item); return true; });
 		return new_node_vector(ret);
 	}
 	if(get_node_type(to) == NODE_MAP) {
-		map_ptr_t ret = new map_t(*get_node(to)->as_map());
+		hash_map_ptr_t ret = new_hash_map(*get_node(to)->as_hash_map());
 		seq_iterate(from, [&ret](node_idx_t item) { 
 			if(get_node_type(item) == NODE_MAP) {
-				ret = ret->conj(get_node(item)->as_map().ptr, node_eq);
+				ret = ret->conj(get_node(item)->as_hash_map().ptr, node_eq);
 			}
 			return true;
 		});
 		return new_node_map(ret);
 	}
 	if(get_node_type(to) == NODE_HASH_SET) {
-		hash_set_ptr_t ret = new hash_set_t(*get_node(to)->as_hash_set());
+		hash_set_ptr_t ret = new_hash_set(*get_node(to)->as_hash_set());
 		seq_iterate(from, [&ret](node_idx_t item) { ret = ret->assoc(item, node_eq); return true; });
 		return new_node_hash_set(ret);
 	}
@@ -4358,7 +4218,7 @@ static node_idx_t native_time(env_ptr_t env, list_ptr_t args) {
 // equal, they are handled as if by repeated uses of assoc.
 static node_idx_t native_hash_map(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
-	map_ptr_t map = new_map();
+	hash_map_ptr_t map = new_hash_map();
 	while(it) {
 		node_idx_t k = eval_node(env, *it++);
 		if(!it) {
@@ -4379,7 +4239,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t map_idx = *it++;
 	if(map_idx == NIL_NODE) {
-		map_ptr_t map = new_map();
+		hash_map_ptr_t map = new_hash_map();
 		while(it) {
 			node_idx_t key_idx = *it++;
 			node_idx_t val_idx = *it++;
@@ -4388,8 +4248,8 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 		return new_node_map(map);
 	}
 	node_t *map_node = get_node(map_idx);
-	if(map_node->is_map()) {
-		map_ptr_t map = map_node->as_map();
+	if(map_node->is_hash_map()) {
+		hash_map_ptr_t map = map_node->as_hash_map();
 		while(it) {
 			node_idx_t key_idx = *it++;
 			node_idx_t val_idx = *it++;
@@ -4436,8 +4296,8 @@ static node_idx_t native_dissoc(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t map_idx = *it++;
 	node_t *map_node = get_node(map_idx);
-	if(map_node->is_map()) {
-		map_ptr_t map = map_node->as_map();
+	if(map_node->is_hash_map()) {
+		hash_map_ptr_t map = map_node->as_hash_map();
 		for(; it; it++) {
 			map = map->dissoc(*it, node_eq);
 		}
@@ -4473,8 +4333,8 @@ static node_idx_t native_get(env_ptr_t env, list_ptr_t args) {
 	node_t *map_node = get_node(map_idx);
 	node_t *key_node = get_node(key_idx);
 	node_t *not_found_node = get_node(not_found_idx);
-	if(map_node->is_map()) {
-		auto entry = map_node->as_map()->find(key_idx, node_eq);
+	if(map_node->is_hash_map()) {
+		auto entry = map_node->as_hash_map()->find(key_idx, node_eq);
 		if(entry.third) {
 			return entry.second;
 		}
@@ -4879,7 +4739,7 @@ static node_idx_t native_array_map(env_ptr_t env, list_ptr_t args) {
 		warnf("(array-map) requires an even number of arguments");
 		return NIL_NODE;
 	}
-	map_ptr_t map = new_map();
+	hash_map_ptr_t map = new_hash_map();
 	for(list_t::iterator it(args); it; ) {
 		node_idx_t key_idx = *it++;
 		node_idx_t val_idx = *it++;
@@ -5097,7 +4957,7 @@ static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
 		long long key = get_node_int(key_idx);
 		return key >= 0 && key < coll->size() ? TRUE_NODE : FALSE_NODE;
 	} else if(coll_type == NODE_MAP) {
-		map_ptr_t coll = get_node_map(coll_idx);
+		hash_map_ptr_t coll = get_node_map(coll_idx);
 		return coll->contains(key_idx, node_eq) ? TRUE_NODE : FALSE_NODE;
 	} else if(coll_type == NODE_HASH_SET) {
 		hash_set_ptr_t coll = get_node_set(coll_idx);
@@ -5191,7 +5051,7 @@ static node_idx_t native_find(env_ptr_t env, list_ptr_t args) {
 	
 	node_idx_t map_idx = eval_node(env, args->first_value());
 	node_idx_t key_idx = eval_node(env, args->second_value());
-	map_ptr_t map = get_node_map(map_idx);
+	hash_map_ptr_t map = get_node_map(map_idx);
 	auto kv = map->find(key_idx, node_eq);
 	if(!kv.third) {
 		return NIL_NODE;
@@ -5370,7 +5230,7 @@ static node_idx_t native_frequencies(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t coll_idx = args->first_value();
 	int coll_type = get_node_type(coll_idx);
-	map_ptr_t map = new_map();
+	hash_map_ptr_t map = new_hash_map();
 	if(!seq_iterate(coll_idx, [&](node_idx_t item) {
 		map->assoc_inplace(item, new_node_int(get_node_int(map->get(item, node_eq)) + 1), node_eq);
 		return true;
@@ -5421,7 +5281,7 @@ static node_idx_t native_group_by(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = args->first_value();
 	node_idx_t coll_idx = args->second_value();
 	int coll_type = get_node_type(coll_idx);
-	map_ptr_t map = new_map();
+	hash_map_ptr_t map = new_hash_map();
 	seq_iterate(coll_idx, [&](node_idx_t item) {
 		node_idx_t key = eval_va(env, f_idx, item);
 		node_idx_t V_idx = map->get(key, node_eq);
@@ -5787,11 +5647,11 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t map_first_idx = *it++;
 	node_t *map_first_node = get_node(map_first_idx);
-	map_ptr_t r;
+	hash_map_ptr_t r;
 	if(map_first_node->type != NODE_MAP) {
-		r = new_map();
+		r = new_hash_map();
 	} else {
-		r = map_first_node->as_map();
+		r = map_first_node->as_hash_map();
 	}
 	for(; it; it++) {
 		node_idx_t map_idx = *it;
@@ -5799,8 +5659,8 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 		if(map_node->type != NODE_MAP) {
 			continue;
 		}
-		map_ptr_t map = map_node->as_map();
-		for(map_t::iterator it2 = map->begin(); it2; it2++) {
+		hash_map_ptr_t map = map_node->as_hash_map();
+		for(hash_map_t::iterator it2 = map->begin(); it2; it2++) {
 			r = r->assoc(it2->first, it2->second, node_eq);
 		}
 	}
@@ -5820,11 +5680,11 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f = *it++;
 	node_idx_t map_first_idx = *it++;
 	node_t *map_first_node = get_node(map_first_idx);
-	map_ptr_t r;
+	hash_map_ptr_t r;
 	if(map_first_node->type != NODE_MAP) {
-		r = new_map();
+		r = new_hash_map();
 	} else {
-		r = map_first_node->as_map();
+		r = map_first_node->as_hash_map();
 	}
 	for(; it; it++) {
 		node_idx_t map_idx = *it;
@@ -5832,8 +5692,8 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 		if(map_node->type != NODE_MAP) {
 			continue;
 		}
-		map_ptr_t map = map_node->as_map();
-		for(map_t::iterator it2 = map->begin(); it2; it2++) {
+		hash_map_ptr_t map = map_node->as_hash_map();
+		for(hash_map_t::iterator it2 = map->begin(); it2; it2++) {
 			auto e = r->find(it2->first, node_eq);
 			if(e.third) {
 				r = r->assoc(it2->first, eval_va(env, f, e.second, it2->second), node_eq);
@@ -5895,12 +5755,12 @@ static node_idx_t native_reduce_kv(env_ptr_t env, list_ptr_t args) {
 		return result;
 	}
 	if(coll_node->type == NODE_MAP) {
-		map_ptr_t coll_map = coll_node->as_map();
+		hash_map_ptr_t coll_map = coll_node->as_hash_map();
 		if(coll_map->size() == 0) {
 			return init;
 		}
 		node_idx_t result = init; 
-		for(map_t::iterator it2 = coll_map->begin(); it2; it2++) {
+		for(hash_map_t::iterator it2 = coll_map->begin(); it2; it2++) {
 			result = eval_va(env, f, result, it2->first, it2->second);
 			if(get_node_type(result) == NODE_REDUCED) {
 				return get_node(result)->t_extra;
@@ -6061,7 +5921,7 @@ int main(int argc, char **argv) {
 		new_node_symbol("quasiquote", NODE_FLAG_PRERESOLVE);
 		new_node_list(new_list(), NODE_FLAG_PRERESOLVE);
 		new_node_vector(new_vector(), NODE_FLAG_PRERESOLVE);
-		new_node_map(new_map(), NODE_FLAG_PRERESOLVE);
+		new_node_map(new_hash_map(), NODE_FLAG_PRERESOLVE);
 		new_node_hash_set(new_hash_set(), NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%1", NODE_FLAG_PRERESOLVE);
@@ -6223,7 +6083,7 @@ int main(int argc, char **argv) {
 	env->set("fnil", new_node_native_function("fnil", &native_fnil, false, NODE_FLAG_PRERESOLVE));
 	env->set("split-at", new_node_native_function("split-at", &native_split_at, false, NODE_FLAG_PRERESOLVE));
 	env->set("split-with", new_node_native_function("split-with", &native_split_with, false, NODE_FLAG_PRERESOLVE));
-	env->set("map?", new_node_native_function("map?", &native_is_map, false, NODE_FLAG_PRERESOLVE));
+	env->set("map?", new_node_native_function("map?", &native_is_hash_map, false, NODE_FLAG_PRERESOLVE));
 	env->set("set?", new_node_native_function("set?", &native_is_set, false, NODE_FLAG_PRERESOLVE));
 	env->set("vector?", new_node_native_function("vector?", &native_is_vector, false, NODE_FLAG_PRERESOLVE));
 	env->set("frequencies", new_node_native_function("frequencies", &native_frequencies, false, NODE_FLAG_PRERESOLVE));
