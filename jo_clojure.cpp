@@ -1065,8 +1065,6 @@ struct node_t {
 static jo_pinned_vector<node_t> nodes;
 static const int num_free_sectors = 8;
 static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<20)> free_nodes[num_free_sectors]; // available for allocation...
-static const int num_garbage_sectors = 8;
-static jo_mpmcq<node_idx_unsafe_t, NIL_NODE, (1<<20)> garbage_nodes[num_garbage_sectors]; // need resource release 
 
 static inline void node_add_ref(node_idx_unsafe_t idx) { 
 	if(idx >= START_USER_NODES) {
@@ -1091,35 +1089,11 @@ static inline void node_release(node_idx_unsafe_t idx) {
 			}
 			if(rc <= 1) {
 				n->flags |= NODE_FLAG_GARBAGE;
-				int sector = idx & (num_garbage_sectors-1);
-				//if(garbage_nodes[sector].full()) {
-					n->release();
-					free_nodes[sector].push(idx);
-				//} else {
-					//garbage_nodes[sector].push(idx);
-				//}
+				int sector = idx & (num_free_sectors-1);
+				n->release();
+				free_nodes[sector].push(idx);
 			}
 		}
-	}
-}
-
-static void collect_garbage(int sector) {
-	tmProfileThread(0,0,0);
-	node_idx_unsafe_t idx = INV_NODE;
-	while(true) {
-		std::this_thread::yield();
-		if(garbage_nodes[sector].closing) {
-			idx = NIL_NODE;
-			break;
-		} 
-		while(garbage_nodes[sector].size() > 1) {
-			idx = garbage_nodes[sector].pop();
-			if(idx == NIL_NODE) break;
-			node_t *n = &nodes[idx];
-			n->release();
-			free_nodes[sector].push(idx);
-		}
-		if(idx == NIL_NODE) break;
 	}
 }
 
@@ -6173,31 +6147,11 @@ int main(int argc, char **argv) {
 
 	debugf("Evaluating...\n");
 
-	// start the GC
-	std::thread gc_thread[num_garbage_sectors];
-	
-	for(int i = 0; i < num_garbage_sectors; i++) {
-		gc_thread[i] = std::thread(collect_garbage, i);
-	}
-
 	{
 		node_idx_t res_idx = eval_node_list(env, main_list);
 		//native_println(env, list_va(res_idx));
 		printf("%s\n", get_node(res_idx)->as_string(3).c_str());
 	}
-
-	debugf("Waiting for GC to stop...\n");
-#if 0
-	garbage_nodes.close();
-	gc_thread.join();
-#else
-	for(int i = 0; i < num_garbage_sectors; ++i) {
-		garbage_nodes[i].close();
-	}
-	for(int i = 0; i < num_garbage_sectors; ++i) {
-		gc_thread[i].join();
-	}
-#endif
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	for(int i = 0; i < num_free_sectors; ++i) {
