@@ -353,7 +353,7 @@ static node_idx_t native_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 	if(env->tx.ptr) {
 		old_val = env->tx->read(atom_idx);
 		env->tx->write(atom_idx, new_val);
-		return new_node_vector(new_vector()->push_back_inplace(old_val)->push_back_inplace(new_val));
+		return new_node_vector(vector_va(old_val, new_val));
 	}
 
 	do {
@@ -364,7 +364,7 @@ static node_idx_t native_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 			old_val = atom->t_atom.load();
 		}
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
-	return new_node_vector(new_vector()->push_back_inplace(old_val)->push_back_inplace(new_val));
+	return new_node_vector(vector_va(old_val, new_val));
 }
 
 // (multi-swap! (atom f args) (atom f args) (atom f args) ...)
@@ -821,7 +821,7 @@ static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 			return mem->get(args_idx, node_eq);
 		}
 		node_idx_t ret = eval_list(env, args->push_front(f));
-		native_swap_e(env, list_va(cache_idx, env->get("assoc").value, args_idx, ret));
+		native_swap_e(env, list_va(cache_idx, env->get("assoc"), args_idx, ret));
 		return ret;
 	});
 	return func_idx;
@@ -837,7 +837,7 @@ static node_idx_t native_pmap(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t f = *it++;
 	list_ptr_t ret = new_list();
-	ret->push_back_inplace(env->get("pmap-next").value);
+	ret->push_back_inplace(env->get("pmap-next"));
 	ret->push_back_inplace(f);
 	while(it) {
 		ret->push_back_inplace(eval_node(env, *it++));
@@ -852,7 +852,7 @@ static node_idx_t native_pmap_next(env_ptr_t env, list_ptr_t args) {
 	list_ptr_t next_list = new_list();
 	list_ptr_t arg_list = new_list();
 	arg_list->push_back_inplace(f);
-	next_list->push_back_inplace(env->get("pmap-next").value);
+	next_list->push_back_inplace(env->get("pmap-next"));
 	next_list->push_back_inplace(f);
 	for(; it; it++) {
 		node_idx_t arg_idx = *it;
@@ -872,7 +872,7 @@ static node_idx_t native_pmap_next(env_ptr_t env, list_ptr_t args) {
 // Executes the no-arg fns in parallel, returning a lazy sequence of
 // their values
 static node_idx_t native_pcalls(env_ptr_t env, list_ptr_t args) {
-	return new_node_lazy_list(env, new_node_list(args->push_front(env->get("pcalls-next").value)));
+	return new_node_lazy_list(env, new_node_list(args->push_front(env->get("pcalls-next"))));
 }
 
 static node_idx_t native_pcalls_next(env_ptr_t env, list_ptr_t args) {
@@ -880,14 +880,14 @@ static node_idx_t native_pcalls_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t ret = native_auto_future_call(env, list_va(args->first_value()));
-	return new_node_list(args->rest()->push_front2(ret, env->get("pcalls-next").value));
+	return new_node_list(args->rest()->push_front2(ret, env->get("pcalls-next")));
 }
 
 // (pvalues & fns)
 // Executes the no-arg fns in parallel, returning a lazy sequence of
 // their values
 static node_idx_t native_pvalues(env_ptr_t env, list_ptr_t args) {
-	return new_node_lazy_list(env, new_node_list(args->push_front(env->get("pvalues-next").value)));
+	return new_node_lazy_list(env, new_node_list(args->push_front(env->get("pvalues-next"))));
 }
 
 static node_idx_t native_pvalues_next(env_ptr_t env, list_ptr_t args) {
@@ -895,7 +895,7 @@ static node_idx_t native_pvalues_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t ret = native_auto_future(env, list_va(args->first_value()));
-	return new_node_list(args->rest()->push_front2(ret, env->get("pvalues-next").value));
+	return new_node_list(args->rest()->push_front2(ret, env->get("pvalues-next")));
 }
 
 // TODO: Implement promise with atoms so its STM compliant!

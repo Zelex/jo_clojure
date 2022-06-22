@@ -1126,18 +1126,9 @@ struct jo_persistent_vector_node_t {
     node_shared_ptr children[32];
     T elements[32];
 
-    jo_persistent_vector_node_t() : children(), elements() {}
+    jo_persistent_vector_node_t() : children() {}
 
-    ~jo_persistent_vector_node_t() {
-        for (int i = 0; i < 32; ++i) {
-            children[i] = NULL;
-            if(!std::is_pod<T>::value) {
-                elements[i] = std::move(T());
-            }
-        }
-    }
-
-    jo_persistent_vector_node_t(const node_shared_ptr &other) : children(), elements() {
+    jo_persistent_vector_node_t(const node_shared_ptr &other) {
         if(other.ptr) {
             for (int i = 0; i < 32; ++i) {
                 children[i] = other->children[i];
@@ -1274,7 +1265,7 @@ struct jo_persistent_vector : jo_object {
     }
 
     // append inplace
-    auto append_inplace(const T &value) {
+    void append_inplace(const T &value) {
         // do we have space?
         if(tail_length >= 32) {
             append_tail();
@@ -1282,7 +1273,6 @@ struct jo_persistent_vector : jo_object {
 
         tail->elements[tail_length++] = value;
         length++;
-        return this;
     }
 
     shared_ptr assoc(size_t index, const T &value) const {
@@ -1319,7 +1309,7 @@ struct jo_persistent_vector : jo_object {
         return copy;
     }
 
-    auto assoc_inplace(size_t index, const T &value) {
+    void assoc_inplace(size_t index, const T &value) {
         index += head_offset;
 
         int shift = 5 * (depth + 1);
@@ -1347,11 +1337,9 @@ struct jo_persistent_vector : jo_object {
             tail = new_node(tail);
             tail->elements[index - tail_offset] = value;
         }
-
-        return this;
     }
 
-    auto assoc_mutate(size_t index, const T &value) {
+    void assoc_mutate(size_t index, const T &value) {
         index += head_offset;
 
         int shift = 5 * (depth + 1);
@@ -1374,8 +1362,6 @@ struct jo_persistent_vector : jo_object {
         } else {
             tail->elements[index - tail_offset] = value;
         }
-
-        return this;
     }
 
     auto dissoc_inplace(size_t index) { return assoc_inplace(index, T()); }
@@ -1397,16 +1383,15 @@ struct jo_persistent_vector : jo_object {
         return copy;
     }
 
-    auto conj_inplace(const jo_persistent_vector &other) {
+    void conj_inplace(const jo_persistent_vector &other) {
         // loop through other, and append to copy
         for(size_t i = 0; i < other.length; ++i) {
             append_inplace(other[i]);
         }
-        return this;
     }
 
     shared_ptr push_back(const T &value) const { return append(value); }
-    auto push_back_inplace(const T &value) { return append_inplace(value); }
+    void push_back_inplace(const T &value) { return append_inplace(value); }
 
     shared_ptr resize(size_t new_size) const {
         if(new_size == length) {
@@ -1434,12 +1419,11 @@ struct jo_persistent_vector : jo_object {
         return copy;
     }
 
-    auto push_front_inplace(const T &value) {
+    void push_front_inplace(const T &value) {
         assert(head_offset > 0);
         head_offset--;
         length++;
         assoc_inplace(0, value);
-        return this;
     }
     
     shared_ptr pop_back() const {
@@ -1475,9 +1459,9 @@ struct jo_persistent_vector : jo_object {
         return copy;
     }
 
-    auto pop_back_inplace() {
+    void pop_back_inplace() {
         if(length == 0) {
-            return this;
+            return;
         }
 
         size_t shift = 5 * (depth + 1);
@@ -1489,7 +1473,7 @@ struct jo_persistent_vector : jo_object {
             tail = new_node(tail);
             tail_length--;
             length--;
-            return this;
+            return;
         }
 
         // traverse duplicating the way down.
@@ -1506,7 +1490,6 @@ struct jo_persistent_vector : jo_object {
         prev->elements[key & 31] = T();
         tail_length--;
         length--;
-        return this;
     }
 
     shared_ptr pop_front() const {
@@ -1516,10 +1499,9 @@ struct jo_persistent_vector : jo_object {
         return copy;
     }
 
-    auto pop_front_inplace() {
+    void pop_front_inplace() {
         head_offset++;
         length--;
-        return this;
     }
 
     shared_ptr rest() const { return pop_front(); }
@@ -1544,7 +1526,7 @@ struct jo_persistent_vector : jo_object {
         }
         shared_ptr copy = new_vector();
         for(size_t i = 0; i < n; ++i) {
-            copy->append_inplace((*this)[i]);
+            copy->append_inplace(nth(i));
         }
         return copy;
     }
@@ -1584,91 +1566,82 @@ struct jo_persistent_vector : jo_object {
         return copy;
     }
 
-    T &operator[] (size_t index) {
-        if(index >= length) {
-            static T dummy;
-            return dummy;
-        }
-
+    inline T &nth(size_t index) { 
         index += head_offset;
 
-        size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length + head_offset - tail_length;
-
         // Is it in the tail?
+        size_t tail_offset = length + head_offset - tail_length;
         if(index >= tail_offset) {
             return tail->elements[index - tail_offset];
         }
 
         // traverse 
-        node_shared_ptr cur = NULL;
-        node_shared_ptr prev = head;
-        size_t key = index;
-        for (size_t level = shift; level > 0; level -= 5) {
-            size_t index = (key >> level) & 0x1f;
-            cur = prev->children[index];
-            if(!cur) {
-                return tail->elements[key - tail_offset];
-            }
-            prev = cur;
+        vector_node_t *cur = head.ptr;
+        switch(depth) {
+            case 11: cur = cur->children[(index >> 60) & 0x1f].ptr;
+            case 10: cur = cur->children[(index >> 55) & 0x1f].ptr;
+            case 9: cur = cur->children[(index >> 50) & 0x1f].ptr;
+            case 8: cur = cur->children[(index >> 45) & 0x1f].ptr; 
+            case 7: cur = cur->children[(index >> 40) & 0x1f].ptr;
+            case 6: cur = cur->children[(index >> 35) & 0x1f].ptr;
+            case 5: cur = cur->children[(index >> 30) & 0x1f].ptr;
+            case 4: cur = cur->children[(index >> 25) & 0x1f].ptr;
+            case 3: cur = cur->children[(index >> 20) & 0x1f].ptr;
+            case 2: cur = cur->children[(index >> 15) & 0x1f].ptr;
+            case 1: cur = cur->children[(index >> 10) & 0x1f].ptr;
         }
-        return prev->elements[key & 0x1f];
+        cur = cur->children[(index >> 5) & 0x1f].ptr;
+        return cur->elements[index & 0x1f];
     }
 
-    const T &operator[] (size_t index) const {
-        if(index >= length) {
-            static T dummy;
-            return dummy;
-        }
+    inline const T &nth(size_t index) const { 
         index += head_offset;
 
-        size_t shift = 5 * (depth + 1);
-        size_t tail_offset = length + head_offset - tail_length;
-
         // Is it in the tail?
+        size_t tail_offset = length + head_offset - tail_length;
         if(index >= tail_offset) {
             return tail->elements[index - tail_offset];
         }
 
         // traverse
-
-        node_shared_ptr cur = NULL;
-        node_shared_ptr prev = head;
-        size_t key = index;
-        for (size_t level = shift; level > 0; level -= 5) {
-            size_t index = (key >> level) & 0x1f;
-            cur = prev->children[index];
-            if(!cur) {
-                return tail->elements[key - tail_offset];
-            }
-            prev = cur;
+        vector_node_t *cur = head.ptr;
+        switch(depth) {
+            case 11: cur = cur->children[(index >> 60) & 0x1f].ptr;
+            case 10: cur = cur->children[(index >> 55) & 0x1f].ptr;
+            case 9: cur = cur->children[(index >> 50) & 0x1f].ptr;
+            case 8: cur = cur->children[(index >> 45) & 0x1f].ptr; 
+            case 7: cur = cur->children[(index >> 40) & 0x1f].ptr;
+            case 6: cur = cur->children[(index >> 35) & 0x1f].ptr;
+            case 5: cur = cur->children[(index >> 30) & 0x1f].ptr;
+            case 4: cur = cur->children[(index >> 25) & 0x1f].ptr;
+            case 3: cur = cur->children[(index >> 20) & 0x1f].ptr;
+            case 2: cur = cur->children[(index >> 15) & 0x1f].ptr;
+            case 1: cur = cur->children[(index >> 10) & 0x1f].ptr;
         }
-        return prev->elements[key & 0x1f];
+        cur = cur->children[(index >> 5) & 0x1f].ptr;
+        return cur->elements[index & 0x1f];
     }
 
-    inline T &nth(size_t index) { return (*this)[index]; }
-    inline const T &nth(size_t index) const { return (*this)[index]; }
-
-    inline T &nth_clamp(int index) {
+    inline T &nth_clamp(long long index) {
         index = index < 0 ? 0 : index;
-        index = index > (int)length-1 ? length-1 : index;
-        return (*this)[index];
+        index = index > (long long)length-1 ? length-1 : index;
+        return nth(index);
     }
     
-    inline const T &nth_clamp(int index) const {
+    inline const T &nth_clamp(long long index) const {
         index = index < 0 ? 0 : index;
-        index = index > (int)length-1 ? length-1 : index;
-        return (*this)[index];
+        index = index > (long long)length-1 ? length-1 : index;
+        return nth(index);
     }
 
-    inline const T &first_value() const { return (*this)[0]; }
+    inline const T &first_value() const { return nth(0); }
     inline size_t size() const { return length; }
     inline bool empty() const { return length == 0; }
 
     shared_ptr reverse() {
         shared_ptr copy = new_vector();
         for(long long i = length-1; i >= 0; --i) {
-            copy->push_back_inplace((*this)[i]);
+            copy->push_back_inplace(nth(i));
         }
         return copy;
     }
@@ -1751,8 +1724,8 @@ struct jo_persistent_vector : jo_object {
         bool operator==(const iterator &other) const { return vec == other.vec && index == other.index; }
         bool operator!=(const iterator &other) const { return vec != other.vec || index != other.index; }
         operator bool() const { return index < vec->size(); }
-        const T &operator*() const { return (*vec)[index]; }
-        const T *operator->() const { return &(*vec)[index]; }
+        const T &operator*() const { return vec->nth(index); }
+        const T *operator->() const { return &(vec->nth(index)); }
         iterator operator+(size_t offset) const { return iterator(vec, index + offset); }
         iterator operator-(size_t offset) const { return iterator(vec, index - offset); }
         iterator &operator+=(size_t offset) { index += offset; return *this; }
@@ -2067,13 +2040,14 @@ struct jo_persistent_hash_map : jo_object {
             copy->resize_inplace(copy->vec->size() * 2);
         }
         int index = jo_hash_value(key) % copy->vec->size();
-        // TODO: nth twice? optimization pls
-        while(copy->vec->nth(index).third) {
-            if(eq(copy->vec->nth(index).first, key)) {
+        entry_t e = copy->vec->nth(index);
+        while(e.third) {
+            if(eq(e.first, key)) {
                 copy->vec = copy->vec->assoc(index, entry_t(key, value, true));
                 return copy;
             }
             index = (index + 1) % copy->vec->size();
+            e = copy->vec->nth(index);
         } 
         copy->vec = copy->vec->assoc(index, entry_t(key, value, true));
         ++copy->length;
@@ -2087,13 +2061,14 @@ struct jo_persistent_hash_map : jo_object {
             resize_inplace(vec->size() * 2);
         }
         int index = jo_hash_value(key) % vec->size();
-        // TODO: nth twice? optimization pls
-        while(vec->nth(index).third) {
-            if(eq(vec->nth(index).first, key)) {
+        entry_t e = vec->nth(index);
+        while(e.third) {
+            if(eq(e.first, key)) {
                 vec->assoc_inplace(index, entry_t(key, value, true));
                 return this;
             }
             index = (index + 1) % vec->size();
+            e = vec->nth(index);
         } 
         vec->assoc_inplace(index, entry_t(key, value, true));
         ++length;
@@ -2106,8 +2081,9 @@ struct jo_persistent_hash_map : jo_object {
         hash_map_ptr_t copy = new_hash_map(*this);
         int index = jo_hash_value(key) % copy->vec->size();
         // TODO: nth twice? optimization pls
-        while(copy->vec->nth(index).third) {
-            if(eq(copy->vec->nth(index).first, key)) {
+        entry_t e = copy->vec->nth(index);
+        while(e.third) {
+            if(eq(e.first, key)) {
                 copy->vec = copy->vec->assoc(index, entry_t());
                 --copy->length;
                 // need to shuffle entries up to fill in the gap
@@ -2128,24 +2104,60 @@ struct jo_persistent_hash_map : jo_object {
                 return copy;
             }
             index = (index + 1) % copy->vec->size();
+            e = copy->vec->nth(index);
         } 
         return copy;
     }
 
+    // dissoc_inplace
+    template<typename F>
+    auto dissoc_inplace(const K &key, F eq) {
+        int index = jo_hash_value(key) % vec->size();
+        // TODO: nth twice? optimization pls
+        entry_t &e = vec->nth(index);
+        while(e.third) {
+            if(eq(e.first, key)) {
+                // TODO: optimize
+                vec->assoc_inplace(index, entry_t());
+                --length;
+                // need to shuffle entries up to fill in the gap
+                int i = index;
+                int j = i;
+                while(true) {
+                    j = (j + 1) % vec->size();
+                    if(!vec->nth(j).third) {
+                        break;
+                    }
+                    entry_t next_entry = vec->nth(j);
+                    if(jo_hash_value(next_entry.first) % vec->size() <= i) {
+                        vec->assoc_inplace(i, next_entry);
+                        vec->assoc_inplace(j, entry_t());
+                        i = j;
+                    }
+                }
+                return this;
+            }
+            index = (index + 1) % vec->size();
+            e = vec->nth(index);
+        }
+        return this;
+    }
+
     // find using lambda
     template<typename F>
-    entry_t find(const K &key, const F &f) {
+    entry_t find(const K &key, const F &f) const {
         if(vec->size() == 0) {
             return entry_t();
         }
         size_t index = jo_hash_value(key) % vec->size();
-        // TODO: nth twice? optimization pls
-        while(vec->nth(index).third) {
-            if(f(vec->nth(index).first, key)) {
-                return vec->nth(index);
+        entry_t e = vec->nth(index);
+        while(e.third) {
+            if(f(e.first, key)) {
+                return e;
             }
             index = (index + 1) % vec->size();
-        } 
+            e = vec->nth(index);
+        };
         return entry_t();
     }
      
@@ -2161,12 +2173,13 @@ struct jo_persistent_hash_map : jo_object {
             return V();
         }
         size_t index = jo_hash_value(key) % vec->size();
-        // TODO: nth twice? optimization pls
-        while(vec->nth(index).third) {
-            if(f(vec->nth(index).first, key)) {
-                return vec->nth(index).second;
+        entry_t e = vec->nth(index);
+        while(e.third) {
+            if(f(e.first, key)) {
+                return e.second;
             }
             index = (index + 1) % vec->size();
+            e = vec->nth(index);
         } 
         return V();
     }

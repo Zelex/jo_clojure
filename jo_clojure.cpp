@@ -75,6 +75,8 @@ enum {
 	UNQUOTE_NODE,
 	UNQUOTE_SPLICE_NODE,
 	QUASIQUOTE_NODE,
+	DEREF_NODE,
+	FN_NODE,
 	EMPTY_LIST_NODE,
 	EMPTY_VECTOR_NODE,
 	EMPTY_MAP_NODE,
@@ -164,7 +166,7 @@ typedef jo_shared_ptr<native_func_t> native_func_ptr_t;
 
 typedef node_idx_t (*native_function_t)(env_ptr_t env, list_ptr_t args);
 
-static inline node_t *get_node(node_idx_t idx);
+static inline node_t *get_node(node_idx_unsafe_t idx);
 static inline int get_node_type(node_idx_t idx);
 static inline int get_node_type(const node_t *n);
 static inline int get_node_flags(node_idx_t idx);
@@ -187,6 +189,7 @@ static inline atomic_node_idx_t &get_node_atom(node_idx_t idx);
 static inline env_ptr_t get_node_env(node_idx_t idx);
 static inline env_ptr_t get_node_env(const node_t *n);
 
+static node_idx_t new_node_symbol(const jo_string &s, int flags=0);
 static node_idx_t new_node_int(long long i, int flags = 0);
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_string(const jo_string &s, int flags = 0);
@@ -197,6 +200,7 @@ static node_idx_t new_node_vector2d(vector2d_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags = 0);
 static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flags = 0);
 
+static bool node_sym_eq(node_idx_unsafe_t n1i, node_idx_unsafe_t n2i);
 static bool node_eq(node_idx_t n1i, node_idx_t n2i);
 static bool node_lt(node_idx_t n1i, node_idx_t n2i);
 static bool node_lte(node_idx_t n1i, node_idx_t n2i);
@@ -333,21 +337,13 @@ struct transaction_t {
 struct env_t {
 	// for iterating them all, otherwise unused.
 	list_ptr_t vars;
-	// TODO: need persistent version of vars_map
-	struct fast_val_t {
-		node_idx_t var;
-		node_idx_t value;
-		bool valid;
-		fast_val_t() : var(NIL_NODE), value(NIL_NODE), valid() {}
-		fast_val_t(node_idx_t _var, node_idx_t _value) : var(_var), value(_value), valid(true) {}
-	};
-	std::unordered_map<std::string, fast_val_t> vars_map;
+	hash_map_ptr_t fast_map;
 	env_ptr_t parent;
 
 	transaction_ptr_t tx;
 
-	env_t() : vars(new_list()), vars_map(), parent(), tx() {}
-	env_t(env_ptr_t p) : vars(new_list()), vars_map(), parent(p) {
+	env_t() : vars(new_list()), fast_map(new_hash_map()), parent(), tx() {}
+	env_t(env_ptr_t p) : vars(new_list()), fast_map(new_hash_map()), parent(p) {
 		if(p) {
 			tx = p->tx;
 		}
@@ -369,30 +365,26 @@ struct env_t {
 		return ret;
 	}
 
-	fast_val_t find(const jo_string &name) const {
-		auto it = vars_map.find(name.c_str());
-		if(it != vars_map.end()) {
-			return it->second;
+	node_idx_t get(node_idx_t name) const {
+		auto it = fast_map->find(name, node_sym_eq);
+		if(it.third) {
+			return it.second;
 		}
 		if(parent.ptr) {
-			return parent->find(name);
+			return parent.ptr->get(name);
 		}
-		return fast_val_t();
+		return INV_NODE;
 	}
 
-	inline fast_val_t get(const jo_string &name) const {
-		return find(name);
+	node_idx_t get(const char * name) const {
+		return get(new_node_symbol(name));
 	}
 
-	inline bool has(const jo_string &name) const {
-		return find(name).valid;
-	}
-
-	void remove(const jo_string &name) {
-		auto it = vars_map.find(name.c_str());
-		if(it != vars_map.end()) {
-			vars = vars->erase(it->second.var);
-			vars_map.erase(it);
+	void remove(node_idx_t name) {
+		auto it = fast_map->find(name, node_sym_eq);
+		if(it.third) {
+			//vars = vars->erase(it.second);
+			fast_map->dissoc_inplace(it.first, node_sym_eq);
 			return;
 		}
 		if(parent.ptr) {
@@ -400,26 +392,29 @@ struct env_t {
 		}
 	}
 
-	void set(jo_string name, node_idx_t value) {
-		if(has(name)) {
-			remove(name);
-		}
-		node_idx_t idx = new_node_var(name, value, NODE_FLAG_FOREVER);
-		vars = vars->push_front(idx);
-		vars_map[name.c_str()] = fast_val_t(idx, value);
+	void set(node_idx_t name, node_idx_t value) {
+		//node_idx_t idx = new_node_var(name, value, NODE_FLAG_FOREVER);
+		//vars = vars->push_front(idx);
+		fast_map->assoc_inplace(name, value, node_sym_eq);
+	}
+
+	void set(const char *name, node_idx_t value) {
+		//node_idx_t idx = new_node_var(name, value, NODE_FLAG_FOREVER);
+		//vars = vars->push_front(idx);
+		fast_map->assoc_inplace(new_node_symbol(name), value, node_sym_eq);
 	}
 
 	// sets the map only, but cannot iterate it. for dotimes and stuffs.
-	void set_temp(const jo_string &name, node_idx_t value) {
-		vars_map[name.c_str()] = fast_val_t(NIL_NODE, value);
+	void set_temp(node_idx_t name, node_idx_t value) {
+		fast_map->assoc_inplace(name, value, node_sym_eq);
 	}
 
 	void print_map(int depth = 0) {
 		printf("%*s{", depth, "");
-		for(auto it = vars_map.begin(); it != vars_map.end(); it++) {
-			print_node(new_node_string(it->first.c_str()), depth);
+		for(auto it = fast_map->begin(); it; it++) {
+			print_node(it->first, depth);
 			printf(" = ");
-			print_node(it->second.value, depth);
+			print_node(it->second, depth);
 			printf(",\n");
 		}
 		printf("%*s}\n", depth, "");
@@ -1118,7 +1113,7 @@ static inline node_idx_t new_node(node_t &&n) {
 	return nodes.push_back(std::move(n));
 }
 
-static inline node_t *get_node(node_idx_t idx) {
+static inline node_t *get_node(node_idx_unsafe_t idx) {
 	 //assert(!(nodes[idx].flags & NODE_FLAG_GARBAGE));
 	 if(nodes[idx].flags & NODE_FLAG_GARBAGE) {
 		idx = NIL_NODE;
@@ -1256,7 +1251,7 @@ static node_idx_t new_node_string(const jo_string &s, int flags) {
 	return new_node(std::move(n));
 }
 
-static node_idx_t new_node_symbol(const jo_string &s, int flags=0) {
+static node_idx_t new_node_symbol(const jo_string &s, int flags) {
 	node_t n;
 	n.type = NODE_SYMBOL;
 	n.t_string = s;
@@ -1698,13 +1693,6 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	}
 	if(tok.type == TOK_SYMBOL) {
 		debugf("symbol: %s\n", tok.str.c_str());
-		if(env->has(tok.str.c_str())) {
-			node_idx_t node = env->get(tok.str.c_str()).value;
-			if(get_node_flags(node) & NODE_FLAG_PRERESOLVE) {
-				debugf("pre-resolve symbol: %s\n", tok.str.c_str());
-				return node;
-			}
-		}
 		// fixed symbols
 		if(tok.str == "%") return PCT_NODE;
 		if(tok.str == "%1") return PCT1_NODE;
@@ -1715,7 +1703,13 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "%6") return PCT6_NODE;
 		if(tok.str == "%7") return PCT7_NODE;
 		if(tok.str == "%8") return PCT8_NODE;
-		return new_node_symbol(tok.str.c_str(), NODE_FLAG_FOREVER);
+		node_idx_t ret = new_node_symbol(tok.str.c_str(), NODE_FLAG_FOREVER);
+		node_idx_t node = env->get(ret);
+		if(node != INV_NODE && get_node_flags(node) & NODE_FLAG_PRERESOLVE) {
+			debugf("pre-resolve symbol: %s\n", tok.str.c_str());
+			return node;
+		}
+		return ret;
 	} 
 
 	// parse quote shorthand
@@ -1729,7 +1723,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.type = NODE_LIST;
 		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(env->get("quote").value);
+		n.t_list->push_back_inplace(env->get(QUOTE_NODE));
 		while(next != INV_NODE) {
 			n.t_list->push_back_inplace(next);
 			next = parse_next(env, state, ')');
@@ -1801,7 +1795,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.type = NODE_LIST;
 		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(env->get("quasiquote").value);
+		n.t_list->push_back_inplace(env->get(QUASIQUOTE_NODE));
 		n.t_list->push_back_inplace(inner);
 		return new_node(std::move(n));
 	}
@@ -1815,7 +1809,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.type = NODE_LIST;
 		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(env->get("deref").value);
+		n.t_list->push_back_inplace(env->get(DEREF_NODE));
 		n.t_list->push_back_inplace(inner);
 		return new_node(std::move(n));
 	}
@@ -1832,7 +1826,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		n.type = NODE_LIST;
 		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
-		n.t_list->push_back_inplace(env->get("fn").value);
+		n.t_list->push_back_inplace(env->get(FN_NODE));
 		list_ptr_t body = new_list();
 		while(next != INV_NODE) {
 			body->push_back_inplace(next);
@@ -1850,7 +1844,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			}
 		}
 		if(num_args_used == 1) {
-			arg_list->push_back_inplace(new_node_symbol("%"));
+			arg_list->push_back_inplace(PCT_NODE);
 		} else {
 			for(int i = 1; i <= num_args_used; ++i) {
 				jo_stringstream ss;
@@ -1975,7 +1969,11 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			sym_idx = eval_list(env, get_node(n1i)->t_list);
 			sym_type = get_node_type(sym_idx);
 		} else if(n1_type == NODE_SYMBOL) {
-			sym_idx = env->get(get_node_string(n1i)).value;
+			sym_idx = env->get(n1i);
+			if(sym_idx == INV_NODE) {
+				warnf("trying to resolve undefined symbol: %s\n", get_node_string(n1i).c_str());
+				sym_idx = n1i;
+			}
 			sym_type = get_node_type(sym_idx);
 		}
 		sym_flags = get_node(sym_idx)->flags;
@@ -2120,11 +2118,11 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 	if(type == NODE_LIST) {
 		return eval_list(env, get_node(root)->t_list, flags);
 	} else if(type == NODE_SYMBOL) {
-		auto sym = env->get(get_node_string(root));
-		if(!sym.valid) {
+		node_idx_t sym = env->get(root);
+		if(sym == INV_NODE) {
 			return root;
 		}
-		return sym.value;//eval_node(env, sym_idx);
+		return sym;//eval_node(env, sym_idx);
 	} else if(type == NODE_VECTOR) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// TODO: some way to quick resolve the vector? IE, know exactly which ones are things that need to be evaluated
@@ -2132,7 +2130,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 		vector_ptr_t vec = node->as_vector();
 		size_t vec_size = vec->size();
 		for(size_t i = 0; i < vec_size; i++) {
-			node_idx_t n = (*vec)[i];
+			node_idx_t n = vec->nth(i);
 			node_idx_t new_n = eval_node(env, n);
 			if(n != new_n) {
 				vec = vec->assoc(i, new_n);
@@ -2549,6 +2547,12 @@ static inline bool seq_iterate(node_idx_t seq, F f) {
 	return false;
 }
 
+static bool node_sym_eq(node_idx_unsafe_t n1i, node_idx_unsafe_t n2i) {
+	node_t *n1 = get_node(n1i);
+	node_t *n2 = get_node(n2i);
+	return n1->t_string == n2->t_string;
+}
+
 static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 	if(n1i == INV_NODE || n2i == INV_NODE) return false;
 	if(n1i == n2i) return true;
@@ -2745,7 +2749,7 @@ static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 	node_t *n1 = get_node(n1i);
 	node_t *n2 = get_node(n2i);
 	if(n1->type == NODE_SYMBOL) {
-		env->set_temp(n1->t_string, n2i);
+		env->set_temp(n1i, n2i);
 	/*
 	} else if(n1->is_vector() && n2->is_hash_map()) {
 		hash_map_ptr_t m = n2->as_hash_map();
@@ -2773,10 +2777,16 @@ static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 }
 
 // jo_hash_value of node_idx_t
-size_t jo_hash_value(node_idx_t n) {
+inline size_t jo_hash_value(node_idx_t n) {
 	node_t *n1 = get_node(n);
-	if(n1->type == NODE_NIL) {
-		return 0;
+	if(n1->flags & NODE_FLAG_STRING) {
+		return jo_hash_value(n1->t_string.c_str()) & 0x7FFFFFFFFFFFFFFFull;
+	} else if(n1->type == NODE_INT) {
+		return n1->t_int & 0x7FFFFFFFFFFFFFFFull;
+	} else if(n1->type == NODE_FLOAT) {
+		return jo_hash_value(n1->as_float()) & 0x7FFFFFFFFFFFFFFFull;
+	} else if(n1->type == NODE_BOOL) {
+		return n1->t_bool ? 1 : 0;
 	} else if(n1->is_seq()) {
 		size_t hash0 = 2166136261, hash1 = 2166136261, hash2 = 2166136261, hash3 = 2166136261;
 		size_t hash4 = 2166136261, hash5 = 2166136261, hash6 = 2166136261, hash7 = 2166136261;
@@ -2794,14 +2804,6 @@ size_t jo_hash_value(node_idx_t n) {
 		});
 		size_t hash = ((hash0 ^ hash1) ^ (hash2 ^ hash3)) ^ ((hash4 ^ hash5) ^ (hash6 ^ hash7));
 		return hash & 0x7FFFFFFFFFFFFFFFull;
-	} else if(n1->type == NODE_BOOL) {
-		return n1->t_bool ? 1 : 0;
-	} else if(n1->flags & NODE_FLAG_STRING) {
-		return jo_hash_value(n1->t_string.c_str()) & 0x7FFFFFFFFFFFFFFFull;
-	} else if(n1->type == NODE_INT) {
-		return n1->t_int & 0x7FFFFFFFFFFFFFFFull;
-	} else if(n1->type == NODE_FLOAT) {
-		return jo_hash_value(n1->as_float()) & 0x7FFFFFFFFFFFFFFFull;
 	}
 	return 0;
 }
@@ -3043,8 +3045,7 @@ static node_idx_t native_if_let(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	node_idx_t key_idx = bindings_list->first_value(); // TODO: should this be eval'd?
 	node_idx_t value_idx = eval_node(env2, bindings_list->last_value());
-	node_t *key = get_node(key_idx);
-	env2->set_temp(key->as_string(), value_idx);
+	env2->set_temp(key_idx, value_idx);
 	node_idx_t when_true = *i++;
 	node_idx_t when_false = i ? *i++ : NIL_NODE;
 	return eval_node(env2, !get_node(value_idx)->as_bool() ? when_true : when_false);
@@ -3064,8 +3065,7 @@ static node_idx_t native_if_some(env_ptr_t env, list_ptr_t args) {
 	env_ptr_t env2 = new_env(env);
 	node_idx_t key_idx = bindings_list->first_value(); // TODO: should this be eval'd?
 	node_idx_t value_idx = eval_node(env2, bindings_list->last_value());
-	node_t *key = get_node(key_idx);
-	env2->set_temp(key->as_string(), value_idx);
+	env2->set_temp(key_idx, value_idx);
 	node_idx_t when_true = *i++;
 	node_idx_t when_false = i ? *i++ : NIL_NODE;
 	return eval_node(env2, value_idx != NIL_NODE ? when_true : when_false);
@@ -3344,9 +3344,10 @@ expands to (var x).
 */
 static node_idx_t native_var(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i(args);
-	node_t *n = get_node(*i++);
-	if(env->has(n->as_string())) {
-		return env->find(n->as_string()).var;
+	node_idx_t n_idx = *i++;
+	node_idx_t val = env->get(n_idx);
+	if(val != INV_NODE) {
+		return new_node_var(get_node_string(n_idx), val);
 	}
 	return NIL_NODE;
 }
@@ -3367,7 +3368,6 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i(args);
 	node_idx_t sym_node_idx = *i++;
-	jo_string sym_node = get_node(sym_node_idx)->as_string();
 	node_idx_t init = NIL_NODE;
 	if(i) {
 		node_idx_t doc_string = *i++; // ignored for eval purposes if present
@@ -3384,7 +3384,7 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	env->set(sym_node, eval_node(env, init));
+	env->set(sym_node_idx, eval_node(env, init));
 	return NIL_NODE;
 }
 
@@ -3392,7 +3392,7 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 // defs name to have the root value of the expr if the named var has no root value,
 // else expr is unevaluated
 static node_idx_t native_defonce(env_ptr_t env, list_ptr_t args) {
-	if(env->has(get_node_string(args->first_value()))) {
+	if(env->get(args->first_value()) != INV_NODE) {
 		return NIL_NODE;
 	}
 	return native_def(env, args);
@@ -3402,15 +3402,12 @@ static node_idx_t native_defonce(env_ptr_t env, list_ptr_t args) {
 // defs the supplied var names with no bindings, useful for making forward declarations.
 static node_idx_t native_declare(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator i(args); i; i++) {
-		node_t *n = get_node(*i);
-		if(n->is_symbol()) {
-			env->set(n->as_string(), NIL_NODE);
-		}
+		env->set(*i, NIL_NODE);
 	}
 	return NIL_NODE;
 }
 
-static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, const jo_string &private_fn_name, int flags) {
+static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, node_idx_t private_fn_name, int flags) {
 	list_t::iterator i(args);
 	if(get_node_type(*i) == NODE_VECTOR) {
 		node_idx_t reti = new_node(NODE_FUNC, 0);
@@ -3418,11 +3415,11 @@ static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, const jo_st
 		ret->flags |= flags;
 		ret->t_func.args = get_node(*i)->as_vector();
 		ret->t_func.body = args->rest();
-		if(private_fn_name.empty()) {
+		if(private_fn_name == NIL_NODE) {
 			ret->t_string = "<anonymous>";
 			ret->t_env = env;
 		} else {
-			ret->t_string = private_fn_name;
+			ret->t_string = get_node_string(private_fn_name);
 			env_ptr_t private_env = new_env(env);
 			private_env->set(private_fn_name, reti);
 			ret->t_env = private_env;
@@ -3436,9 +3433,9 @@ static node_idx_t native_fn_macro(env_ptr_t env, list_ptr_t args, bool macro) {
 	list_t::iterator i(args);
 	int flags = macro ? NODE_FLAG_MACRO : 0;
 
-	jo_string private_fn_name;
+	node_idx_t private_fn_name = NIL_NODE;
 	if(get_node_type(*i) == NODE_SYMBOL) {
-		private_fn_name = get_node_string(*i++);
+		private_fn_name = *i++;
 		if(get_node_type(*i) == NODE_VECTOR) {
 			return native_fn_internal(env, args->rest(), private_fn_name, flags);
 		}
@@ -3484,7 +3481,6 @@ static node_idx_t native_macro(env_ptr_t env, list_ptr_t args) { return native_f
 static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i(args);
 	node_idx_t sym_node_idx = *i++;
-	jo_string sym_node = get_node(sym_node_idx)->as_string();
 	node_idx_t doc_string = NIL_NODE;
 	if(get_node_type(*i) == NODE_STRING) {
 		doc_string = *i++;
@@ -3498,7 +3494,7 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 
-	env->set(sym_node, native_fn(env, args->rest(i)));
+	env->set(sym_node_idx, native_fn(env, args->rest(i)));
 	return NIL_NODE;
 }
 
@@ -3510,7 +3506,6 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_defmacro(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator i(args);
 	node_idx_t sym_node_idx = *i++;
-	jo_string sym_node = get_node(sym_node_idx)->as_string();
 	node_idx_t doc_string = NIL_NODE;
 	if(get_node_type(*i) == NODE_STRING) {
 		doc_string = *i++;
@@ -3525,7 +3520,7 @@ static node_idx_t native_defmacro(env_ptr_t env, list_ptr_t args) {
 	}
 
 	node_idx_t m = native_macro(env, args->rest(i));
-	env->set(sym_node, new_node_native_function("defmacro__inner", [m](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
+	env->set(sym_node_idx, new_node_native_function("defmacro__inner", [m](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
 		return eval_node(env2, eval_list(env2, args2->push_front(m)));
 	}, true));
 	return NIL_NODE;
@@ -3602,11 +3597,10 @@ static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
 	node_idx_t name_idx = binding_list->first_value();
 	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
 	long long times = get_node(value_idx)->as_int();
-	jo_string name = get_node(name_idx)->as_string();
 	env_ptr_t env2 = new_env(env);
 	node_idx_t ret = NIL_NODE;
 	for(long long i = 0; i < times; ++i) {
-		env2->set_temp(name, new_node_int(i));
+		env2->set_temp(name_idx, new_node_int(i));
 		for(list_t::iterator it2 = it; it2; it2++) { 
 			ret = eval_node(env2, *it2);
 		}
@@ -3636,12 +3630,11 @@ static node_idx_t native_doseq(env_ptr_t env, list_ptr_t args) {
 	}
 	node_idx_t name_idx = binding_list->first_value();
 	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
-	jo_string name = get_node(name_idx)->as_string();
 	node_t *value = get_node(value_idx);
 	node_idx_t ret = NIL_NODE;
 	env_ptr_t env2 = new_env(env);
 	for(seq_iterator_t it2(value_idx); it2; it2.next()) {
-		env2->set_temp(name, it2.val);
+		env2->set_temp(name_idx, it2.val);
 		for(auto it3 = it; it3; it3++) { 
 			ret = eval_node(env2, *it3);
 		}
@@ -4650,9 +4643,8 @@ static node_idx_t native_as_thread(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t expr_idx = eval_node(env, *it++);
 	node_idx_t name_idx = *it++;
-	jo_string name = get_node(name_idx)->t_string;
 	env_ptr_t env2 = new_env(env);
-	env2->set_temp(name, expr_idx);
+	env2->set_temp(name_idx, expr_idx);
 	for(; it; it++) {
 		node_idx_t form_idx = *it;
 		node_t *form_node = get_node(form_idx);
@@ -4665,7 +4657,7 @@ static node_idx_t native_as_thread(env_ptr_t env, list_ptr_t args) {
 			args2 = new_list();
 			args2->push_front_inplace(*it);
 		}
-		env2->set_temp(name, expr_idx);
+		env2->set_temp(name_idx, expr_idx);
 		expr_idx = eval_list(env2, args2);
 	}
 	return expr_idx;
@@ -5409,7 +5401,7 @@ static node_idx_t native_letfn(env_ptr_t env, list_ptr_t args) {
 			return NIL_NODE;
 		}
 		node_idx_t fn_idx = native_fn(E, fnspec->rest());
-		E->set_temp(get_node_string(fname_idx), fn_idx);
+		E->set_temp(fname_idx, fn_idx);
 	}
 	return eval_node_list(E, args->rest());
 }
@@ -5919,6 +5911,8 @@ int main(int argc, char **argv) {
 		new_node_symbol("unquote", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("unquote-splice", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("quasiquote", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("deref", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("fn", NODE_FLAG_PRERESOLVE);
 		new_node_list(new_list(), NODE_FLAG_PRERESOLVE);
 		new_node_vector(new_vector(), NODE_FLAG_PRERESOLVE);
 		new_node_map(new_hash_map(), NODE_FLAG_PRERESOLVE);
