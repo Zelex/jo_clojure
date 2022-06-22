@@ -1220,9 +1220,9 @@ struct jo_persistent_vector : jo_object {
             head = new_root;
             ++depth;
             shift = 5 * (depth + 1);
+        } else {
+            head = new_node(head);
         }
-
-        head = new_node(head);
 
         // Set up our tree traversal. We subtract 5 from level each time
         // in order to get all the way down to the level above where we want to
