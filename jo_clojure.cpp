@@ -16,12 +16,6 @@
 #include <thread>
 #include <shared_mutex>
 
-/*
-#include "mimalloc/static.c"
-#include "mimalloc/mimalloc-override.h"
-#include "mimalloc/mimalloc-new-delete.h"
-*/
-
 //#define WITH_TELEMETRY
 #ifdef WITH_TELEMETRY
 #pragma comment(lib,"rad_tm_win64.lib")
@@ -249,7 +243,6 @@ struct transaction_t {
 	};
 	//typedef node_idx_t atom_idx_t;
 	typedef node_idx_unsafe_t atom_idx_t;
-	//std::map<atom_idx_t, tx_t> tx_map;
 	jo_hash_map<atom_idx_t, tx_t> tx_map;
 	double start_time;
 	int num_retries;
