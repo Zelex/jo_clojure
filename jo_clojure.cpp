@@ -245,10 +245,12 @@ struct transaction_t {
 		node_idx_t old_val;
 		node_idx_t new_val;
 		tx_t() : old_val(INV_NODE), new_val(INV_NODE) {}
+		tx_t(node_idx_t o, node_idx_t n) : old_val(o), new_val(n) {}
 	};
 	//typedef node_idx_t atom_idx_t;
 	typedef node_idx_unsafe_t atom_idx_t;
-	std::map<atom_idx_t, tx_t> tx_map;
+	//std::map<atom_idx_t, tx_t> tx_map;
+	jo_hash_map<atom_idx_t, tx_t> tx_map;
 	double start_time;
 	int num_retries;
 
@@ -256,8 +258,8 @@ struct transaction_t {
 
 	node_idx_t read(atom_idx_t atom_idx) {
 		auto it = tx_map.find(atom_idx);
-		if(it != tx_map.end()) {
-			tx_t &tx = it->second;
+		if(it.third) {
+			tx_t &tx = it.second;
 			return tx.new_val != INV_NODE ? tx.new_val : tx.old_val;
 		}
 		debugf("stm read %lld\n", atom_idx);
@@ -268,14 +270,13 @@ struct transaction_t {
 			jo_yield_backoff(&count);
 			old_val = atom.load();
 		}
-		tx_t &tx = tx_map[atom_idx];
-		tx.old_val = old_val;
+		tx_map.assoc(atom_idx, tx_t(old_val, INV_NODE));
 		return old_val;
 	}
 
 	void write(atom_idx_t atom_idx, node_idx_t new_val) {
 		debugf("stm write %lld %lld\n", atom_idx, new_val);
-		tx_t &tx = tx_map[atom_idx];
+		tx_t &tx = tx_map.get(atom_idx);
 		tx.new_val = new_val;
 	}
 
@@ -286,7 +287,7 @@ struct transaction_t {
 		}
 
 		// Transition all values to hold
-		for(auto tx = tx_map.begin(); tx != tx_map.end(); tx++) {
+		for(auto tx = tx_map.begin(); tx; tx++) {
 			// Write stomp?
 			if(tx->second.old_val != INV_NODE) {
 				auto &atom = get_node_atom(tx->first);
@@ -308,7 +309,7 @@ struct transaction_t {
 		}
 
 		// Set new values / restore reads from hold status
-		for(auto tx = tx_map.begin(); tx != tx_map.end(); tx++) {
+		for(auto tx = tx_map.begin(); tx; tx++) {
 			node_idx_t store_val = tx->second.new_val != INV_NODE ? tx->second.new_val : tx->second.old_val;
 
 			auto &atom = get_node_atom(tx->first);
@@ -338,7 +339,7 @@ struct env_t {
 	// for iterating them all, otherwise unused.
 	list_ptr_t vars;
 	//hash_map_ptr_t fast_map;
-	jo_hash_map fast_map;
+	jo_hash_map<node_idx_t, node_idx_t> fast_map;
 	env_ptr_t parent;
 
 	transaction_ptr_t tx;

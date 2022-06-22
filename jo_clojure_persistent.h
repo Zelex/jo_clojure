@@ -2319,11 +2319,9 @@ private:
 hash_map_t::alloc_t hash_map_t::alloc;
 
 // non-persistent hash map
+template<typename K = node_idx_t, typename V = node_idx_t>
 struct jo_hash_map {
-    typedef node_idx_t K;
-    typedef node_idx_t V;
-
-    typedef jo_persistent_hash_map_entry_t entry_t;
+    typedef jo_triple<K, V, bool> entry_t;
 
     // vec is used to store the keys and values
     jo_vector<entry_t> vec;
@@ -2340,6 +2338,11 @@ struct jo_hash_map {
 
     size_t size() const { return length; }
     bool empty() const { return !length; }
+
+    void clear() {
+        vec = std::move(jo_vector<entry_t>(32));
+        length = 0;
+    }
 
     // iterator
     class iterator {
@@ -2390,8 +2393,28 @@ struct jo_hash_map {
     }
 
     // assoc with lambda for equality
+    entry_t &assoc(const K &key, const V &value) {
+        if(vec.size() - length < vec.size() / 8) {
+            resize(vec.size() * 2);
+        }
+        int index = jo_hash_value(key) % vec.size();
+        entry_t e = vec[index];
+        while(e.third) {
+            if(e.first == key) {
+                vec[index] = std::move(entry_t(key, value, true));
+                return vec[index];
+            }
+            index = (index + 1) % vec.size();
+            e = vec[index];
+        } 
+        vec[index] = entry_t(key, value, true);
+        ++length;
+        return vec[index];
+    }
+
+    // assoc with lambda for equality
     template<typename F>
-    void assoc(const K &key, const V &value, F eq) {
+    entry_t &assoc(const K &key, const V &value, F eq) {
         if(vec.size() - length < vec.size() / 8) {
             resize(vec.size() * 2);
         }
@@ -2400,13 +2423,14 @@ struct jo_hash_map {
         while(e.third) {
             if(eq(e.first, key)) {
                 vec[index] = std::move(entry_t(key, value, true));
-                return;
+                return vec[index];
             }
             index = (index + 1) % vec.size();
             e = vec[index];
         } 
         vec[index] = entry_t(key, value, true);
         ++length;
+        return vec[index];
     }
 
     // dissoc_inplace
@@ -2442,6 +2466,20 @@ struct jo_hash_map {
     }
 
     // find using lambda
+    entry_t find(const K &key) const {
+        size_t index = jo_hash_value(key) % vec.size();
+        entry_t e = vec[index];
+        while(e.third) {
+            if(e.first == key) {
+                return e;
+            }
+            index = (index + 1) % vec.size();
+            e = vec[index];
+        }
+        return entry_t();
+    }
+
+    // find using lambda
     template<typename F>
     entry_t find(const K &key, const F &f) const {
         size_t index = jo_hash_value(key) % vec.size();
@@ -2462,8 +2500,22 @@ struct jo_hash_map {
         return find(key, f).third;
     }
 
+    V &get(const K &key) {
+        size_t index = jo_hash_value(key) % vec.size();
+        entry_t e = vec[index];
+        while(e.third) {
+            if(e.first == key) {
+                return e.second;
+            }
+            index = (index + 1) % vec.size();
+            e = vec[index];
+        } 
+        // make a new entry
+        return assoc(key, V()).second;
+    }
+
     template<typename F>
-    V get(const K &key, const F &f) const {
+    V &get(const K &key, const F &f) {
         size_t index = jo_hash_value(key) % vec.size();
         entry_t e = vec[index];
         while(e.third) {
@@ -2473,7 +2525,8 @@ struct jo_hash_map {
             index = (index + 1) % vec.size();
             e = vec[index];
         } 
-        return V();
+        // make a new entry
+        return assoc(key, V()).second;
     }
 };
 
