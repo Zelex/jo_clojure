@@ -120,10 +120,10 @@ struct jo_shared_ptr_t {
     
     jo_shared_ptr_t() : ptr(nullptr) {}
     jo_shared_ptr_t(T* Ptr) : ptr(Ptr) {
-        if(ptr) ((T_t*)((char*)ptr - sizeof(T_t::header_t)))->add_ref();
+        if(ptr) ((T_t*)((char*)ptr - sizeof(typename T_t::header_t)))->add_ref();
     }
     jo_shared_ptr_t(const jo_shared_ptr_t& other) : ptr(other.ptr) {
-        if(ptr) ((T_t*)((char*)ptr - sizeof(T_t::header_t)))->add_ref();
+        if(ptr) ((T_t*)((char*)ptr - sizeof(typename T_t::header_t)))->add_ref();
     }
     jo_shared_ptr_t(jo_shared_ptr_t&& other) : ptr(other.ptr) {
         other.ptr = nullptr;
@@ -131,8 +131,8 @@ struct jo_shared_ptr_t {
     
     jo_shared_ptr_t& operator=(const jo_shared_ptr_t& other) {
         if (this != &other) {
-            if(other.ptr) ((T_t*)((char*)other.ptr - sizeof(T_t::header_t)))->add_ref();
-            if(ptr) ((T_t*)((char*)ptr - sizeof(T_t::header_t)))->release();
+            if(other.ptr) ((T_t*)((char*)other.ptr - sizeof(typename T_t::header_t)))->add_ref();
+            if(ptr) ((T_t*)((char*)ptr - sizeof(typename T_t::header_t)))->release();
             ptr = other.ptr;
         }
         return *this;
@@ -140,7 +140,7 @@ struct jo_shared_ptr_t {
     
     jo_shared_ptr_t& operator=(jo_shared_ptr_t&& other) {
         if (this != &other) {
-            if(ptr) ((T_t*)((char*)ptr - sizeof(T_t::header_t)))->release();
+            if(ptr) ((T_t*)((char*)ptr - sizeof(typename T_t::header_t)))->release();
             ptr = other.ptr;
             other.ptr = nullptr;
         }
@@ -148,7 +148,7 @@ struct jo_shared_ptr_t {
     }
     
     ~jo_shared_ptr_t() {
-        if(ptr) ((T_t*)((char*)ptr - sizeof(T_t::header_t)))->release();
+        if(ptr) ((T_t*)((char*)ptr - sizeof(typename T_t::header_t)))->release();
         ptr = nullptr;
     }
 
@@ -1764,8 +1764,8 @@ struct jo_persistent_vector : jo_object {
 };
 
 typedef jo_persistent_vector<node_idx_t> vector_t;
-vector_t::vector_node_alloc_t vector_t::alloc_node;
-vector_t::vector_alloc_t vector_t::alloc;
+template<> vector_t::vector_node_alloc_t vector_t::alloc_node = vector_t::vector_node_alloc_t();
+template<> vector_t::vector_alloc_t vector_t::alloc = vector_t::vector_alloc_t();
 typedef jo_shared_ptr_t<vector_t> vector_ptr_t;
 template<typename...A> jo_shared_ptr_t<vector_t> new_vector(A... args) { return jo_shared_ptr_t<vector_t>(vector_t::alloc.emplace(args...)); }
 
@@ -1911,8 +1911,8 @@ struct jo_persistent_vector2d : jo_object {
 };
 
 typedef jo_persistent_vector2d<node_idx_t> vector2d_t;
-vector2d_t::vector2d_node_alloc_t vector2d_t::alloc_node;
-vector2d_t::vector2d_alloc_t vector2d_t::alloc;
+template<> vector2d_t::vector2d_node_alloc_t vector2d_t::alloc_node = vector2d_t::vector2d_node_alloc_t();
+template<> vector2d_t::vector2d_alloc_t vector2d_t::alloc = vector2d_t::vector2d_alloc_t();
 typedef jo_shared_ptr_t<vector2d_t> vector2d_ptr_t;
 template<typename...A> jo_shared_ptr_t<vector2d_t> new_vector2d(A... args) { return jo_shared_ptr_t<vector2d_t>(vector2d_t::alloc.emplace(args...)); }
 
@@ -1931,11 +1931,17 @@ typedef jo_alloc_t<jo_persistent_hash_map_entry_t> hash_map_node_alloc_t;
 hash_map_node_alloc_t hash_map_node_alloc;
 typedef jo_shared_ptr_t<hash_map_node_t> hash_map_node_ptr_t;
 
-template<typename T, typename...A> jo_shared_ptr_t<T> new_vector_node(A... args);
-template<typename T, typename...A> jo_shared_ptr_t<hash_map_node_t> new_vector_node(A...args) { return jo_shared_ptr_t<(vector_node_alloc.emplace(args...)); }
+//template<typename T, typename...A> jo_shared_ptr_t<T> new_vector_node(A... args);
+//template<typename T, typename...A> jo_shared_ptr_t<hash_map_node_t> new_vector_node(A...args) { return jo_shared_ptr_t<hash_map_node_t>(vector_node_alloc.emplace(args...)); }
 
-jo_persistent_vector<jo_persistent_hash_map_entry_t>::vector_node_alloc_t jo_persistent_vector<jo_persistent_hash_map_entry_t>::alloc_node;
-jo_persistent_vector<jo_persistent_hash_map_entry_t>::vector_alloc_t jo_persistent_vector<jo_persistent_hash_map_entry_t>::alloc;
+template<> 
+jo_persistent_vector<jo_persistent_hash_map_entry_t>::vector_node_alloc_t 
+    jo_persistent_vector<jo_persistent_hash_map_entry_t>::alloc_node 
+    = jo_persistent_vector<jo_persistent_hash_map_entry_t>::vector_node_alloc_t();
+template<> 
+jo_persistent_vector<jo_persistent_hash_map_entry_t>::vector_alloc_t 
+    jo_persistent_vector<jo_persistent_hash_map_entry_t>::alloc
+    = jo_persistent_vector<jo_persistent_hash_map_entry_t>::vector_alloc_t();
 
 // jo_persistent_hash_map is a persistent hash map
 // that uses a persistent vector as the underlying data structure
@@ -2296,11 +2302,17 @@ typedef jo_alloc_t<jo_persistent_hash_set_entry_t> hash_set_node_alloc_t;
 hash_set_node_alloc_t hash_set_node_alloc;
 typedef jo_shared_ptr_t<hash_set_node_t> hash_set_node_ptr_t;
 
-template<typename T, typename...A> jo_shared_ptr_t<T> new_vector_node(A... args);
-template<typename T, typename...A> jo_shared_ptr_t<hash_set_node_t> new_vector_node(A...args) { return jo_shared_ptr_t<(vector_node_alloc.emplace(args...)); }
+//template<typename T, typename...A> jo_shared_ptr_t<T> new_vector_node(A... args);
+//template<typename T, typename...A> jo_shared_ptr_t<hash_set_node_t> new_vector_node(A...args) { return jo_shared_ptr_t<(vector_node_alloc.emplace(args...)); }
 
-jo_persistent_vector<jo_persistent_hash_set_entry_t>::vector_node_alloc_t jo_persistent_vector<jo_persistent_hash_set_entry_t>::alloc_node;
-jo_persistent_vector<jo_persistent_hash_set_entry_t>::vector_alloc_t jo_persistent_vector<jo_persistent_hash_set_entry_t>::alloc;
+template<> 
+jo_persistent_vector<jo_persistent_hash_set_entry_t>::vector_node_alloc_t 
+    jo_persistent_vector<jo_persistent_hash_set_entry_t>::alloc_node 
+    = jo_persistent_vector<jo_persistent_hash_set_entry_t>::vector_node_alloc_t();
+template<> 
+jo_persistent_vector<jo_persistent_hash_set_entry_t>::vector_alloc_t 
+    jo_persistent_vector<jo_persistent_hash_set_entry_t>::alloc
+    = jo_persistent_vector<jo_persistent_hash_set_entry_t>::vector_alloc_t();
 
 // jo_persistent_hash_set
 class jo_persistent_hash_set : jo_object {
