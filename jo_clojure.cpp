@@ -337,13 +337,14 @@ struct transaction_t {
 struct env_t {
 	// for iterating them all, otherwise unused.
 	list_ptr_t vars;
-	hash_map_ptr_t fast_map;
+	//hash_map_ptr_t fast_map;
+	jo_hash_map fast_map;
 	env_ptr_t parent;
 
 	transaction_ptr_t tx;
 
-	env_t() : vars(new_list()), fast_map(new_hash_map()), parent(), tx() {}
-	env_t(env_ptr_t p) : vars(new_list()), fast_map(new_hash_map()), parent(p) {
+	env_t() : vars(new_list()), fast_map(), parent(), tx() {}
+	env_t(env_ptr_t p) : vars(new_list()), fast_map(), parent(p) {
 		if(p) {
 			tx = p->tx;
 		}
@@ -366,7 +367,7 @@ struct env_t {
 	}
 
 	node_idx_t get(node_idx_t name) const {
-		auto it = fast_map->find(name, node_sym_eq);
+		auto it = fast_map.find(name, node_sym_eq);
 		if(it.third) {
 			return it.second;
 		}
@@ -381,10 +382,10 @@ struct env_t {
 	}
 
 	void remove(node_idx_t name) {
-		auto it = fast_map->find(name, node_sym_eq);
+		auto it = fast_map.find(name, node_sym_eq);
 		if(it.third) {
 			//vars = vars->erase(it.second);
-			fast_map->dissoc_inplace(it.first, node_sym_eq);
+			fast_map.dissoc(it.first, node_sym_eq);
 			return;
 		}
 		if(parent.ptr) {
@@ -395,23 +396,27 @@ struct env_t {
 	void set(node_idx_t name, node_idx_t value) {
 		//node_idx_t idx = new_node_var(name, value, NODE_FLAG_FOREVER);
 		//vars = vars->push_front(idx);
-		fast_map->assoc_inplace(name, value, node_sym_eq);
+		fast_map.assoc(name, value, node_sym_eq);
+		assert(fast_map.contains(name, node_sym_eq));
 	}
 
 	void set(const char *name, node_idx_t value) {
 		//node_idx_t idx = new_node_var(name, value, NODE_FLAG_FOREVER);
 		//vars = vars->push_front(idx);
-		fast_map->assoc_inplace(new_node_symbol(name), value, node_sym_eq);
+		node_idx_t sym = new_node_symbol(name, NODE_FLAG_FOREVER);
+		fast_map.assoc(sym, value, node_sym_eq);
+		assert(fast_map.contains(sym, node_sym_eq));
 	}
 
 	// sets the map only, but cannot iterate it. for dotimes and stuffs.
 	void set_temp(node_idx_t name, node_idx_t value) {
-		fast_map->assoc_inplace(name, value, node_sym_eq);
+		fast_map.assoc(name, value, node_sym_eq);
+		assert(fast_map.contains(name, node_sym_eq));
 	}
 
 	void print_map(int depth = 0) {
 		printf("%*s{", depth, "");
-		for(auto it = fast_map->begin(); it; it++) {
+		for(auto it = fast_map.begin(); it; it++) {
 			print_node(it->first, depth);
 			printf(" = ");
 			print_node(it->second, depth);

@@ -88,6 +88,20 @@ public:
     ~jo_lock_guard() { mutex.unlock(); }
 };
 
+static const char *va(const char *fmt, ...) {
+    static thread_local char tmp[0x10000];
+    static thread_local int at = 0;
+    char *ret = tmp+at;
+    va_list args;
+    va_start(args, fmt);
+    at += 1 + vsnprintf(ret, sizeof(tmp)-at-1, fmt, args);
+    va_end(args);
+    if(at > sizeof(tmp) - 0x400) {
+        at = 0;
+    }
+    return ret;
+}
+
 #ifdef _WIN32
 static int jo_setenv(const char *name, const char *value, int overwrite)
 {
@@ -1145,6 +1159,56 @@ struct jo_vector {
         resize(0);
     }
 
+    // copy 
+    jo_vector(const jo_vector &other) {
+        ptr = 0;
+        ptr_size = 0;
+        ptr_capacity = 0;
+        resize(other.ptr_size);
+        if(std::is_pod<T>::value) {
+            memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
+        } else {
+            for(size_t i=0; i<other.ptr_size; i++) {
+                ptr[i] = other.ptr[i];
+            }
+        }
+    }
+
+    // move 
+    jo_vector(jo_vector &&other) {
+        ptr = other.ptr;
+        ptr_size = other.ptr_size;
+        ptr_capacity = other.ptr_capacity;
+        other.ptr = 0;
+        other.ptr_size = 0;
+        other.ptr_capacity = 0;
+    }
+
+    // assign
+    jo_vector &operator=(const jo_vector &other) {
+        resize(other.ptr_size);
+        if(std::is_pod<T>::value) {
+            memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
+        } else {
+            for(size_t i=0; i<other.ptr_size; i++) {
+                ptr[i] = other.ptr[i];
+            }
+        }
+        return *this;
+    }
+
+    // move assign
+    jo_vector &operator=(jo_vector &&other) {
+        clear();
+        ptr = other.ptr;
+        ptr_size = other.ptr_size;
+        ptr_capacity = other.ptr_capacity;
+        other.ptr = 0;
+        other.ptr_size = 0;
+        other.ptr_capacity = 0;
+        return *this;
+    }
+
     size_t size() const { return ptr_size; }
 
     T *data() { return ptr; }
@@ -2157,20 +2221,6 @@ size_t jo_hash_value(const char *value) {
 #endif
 }
 size_t jo_hash_value(const jo_string &value) { return jo_hash_value(value.c_str()); }
-
-static const char *va(const char *fmt, ...) {
-    static thread_local char tmp[0x10000];
-    static thread_local int at = 0;
-    char *ret = tmp+at;
-    va_list args;
-    va_start(args, fmt);
-    at += 1 + vsnprintf(ret, sizeof(tmp)-at-1, fmt, args);
-    va_end(args);
-    if(at > sizeof(tmp) - 0x400) {
-        at = 0;
-    }
-    return ret;
-}
 
 #ifdef _WIN32
 #pragma warning(pop)
