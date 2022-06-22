@@ -1261,13 +1261,10 @@ struct jo_persistent_vector : jo_object {
         // do we have space?
         if(copy->tail_length >= 32) {
             copy->append_tail();
-            copy->tail->elements[copy->tail_length] = value;
-            copy->tail_length++;
-            copy->length++;
-            return copy;
+        } else {
+            copy->tail = new_node(copy->tail);
         }
 
-        copy->tail = new_node(copy->tail);
         copy->tail->elements[copy->tail_length++] = value;
         copy->length++;
         return copy;
@@ -1575,14 +1572,14 @@ struct jo_persistent_vector : jo_object {
         return copy;
     }
 
-    inline T &nth(size_t index) { 
-        index += head_offset;
-
+    inline T &nth(long long index) { 
         // Is it in the tail?
-        size_t tail_offset = length + head_offset - tail_length;
+        long long tail_offset = length - tail_length;
         if(index >= tail_offset) {
             return tail->elements[index - tail_offset];
         }
+
+        index += head_offset;
 
         // traverse 
         vector_node_t *cur = head.ptr;
@@ -1603,14 +1600,14 @@ struct jo_persistent_vector : jo_object {
         return cur->elements[index & 0x1f];
     }
 
-    inline const T &nth(size_t index) const { 
-        index += head_offset;
-
+    inline const T &nth(long long index) const { 
         // Is it in the tail?
-        size_t tail_offset = length + head_offset - tail_length;
+        long long tail_offset = length - tail_length;
         if(index >= tail_offset) {
             return tail->elements[index - tail_offset];
         }
+
+        index += head_offset;
 
         // traverse
         vector_node_t *cur = head.ptr;
@@ -2457,12 +2454,14 @@ public:
             copy->resize_inplace(copy->vec->size() * 2);
         }
         int index = jo_hash_value(key) % copy->vec->size();
-        while(copy->vec->nth(index).second) {
-            if(eq(copy->vec->nth(index).first, key)) {
+        entry_t e = copy->vec->nth(index);
+        while(e.second) {
+            if(eq(e.first, key)) {
                 copy->vec = copy->vec->assoc(index, entry_t(key, true));
                 return copy;
             }
             index = (index + 1) % copy->vec->size();
+            e = copy->vec->nth(index);
         } 
         copy->vec = copy->vec->assoc(index, entry_t(key, true));
         ++copy->length;
@@ -2475,12 +2474,14 @@ public:
             resize_inplace(vec->size() * 2);
         }
         int index = jo_hash_value(key) % vec->size();
-        while(vec->nth(index).second) {
-            if(eq(vec->nth(index).first, key)) {
+        entry_t e = vec->nth(index);
+        while(e.second) {
+            if(eq(e.first, key)) {
                 vec->assoc_inplace(index, entry_t(key, true));
                 return this;
             }
             index = (index + 1) % vec->size();
+            e = vec->nth(index);
         } 
         vec->assoc_inplace(index, entry_t(key, true));
         ++length;
@@ -2492,8 +2493,9 @@ public:
     hash_set_ptr_t dissoc(const K &key, F eq) const {
         hash_set_ptr_t copy = new_hash_set(*this);
         int index = jo_hash_value(key) % copy->vec->size();
-        while(copy->vec->nth(index).second) {
-            if(eq(copy->vec->nth(index).first, key)) {
+        entry_t e = copy->vec->nth(index);
+        while(e.second) {
+            if(eq(e.first, key)) {
                 copy->vec = copy->vec->assoc(index, entry_t());
                 --copy->length;
                 // need to shuffle entries up to fill in the gap
@@ -2514,6 +2516,7 @@ public:
                 return copy;
             }
             index = (index + 1) % copy->vec->size();
+            e = copy->vec->nth(index);
         } 
         return copy;
     }
@@ -2525,11 +2528,13 @@ public:
             return entry_t();
         }
         size_t index = jo_hash_value(key) % vec->size();
-        while(vec->nth(index).second) {
-            if(f(vec->nth(index).first, key)) {
+        entry_t e = vec->nth(index);
+        while(e.second) {
+            if(f(e.first, key)) {
                 return vec->nth(index);
             }
             index = (index + 1) % vec->size();
+            e = vec->nth(index);
         } 
         return entry_t();
     }
@@ -2629,12 +2634,14 @@ private:
             resize_inplace(vec->size() * 2);
         }
         int index = jo_hash_value(key) % vec->size();
-        while(vec->nth(index).second) {
-            if(vec->nth(index).first == key) {
+        entry_t e = vec->nth(index);
+        while(e.second) {
+            if(e.first == key) {
                 vec->assoc_inplace(index, entry_t(key, true));
                 return this;
             }
             index = (index + 1) % vec->size();
+            e = vec->nth(index);
         } 
         vec->assoc_inplace(index, entry_t(key, true));
         ++length;
