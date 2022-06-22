@@ -6,16 +6,16 @@ A Fast, Embeddable Clojure language implementation in C/C++.
 
 Just started the project, nothing is done, everything is messy. Will clean up before version 1.0.
 
-The near-term goal is to re-make clojure in an embedable form which is as fast as or hopefully approaches JVM hosted speeds. 
+The near-term goal is to re-make clojure in an embedable form. 
 
-The long-term goal is to add types/functions for machine learning, matrices, tensors, etc... And specifically try to do automatic parallelization. 
+The long-term goal is to add types/functions for machine learning, matrices, tensors, etc... 
 
 # Currently:
 * Native implementation of entire core lib.  
 * Parses code into native structures (AST), then executes. Essentially interpreted - though does some clever things here and there. 
 * Lazy sequences
 * Startup time is ridiculously fast by comparison
-* Implementations of persistent lists, vectors, maps, hash-set.
+* Implementations of persistent lists, vectors, hash-map, hash-set.
 * Software Transactional Memory (STM)
 * Atoms
 * IO
@@ -27,8 +27,9 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 * See TODO.md for information on what is left to do.
 
 # Future:
+* Compile to C/C++ code so you can compile a native executable. 
 * Native types and operations for Matrices and Tensors. 
-* Focus on automatic parallelization in general, and explicit when "you know what you are doing". 
+* Automatic Parallelization.
 
 # Compile/install:
 
