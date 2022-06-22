@@ -1168,7 +1168,7 @@ struct jo_persistent_vector : jo_object {
     int depth;
 
     jo_persistent_vector() {
-        head = new_node();
+        head = nullptr;
         tail = new_node();
         head_offset = 0;
         tail_length = 0;
@@ -1177,7 +1177,7 @@ struct jo_persistent_vector : jo_object {
     }
 
     jo_persistent_vector(long long initial_size) {
-        head = new_node();
+        head = nullptr;
         tail = new_node();
         head_offset = 0;
         tail_length = 0;
