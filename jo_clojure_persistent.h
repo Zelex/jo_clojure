@@ -53,7 +53,19 @@ struct jo_alloc_t : jo_alloc_base_t {
         char pad[64 - sizeof(std::atomic<unsigned long long>)];
     } free_list[MAX_SECTORS];
 
-	T *alloc() {
+    jo_alloc_t() {
+        for (int i = 0; i < NUM_SECTORS; i++) {
+            free_list[i].head.store(0, std::memory_order_relaxed);
+        }
+    }
+
+    jo_alloc_t(const jo_alloc_t &other) {
+        for (int i = 0; i < NUM_SECTORS; i++) {
+            free_list[i].head.store(0, std::memory_order_relaxed);
+        }
+    }
+
+    T *alloc() {
         unsigned sector = thread_id & (NUM_SECTORS-1);
         for(int i = 0; i < 1; ++i) {
             unsigned long long cnt_idx = free_list[sector].head.load();
