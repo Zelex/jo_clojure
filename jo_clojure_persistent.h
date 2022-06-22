@@ -1162,10 +1162,10 @@ struct jo_persistent_vector : jo_object {
 
     node_shared_ptr head;
     node_shared_ptr tail;
-    size_t head_offset;
-    size_t tail_length;
-    size_t length;
-    size_t depth;
+    long long head_offset;
+    long long length;
+    int tail_length;
+    int depth;
 
     jo_persistent_vector() {
         head = new_node();
@@ -1176,14 +1176,23 @@ struct jo_persistent_vector : jo_object {
         depth = 0;
     }
 
-    jo_persistent_vector(size_t initial_size) {
+    jo_persistent_vector(long long initial_size) {
         head = new_node();
         tail = new_node();
         head_offset = 0;
         tail_length = 0;
         length = 0;
         depth = 0;
-        for (size_t i = 0; i < initial_size; ++i) {
+        if(length < initial_size-31) {
+            tail_length = 32;
+            length += 32;
+            while(length < initial_size-31) {
+                append_tail();
+                tail_length = 32;
+                length += 32;
+            }
+        }
+        while(length < initial_size) {
             push_back_inplace(T());
         }
     }
