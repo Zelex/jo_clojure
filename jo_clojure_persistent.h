@@ -1229,16 +1229,10 @@ struct jo_persistent_vector : jo_object {
         // insert this tail jo_persistent_vector_node_t.
         node_shared_ptr cur = NULL;
         node_shared_ptr prev = head;
-        size_t index = 0;
         size_t key = tail_offset;
-        for(size_t level = shift; level > 0; level -= 5) {
-            index = (key >> level) & 31;
+        for(size_t level = shift; level > 5; level -= 5) {
+            size_t index = (key >> level) & 31;
             // we are at the end of our tree, insert tail jo_persistent_vector_node_t
-            if(level - 5 == 0) {
-                assert(!prev->children[index]);
-                prev->children[index] = tail;
-                break;
-            }
             cur = prev->children[index];
             if(!cur) {
                 cur = new_node();
@@ -1248,6 +1242,7 @@ struct jo_persistent_vector : jo_object {
             prev->children[index] = cur;
             prev = cur;
         }
+        prev->children[(key >> 5) & 31] = tail;
 
         // Make our new tail
         tail = new_node();
