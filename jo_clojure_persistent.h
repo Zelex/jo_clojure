@@ -1297,6 +1297,24 @@ struct jo_persistent_vector : jo_object {
         if(index < tail_offset) {
             copy->head = new_node(copy->head);
 
+#if 0
+            vector_node_t *cur = copy->head.ptr;
+            size_t i;
+            switch(depth) {
+                case 11: i = (index >> 60) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 10: i = (index >> 55) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 9: i = (index >> 50) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 8: i = (index >> 45) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 7: i = (index >> 40) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 6: i = (index >> 35) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 5: i = (index >> 30) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 4: i = (index >> 25) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 3: i = (index >> 20) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 2: i = (index >> 15) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 1: i = (index >> 10) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+            }
+            i = (index >> 5) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+#else
             node_shared_ptr cur = NULL;
             node_shared_ptr prev = copy->head;
             for (int level = shift; level > 0; level -= 5) {
@@ -1307,6 +1325,7 @@ struct jo_persistent_vector : jo_object {
                 prev = cur;
             }
             prev->elements[index & 31] = value;
+#endif
         } else {
             copy->tail = new_node(copy->tail);
             copy->tail->elements[index - tail_offset] = value;
@@ -1584,20 +1603,20 @@ struct jo_persistent_vector : jo_object {
         // traverse 
         vector_node_t *cur = head.ptr;
         switch(depth) {
-            case 11: cur = cur->children[(index >> 60) & 0x1f].ptr;
-            case 10: cur = cur->children[(index >> 55) & 0x1f].ptr;
-            case 9: cur = cur->children[(index >> 50) & 0x1f].ptr;
-            case 8: cur = cur->children[(index >> 45) & 0x1f].ptr; 
-            case 7: cur = cur->children[(index >> 40) & 0x1f].ptr;
-            case 6: cur = cur->children[(index >> 35) & 0x1f].ptr;
-            case 5: cur = cur->children[(index >> 30) & 0x1f].ptr;
-            case 4: cur = cur->children[(index >> 25) & 0x1f].ptr;
-            case 3: cur = cur->children[(index >> 20) & 0x1f].ptr;
-            case 2: cur = cur->children[(index >> 15) & 0x1f].ptr;
-            case 1: cur = cur->children[(index >> 10) & 0x1f].ptr;
+            case 11: cur = cur->children[(index >> 60) & 31].ptr;
+            case 10: cur = cur->children[(index >> 55) & 31].ptr;
+            case 9: cur = cur->children[(index >> 50) & 31].ptr;
+            case 8: cur = cur->children[(index >> 45) & 31].ptr; 
+            case 7: cur = cur->children[(index >> 40) & 31].ptr;
+            case 6: cur = cur->children[(index >> 35) & 31].ptr;
+            case 5: cur = cur->children[(index >> 30) & 31].ptr;
+            case 4: cur = cur->children[(index >> 25) & 31].ptr;
+            case 3: cur = cur->children[(index >> 20) & 31].ptr;
+            case 2: cur = cur->children[(index >> 15) & 31].ptr;
+            case 1: cur = cur->children[(index >> 10) & 31].ptr;
         }
-        cur = cur->children[(index >> 5) & 0x1f].ptr;
-        return cur->elements[index & 0x1f];
+        cur = cur->children[(index >> 5) & 31].ptr;
+        return cur->elements[index & 31];
     }
 
     inline const T &nth(long long index) const { 
@@ -1612,20 +1631,20 @@ struct jo_persistent_vector : jo_object {
         // traverse
         vector_node_t *cur = head.ptr;
         switch(depth) {
-            case 11: cur = cur->children[(index >> 60) & 0x1f].ptr;
-            case 10: cur = cur->children[(index >> 55) & 0x1f].ptr;
-            case 9: cur = cur->children[(index >> 50) & 0x1f].ptr;
-            case 8: cur = cur->children[(index >> 45) & 0x1f].ptr; 
-            case 7: cur = cur->children[(index >> 40) & 0x1f].ptr;
-            case 6: cur = cur->children[(index >> 35) & 0x1f].ptr;
-            case 5: cur = cur->children[(index >> 30) & 0x1f].ptr;
-            case 4: cur = cur->children[(index >> 25) & 0x1f].ptr;
-            case 3: cur = cur->children[(index >> 20) & 0x1f].ptr;
-            case 2: cur = cur->children[(index >> 15) & 0x1f].ptr;
-            case 1: cur = cur->children[(index >> 10) & 0x1f].ptr;
+            case 11: cur = cur->children[(index >> 60) & 31].ptr;
+            case 10: cur = cur->children[(index >> 55) & 31].ptr;
+            case 9: cur = cur->children[(index >> 50) & 31].ptr;
+            case 8: cur = cur->children[(index >> 45) & 31].ptr; 
+            case 7: cur = cur->children[(index >> 40) & 31].ptr;
+            case 6: cur = cur->children[(index >> 35) & 31].ptr;
+            case 5: cur = cur->children[(index >> 30) & 31].ptr;
+            case 4: cur = cur->children[(index >> 25) & 31].ptr;
+            case 3: cur = cur->children[(index >> 20) & 31].ptr;
+            case 2: cur = cur->children[(index >> 15) & 31].ptr;
+            case 1: cur = cur->children[(index >> 10) & 31].ptr;
         }
-        cur = cur->children[(index >> 5) & 0x1f].ptr;
-        return cur->elements[index & 0x1f];
+        cur = cur->children[(index >> 5) & 31].ptr;
+        return cur->elements[index & 31];
     }
 
     inline T &nth_clamp(long long index) {
