@@ -1282,23 +1282,20 @@ struct jo_persistent_vector : jo_object {
     }
 
     shared_ptr assoc(size_t index, const T &value) const {
-        index += head_offset;
-
-        int shift = 5 * (depth + 1);
-        size_t tail_offset = length + head_offset - tail_length;
-
-        if(index >= length + head_offset) {
+        if(index >= length) {
             return append(value);
         }
+
+        index += head_offset;
 
         // Create a copy of our root jo_persistent_vector_node_t from which we will base our append
         shared_ptr copy = clone();
 
+        size_t tail_offset = length + head_offset - tail_length;
         if(index < tail_offset) {
             copy->head = new_node(copy->head);
 
-#if 0
-            vector_node_t *cur = copy->head.ptr;
+            node_shared_ptr cur = copy->head;
             size_t i;
             switch(depth) {
                 case 11: i = (index >> 60) & 31; cur = cur->children[i] = new_node(cur->children[i]);
@@ -1314,18 +1311,7 @@ struct jo_persistent_vector : jo_object {
                 case 1: i = (index >> 10) & 31; cur = cur->children[i] = new_node(cur->children[i]);
             }
             i = (index >> 5) & 31; cur = cur->children[i] = new_node(cur->children[i]);
-#else
-            node_shared_ptr cur = NULL;
-            node_shared_ptr prev = copy->head;
-            for (int level = shift; level > 0; level -= 5) {
-                size_t i = (index >> level) & 31;
-                // copy nodes as we traverse
-                cur = new_node(prev->children[i]);
-                prev->children[i] = cur;
-                prev = cur;
-            }
-            prev->elements[index & 31] = value;
-#endif
+            cur->elements[index & 31] = value;
         } else {
             copy->tail = new_node(copy->tail);
             copy->tail->elements[index - tail_offset] = value;
@@ -1335,29 +1321,34 @@ struct jo_persistent_vector : jo_object {
     }
 
     void assoc_inplace(size_t index, const T &value) {
-        index += head_offset;
-
-        int shift = 5 * (depth + 1);
-        size_t tail_offset = length + head_offset - tail_length;
-
-        if(index >= length + head_offset) {
+        if(index >= length) {
             return append_inplace(value);
         }
 
+        index += head_offset;
+
         // Create a copy of our root jo_persistent_vector_node_t from which we will base our append
+        size_t tail_offset = length + head_offset - tail_length;
         if(index < tail_offset) {
             head = new_node(head);
 
-            node_shared_ptr cur = NULL;
-            node_shared_ptr prev = head;
-            for (int level = shift; level > 0; level -= 5) {
-                size_t i = (index >> level) & 31;
-                // copy nodes as we traverse
-                cur = new_node(prev->children[i]);
-                prev->children[i] = cur;
-                prev = cur;
+            node_shared_ptr cur = head;
+            size_t i;
+            switch(depth) {
+                case 11: i = (index >> 60) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 10: i = (index >> 55) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 9: i = (index >> 50) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 8: i = (index >> 45) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 7: i = (index >> 40) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 6: i = (index >> 35) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 5: i = (index >> 30) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 4: i = (index >> 25) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 3: i = (index >> 20) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 2: i = (index >> 15) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 1: i = (index >> 10) & 31; cur = cur->children[i] = new_node(cur->children[i]);
             }
-            prev->elements[index & 31] = value;
+            i = (index >> 5) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+            cur->elements[index & 31] = value;
         } else {
             tail = new_node(tail);
             tail->elements[index - tail_offset] = value;
@@ -1365,25 +1356,31 @@ struct jo_persistent_vector : jo_object {
     }
 
     void assoc_mutate(size_t index, const T &value) {
-        index += head_offset;
-
-        int shift = 5 * (depth + 1);
-        size_t tail_offset = length + head_offset - tail_length;
-
-        if(index >= length + head_offset) {
+        if(index >= length) {
             return append_inplace(value);
         }
 
+        index += head_offset;
+
+        size_t tail_offset = length + head_offset - tail_length;
         if(index < tail_offset) {
-            node_shared_ptr cur = NULL;
-            node_shared_ptr prev = head;
-            for (int level = shift; level > 0; level -= 5) {
-                size_t i = (index >> level) & 31;
-                cur = prev->children[i];
-                prev->children[i] = cur;
-                prev = cur;
+            node_shared_ptr cur = head;
+            size_t i;
+            switch(depth) {
+                case 11: i = (index >> 60) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 10: i = (index >> 55) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 9: i = (index >> 50) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 8: i = (index >> 45) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 7: i = (index >> 40) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 6: i = (index >> 35) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 5: i = (index >> 30) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 4: i = (index >> 25) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 3: i = (index >> 20) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 2: i = (index >> 15) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+                case 1: i = (index >> 10) & 31; cur = cur->children[i] = new_node(cur->children[i]);
             }
-            prev->elements[index & 31] = value;
+            i = (index >> 5) & 31; cur = cur->children[i] = new_node(cur->children[i]);
+            cur->elements[index & 31] = value;
         } else {
             tail->elements[index - tail_offset] = value;
         }
