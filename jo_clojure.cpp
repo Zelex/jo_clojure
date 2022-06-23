@@ -106,7 +106,7 @@ enum {
 	NODE_LIST,
 	NODE_LAZY_LIST,
 	NODE_VECTOR,
-	NODE_VECTOR2D,
+	NODE_MATRIX,
 	NODE_HASH_SET,
 	NODE_MAP,
 	NODE_NATIVE_FUNC,
@@ -190,7 +190,7 @@ static node_idx_t new_node_string(const jo_string &s, int flags = 0);
 static node_idx_t new_node_map(hash_map_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0);
-static node_idx_t new_node_vector2d(vector2d_ptr_t nodes, int flags = 0);
+static node_idx_t new_node_matrix(matrix_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags = 0);
 static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flags = 0);
 
@@ -551,12 +551,12 @@ struct node_t {
 
 	inline list_ptr_t &as_list() { return t_list; }
 	inline vector_ptr_t &as_vector() { return t_object.cast<vector_t>(); }
-	inline vector2d_ptr_t &as_vector2d() { return t_object.cast<vector2d_t>(); }
+	inline matrix_ptr_t &as_matrix() { return t_object.cast<matrix_t>(); }
 	inline hash_map_ptr_t &as_hash_map() { return t_object.cast<hash_map_t>(); }
 	inline hash_set_ptr_t &as_hash_set() { return t_object.cast<hash_set_t>(); }
 
 	inline const vector_ptr_t &as_vector() const { return t_object.cast<vector_t>(); }
-	inline const vector2d_ptr_t &as_vector2d() const { return t_object.cast<vector2d_t>(); }
+	inline const matrix_ptr_t &as_matrix() const { return t_object.cast<matrix_t>(); }
 	inline const hash_map_ptr_t &as_hash_map() const { return t_object.cast<hash_map_t>(); }
 	inline const hash_set_ptr_t &as_hash_set() const { return t_object.cast<hash_set_t>(); }
 
@@ -644,7 +644,7 @@ struct node_t {
 	bool is_keyword() const { return type == NODE_KEYWORD; }
 	bool is_list() const { return type == NODE_LIST; }
 	bool is_vector() const { return type == NODE_VECTOR; }
-	bool is_vector2d() const { return type == NODE_VECTOR2D; }
+	bool is_matrix() const { return type == NODE_MATRIX; }
 	bool is_hash_map() const { return type == NODE_MAP; }
 	bool is_hash_set() const { return type == NODE_HASH_SET; }
 	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
@@ -875,7 +875,7 @@ struct node_t {
 			case NODE_LIST:
 			case NODE_LAZY_LIST:
 			case NODE_VECTOR:
-			case NODE_VECTOR2D:
+			case NODE_MATRIX:
 			case NODE_HASH_SET:
 			case NODE_MAP:    return true; // TODO
 			default:          return false;
@@ -956,6 +956,21 @@ struct node_t {
 				s += ']';
 				return s;
 			}
+		case NODE_MATRIX:
+			{
+				matrix_ptr_t M = as_matrix();
+				jo_string s;
+				s = va("(matrix %d %d [", M->width, M->height);
+				for(int j = 0; j < M->height; ++j) {
+					for(int i = 0; i < M->width; ++i) {
+						s += get_node(M->get(i,j))->as_string(3);
+						if(i < M->width - 1) s += " ";
+					}
+					if(j < M->height - 1) s += ", ";
+				}
+				s += "])";
+				return s;
+			}
 		case NODE_MAP:
 			{
 				jo_string s;
@@ -1032,7 +1047,7 @@ struct node_t {
 		case NODE_LIST:    return "list";
 		case NODE_LAZY_LIST: return "lazy-list";
 		case NODE_VECTOR:  return "vector";
-		case NODE_VECTOR2D:  return "vector2d";
+		case NODE_MATRIX:  return "matrix";
 		case NODE_HASH_SET: return "set";
 		case NODE_MAP:     return "map";
 		case NODE_FUNC:	   return "function";
@@ -1168,7 +1183,7 @@ static node_idx_t new_node_object(int type, object_ptr_t object, int flags) {
 static node_idx_t new_node_map(hash_map_ptr_t nodes, int flags) { return new_node_object(NODE_MAP, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags) { return new_node_object(NODE_HASH_SET, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags) { return new_node_object(NODE_VECTOR, nodes.cast<jo_object>(), flags); }
-static node_idx_t new_node_vector2d(vector2d_ptr_t nodes, int flags) { return new_node_object(NODE_VECTOR2D, nodes.cast<jo_object>(), flags); }
+static node_idx_t new_node_matrix(matrix_ptr_t nodes, int flags) { return new_node_object(NODE_MATRIX, nodes.cast<jo_object>(), flags); }
 
 static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags) {
 	node_idx_t idx = new_node(NODE_LAZY_LIST, NODE_FLAG_LAZY | flags);
@@ -2080,7 +2095,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			}
 		} else if(sym_type == NODE_VECTOR) {
 			if(it) return sym_node->as_vector()->nth(get_node_int(eval_node(env, *it++)));
-		} else if(sym_type == NODE_VECTOR2D) {
+		} else if(sym_type == NODE_MATRIX) {
 			if(it) {
 				node_idx_t xy_idx = eval_node(env, *it++);
 				node_t *xy = get_node(xy_idx);
@@ -2088,7 +2103,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 					vector_ptr_t xy_vec = xy->as_vector();
 					int x = get_node_int(xy_vec->nth(0));
 					int y = get_node_int(xy_vec->nth(1));
-					return sym_node->as_vector2d()->get(x,y);
+					return sym_node->as_matrix()->get(x,y);
 				}
 			} 
 		}
@@ -4262,8 +4277,8 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_vector(vec);
 	}
-	if(map_node->is_vector2d()) {
-		vector2d_ptr_t vec = map_node->as_vector2d();
+	if(map_node->is_matrix()) {
+		matrix_ptr_t vec = map_node->as_matrix();
 		while(it) {
 			node_idx_t key_idx = *it++;
 			node_idx_t val_idx = *it++;
@@ -4272,7 +4287,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 			size_t y = get_node_int(key_node->seq_second().first);
 			vec = vec->set_new(x, y, val_idx);
 		}
-		return new_node_vector2d(vec);
+		return new_node_matrix(vec);
 	}
 	warnf("assoc: not a map, set, or vector\n");
 	return NIL_NODE;
@@ -5556,8 +5571,22 @@ static node_idx_t native_vector(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(r);
 }
 
-static node_idx_t native_vector2d(env_ptr_t env, list_ptr_t args) {
-	return new_node_vector2d(new_vector2d(get_node_int(args->first_value()), get_node_int(args->second_value())));
+static node_idx_t native_matrix(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 2) {
+		return new_node_matrix(new_matrix(get_node_int(args->first_value()), get_node_int(args->second_value())));
+	}
+	if(args->size() == 3) {
+		matrix_ptr_t M = new_matrix(get_node_int(args->first_value()), get_node_int(args->second_value()));
+		// Fill the matrix with the elements of the 3rd vector argument
+		vector_ptr_t V = get_node_vector(args->third_value());
+		for(int i = 0; i < M->width; i++) {
+			for(int j = 0; j < M->height; j++) {
+				M->set(i, j, V->nth(i * M->width + j));
+			}
+		}
+		return new_node_matrix(M);
+	}
+	return NIL_NODE;
 }
 
 // (max-key k x)(max-key k x y)(max-key k x y & more)
@@ -6101,7 +6130,7 @@ int main(int argc, char **argv) {
 	env->set("recur", new_node_native_function("recur", &native_recur, false, NODE_FLAG_PRERESOLVE));
 	env->set("mapv", new_node_native_function("mapv", &native_mapv, false, NODE_FLAG_PRERESOLVE));
 	env->set("vector", new_node_native_function("vector", &native_vector, false, NODE_FLAG_PRERESOLVE));
-	env->set("vector2d", new_node_native_function("vector2d", &native_vector2d, false, NODE_FLAG_PRERESOLVE));
+	env->set("matrix", new_node_native_function("matrix", &native_matrix, false, NODE_FLAG_PRERESOLVE));
 	env->set("max-key", new_node_native_function("max-key", &native_max_key, false, NODE_FLAG_PRERESOLVE));
 	env->set("min-key", new_node_native_function("min-key", &native_min_key, false, NODE_FLAG_PRERESOLVE));
 	env->set("key", new_node_native_function("key", &native_key, false, NODE_FLAG_PRERESOLVE));

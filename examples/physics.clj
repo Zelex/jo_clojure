@@ -101,7 +101,7 @@
                 (add-collision-hash entity)))
         (doseq [frame (range num-frames)]
             (print ".")
-            (let [canvas (atom (vector2d dim dim))]
+            (let [canvas (atom (matrix dim dim))]
                 (->> @entities
                     (pmap (fn [entity] 
                         (dosync ((@entity :tick) entity 1))

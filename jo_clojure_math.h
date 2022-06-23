@@ -680,6 +680,187 @@ static node_idx_t native_math_refract(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(res);
 }
 
+static node_idx_t native_math_dot(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t v1_idx = *it++;
+	node_idx_t v2_idx = *it++;
+	node_t *v1 = get_node(v1_idx);
+	node_t *v2 = get_node(v2_idx);
+	if(!v1->is_vector() || !v2->is_vector()) {
+		return NIL_NODE;
+	}
+	vector_ptr_t v1_vec = v1->as_vector();
+	vector_ptr_t v2_vec = v2->as_vector();
+	size_t min_dim = jo_min(v1_vec->size(), v2_vec->size());
+	double dot = 0;
+	for(size_t i = 0; i < min_dim; i++) {
+		dot += get_node_float(v1_vec->nth(i)) * get_node_float(v2_vec->nth(i));
+	}
+	return new_node_float(dot);
+}
+
+// create a vector of the diagonal elements of A
+static node_idx_t native_math_diag(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t A_idx = *it++;
+	node_t *A = get_node(A_idx);
+	if(!A->is_matrix()) {
+		warnf("diag: argument must be a matrix\n");
+		return NIL_NODE;
+	}
+	matrix_ptr_t mat = A->as_matrix();
+	size_t min_dim = mat->width < mat->height ? mat->width : mat->height;
+	vector_ptr_t res = new_vector();
+	for(size_t i = 0; i < min_dim; i++) {
+		res->push_back_inplace(mat->get(i, i));
+	}
+	return new_node_vector(res);
+}
+
+// create a matrix with the vector v as the diagonal elements
+static node_idx_t native_math_diag_matrix(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t v_idx = *it++;
+	node_t *v = get_node(v_idx);
+	if(!v->is_vector()) {
+		warnf("%s: argument must be a vector\n", __func__);
+		return NIL_NODE;
+	}
+	vector_ptr_t v_vec = v->as_vector();
+	size_t min_dim = v_vec->size();
+	matrix_ptr_t res = new_matrix(min_dim, min_dim);
+	for(size_t i = 0; i < min_dim; i++) {
+		res->set(i, i, v_vec->nth(i));
+	}
+	return new_node_matrix(res);
+}
+
+static node_idx_t native_math_matrix_sub(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t A_idx = *it++;
+	node_idx_t B_idx = *it++;
+	node_t *A = get_node(A_idx);
+	node_t *B = get_node(B_idx);
+	if(!A->is_matrix() || !B->is_matrix()) {
+		warnf("matrix_sub: arguments must be matrices\n");
+		return NIL_NODE;
+	}
+	matrix_ptr_t A_mat = A->as_matrix();
+	matrix_ptr_t B_mat = B->as_matrix();
+	if(A_mat->width != B_mat->width || A_mat->height != B_mat->height) {
+		warnf("matrix_sub: matrices have different dimensions\n");
+		return NIL_NODE;
+	}
+	matrix_ptr_t res = new_matrix(A_mat->width, A_mat->height);
+	for(size_t j = 0; j < A_mat->height; j++) {
+		for(size_t i = 0; i < A_mat->width; i++) {
+			res->set(i, j, new_node_float(get_node_float(A_mat->get(i, j)) - get_node_float(B_mat->get(i, j))));
+		}
+	}
+	return new_node_matrix(res);
+}
+
+static node_idx_t native_math_matrix_mul(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t A_idx = *it++;
+	node_idx_t B_idx = *it++;
+	node_t *A = get_node(A_idx);
+	node_t *B = get_node(B_idx);
+	if(!A->is_matrix() || !B->is_matrix()) {
+		warnf("warning: matrix multiplication with non-matrix operands\n");
+		return NIL_NODE;
+	}
+	matrix_ptr_t A_mat = A->as_matrix();
+	matrix_ptr_t B_mat = B->as_matrix();
+	if(A_mat->width != B_mat->height) {
+		warnf("matrix_mul: incompatible matrix dimensions: %lld x %lld and %lld x %lld\n", A_mat->width, A_mat->height, B_mat->width, B_mat->height);
+		return NIL_NODE;
+	}
+	matrix_ptr_t res = new_matrix(B_mat->width, A_mat->height);
+	for(size_t j = 0; j < A_mat->height; j++) {
+		for(size_t i = 0; i < B_mat->width; i++) {
+			double dot = 0;
+			for(size_t k = 0; k < A_mat->width; k++) {
+				dot += get_node_float(A_mat->get(k, j)) * get_node_float(B_mat->get(i, k));
+			}
+			res->set(i, j, new_node_float(dot));
+		}
+	}
+	return new_node_matrix(res);
+}
+
+static node_idx_t native_math_vector_sub(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t A_idx = *it++;
+	node_idx_t B_idx = *it++;
+	node_t *A = get_node(A_idx);
+	node_t *B = get_node(B_idx);
+	if(!A->is_vector() || !B->is_vector()) {
+		warnf("native_math_vector_sub: not a vector\n");
+		return NIL_NODE;
+	}
+	vector_ptr_t A_vec = A->as_vector();
+	vector_ptr_t B_vec = B->as_vector();
+	if(A_vec->size() != B_vec->size()) {
+		warnf("vector_sub: vector sizes do not match\n");
+		return NIL_NODE;
+	}
+	vector_ptr_t res = new_vector();
+	for(size_t i = 0; i < A_vec->size(); i++) {
+		res->push_back_inplace(new_node_float(get_node_float(A_vec->nth(i)) - get_node_float(B_vec->nth(i))));
+	}
+	return new_node_vector(res);
+}
+
+static node_idx_t native_math_vector_div(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t A_idx = *it++;
+	node_idx_t B_idx = *it++;
+	node_t *A = get_node(A_idx);
+	node_t *B = get_node(B_idx);
+	if(!A->is_vector() || !B->is_vector()) {
+		warnf("native_math_vector_div: not a vector\n");
+		return NIL_NODE;
+	}
+	vector_ptr_t A_vec = A->as_vector();
+	vector_ptr_t B_vec = B->as_vector();
+	if(A_vec->size() != B_vec->size()) {
+		warnf("vector_div: vector sizes do not match\n");
+		return NIL_NODE;
+	}
+	vector_ptr_t res = new_vector();
+	for(size_t i = 0; i < A_vec->size(); i++) {
+		res->push_back_inplace(new_node_float(get_node_float(A_vec->nth(i)) / get_node_float(B_vec->nth(i))));
+	}
+	return new_node_vector(res);
+}
+
+static node_idx_t native_math_matrix_div(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t A_idx = *it++;
+	node_idx_t B_idx = *it++;
+	node_t *A = get_node(A_idx);
+	node_t *B = get_node(B_idx);
+	if(!A->is_matrix() || !B->is_matrix()) {
+		warnf("native_math_matrix_div: not a matrix. arg types are %s and %s\n", A->type_name(), B->type_name());
+		return NIL_NODE;
+	}
+	matrix_ptr_t A_mat = A->as_matrix();
+	matrix_ptr_t B_mat = B->as_matrix();
+	if(A_mat->width != B_mat->width || A_mat->height != B_mat->height) {
+		warnf("native_math_matrix_div: matrix dimensions do not match\n");
+		return NIL_NODE;
+	}
+	matrix_ptr_t res = new_matrix(A_mat->width, A_mat->height);
+	for(size_t i = 0; i < A_mat->width; i++) {
+		for(size_t j = 0; j < A_mat->height; j++) {
+			res->set(i, j, new_node_float(get_node_float(A_mat->get(i, j)) / get_node_float(B_mat->get(i, j))));
+		}
+	}
+	return new_node_matrix(res);
+}
+
+
 void jo_clojure_math_init(env_ptr_t env) {
 	env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
 	env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -765,6 +946,14 @@ void jo_clojure_math_init(env_ptr_t env) {
 	env->set("Math/reflect", new_node_native_function("Math/reflect", &native_math_reflect, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/refract", new_node_native_function("Math/refract", &native_math_refract, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/normalize", new_node_native_function("Math/normalize", &native_math_normalize, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/dot", new_node_native_function("Math/dot", &native_math_dot, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/diag", new_node_native_function("Math/diag", &native_math_diag, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/diag-matrix", new_node_native_function("Math/diag-matrix", &native_math_diag_matrix, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/matrix-sub", new_node_native_function("Math/matrix-sub", &native_math_matrix_sub, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/matrix-mul", new_node_native_function("Math/matrix-mul", &native_math_matrix_mul, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/matrix-div", new_node_native_function("Math/matrix-div", &native_math_matrix_div, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/vector-sub", new_node_native_function("Math/vector-sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
+	env->set("Math/vector-div", new_node_native_function("Math/vector-div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
 	env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
 	env->set("Math/E", new_node_float(JO_M_E, NODE_FLAG_PRERESOLVE));
 	env->set("Math/LN2", new_node_float(JO_M_LN2, NODE_FLAG_PRERESOLVE));

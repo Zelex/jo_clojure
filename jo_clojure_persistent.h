@@ -1772,17 +1772,17 @@ typedef jo_shared_ptr_t<vector_t> vector_ptr_t;
 template<typename...A> jo_shared_ptr_t<vector_t> new_vector(A... args) { return jo_shared_ptr_t<vector_t>(vector_t::alloc.emplace(args...)); }
 
 template<typename T>
-struct jo_persistent_vector2d_node_t {
-    typedef jo_persistent_vector2d_node_t<T> vector2d_node_t;
-    typedef jo_shared_ptr_t<vector2d_node_t> node_shared_ptr;
+struct jo_persistent_matrix_node_t {
+    typedef jo_persistent_matrix_node_t<T> matrix_node_t;
+    typedef jo_shared_ptr_t<matrix_node_t> node_shared_ptr;
 
     // block size is 8x8 = 64 pixels
     node_shared_ptr children[64];
     T elements[64];
 
-    jo_persistent_vector2d_node_t() : children(), elements() {}
+    jo_persistent_matrix_node_t() : children(), elements() {}
     
-    ~jo_persistent_vector2d_node_t() {
+    ~jo_persistent_matrix_node_t() {
         for(int i = 0; i < 64; ++i) {
             children[i] = nullptr;
             if(!std::is_pod<T>::value) {
@@ -1791,7 +1791,7 @@ struct jo_persistent_vector2d_node_t {
         }
     }
 
-    jo_persistent_vector2d_node_t(const node_shared_ptr &other) : children(), elements() {
+    jo_persistent_matrix_node_t(const node_shared_ptr &other) : children(), elements() {
         if(other.ptr) {
             for (int i = 0; i < 64; ++i) {
                 children[i] = other->children[i];
@@ -1801,51 +1801,51 @@ struct jo_persistent_vector2d_node_t {
     }
 };
 
-// A persistent vector2d structure. broken up into a tree of 8x8 blocks. Like jo_persistent_vector, but 2D
+// A persistent matrix structure. broken up into a tree of 8x8 blocks. Like jo_persistent_vector, but 2D
 template<typename T>
-struct jo_persistent_vector2d : jo_object {
-    typedef jo_persistent_vector2d_node_t<T> vector2d_node_t;
-    typedef jo_persistent_vector2d<T> vector2d_t;
+struct jo_persistent_matrix : jo_object {
+    typedef jo_persistent_matrix_node_t<T> matrix_node_t;
+    typedef jo_persistent_matrix<T> matrix_t;
 
-    typedef jo_shared_ptr_t<vector2d_node_t> node_shared_ptr;
-    typedef jo_shared_ptr_t<vector2d_t> shared_ptr;
+    typedef jo_shared_ptr_t<matrix_node_t> node_shared_ptr;
+    typedef jo_shared_ptr_t<matrix_t> shared_ptr;
 
-    typedef jo_alloc_t<vector2d_node_t> vector2d_node_alloc_t;
-    typedef jo_shared_ptr_t<vector2d_node_t> vector2d_node_ptr_t;
+    typedef jo_alloc_t<matrix_node_t> matrix_node_alloc_t;
+    typedef jo_shared_ptr_t<matrix_node_t> matrix_node_ptr_t;
 
-    typedef jo_alloc_t<vector2d_t> vector2d_alloc_t;
-    typedef jo_shared_ptr_t<vector2d_t> vector2d_ptr_t;
+    typedef jo_alloc_t<matrix_t> matrix_alloc_t;
+    typedef jo_shared_ptr_t<matrix_t> matrix_ptr_t;
 
-    static vector2d_node_alloc_t alloc_node;
-    static vector2d_alloc_t alloc;
+    static matrix_node_alloc_t alloc_node;
+    static matrix_alloc_t alloc;
 
     template<typename...A> node_shared_ptr new_node(A...args) const { return node_shared_ptr(alloc_node.emplace(args...)); }
-    template<typename...A> shared_ptr new_vector2d(A... args) const { return shared_ptr(alloc.emplace(args...)); }
+    template<typename...A> shared_ptr new_matrix(A... args) const { return shared_ptr(alloc.emplace(args...)); }
 
-    // The head of the vector2d tree
+    // The head of the matrix tree
     node_shared_ptr head;
-    // Dimensions of the vector2d
+    // Dimensions of the matrix
     size_t width,height;
     // Depth of the tree
     size_t depth;
 
-    jo_persistent_vector2d() : head(), width(0), height(0), depth(0) {}
+    jo_persistent_matrix() : head(), width(0), height(0), depth(0) {}
 
-    jo_persistent_vector2d(size_t w, size_t h) {
+    jo_persistent_matrix(size_t w, size_t h) {
         width = w;
         height = h;
         depth = (size_t)ceil(log2(jo_max(w, h))) / 3; // / 3 cause its 8x8
         head = new_node();
     }
 
-    jo_persistent_vector2d(const jo_persistent_vector2d &other) {
+    jo_persistent_matrix(const jo_persistent_matrix &other) {
         width = other.width;
         height = other.height;
         depth = other.depth;
         head = other.head;
     }
 
-    shared_ptr clone() const { return new_vector2d(*this); }
+    shared_ptr clone() const { return new_matrix(*this); }
 
     void set(size_t x, size_t y, T &value) {
         if(x >= width || y >= height) {
@@ -1912,11 +1912,11 @@ struct jo_persistent_vector2d : jo_object {
     }
 };
 
-typedef jo_persistent_vector2d<node_idx_t> vector2d_t;
-template<> vector2d_t::vector2d_node_alloc_t vector2d_t::alloc_node = vector2d_t::vector2d_node_alloc_t();
-template<> vector2d_t::vector2d_alloc_t vector2d_t::alloc = vector2d_t::vector2d_alloc_t();
-typedef jo_shared_ptr_t<vector2d_t> vector2d_ptr_t;
-template<typename...A> jo_shared_ptr_t<vector2d_t> new_vector2d(A... args) { return jo_shared_ptr_t<vector2d_t>(vector2d_t::alloc.emplace(args...)); }
+typedef jo_persistent_matrix<node_idx_t> matrix_t;
+template<> matrix_t::matrix_node_alloc_t matrix_t::alloc_node = matrix_t::matrix_node_alloc_t();
+template<> matrix_t::matrix_alloc_t matrix_t::alloc = matrix_t::matrix_alloc_t();
+typedef jo_shared_ptr_t<matrix_t> matrix_ptr_t;
+template<typename...A> jo_shared_ptr_t<matrix_t> new_matrix(A... args) { return jo_shared_ptr_t<matrix_t>(matrix_t::alloc.emplace(args...)); }
 
 struct jo_persistent_hash_map;
 typedef jo_persistent_hash_map hash_map_t;

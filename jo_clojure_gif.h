@@ -40,12 +40,12 @@ static node_idx_t native_gif_open(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_gif_frame(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
     jo_clojure_gif_ptr_t gif = get_node(*it++)->t_object.cast<jo_clojure_gif_t>();
-    vector2d_ptr_t canvas = get_node(*it++)->t_object.cast<vector2d_t>();
+    matrix_ptr_t canvas = get_node(*it++)->t_object.cast<matrix_t>();
     int delay_csec = get_node_int(*it++);
     bool local_palette = get_node_bool(*it++);
 
     if(!gif.ptr || !canvas.ptr) {
-        warnf("invalid gif or not a vector2d\n");
+        warnf("invalid gif or not a matrix\n");
         return NIL_NODE;
     }
 

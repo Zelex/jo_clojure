@@ -22,7 +22,6 @@
 #include <dirent.h>
 #endif
 
-
 // This functionality deviates from clojure's IO library, cause in my personal opinion, 
 // clojure's IO library is not great. I assume because Rich was trying to be purist.
 // However, IMO, side-effects are side-effects and you can't avoid them with files.
