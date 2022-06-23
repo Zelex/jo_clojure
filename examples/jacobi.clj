@@ -20,7 +20,7 @@
 (defn jacobi-iteration [x]
     (Math/matrix-div (Math/matrix-sub b (Math/matrix-mul R x)) D-mat))
 
-; Take the 100th iteration as the solution
+; Take the 50th iteration as the solution
 (println "x =" (take 1 (drop 50 (iterate jacobi-iteration x))))
 
 
