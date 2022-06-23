@@ -11,14 +11,14 @@
 
 (def D-vec (Math/diag A))
 (def D-mat (matrix 1 4 D-vec))
-(def R (Math/matrix-sub A (Math/diag-matrix D-vec)))
+(def LU (Math/matrix-sub A (Math/diag-matrix D-vec)))
 
 (println "System:")
 (println "A =" A)
 (println "b =" b)
 
 (defn jacobi-iteration [x]
-    (Math/matrix-div (Math/matrix-sub b (Math/matrix-mul R x)) D-mat))
+    (Math/matrix-div (Math/matrix-sub b (Math/matrix-mul LU x)) D-mat))
 
 ; Take the 50th iteration as the solution
 (println "x =" (take 1 (drop 50 (iterate jacobi-iteration x))))

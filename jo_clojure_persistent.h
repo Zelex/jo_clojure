@@ -1847,7 +1847,7 @@ struct jo_persistent_matrix : jo_object {
 
     shared_ptr clone() const { return new_matrix(*this); }
 
-    void set(size_t x, size_t y, T &value) {
+    void set(size_t x, size_t y, const T &value) {
         if(x >= width || y >= height) {
             return;
         }
