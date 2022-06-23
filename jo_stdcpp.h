@@ -2408,7 +2408,7 @@ struct jo_hash_map {
         entry_t e = vec[index];
         while(e.third) {
             if(e.first == key) {
-                return e.second;
+                return vec[index].second;
             }
             index = (index + 1) % vec.size();
             e = vec[index];
