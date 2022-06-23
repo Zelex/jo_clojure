@@ -6,8 +6,8 @@
                      2 -1 10 -1,
                      0  3 -1  8]))
 ; initial value for x is all zeros
-(def x (matrix 1 4 [0.0, 0.0, 0.0, 0.0]))
-(def b (matrix 1 4 [6., 25., -11., 15.]))
+(def x (matrix 1 4 [0, 0, 0, 0]))
+(def b (matrix 1 4 [6, 25, -11, 15]))
 
 (def D-vec (Math/diag A))
 (def D-mat (matrix 1 4 D-vec))
