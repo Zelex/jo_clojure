@@ -81,6 +81,7 @@ void jo_clojure_system_init(env_ptr_t env) {
 	env->set("System/getenv", new_node_native_function("System/getenv", &native_system_getenv, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/exec", new_node_native_function("System/exec", &native_system_exec, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/getcwd", new_node_native_function("System/getcwd", &native_system_getcwd, false, NODE_FLAG_PRERESOLVE));
+	env->set("System/chdir", new_node_native_function("System/chdir", &native_system_chdir, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/kbhit", new_node_native_function("System/kbhit", &native_system_kbhit, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/getch", new_node_native_function("System/getch", &native_system_getch, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/date", new_node_native_function("System/date", &native_system_date, false, NODE_FLAG_PRERESOLVE));

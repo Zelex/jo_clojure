@@ -980,8 +980,6 @@
 (is (= (seq? #{}) true)) ; differs from clojure, ok
 (is (= (seq? (range 1 5)) true))
 
-
-
 (run! println (range 5))
 
 (string-test)
