@@ -973,6 +973,15 @@
 (is (= (select-keys [1 2 3] [0 0 2]) {0 1, 2 3}))
 (is (= (let [word "hello"] (select-keys (vec word) (filter even? (range (count word))))) {0 \h, 2 \l, 4 \o}))
 
+(is (= (seq? 1) false))
+(is (= (seq? [1]) true)) ; differs from clojure, ok
+(is (= (seq? "") true)) ; differs from clojure, ok
+(is (= (seq? {}) true)) ; differs from clojure, ok
+(is (= (seq? #{}) true)) ; differs from clojure, ok
+(is (= (seq? (range 1 5)) true))
+
+
+
 (run! println (range 5))
 
 (string-test)

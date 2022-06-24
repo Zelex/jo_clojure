@@ -660,7 +660,7 @@ struct node_t {
 	bool is_future() const { return type == NODE_FUTURE; }
 	bool is_promise() const { return type == NODE_PROMISE; }
 
-	bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector(); }
+	bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector() || is_string(); }
 	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
 
 	// first, more?
@@ -5885,6 +5885,8 @@ static node_idx_t native_select_keys(env_ptr_t env, list_ptr_t args) {
 	return new_node_hash_map(r);
 }
 
+static node_idx_t native_seq_q(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->is_seq() ? TRUE_NODE : FALSE_NODE; }
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6206,6 +6208,7 @@ int main(int argc, char **argv) {
 	env->set("vec", new_node_native_function("vec", &native_vec, false, NODE_FLAG_PRERESOLVE));
 	env->set("run!", new_node_native_function("run!", &native_run_e, false, NODE_FLAG_PRERESOLVE));
 	env->set("select-keys", new_node_native_function("select-keys", &native_select_keys, false, NODE_FLAG_PRERESOLVE));
+	env->set("seq?", new_node_native_function("seq?", &native_seq_q, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

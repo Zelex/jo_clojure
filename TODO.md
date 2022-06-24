@@ -268,7 +268,6 @@ rsubseq
 send
 send-off
 send-via
-seq?
 seque
 sequence
 sequential?
