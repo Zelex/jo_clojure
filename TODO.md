@@ -265,7 +265,6 @@ resolve
 restart-agent
 resultset-seq
 rsubseq
-run!
 satisfies
 select-keys
 send
