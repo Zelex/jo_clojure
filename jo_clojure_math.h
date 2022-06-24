@@ -74,7 +74,7 @@ static node_idx_t node_fma(node_idx_t n1i, node_idx_t n2i, node_idx_t n3i) {
 			if(r->contains(it->first, node_eq)) continue;
 			r->assoc_inplace(it->first, it->second, node_eq);
 		}
-		return new_node_map(r);
+		return new_node_hash_map(r);
 	}
 	return new_node_float(fmaf(n1->as_float(), n2->as_float(), n3->as_float()));
 }

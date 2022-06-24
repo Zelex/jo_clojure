@@ -187,7 +187,7 @@ static node_idx_t new_node_symbol(const jo_string &s, int flags=0);
 static node_idx_t new_node_int(long long i, int flags = 0);
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_string(const jo_string &s, int flags = 0);
-static node_idx_t new_node_map(hash_map_ptr_t nodes, int flags = 0);
+static node_idx_t new_node_hash_map(hash_map_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_matrix(matrix_ptr_t nodes, int flags = 0);
@@ -729,7 +729,7 @@ struct node_t {
 		}
 		if(is_hash_map()) {
 			if(as_hash_map()->empty()) return seq_rest_t(NIL_NODE, false);
-			return seq_rest_t(new_node_map(as_hash_map()->rest()), true);
+			return seq_rest_t(new_node_hash_map(as_hash_map()->rest()), true);
 		}
 		if(is_hash_set()) {
 			if(as_hash_set()->empty()) return seq_rest_t(NIL_NODE, false);
@@ -761,7 +761,7 @@ struct node_t {
 		if(is_hash_map()) {
 			if(as_hash_map()->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
 			auto e = as_hash_map()->first();
-			return seq_first_rest_t(new_node_vector(vector_va(e.first, e.second)), new_node_map(as_hash_map()->rest()), true);
+			return seq_first_rest_t(new_node_vector(vector_va(e.first, e.second)), new_node_hash_map(as_hash_map()->rest()), true);
 		}
 		if(is_hash_set()) {
 			if(as_hash_set()->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
@@ -804,7 +804,7 @@ struct node_t {
 		}
 		if(is_hash_map()) {
 			if(as_hash_map()->empty()) return seq_take_t(NIL_NODE, false);
-			return seq_take_t(new_node_map(as_hash_map()->take(n)), true);
+			return seq_take_t(new_node_hash_map(as_hash_map()->take(n)), true);
 		}
 		if(is_hash_set()) {
 			if(as_hash_set()->empty()) return seq_take_t(NIL_NODE, false);
@@ -825,7 +825,7 @@ struct node_t {
 	node_idx_t seq_drop(size_t n) const {
 		if(is_list()) return new_node_list(t_list->drop(n));
 		if(is_vector()) return new_node_vector(as_vector()->drop(n));
-		if(is_hash_map()) return new_node_map(as_hash_map()->drop(n));
+		if(is_hash_map()) return new_node_hash_map(as_hash_map()->drop(n));
 		if(is_hash_set()) return new_node_hash_set(as_hash_set()->drop(n));
 		if(is_lazy_list()) {
 			lazy_list_iterator_t lit(this);
@@ -1180,7 +1180,7 @@ static node_idx_t new_node_object(int type, object_ptr_t object, int flags) {
 	return idx;
 }
 
-static node_idx_t new_node_map(hash_map_ptr_t nodes, int flags) { return new_node_object(NODE_MAP, nodes.cast<jo_object>(), flags); }
+static node_idx_t new_node_hash_map(hash_map_ptr_t nodes, int flags) { return new_node_object(NODE_MAP, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags) { return new_node_object(NODE_HASH_SET, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags) { return new_node_object(NODE_VECTOR, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_matrix(matrix_ptr_t nodes, int flags) { return new_node_object(NODE_MATRIX, nodes.cast<jo_object>(), flags); }
@@ -2167,7 +2167,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 				map = map->assoc(new_k, new_v, node_eq);
 			}
 		}
-		return new_node_map(map, NODE_FLAG_LITERAL);
+		return new_node_hash_map(map, NODE_FLAG_LITERAL);
 	} else if(type == NODE_HASH_SET) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the hash set
@@ -2874,7 +2874,7 @@ static node_idx_t node_add(node_idx_t n1i, node_idx_t n2i) {
 			if(r->contains(it->first, node_eq)) continue;
 			r->assoc_inplace(it->first, it->second, node_eq);
 		}
-		return new_node_map(r);
+		return new_node_hash_map(r);
 	}
 	return new_node_float(n1->as_float() + n2->as_float());
 }
@@ -2931,7 +2931,7 @@ static node_idx_t node_mul(node_idx_t n1i, node_idx_t n2i) {
 			if(r->contains(it->first, node_eq)) continue;
 			r->assoc_inplace(it->first, it->second, node_eq);
 		}
-		return new_node_map(r);
+		return new_node_hash_map(r);
 	}
 	return new_node_float(n1->as_float() * n2->as_float());
 }
@@ -3334,7 +3334,7 @@ static node_idx_t native_quasiquote_1(env_ptr_t env, node_idx_t arg) {
 		for(auto i = n->as_hash_map()->begin(); i; i++) {
 			ret = ret->assoc(i->first, native_quasiquote_1(env, i->second), node_eq);
 		}
-		return new_node_map(ret);
+		return new_node_hash_map(ret);
 	}
 	if(n->type == NODE_HASH_SET) {
 		hash_set_ptr_t ret = new_hash_set();
@@ -4197,7 +4197,7 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 			}
 			return true;
 		});
-		return new_node_map(ret);
+		return new_node_hash_map(ret);
 	}
 	if(get_node_type(to) == NODE_HASH_SET) {
 		hash_set_ptr_t ret = new_hash_set(*get_node(to)->as_hash_set());
@@ -4231,7 +4231,7 @@ static node_idx_t native_hash_map(env_ptr_t env, list_ptr_t args) {
 		node_idx_t v = eval_node(env, *it++);
 		map = map->assoc(k, v, node_eq);
 	}
-	return new_node_map(map);
+	return new_node_hash_map(map);
 }
 
 // (assoc map key val)(assoc map key val & kvs)
@@ -4249,7 +4249,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 			node_idx_t val_idx = *it++;
 			map = map->assoc(key_idx, val_idx, node_eq);
 		}
-		return new_node_map(map);
+		return new_node_hash_map(map);
 	}
 	node_t *map_node = get_node(map_idx);
 	if(map_node->is_hash_map()) {
@@ -4259,7 +4259,7 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 			node_idx_t val_idx = *it++;
 			map = map->assoc(key_idx, val_idx, node_eq);
 		}
-		return new_node_map(map);
+		return new_node_hash_map(map);
 	} 
 	if(map_node->is_hash_set()) {
 		hash_set_ptr_t set = map_node->as_hash_set();
@@ -4305,7 +4305,7 @@ static node_idx_t native_dissoc(env_ptr_t env, list_ptr_t args) {
 		for(; it; it++) {
 			map = map->dissoc(*it, node_eq);
 		}
-		return new_node_map(map);
+		return new_node_hash_map(map);
 	} 
 	return NIL_NODE;
 }
@@ -4748,7 +4748,7 @@ static node_idx_t native_array_map(env_ptr_t env, list_ptr_t args) {
 		node_idx_t val_idx = *it++;
 		map = map->assoc(key_idx, val_idx, node_eq);
 	}
-	return new_node_map(map);
+	return new_node_hash_map(map);
 }
 
 // (butlast coll)
@@ -5241,7 +5241,7 @@ static node_idx_t native_frequencies(env_ptr_t env, list_ptr_t args) {
 		warnf("(frequencies) requires a collection\n");
 		return NIL_NODE;
 	}
-	return new_node_map(map);
+	return new_node_hash_map(map);
 }
 
 // (get-in m ks)(get-in m ks not-found)
@@ -5296,7 +5296,7 @@ static node_idx_t native_group_by(env_ptr_t env, list_ptr_t args) {
 		}
 		return true;
 	});
-	return new_node_map(map);
+	return new_node_hash_map(map);
 }
 
 // (hash x)
@@ -5684,7 +5684,7 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 	if(r->size() == 0) {
 		return NIL_NODE;
 	}
-	return new_node_map(r);
+	return new_node_hash_map(r);
 }
 
 // (merge-with f & maps)
@@ -5722,7 +5722,7 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 	if(r->size() == 0) {
 		return NIL_NODE;
 	}
-	return new_node_map(r);
+	return new_node_hash_map(r);
 }
 
 // (namespace x)
@@ -5856,6 +5856,35 @@ static node_idx_t native_run_e(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (select-keys map keyseq)
+// Returns a map containing only those entries in map whose key is in keys
+static node_idx_t native_select_keys(env_ptr_t env, list_ptr_t args) {
+	node_idx_t map_idx = args->first_value();
+	node_t *map_node = get_node(map_idx);
+	node_idx_t keyseq = args->second_value();
+	hash_map_ptr_t r = new_hash_map();
+	if(map_node->type == NODE_MAP) {
+		hash_map_ptr_t map = map_node->as_hash_map();
+		seq_iterate(keyseq, [&](node_idx_t key) {
+			auto it = map->find(key, node_eq);
+			if(it.third) {
+				r->assoc_inplace(it.first, it.second, node_eq);
+			}
+			return true;
+		});
+	} else if(map_node->type == NODE_VECTOR) {
+		vector_ptr_t vec = map_node->as_vector();
+		seq_iterate(keyseq, [&](node_idx_t key) {
+			auto idx = get_node_int(key);
+			if(idx >= 0 && idx < vec->size()) {
+				r->assoc_inplace(key, vec->nth(idx), node_eq);
+			}
+			return true;
+		});
+	}
+	return new_node_hash_map(r);
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -5974,7 +6003,7 @@ int main(int argc, char **argv) {
 		new_node_symbol("fn", NODE_FLAG_PRERESOLVE);
 		new_node_list(new_list(), NODE_FLAG_PRERESOLVE);
 		new_node_vector(new_vector(), NODE_FLAG_PRERESOLVE);
-		new_node_map(new_hash_map(), NODE_FLAG_PRERESOLVE);
+		new_node_hash_map(new_hash_map(), NODE_FLAG_PRERESOLVE);
 		new_node_hash_set(new_hash_set(), NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%1", NODE_FLAG_PRERESOLVE);
@@ -6176,6 +6205,7 @@ int main(int argc, char **argv) {
 	env->set("seqable?", new_node_native_function("seqable?", &native_is_seqable, false, NODE_FLAG_PRERESOLVE));
 	env->set("vec", new_node_native_function("vec", &native_vec, false, NODE_FLAG_PRERESOLVE));
 	env->set("run!", new_node_native_function("run!", &native_run_e, false, NODE_FLAG_PRERESOLVE));
+	env->set("select-keys", new_node_native_function("select-keys", &native_select_keys, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

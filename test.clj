@@ -967,6 +967,12 @@
 
 (is (= (rseq (vec (range 10))) (9 8 7 6 5 4 3 2 1 0)))
 
+(is (= (select-keys {:a 1 :b 2} [:a]) {:a 1}))
+(is (= (select-keys {:a 1 :b 2} [:a :c]) {:a 1}))
+(is (= (select-keys {:a 1 :b 2 :c 3} [:a :c]) {:a 1 :c 3}))
+(is (= (select-keys [1 2 3] [0 0 2]) {0 1, 2 3}))
+(is (= (let [word "hello"] (select-keys (vec word) (filter even? (range (count word))))) {0 \h, 2 \l, 4 \o}))
+
 (run! println (range 5))
 
 (string-test)

@@ -514,7 +514,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 				ret = ret->assoc(it->first, it->second, node_eq);
 			}
 		}
-		return new_node_map(ret);
+		return new_node_hash_map(ret);
 	}
 	if(get_node_type(coll_idx) == NODE_HASH_SET) {
 		// don't do it lazily if not given lazy inputs... thats dumb
@@ -1305,8 +1305,8 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 	}
 
 	// for storing the state of the iterators
-	node_idx_t state_first_idx = new_node_map(new_hash_map()->assoc(K_PC_NODE, INT_0_NODE, node_eq));
-	node_idx_t state_rest_idx = new_node_map(new_hash_map());
+	node_idx_t state_first_idx = new_node_hash_map(new_hash_map()->assoc(K_PC_NODE, INT_0_NODE, node_eq));
+	node_idx_t state_rest_idx = new_node_hash_map(new_hash_map());
 	node_idx_t nfn_idx = new_node(NODE_NATIVE_FUNC, NODE_FLAG_MACRO);
 	node_t *nfn = get_node(nfn_idx);
 	nfn->t_native_function = new native_func_t([nfn_idx,PC_list,seq_exprs_idx,body_expr_idx](env_ptr_t env2, list_ptr_t args2) -> node_idx_t {
@@ -1399,7 +1399,7 @@ static node_idx_t native_for(env_ptr_t env, list_ptr_t args) {
 		// Evaluate the body
 		node_idx_t result = eval_node(E, body_expr_idx);
 
-		return new_node_list(list_va(result, nfn_idx, new_node_map(state_first), new_node_map(state_rest)));
+		return new_node_list(list_va(result, nfn_idx, new_node_hash_map(state_first), new_node_hash_map(state_rest)));
 	});
 
 	return new_node_lazy_list(env, new_node_list(list_va(nfn_idx, state_first_idx, state_rest_idx)));

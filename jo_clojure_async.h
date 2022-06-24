@@ -808,7 +808,7 @@ static node_idx_t native_io(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_memoize(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f = args->first_value();
 	hash_map_ptr_t cache_map = new_hash_map();
-	node_idx_t cache_map_idx = new_node_map(cache_map);
+	node_idx_t cache_map_idx = new_node_hash_map(cache_map);
 	node_idx_t cache_idx = new_node_atom(cache_map_idx);
 	node_idx_t func_idx = new_node(NODE_NATIVE_FUNC, 0);
 	node_t *func = get_node(func_idx);
