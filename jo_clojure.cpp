@@ -5825,6 +5825,37 @@ static node_idx_t native_vec(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(r);
 }
 
+// (run! proc coll)
+// Runs the supplied procedure (via reduce), for purposes of side
+// effects, on successive items in the collection. Returns nil
+static node_idx_t native_run_e(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f = args->first_value();
+	list_ptr_t colls = args->rest();
+	do {
+		list_ptr_t new_colls = new_list();
+		list_ptr_t arg_list = new_list();
+		arg_list->push_back_inplace(f);
+		bool done = false;
+		for(list_t::iterator it(colls); it; it++) {
+			node_idx_t arg_idx = *it;
+			node_t *arg = get_node(arg_idx);
+			auto fr = arg->seq_first_rest();
+			if(!fr.third) {
+				done = true;
+				break;
+			}
+			arg_list->push_back_inplace(fr.first);
+			new_colls->push_back_inplace(fr.second);
+		}
+		if(done) {
+			break;
+		}
+		eval_list(env, arg_list);
+		colls = new_colls;
+	} while(true);
+	return NIL_NODE;
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6144,6 +6175,7 @@ int main(int argc, char **argv) {
 	env->set("reversible?", new_node_native_function("reversible?", &native_is_reversible, false, NODE_FLAG_PRERESOLVE));
 	env->set("seqable?", new_node_native_function("seqable?", &native_is_seqable, false, NODE_FLAG_PRERESOLVE));
 	env->set("vec", new_node_native_function("vec", &native_vec, false, NODE_FLAG_PRERESOLVE));
+	env->set("run!", new_node_native_function("run!", &native_run_e, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

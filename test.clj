@@ -729,9 +729,9 @@
             (([0 0] [0 1] [0 2]) 
              ([1 0] [1 1] [1 2]) 
              ([2 0] [2 1] [2 2]))))
-(def matrix 
+(def M 
     [["a" "b"] ["c" "d"]])
-(is (= (for [row matrix letter row] letter) ("a" "b" "c" "d")))
+(is (= (for [row M letter row] letter) ("a" "b" "c" "d")))
 
 (is (= (frequencies ['a 'b 'a 'a]) {a 3, b 1}))
 
@@ -967,6 +967,7 @@
 
 (is (= (rseq (vec (range 10))) (9 8 7 6 5 4 3 2 1 0)))
 
+(run! println (range 5))
 
 (string-test)
 (if-test)
