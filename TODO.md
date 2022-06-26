@@ -277,7 +277,6 @@ set-agent-send-off-executor!
 set-error-handler!
 set-error-mode!
 set-validator!
-set?
 short
 short-array
 shorts
