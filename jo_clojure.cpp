@@ -268,7 +268,7 @@ struct transaction_t {
 	}
 
 	void write(atom_idx_t atom_idx, node_idx_t new_val) {
-		debugf("stm write %lld %lld\n", atom_idx, new_val);
+		debugf("stm write %lld %lld\n", atom_idx, (long long)new_val);
 		tx_t &tx = tx_map.get(atom_idx);
 		tx.new_val = new_val;
 	}
@@ -1080,7 +1080,7 @@ static inline void node_add_ref(node_idx_unsafe_t idx) {
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER|NODE_FLAG_GARBAGE)) == 0) {
 			int rc = n->ref_count.fetch_add(1, std::memory_order_relaxed);
-			debugf("node_add_ref(%lld,%i): %s of type %s\n", idx, rc+1, n->as_string().c_str(), n->type_name());
+			//debugf("node_add_ref(%lld,%i): %s of type %s\n", idx, rc+1, n->as_string().c_str(), n->type_name());
 		}
 	}
 }
@@ -1091,7 +1091,7 @@ static inline void node_release(node_idx_unsafe_t idx) {
 		int flags = n->flags;
 		if((flags & (NODE_FLAG_PRERESOLVE|NODE_FLAG_FOREVER|NODE_FLAG_GARBAGE)) == 0) {
 			int rc = n->ref_count.fetch_sub(1);
-			debugf("node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
+			//debugf("node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
 			if(rc <= 0) {
 #ifdef USE_64BIT_NODES
 				printf("Error in ref count: node_release(%lld,%i): %s\n", idx, rc-1, n->as_string().c_str());
@@ -1438,23 +1438,8 @@ static token_t get_token(parse_state_t *state) {
 		}
 	}
 	if(c == '\'') {
-		int C = state->getc();
-		if(C == '(') {
-			tok.type = TOK_SEPARATOR;
-			tok.str = "quote";
-			debugf("token: %s\n", tok.str.c_str());
-			return tok;
-		}
-		tok.type = TOK_STRING;
-		// string literal of a symbol
-		do {
-			if(is_whitespace(C) || is_separator(C) || C == EOF) {
-				state->ungetc(C);
-				break;
-			}
-			tok.str += C;
-			C = state->getc();
-		} while (true);
+		tok.type = TOK_SEPARATOR;
+		tok.str = "quote";
 		debugf("token: %s\n", tok.str.c_str());
 		return tok;
 	}
@@ -1728,21 +1713,19 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 
 	// parse quote shorthand
 	if(tok.type == TOK_SEPARATOR && tok.str == "quote") {
-		debugf("list begin\n");
-		node_idx_t next = parse_next(env, state, ')');
-		if(next == INV_NODE) {
-			return EMPTY_LIST_NODE;
+		node_idx_t inner = parse_next(env, state, stop_on_sep);
+		if(inner == INV_NODE) {
+			return INV_NODE;
+		}
+		if(get_node_flags(inner) & NODE_FLAG_LITERAL) {
+			return inner;
 		}
 		node_t n;
 		n.type = NODE_LIST;
 		n.flags = NODE_FLAG_FOREVER;
 		n.t_list = new_list();
 		n.t_list->push_back_inplace(env->get(QUOTE_NODE));
-		while(next != INV_NODE) {
-			n.t_list->push_back_inplace(next);
-			next = parse_next(env, state, ')');
-		}
-		debugf("list end\n");
+		n.t_list->push_back_inplace(inner);
 		return new_node(std::move(n));
 	}
 
@@ -1995,7 +1978,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 
 		// get the symbol's value
 		if(sym_type == NODE_NATIVE_FUNC) {
-			debugf("nativefn: %s\n", get_node_string(sym_idx).c_str());
+			//debugf("nativefn: %s\n", get_node_string(sym_idx).c_str());
 			if((sym_flags|list_flags) & (NODE_FLAG_MACRO|NODE_FLAG_LITERAL_ARGS)) {
 				if(sym_node->t_nfunc_raw) {
 					return sym_node->t_nfunc_raw(env, list->rest());
@@ -3275,7 +3258,9 @@ static node_idx_t native_while_not(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
-static node_idx_t native_quote(env_ptr_t env, list_ptr_t args) { return new_node_list(args); }
+static node_idx_t native_quote(env_ptr_t env, list_ptr_t args) { 
+	return args->first_value(); 
+}
 static node_idx_t native_list(env_ptr_t env, list_ptr_t args) { return new_node_list(args); }
 static node_idx_t native_unquote(env_ptr_t env, list_ptr_t args) { return args->first_value(); }
 
@@ -5902,6 +5887,26 @@ static node_idx_t native_set_q(env_ptr_t env, list_ptr_t args) {
 	return get_node(args->first_value())->is_hash_set() ? TRUE_NODE : FALSE_NODE; 
 }
 
+// (some pred coll)
+// Returns the first logical true value of (pred x) for any x in coll,
+// else nil.  One common idiom is to use a set as pred, for example
+// this will return :fred if :fred is in the sequence, otherwise nil:
+// (some #{:fred} coll)
+static node_idx_t native_some(env_ptr_t env, list_ptr_t args) {
+	node_idx_t pred_idx = args->first_value();
+	node_idx_t coll_idx = args->second_value();
+	node_idx_t ret = NIL_NODE;
+	seq_iterate(coll_idx, [&](node_idx_t idx) {
+		node_idx_t tmp = eval_va(env, pred_idx, idx);
+		if(get_node_bool(tmp)) {
+			ret = tmp;
+			return false;
+		}
+		return true;
+	});
+	return ret;
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6226,6 +6231,7 @@ int main(int argc, char **argv) {
 	env->set("seq?", new_node_native_function("seq?", &native_seq_q, false, NODE_FLAG_PRERESOLVE));
 	env->set("set", new_node_native_function("set", &native_set, false, NODE_FLAG_PRERESOLVE));
 	env->set("set?", new_node_native_function("set?", &native_set_q, false, NODE_FLAG_PRERESOLVE));
+	env->set("some", new_node_native_function("some", &native_some, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

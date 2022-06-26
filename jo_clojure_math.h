@@ -773,7 +773,7 @@ static node_idx_t native_math_matrix_mul(env_ptr_t env, list_ptr_t args) {
 	matrix_ptr_t A_mat = A->as_matrix();
 	matrix_ptr_t B_mat = B->as_matrix();
 	if(A_mat->width != B_mat->height) {
-		warnf("matrix_mul: incompatible matrix dimensions: %lld x %lld and %lld x %lld\n", A_mat->width, A_mat->height, B_mat->width, B_mat->height);
+		warnf("matrix_mul: incompatible matrix dimensions: %zu x %zu and %zu x %zu\n", A_mat->width, A_mat->height, B_mat->width, B_mat->height);
 		return NIL_NODE;
 	}
 	matrix_ptr_t res = new_matrix(B_mat->width, A_mat->height);
