@@ -22,7 +22,7 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 
 # Differences:
 * IO is very different than clojure's IO cause I didn't like the clojure IO functions AT ALL.
-* Software Transactional Memory (STM) now works seamlessly with Atoms - thus refs are kinda pointless - not sure if I'll implement them.
+* Software Transactional Memory (STM) now works seamlessly with Atoms - thus refs are only useful if you need the history feature?
 * Not entirely complete implementation (yet). There is a LOT to do.
 * See TODO.md for information on what is left to do.
 
