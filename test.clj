@@ -1013,6 +1013,8 @@
 (is (= (some #{2 4 6} (range 3 10)) 4))
 (is (= (some #{200} (range 0 10)) nil))
 
+(is (= (some-> {:a 1} :b inc) nil))
+
 (run! println (range 5))
 
 (string-test)

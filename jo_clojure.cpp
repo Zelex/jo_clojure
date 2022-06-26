@@ -5907,6 +5907,20 @@ static node_idx_t native_some(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+// (some-> expr & forms)
+// When expr is not nil, threads it into the first form (via ->),
+// and when that result is not nil, through the next etc
+static node_idx_t native_some_thread(env_ptr_t env, list_ptr_t args) {
+	node_idx_t expr = args->first_value();
+	list_ptr_t forms = args->rest();
+	node_idx_t ret = NIL_NODE;
+	seq_iterate(expr, [&](node_idx_t idx) {
+		ret = eval_list(env, forms);
+		return ret != NIL_NODE;
+	});
+	return ret;
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6232,6 +6246,7 @@ int main(int argc, char **argv) {
 	env->set("set", new_node_native_function("set", &native_set, false, NODE_FLAG_PRERESOLVE));
 	env->set("set?", new_node_native_function("set?", &native_set_q, false, NODE_FLAG_PRERESOLVE));
 	env->set("some", new_node_native_function("some", &native_some, false, NODE_FLAG_PRERESOLVE));
+	env->set("some->", new_node_native_function("some->", &native_some_thread, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);
