@@ -5911,14 +5911,26 @@ static node_idx_t native_some(env_ptr_t env, list_ptr_t args) {
 // When expr is not nil, threads it into the first form (via ->),
 // and when that result is not nil, through the next etc
 static node_idx_t native_some_thread(env_ptr_t env, list_ptr_t args) {
-	node_idx_t expr = args->first_value();
-	list_ptr_t forms = args->rest();
-	node_idx_t ret = NIL_NODE;
-	seq_iterate(expr, [&](node_idx_t idx) {
-		ret = eval_list(env, forms);
-		return ret != NIL_NODE;
-	});
-	return ret;
+	list_t::iterator it(args);
+	node_idx_t x_idx = eval_node(env, *it++);
+	for(; it; it++) {
+		node_idx_t form_idx = *it;
+		node_t *form_node = get_node(form_idx);
+		list_ptr_t args2;
+		if(get_node_type(*it) == NODE_LIST) {
+			list_ptr_t form_list = form_node->t_list;
+			args2 = form_list->rest();
+			args2->push_front2_inplace(form_list->first_value(), x_idx);
+		} else {
+			args2 = new_list();
+			args2->push_front2_inplace(*it, x_idx);
+		}
+		x_idx = eval_list(env, args2);
+		if(x_idx == NIL_NODE) {
+			break;
+		}
+	}
+	return x_idx;
 }
 
 
