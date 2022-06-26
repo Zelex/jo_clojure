@@ -988,6 +988,11 @@
 (is (= (set {:one 1 :two 2 :three 3}) #{[:two 2] [:three 3] [:one 1]}))
 (is (= (set nil) #{}))
 
+(is (= (set? #{1 2 3}) true))
+(is (= (set? (hash-set 1 2 3)) true))
+(is (= (set? [1 2 3]) false))
+(is (= (set? {:a 1 :b 2}) false))
+
 (run! println (range 5))
 
 (string-test)

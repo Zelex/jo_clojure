@@ -271,7 +271,6 @@ send-via
 seque
 sequence
 sequential?
-set
 set!
 set-agent-send-executor!
 set-agent-send-off-executor!

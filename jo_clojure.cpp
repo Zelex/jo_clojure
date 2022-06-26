@@ -5898,6 +5898,10 @@ static node_idx_t native_set(env_ptr_t env, list_ptr_t args) {
 	return new_node_hash_set(r);
 }
 
+static node_idx_t native_set_q(env_ptr_t env, list_ptr_t args) { 
+	return get_node(args->first_value())->is_hash_set() ? TRUE_NODE : FALSE_NODE; 
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6221,6 +6225,7 @@ int main(int argc, char **argv) {
 	env->set("select-keys", new_node_native_function("select-keys", &native_select_keys, false, NODE_FLAG_PRERESOLVE));
 	env->set("seq?", new_node_native_function("seq?", &native_seq_q, false, NODE_FLAG_PRERESOLVE));
 	env->set("set", new_node_native_function("set", &native_set, false, NODE_FLAG_PRERESOLVE));
+	env->set("set?", new_node_native_function("set?", &native_set_q, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);
