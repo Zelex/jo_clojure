@@ -5887,6 +5887,17 @@ static node_idx_t native_select_keys(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_seq_q(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->is_seq() ? TRUE_NODE : FALSE_NODE; }
 
+// (set coll)
+// Returns a set of the distinct elements of coll.
+static node_idx_t native_set(env_ptr_t env, list_ptr_t args) {
+	hash_set_ptr_t r = new_hash_set();
+	seq_iterate(args->first_value(), [&](node_idx_t idx) {
+		r->assoc_inplace(idx, node_eq);
+		return true;
+	});
+	return new_node_hash_set(r);
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6209,6 +6220,7 @@ int main(int argc, char **argv) {
 	env->set("run!", new_node_native_function("run!", &native_run_e, false, NODE_FLAG_PRERESOLVE));
 	env->set("select-keys", new_node_native_function("select-keys", &native_select_keys, false, NODE_FLAG_PRERESOLVE));
 	env->set("seq?", new_node_native_function("seq?", &native_seq_q, false, NODE_FLAG_PRERESOLVE));
+	env->set("set", new_node_native_function("set", &native_set, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

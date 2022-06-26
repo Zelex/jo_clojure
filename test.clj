@@ -980,6 +980,14 @@
 (is (= (seq? #{}) true)) ; differs from clojure, ok
 (is (= (seq? (range 1 5)) true))
 
+(is (= (set '(1 1 2 3 2 4 5 5)) #{1 2 3 4 5}))
+(is (= (set [1 1 2 3 2 4 5 5]) #{1 2 3 4 5}))
+(is (= (set [1 2 3 4 5]) #{1 2 3 4 5}))
+(is (= (set "abcd") #{\a \b \c \d}))
+(is (= (set '("a" "b" "c" "d")) #{"a" "b" "c" "d"}))
+(is (= (set {:one 1 :two 2 :three 3}) #{[:two 2] [:three 3] [:one 1]}))
+(is (= (set nil) #{}))
+
 (run! println (range 5))
 
 (string-test)
