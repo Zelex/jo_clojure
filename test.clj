@@ -1020,6 +1020,9 @@
 
 (is (= ((some-fn :a :b :c :d) {:c 3 :d 4}) 3))
 
+(is (= (sort [3 1 2 4]) [1 2 3 4]))
+(is (= (sort > (vals {:foo 5, :bar 2, :baz 10})) [10 5 2]))
+
 (run! println (range 5))
 
 (string-test)

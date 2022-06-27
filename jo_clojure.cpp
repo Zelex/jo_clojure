@@ -5963,6 +5963,42 @@ static node_idx_t native_some_fn(env_ptr_t env, list_ptr_t args) {
 	}, false);
 }
 
+// (sort coll)(sort comp coll)
+// Returns a sorted sequence of the items in coll. If no comparator is
+// supplied, uses compare.  comparator must implement
+// java.util.Comparator.  Guaranteed to be stable: equal elements will
+// not be reordered.  If coll is a Java array, it will be modified.  To
+// avoid this, sort a copy of the array. 
+static node_idx_t native_sort(env_ptr_t env, list_ptr_t args) {
+	node_idx_t comp, coll;
+	if(args->size() == 1) {
+		coll = args->first_value();
+	} else {
+		comp = args->first_value();
+		coll = args->second_value();
+	}
+	// convert to jo_vector
+	jo_vector<node_idx_t> vec;
+	seq_iterate(coll, [&](node_idx_t idx) {
+		vec.push_back(idx);
+		return true;
+	});
+	// std::stable_sort the vector
+	if(args->size() == 1) {
+		std::stable_sort(vec.begin(), vec.end(), [](node_idx_t a, node_idx_t b) {
+			return node_lt(a, b);
+		});
+	} else {
+		std::stable_sort(vec.begin(), vec.end(), [env,comp](node_idx_t a, node_idx_t b) {
+			return get_node_bool(eval_va(env, comp, a, b));
+		});
+	}
+	vector_ptr_t ret = new_vector();
+	for(size_t i = 0; i < vec.size(); i++) {
+		ret->push_back_inplace(vec[i]);
+	}
+	return new_node_vector(ret);
+}
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6291,6 +6327,7 @@ int main(int argc, char **argv) {
 	env->set("some->", new_node_native_function("some->", &native_some_thread, true, NODE_FLAG_PRERESOLVE));
 	env->set("some->>", new_node_native_function("some->>", &native_some_thread_last, true, NODE_FLAG_PRERESOLVE));
 	env->set("some-fn", new_node_native_function("some-fn", &native_some_fn, false, NODE_FLAG_PRERESOLVE));
+	env->set("sort", new_node_native_function("sort", &native_sort, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);
