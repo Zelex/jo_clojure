@@ -281,7 +281,6 @@ short
 short-array
 shorts
 shutdown-agents
-some->>
 some-fn
 sort
 sort-by
