@@ -1018,6 +1018,8 @@
 (is (= (some->> {:y 3 :x 5} (:y) (- 2)) -1))
 (is (= (some->> {:y 3 :x 5} (:z) (- 2)) nil))
 
+(is (= ((some-fn :a :b :c :d) {:c 3 :d 4}) 3))
+
 (run! println (range 5))
 
 (string-test)

@@ -5943,6 +5943,26 @@ static node_idx_t native_some_thread_last(env_ptr_t env, list_ptr_t args) {
 	return x_idx;
 }
 
+// (some-fn p)(some-fn p1 p2)(some-fn p1 p2 p3)(some-fn p1 p2 p3 & ps)
+// Takes a set of predicates and returns a function f that returns the first logical true value
+// returned by one of its composing predicates against any of its arguments, else it returns
+// logical false. Note that f is short-circuiting in that it will stop execution on the first
+// argument that triggers a logical true result against the original predicates.
+// ((some-fn :a :b :c :d) {:c 3 :d 4})
+static node_idx_t native_some_fn(env_ptr_t env, list_ptr_t args) {
+	return new_node_native_function("native_some_fn", [args](env_ptr_t env2, list_ptr_t args2) -> node_idx_t { 
+		for(list_t::iterator i2(args2); i2; i2++) {
+			for(list_t::iterator i(args); i; i++) {
+				node_idx_t ret = eval_va(env2, *i, *i2);
+				if(get_node_bool(ret)) {
+					return ret;
+				}
+			}
+		}
+		return NIL_NODE;
+	}, false);
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6270,6 +6290,7 @@ int main(int argc, char **argv) {
 	env->set("some", new_node_native_function("some", &native_some, false, NODE_FLAG_PRERESOLVE));
 	env->set("some->", new_node_native_function("some->", &native_some_thread, true, NODE_FLAG_PRERESOLVE));
 	env->set("some->>", new_node_native_function("some->>", &native_some_thread_last, true, NODE_FLAG_PRERESOLVE));
+	env->set("some-fn", new_node_native_function("some-fn", &native_some_fn, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);
