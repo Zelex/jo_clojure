@@ -1023,6 +1023,10 @@
 (is (= (sort [3 1 2 4]) [1 2 3 4]))
 (is (= (sort > (vals {:foo 5, :bar 2, :baz 10})) [10 5 2]))
 
+(is (= (sort-by count ["aaa" "bb" "c"]) '("c" "bb" "aaa")))
+(is (= (sort-by first [[1 2] [2 2] [2 3]]) '([1 2] [2 2] [2 3])))
+(is (= (sort-by first > [[1 2] [2 2] [2 3]]) '([2 2] [2 3] [1 2])))
+
 (run! println (range 5))
 
 (string-test)

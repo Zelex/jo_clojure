@@ -561,6 +561,12 @@ struct jo_pair {
     }
 };
 
+// jo_make_pair
+template<typename T1, typename T2>
+inline jo_pair<T1, T2> jo_make_pair(const T1 &a, const T2 &b) {
+    return jo_pair<T1, T2>(a, b);
+}
+
 // jo_triple
 template<typename T1, typename T2, typename T3>
 struct jo_triple {

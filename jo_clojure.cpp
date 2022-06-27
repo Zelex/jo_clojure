@@ -5979,6 +5979,7 @@ static node_idx_t native_sort(env_ptr_t env, list_ptr_t args) {
 	}
 	// convert to jo_vector
 	jo_vector<node_idx_t> vec;
+	// TODO: could reserve
 	seq_iterate(coll, [&](node_idx_t idx) {
 		vec.push_back(idx);
 		return true;
@@ -5999,6 +6000,48 @@ static node_idx_t native_sort(env_ptr_t env, list_ptr_t args) {
 	}
 	return new_node_vector(ret);
 }
+
+// (sort-by keyfn coll)(sort-by keyfn comp coll)
+// Returns a sorted sequence of the items in coll, where the sort
+// order is determined by comparing (keyfn item).  If no comparator is
+// supplied, uses compare.  comparator must implement
+// java.util.Comparator.  Guaranteed to be stable: equal elements will
+// not be reordered.  If coll is a Java array, it will be modified.  To
+// avoid this, sort a copy of the array.
+static node_idx_t native_sort_by(env_ptr_t env, list_ptr_t args) {
+	node_idx_t keyfn, comp, coll;
+	keyfn = args->first_value();
+	if(args->size() == 2) {
+		coll = args->second_value();
+	} else {
+		comp = args->second_value();
+		coll = args->third_value();
+	}
+	// convert to jo_vector
+	typedef jo_pair<node_idx_t, node_idx_t> elem_t;
+	jo_vector<elem_t> vec;
+	// TODO: could reserve
+	seq_iterate(coll, [&](node_idx_t idx) {
+		vec.push_back(jo_make_pair(idx, eval_va(env, keyfn, idx)));
+		return true;
+	});
+	// std::stable_sort the vector
+	if(args->size() == 2) {
+		std::stable_sort(vec.begin(), vec.end(), [](const elem_t &a, const elem_t &b) {
+			return node_lt(a.second, b.second);
+		});
+	} else {
+		std::stable_sort(vec.begin(), vec.end(), [env,comp](const elem_t &a, const elem_t &b) {
+			return get_node_bool(eval_va(env, comp, a.second, b.second));
+		});
+	}
+	vector_ptr_t ret = new_vector();
+	for(size_t i = 0; i < vec.size(); i++) {
+		ret->push_back_inplace(vec[i].first);
+	}
+	return new_node_vector(ret);
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6328,6 +6371,7 @@ int main(int argc, char **argv) {
 	env->set("some->>", new_node_native_function("some->>", &native_some_thread_last, true, NODE_FLAG_PRERESOLVE));
 	env->set("some-fn", new_node_native_function("some-fn", &native_some_fn, false, NODE_FLAG_PRERESOLVE));
 	env->set("sort", new_node_native_function("sort", &native_sort, false, NODE_FLAG_PRERESOLVE));
+	env->set("sort-by", new_node_native_function("sort-by", &native_sort_by, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

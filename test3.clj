@@ -1,1 +1,3 @@
-(some {2 "two", 3 "three"} [nil 3 2])
+(sort-by first [[1 2] [2 2] [2 3]]) 
+
+
