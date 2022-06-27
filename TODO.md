@@ -281,7 +281,6 @@ short
 short-array
 shorts
 shutdown-agents
-sort-by
 sorted-map
 sorted-map-by
 sorted-set
