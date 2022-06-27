@@ -1015,6 +1015,9 @@
 
 (is (= (some-> {:a 1} :b inc) nil))
 
+(is (= (some->> {:y 3 :x 5} (:y) (- 2)) -1))
+(is (= (some->> {:y 3 :x 5} (:z) (- 2)) nil))
+
 (run! println (range 5))
 
 (string-test)

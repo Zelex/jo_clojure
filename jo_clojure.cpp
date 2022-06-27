@@ -5913,21 +5913,31 @@ static node_idx_t native_some(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_some_thread(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t x_idx = eval_node(env, *it++);
-	for(; it; it++) {
+	for(; it && x_idx != NIL_NODE; it++) {
 		node_idx_t form_idx = *it;
 		node_t *form_node = get_node(form_idx);
-		list_ptr_t args2;
 		if(get_node_type(*it) == NODE_LIST) {
 			list_ptr_t form_list = form_node->t_list;
-			args2 = form_list->rest();
+			list_ptr_t args2 = form_list->rest();
 			args2->push_front2_inplace(form_list->first_value(), x_idx);
+			x_idx = eval_list(env, args2);
 		} else {
-			args2 = new_list();
-			args2->push_front2_inplace(*it, x_idx);
+			x_idx = eval_va(env, form_idx, x_idx);
 		}
-		x_idx = eval_list(env, args2);
-		if(x_idx == NIL_NODE) {
-			break;
+	}
+	return x_idx;
+}
+
+static node_idx_t native_some_thread_last(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t x_idx = eval_node(env, *it++);
+	for(; it && x_idx != NIL_NODE; it++) {
+		node_idx_t form_idx = *it;
+		node_t *form_node = get_node(form_idx);
+		if(form_node->type == NODE_LIST) {
+			x_idx = eval_list(env, form_node->t_list->push_back(x_idx));
+		} else {
+			x_idx = eval_va(env, form_idx, x_idx);
 		}
 	}
 	return x_idx;
@@ -6258,7 +6268,8 @@ int main(int argc, char **argv) {
 	env->set("set", new_node_native_function("set", &native_set, false, NODE_FLAG_PRERESOLVE));
 	env->set("set?", new_node_native_function("set?", &native_set_q, false, NODE_FLAG_PRERESOLVE));
 	env->set("some", new_node_native_function("some", &native_some, false, NODE_FLAG_PRERESOLVE));
-	env->set("some->", new_node_native_function("some->", &native_some_thread, false, NODE_FLAG_PRERESOLVE));
+	env->set("some->", new_node_native_function("some->", &native_some_thread, true, NODE_FLAG_PRERESOLVE));
+	env->set("some->>", new_node_native_function("some->>", &native_some_thread_last, true, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);
