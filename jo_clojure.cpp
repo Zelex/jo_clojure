@@ -3692,6 +3692,36 @@ static node_idx_t native_when_let(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+// (when-some bindings & body)
+// bindings => binding-form test
+// When test is not nil, evaluates body with binding-form bound to the value of test
+static node_idx_t native_when_some(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t binding_idx = *it++;
+	if(!get_node(binding_idx)->is_vector()) {
+		return NIL_NODE;
+	}
+	node_t *binding = get_node(binding_idx);
+	vector_ptr_t binding_list = binding->as_vector();
+	if (binding_list->size() & 1) {
+		return NIL_NODE;
+	}
+	env_ptr_t env2 = new_env(env);
+	for (vector_t::iterator i = binding_list->begin(); i;) {
+		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
+		node_idx_t value_idx = eval_node(env2, *i++);
+		if (get_node_type(value_idx) == NIL_NODE) {
+			return NIL_NODE;
+		}
+		node_let(env2, key_idx, value_idx);
+	}
+	node_idx_t ret = NIL_NODE;
+	for(; it; it++) {
+		ret = eval_node(env2, *it);
+	}
+	return ret;
+}
+
 // (conj coll x)(conj coll x & xs)
 // conj[oin]. Returns a new collection with the xs
 // 'added'. (conj nil item) returns (item).  The 'addition' may
@@ -6296,6 +6326,7 @@ int main(int argc, char **argv) {
 	env->set("if-some", new_node_native_function("if-some", &native_if_some, true, NODE_FLAG_PRERESOLVE));
 	env->set("when", new_node_native_function("when", &native_when, true, NODE_FLAG_PRERESOLVE));
 	env->set("when-let", new_node_native_function("when-let", &native_when_let, true, NODE_FLAG_PRERESOLVE));
+	env->set("when-some", new_node_native_function("when-some", &native_when_some, true, NODE_FLAG_PRERESOLVE));
 	env->set("when-not", new_node_native_function("when-not", &native_when_not, true, NODE_FLAG_PRERESOLVE));
 	env->set("while", new_node_native_function("while", &native_while, true, NODE_FLAG_PRERESOLVE));
 	env->set("while-not", new_node_native_function("while-not", &native_while_not, true, NODE_FLAG_PRERESOLVE));

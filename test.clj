@@ -152,6 +152,11 @@
   (is (= 5     (when-let [a 5]   a)))
   (is (= 2     (when-let [[_ a]  (list 1 2)] a)))
   )
+(defn when-some-test []
+  (is (= 1     (when-some [a 1] a)))
+  (is (= 2     (when-some [[a b] [1 2]] b)))
+  (is (= false (when-some [a false] a)))
+  (is (= nil   (when-some [a nil] (exception)))))
 (defn for-test []
   (is (= (list 1 2 3) (for [x (list 1 2 3)] x)))
   (is (= (list 2 4 6) (for [x (list 1 2 3)] (* x 2))))
@@ -1037,6 +1042,7 @@
 (when-test)
 (cond-test)
 (when-let-test)
+(when-some-test)
 (for-test)
 (list-test)
 (seqable?-test)
