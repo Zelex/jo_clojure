@@ -49,11 +49,79 @@ public:
 static jo_semaphore thread_limiter(processor_count);
 static jo_threadpool *thread_pool = new jo_threadpool(processor_count);
 
+static node_idx_t node_swap(env_ptr_t env, node_idx_t atom_idx, node_idx_t f_idx, list_ptr_t args) {
+	node_t *atom = get_node(atom_idx);
+	node_t *f = get_node(f_idx);
+	node_idx_t old_val, new_val;
+
+	if(env->tx.ptr) {
+		old_val = env->tx->read(atom_idx);
+		new_val = eval_list(env, args->push_front2(f_idx, old_val));
+		env->tx->write(atom_idx, new_val);
+		return new_val;
+	}
+
+	int count = 0;
+	do {
+		old_val = atom->t_atom.load();
+		while(old_val == TX_HOLD_NODE) {
+			jo_yield_backoff(&count);
+			old_val = atom->t_atom.load();
+		}
+		new_val = eval_list(env, args->push_front2(f_idx, old_val));
+		if(atom->t_atom.compare_exchange_weak(old_val, new_val)) {
+			break;
+		}
+		jo_yield_backoff(&count);
+		atom_retries++;
+	} while(true);
+	return new_val;
+}
+
+static node_idx_t node_reset(env_ptr_t env, node_idx_t atom_idx, node_idx_t new_val) {
+	node_t *atom = get_node(atom_idx);
+	if(env->tx.ptr) {
+		env->tx->write(atom_idx, new_val);
+	} else {
+		node_idx_t old_val;
+		do {
+			old_val = atom->t_atom.load();
+			int count = 0;
+			while(old_val == TX_HOLD_NODE) {
+				jo_yield_backoff(&count);
+				old_val = atom->t_atom.load();
+			}
+		} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
+	}
+	return new_val;
+}
+
+static bool node_compare_and_set(env_ptr_t env, node_idx_t atom_idx, node_idx_t old_val, node_idx_t new_val) {
+	node_t *atom = get_node(atom_idx);
+	if(env->tx.ptr) {
+		if(env->tx->read(atom_idx) == old_val) {
+			env->tx->write(atom_idx, new_val);
+			return true;
+		}
+		return false;
+	}
+	return atom->t_atom.compare_exchange_weak(old_val, new_val);
+}
+
+static node_idx_t node_try_deref(env_ptr_t env, node_idx_t atom_idx) {
+	node_t *atom = get_node(atom_idx);
+	if(env->tx.ptr) {
+		return env->tx->read(atom_idx);
+	}
+	return atom->t_atom.load();
+}
+
 static node_idx_t native_thread_workers(env_ptr_t env, list_ptr_t args) {
 	delete thread_pool;
 	thread_pool = new jo_threadpool(get_node_int(args->first_value()));
 	return NIL_NODE;
 }
+
 
 // (atom x)(atom x & options)
 // Creates and returns an Atom with an initial value of x and zero or
@@ -164,85 +232,14 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 // multiple times, and thus should be free of side effects.  Returns
 // the value that was swapped in.
 static node_idx_t native_swap_e(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 2) {
-		warnf("(swap!) requires at least 2 arguments\n");
-		return NIL_NODE;
-	}
-
-    list_t::iterator it(args);
-	node_idx_t atom_idx = eval_node(env, *it++);
-	node_idx_t f_idx = eval_node(env, *it++);
-	list_ptr_t args2 = args->rest(it);
-
-	node_t *atom = get_node(atom_idx);
-	if(atom->type != NODE_ATOM) {
-		warnf("(swap!) requires an atom\n");
-		return NIL_NODE;
-	}
-
-	node_t *f = get_node(f_idx);
-	node_idx_t old_val, new_val;
-
-	list_ptr_t tmp = new_list();
-	for(list_t::iterator it2 = it; it2; ++it2) {
-		tmp->push_back_inplace(eval_node(env, *it2));
-	}
-
-	if(env->tx.ptr) {
-		old_val = env->tx->read(atom_idx);
-		new_val = eval_list(env, tmp->push_front2(f_idx, old_val));
-		env->tx->write(atom_idx, new_val);
-		return new_val;
-	}
-
-	int count = 0;
-	do {
-		old_val = atom->t_atom.load();
-		while(old_val == TX_HOLD_NODE) {
-			jo_yield_backoff(&count);
-			old_val = atom->t_atom.load();
-		}
-		new_val = eval_list(env, tmp->push_front2(f_idx, old_val));
-		if(atom->t_atom.compare_exchange_weak(old_val, new_val)) {
-			break;
-		}
-		jo_yield_backoff(&count);
-		atom_retries++;
-	} while(true);
-	return new_val;
+	return node_swap(env, args->first_value(), args->second_value(), args->drop(2));
 }
 
 // (reset! atom newval)
 // Sets the value of atom to newval without regard for the
 // current value. Returns newval.
 static node_idx_t native_reset_e(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 2) {
-		warnf("(reset!) requires at least 2 arguments\n");
-		return NIL_NODE;
-	}
-
-	node_idx_t atom_idx = args->first_value();
-	node_t *atom = get_node(atom_idx);
-	if(atom->type != NODE_ATOM) {
-		warnf("(reset!) requires an atom\n");
-		return NIL_NODE;
-	}
-
-	node_idx_t new_val = args->second_value();
-	if(env->tx.ptr) {
-		env->tx->write(atom_idx, new_val);
-	} else {
-		node_idx_t old_val;
-		do {
-			old_val = atom->t_atom.load();
-			int count = 0;
-			while(old_val == TX_HOLD_NODE) {
-				jo_yield_backoff(&count);
-				old_val = atom->t_atom.load();
-			}
-		} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
-	}
-	return new_val;
+	return node_reset(env, args->first_value(), args->second_value());
 }
 
 // (compare-and-set! atom oldval newval)
@@ -250,31 +247,7 @@ static node_idx_t native_reset_e(env_ptr_t env, list_ptr_t args) {
 // current value of the atom is identical to oldval. Returns true if
 // set happened, else false
 static node_idx_t native_compare_and_set_e(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 3) {
-		warnf("(compare-and-set!) requires at least 3 arguments\n");
-		return NIL_NODE;
-	}
-
-	node_idx_t atom_idx = args->first_value();
-	node_idx_t old_val_idx = args->second_value();
-	node_idx_t new_val_idx = args->third_value();
-
-	node_t *atom = get_node(atom_idx);
-	if(atom->type != NODE_ATOM) {
-		warnf("(compare-and-set!) requires an atom\n");
-		return NIL_NODE;
-	}
-
-	if(env->tx.ptr) {
-		node_idx_t old_val = env->tx->read(atom_idx);
-		if(old_val == old_val_idx) {
-			env->tx->write(atom_idx, new_val_idx);
-			return TRUE_NODE;
-		}
-		return FALSE_NODE;
-	}
-
-	return atom->t_atom.compare_exchange_weak(old_val_idx, new_val_idx) ? TRUE_NODE : FALSE_NODE;
+	return node_compare_and_set(env, args->first_value(), args->second_value(), args->third_value()) ? TRUE_NODE : FALSE_NODE;
 }
 
 // (swap-vals! atom f)(swap-vals! atom f x)(swap-vals! atom f x y)(swap-vals! atom f x y & args)
@@ -657,11 +630,9 @@ static node_idx_t native_future(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
-	node_t *f = get_node(f_idx);
-	f->t_atom.store(INV_NODE);
+	node_reset(env, f_idx, INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
-		node_t *f = get_node(f_idx);
-		f->t_atom.store(eval_node_list(env, args)); 
+		node_reset(env, f_idx, eval_node_list(env, args));
 		return NIL_NODE;
 	});
 	thread_pool->add_task(task);
@@ -676,11 +647,9 @@ static node_idx_t native_auto_future(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
-	node_t *f = get_node(f_idx);
-	f->t_atom.store(INV_NODE);
+	node_reset(env, f_idx, INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
-		node_t *f = get_node(f_idx);
-		f->t_atom.store(eval_node_list(env, args)); 
+		node_reset(env, f_idx, eval_node_list(env, args));
 		return NIL_NODE;
 	});
 	thread_pool->add_task(task);
@@ -699,11 +668,9 @@ static node_idx_t native_future_call(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
-	node_t *f = get_node(f_idx);
-	f->t_atom.store(INV_NODE);
+	node_reset(env, f_idx, INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
-		node_t *f = get_node(f_idx);
-		f->t_atom.store(eval_list(env, args));
+		node_reset(env, f_idx, eval_list(env, args));
 		return NIL_NODE;
 	});
 	thread_pool->add_task(task);
@@ -718,11 +685,9 @@ static node_idx_t native_auto_future_call(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t f_idx = new_node(NODE_FUTURE, NODE_FLAG_AUTO_DEREF);
-	node_t *f = get_node(f_idx);
-	f->t_atom.store(INV_NODE);
+	node_reset(env, f_idx, INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,args,f_idx]() -> node_idx_t {
-		node_t *f = get_node(f_idx);
-		f->t_atom.store(eval_list(env, args));
+		node_reset(env, f_idx, eval_list(env, args));
 		return NIL_NODE;
 	});
 	thread_pool->add_task(task);
@@ -766,17 +731,7 @@ static node_idx_t native_future_cancelled(env_ptr_t env, list_ptr_t args) {
 // (future-done? f)
 // Returns true if future f is done
 static node_idx_t native_future_done(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 1) {
-		warnf("(future-done?) requires at least 1 argument\n");
-		return NIL_NODE;
-	}
-	node_idx_t f_idx = args->first_value();
-	node_t *f = get_node(f_idx);
-	if(f->type != NODE_FUTURE) {
-		warnf("(future-done?) requires a future\n");
-		return NIL_NODE;
-	}
-	return f->t_atom.load() >= 0 ? TRUE_NODE : FALSE_NODE;
+	return node_try_deref(env, args->first_value()) >= 0 ? TRUE_NODE : FALSE_NODE;
 }
 
 static node_idx_t native_is_future(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_FUTURE ? TRUE_NODE : FALSE_NODE; }
@@ -908,8 +863,7 @@ static node_idx_t native_pvalues_next(env_ptr_t env, list_ptr_t args) {
 // blocking. See also - realized?.
 static node_idx_t native_promise(env_ptr_t env, list_ptr_t args) {
 	node_idx_t ret_idx = new_node(NODE_PROMISE, 0);
-	node_t *ret = get_node(ret_idx);
-	ret->t_atom.store(INV_NODE);
+	node_reset(env, ret_idx, INV_NODE);
 	return ret_idx;
 }
 
@@ -917,11 +871,7 @@ static node_idx_t native_promise(env_ptr_t env, list_ptr_t args) {
 // Delivers the supplied value to the promise, releasing any pending
 // derefs. A subsequent call to deliver on a promise will have no effect.
 static node_idx_t native_deliver(env_ptr_t env, list_ptr_t args) {
-	node_idx_t promise_idx = args->first_value();
-	node_t *promise = get_node(promise_idx);
-	if(promise->t_atom.load() == INV_NODE) {
-		promise->t_atom.store(args->second_value());
-	}
+	node_compare_and_set(env, args->first_value(), INV_NODE, args->second_value());
 	return NIL_NODE;
 }
 
@@ -939,7 +889,7 @@ static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
 	// mutexes in transactions (does this even make sense?)
 	if(env->tx.ptr) {
 		// TODO
-		warnf("locking in transactions! Danger Will Robinson!");
+		warnf("locking in transactions! Danger Will Robinson! TODO abort transaction if fail");
 	}
 
 	// lock the atom
@@ -995,9 +945,7 @@ static node_idx_t native_stm_retries_reset(env_ptr_t env, list_ptr_t args) {
 
 // Returns true if a value has been produced for a promise, delay, future or lazy sequence.
 static node_idx_t native_realized(env_ptr_t env, list_ptr_t args) {
-	node_idx_t promise_idx = args->first_value();
-	node_t *promise = get_node(promise_idx);
-	return promise->t_atom.load() != INV_NODE ? TRUE_NODE : NIL_NODE;
+	return node_try_deref(env, args->first_value()) >= 0 ? TRUE_NODE : NIL_NODE;
 }
 
 static node_idx_t native_tx_start_time(env_ptr_t env, list_ptr_t args) {
@@ -1012,7 +960,7 @@ void jo_clojure_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, false, NODE_FLAG_PRERESOLVE));
     env->set("deref", new_node_native_function("deref", &native_deref, true, NODE_FLAG_PRERESOLVE));
-    env->set("swap!", new_node_native_function("swap!", &native_swap_e, true, NODE_FLAG_PRERESOLVE));
+    env->set("swap!", new_node_native_function("swap!", &native_swap_e, false, NODE_FLAG_PRERESOLVE));
     env->set("reset!", new_node_native_function("reset!", &native_reset_e, false, NODE_FLAG_PRERESOLVE));
     env->set("compare-and-set!", new_node_native_function("compare-and-set!", &native_compare_and_set_e, false, NODE_FLAG_PRERESOLVE));
     env->set("swap-vals!", new_node_native_function("swap-vals!", &native_swap_vals_e, false, NODE_FLAG_PRERESOLVE));
