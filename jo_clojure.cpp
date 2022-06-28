@@ -2576,7 +2576,7 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
 		return n1->as_float() == n2->as_float();
 	} else if(n1->type == NODE_ATOM || n2->type == NODE_ATOM) {
-		return n1->t_atom == n2->t_atom;
+		return n1i == n2i;
 	} else if(n1->flags & n2->flags & NODE_FLAG_STRING) {
 		return n1->t_string == n2->t_string;
 	} else if(n1->is_func() && n2->is_func()) {
