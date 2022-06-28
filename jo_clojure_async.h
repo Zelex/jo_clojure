@@ -1027,6 +1027,7 @@ void jo_clojure_async_init(env_ptr_t env) {
     env->set("multi-swap-vals!", new_node_native_function("multi-swap-vals!", &native_multi_swap_vals_e, false, NODE_FLAG_PRERESOLVE));
     env->set("multi-reset-vals!", new_node_native_function("multi-reset-vals!", &native_multi_reset_vals_e, false, NODE_FLAG_PRERESOLVE));
 	env->set("dosync", new_node_native_function("dosync", &native_dosync, true, NODE_FLAG_PRERESOLVE));
+	env->set("sync", new_node_native_function("sync", &native_dosync, true, NODE_FLAG_PRERESOLVE));
 	env->set("io!", new_node_native_function("io!", &native_io, true, NODE_FLAG_PRERESOLVE));
 
 	// threads
