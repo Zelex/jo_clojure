@@ -6066,6 +6066,18 @@ static node_idx_t native_subvec(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(v->as_vector()->subvec(start, end));
 }
 
+// (symbol name)(symbol ns name)
+// Returns a Symbol with the given namespace and name. Arity-1 works
+// on strings, keywords, and vars.
+static node_idx_t native_symbol(env_ptr_t env, list_ptr_t args) {
+	if(args->size() == 1) {
+		return new_node_symbol(get_node_string(args->first_value()));
+	} else {
+		return new_node_symbol(get_node_string(args->first_value()) + "/" + get_node_string(args->second_value()));
+	}
+}
+
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6397,6 +6409,7 @@ int main(int argc, char **argv) {
 	env->set("sort", new_node_native_function("sort", &native_sort, false, NODE_FLAG_PRERESOLVE));
 	env->set("sort-by", new_node_native_function("sort-by", &native_sort_by, false, NODE_FLAG_PRERESOLVE));
 	env->set("subvec", new_node_native_function("subvec", &native_subvec, false, NODE_FLAG_PRERESOLVE));
+	env->set("symbol", new_node_native_function("symbol", &native_symbol, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

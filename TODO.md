@@ -292,7 +292,6 @@ struct
 struct-map
 subseq
 supers
-symbol
 sync
 tagged-literal
 tagged-literal?
