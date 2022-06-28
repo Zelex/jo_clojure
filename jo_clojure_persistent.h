@@ -24,7 +24,11 @@ struct jo_alloc_t_type {
 
     void add_ref() {
         assert(h.canary == 0xDEADBEEF);
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+        ++h.ref_count;
+#else
         h.ref_count.fetch_add(1, std::memory_order_relaxed);
+#endif
     }
 
     void release() {
@@ -105,7 +109,7 @@ struct jo_alloc_t : jo_alloc_base_t {
 	void free(void *n) {
 		T_t *t = (T_t*)((char*)n - sizeof(t->h));
         assert(t->h.canary == 0xDEADBEEF);
-		if(t->h.ref_count.fetch_sub(1, std::memory_order_relaxed) == 1) {
+		if(t->h.ref_count.fetch_sub(1, std::memory_order_acq_rel) == 1) {
 			assert(t->h.canary == 0xDEADBEEF);
 			t->h.canary = 0; // make sure it's not double free'd
             t->h.owner = 0;

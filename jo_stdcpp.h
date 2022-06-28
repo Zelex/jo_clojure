@@ -2105,8 +2105,12 @@ struct jo_shared_ptr {
     
     jo_shared_ptr& operator=(const jo_shared_ptr& other) {
         if (this != &other) {
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+            if(other.ref_count) ++(*other.ref_count);
+#else
             if(other.ref_count) other.ref_count->fetch_add(1);
-            if(ref_count && ref_count->fetch_sub(1) == 1) {
+#endif
+            if(ref_count && ref_count->fetch_sub(1, std::memory_order_acq_rel) == 1) {
                 delete ptr;
                 delete ref_count;
             }
@@ -2119,7 +2123,7 @@ struct jo_shared_ptr {
     jo_shared_ptr& operator=(jo_shared_ptr&& other) {
         if (this != &other) {
             if(ref_count) {
-                if(ref_count->fetch_sub(1) == 1) {
+                if(ref_count->fetch_sub(1, std::memory_order_acq_rel) == 1) {
                     delete ptr;
                     delete ref_count;
                 }
@@ -2133,7 +2137,7 @@ struct jo_shared_ptr {
     }
     
     ~jo_shared_ptr() {
-        if(ref_count && ref_count->fetch_sub(1) == 1) {
+        if(ref_count && ref_count->fetch_sub(1, std::memory_order_acq_rel) == 1) {
             delete ptr;
             delete ref_count;
             ptr = nullptr;
