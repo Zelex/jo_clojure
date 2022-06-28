@@ -1027,6 +1027,9 @@
 (is (= (sort-by first [[1 2] [2 2] [2 3]]) '([1 2] [2 2] [2 3])))
 (is (= (sort-by first > [[1 2] [2 2] [2 3]]) '([2 2] [2 3] [1 2])))
 
+(is (= (subvec [1 2 3 4 5 6 7] 2) [3 4 5 6 7]))
+(is (= (subvec [1 2 3 4 5 6 7] 2 4) [3 4]))
+
 (run! println (range 5))
 
 (string-test)

@@ -1697,14 +1697,10 @@ struct jo_persistent_vector : jo_object {
         if(start == 0) {
             return take(end);
         }
-        if(end == length) {
+        if(end >= length) {
             return drop(start);
         }
-        shared_ptr copy = new_vector();
-        for(size_t i = start; i < end; ++i) {
-            copy->push_back((*this)[i]);
-        }
-        return copy;
+        return drop(start)->take(end - start);
     }
 
     void print() const {

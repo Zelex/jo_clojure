@@ -6042,6 +6042,30 @@ static node_idx_t native_sort_by(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(ret);
 }
 
+// (subvec v start)(subvec v start end)
+// Returns a persistent vector of the items in vector from
+// start (inclusive) to end (exclusive).  If end is not supplied,
+// defaults to (count vector). This operation is O(1) and very fast, as
+// the resulting vector shares structure with the original and no
+// trimming is done.
+static node_idx_t native_subvec(env_ptr_t env, list_ptr_t args) {
+	node_idx_t v_idx;
+	v_idx = args->first_value();
+	node_t *v = get_node(v_idx);
+	if(!v->is_vector()) {
+		warnf("subvec: argument must be a vector");
+		return NIL_NODE;
+	}
+	long long start = get_node_int(args->second_value());
+	long long end;
+	if(args->size() == 2) {
+		end = v->as_vector()->size();
+	} else {
+		end = get_node_int(args->third_value());
+	}
+	return new_node_vector(v->as_vector()->subvec(start, end));
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6372,6 +6396,7 @@ int main(int argc, char **argv) {
 	env->set("some-fn", new_node_native_function("some-fn", &native_some_fn, false, NODE_FLAG_PRERESOLVE));
 	env->set("sort", new_node_native_function("sort", &native_sort, false, NODE_FLAG_PRERESOLVE));
 	env->set("sort-by", new_node_native_function("sort-by", &native_sort_by, false, NODE_FLAG_PRERESOLVE));
+	env->set("subvec", new_node_native_function("subvec", &native_subvec, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

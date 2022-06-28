@@ -291,7 +291,6 @@ StackTraceElement->vec
 struct
 struct-map
 subseq
-subvec
 supers
 symbol
 sync
