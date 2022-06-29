@@ -956,6 +956,28 @@ static node_idx_t native_tx_retries(env_ptr_t env, list_ptr_t args) {
 	return env->tx.ptr ? new_node_int(env->tx.ptr->num_retries) : ZERO_NODE;
 }
 
+static node_idx_t native_add_tap(env_ptr_t env, list_ptr_t args) {
+	node_idx_t fn = args->first_value();
+	node_swap(env, TAP_LIST_NODE, env->get("assoc"), list_va(fn));
+	return NIL_NODE;
+}
+
+static node_idx_t native_remove_tap(env_ptr_t env, list_ptr_t args) {
+	node_idx_t fn = args->first_value();
+	node_swap(env, TAP_LIST_NODE, env->get("dissoc"), list_va(fn));
+	return NIL_NODE;
+}
+
+static node_idx_t native_tap(env_ptr_t env, list_ptr_t args) {
+	node_idx_t arg = args->first_value();
+	node_idx_t tap_list_idx = node_try_deref(env, TAP_LIST_NODE);
+	seq_iterate(tap_list_idx, [&](node_idx_t idx) {
+		eval_va(env, idx, arg);
+		return true;
+	});
+	return NIL_NODE;
+}
+
 void jo_clojure_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, false, NODE_FLAG_PRERESOLVE));
@@ -1012,4 +1034,9 @@ void jo_clojure_async_init(env_ptr_t env) {
 	env->set("Thread/stm-retries-reset", new_node_native_function("Thread/stm-retries-reset", &native_stm_retries_reset, false, NODE_FLAG_PRERESOLVE));
 	env->set("Thread/tx-start-time", new_node_native_function("Thread/tx-start-time", &native_tx_start_time, false, NODE_FLAG_PRERESOLVE));
 	env->set("Thread/tx-retries", new_node_native_function("Thread/tx-retries", &native_tx_retries, false, NODE_FLAG_PRERESOLVE));
+
+	// tap
+	env->set("tap>", new_node_native_function("tap>", &native_tap, false, NODE_FLAG_PRERESOLVE));
+	env->set("add-tap", new_node_native_function("add-tap", &native_add_tap, false, NODE_FLAG_PRERESOLVE));
+	env->set("remove-tap", new_node_native_function("remove-tap", &native_remove_tap, false, NODE_FLAG_PRERESOLVE));
 }

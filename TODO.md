@@ -30,7 +30,6 @@
 *unchecked-math*
 accessor
 aclone
-add-tap
 add-watch
 agent
 agent-error
@@ -254,7 +253,6 @@ release-pending-sends
 remove-all-methods
 remove-method
 remove-ns
-remove-tap
 remove-watch
 replicate
 require
@@ -293,7 +291,6 @@ subseq
 supers
 tagged-literal
 tagged-literal?
-tap>
 test
 the-ns
 thread-bound?

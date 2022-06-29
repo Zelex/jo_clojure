@@ -75,6 +75,7 @@ enum {
 	EMPTY_VECTOR_NODE,
 	EMPTY_MAP_NODE,
 	EMPTY_SET_NODE,
+	TAP_LIST_NODE,
 	PCT_NODE,
 	PCT1_NODE,
 	PCT2_NODE,
@@ -6108,7 +6109,6 @@ static node_idx_t native_symbol(env_ptr_t env, list_ptr_t args) {
 }
 
 
-
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
 #include "jo_clojure_system.h"
@@ -6228,6 +6228,7 @@ int main(int argc, char **argv) {
 		new_node_vector(new_vector(), NODE_FLAG_PRERESOLVE);
 		new_node_hash_map(new_hash_map(), NODE_FLAG_PRERESOLVE);
 		new_node_hash_set(new_hash_set(), NODE_FLAG_PRERESOLVE);
+		new_node_atom(EMPTY_SET_NODE, NODE_FLAG_PRERESOLVE); // TAP_LIST_NODE
 		new_node_symbol("%", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%1", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%2", NODE_FLAG_PRERESOLVE);
