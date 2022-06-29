@@ -21,7 +21,7 @@ The long-term goal is to add types/functions for machine learning, tensors, etc.
 * IO
 
 # Differences:
-* IO is very different than clojure's IO cause I didn't like the clojure IO functions AT ALL.
+* IO is very different than clojure's IO cause JVM Clojure's IO functions are practically non-existant. 
 * Software Transactional Memory (STM) now works seamlessly with Atoms - thus refs are only useful if you need the history feature?
 * Not entirely complete implementation (yet). There is a LOT to do.
 * See TODO.md for information on what is left to do.
