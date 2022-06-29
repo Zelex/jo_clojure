@@ -1037,6 +1037,10 @@
 
 (run! println (range 5))
 
+(add-tap println)
+(tap> "hello from a tap")
+(remove-tap println)
+
 (string-test)
 (if-test)
 (when-test)
