@@ -11,7 +11,7 @@ The near-term goal is to re-make clojure in an embedable form.
 The long-term goal is to add types/functions for machine learning, matrices, tensors, etc... 
 
 # Currently:
-* Native implementation of entire core lib.  
+* Native implementation of almost entire core lib. See TODO.md
 * Parses code into native structures (AST), then executes. Essentially interpreted - though does some clever things here and there. 
 * Lazy sequences
 * Startup time is ridiculously fast by comparison
@@ -30,6 +30,11 @@ The long-term goal is to add types/functions for machine learning, matrices, ten
 * Compile to C/C++ code so you can compile a native executable. 
 * Native types and operations for Matrices and Tensors. 
 * Automatic Parallelization.
+* sorted-set
+* sorted-map
+* refs
+* agents
+* other etc....
 
 # Compile/install:
 
