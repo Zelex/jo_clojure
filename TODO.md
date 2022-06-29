@@ -298,7 +298,6 @@ throw
 Throwable->map
 to-array
 to-array-2d
-trampoline
 transduce
 transient
 tree-seq

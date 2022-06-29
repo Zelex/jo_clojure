@@ -662,7 +662,7 @@ struct node_t {
 	bool is_promise() const { return type == NODE_PROMISE; }
 
 	bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector() || is_string(); }
-	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_func() || is_native_func(); }
+	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_vector() || is_hash_map() || is_hash_set() || is_func() || is_native_func(); }
 
 	// first, more?
 	typedef jo_pair<node_idx_t, bool> seq_first_t;
@@ -6108,6 +6108,26 @@ static node_idx_t native_symbol(env_ptr_t env, list_ptr_t args) {
 	}
 }
 
+// (trampoline f)(trampoline f & args)
+// trampoline can be used to convert algorithms requiring mutual
+// recursion without stack consumption. Calls f with supplied args, if
+// any. If f returns a fn, calls that fn with no arguments, and
+// continues to repeat, until the return value is not a fn, then
+// returns that non-fn value. Note that if you want to return a fn as a
+// final value, you must wrap it in some data structure and unpack it
+// after trampoline returns.
+static node_idx_t native_trampoline(env_ptr_t env, list_ptr_t args) {
+	node_idx_t f_idx = args->first_value();
+	list_ptr_t arg_fwd = args->rest();
+	while(true) {
+		node_idx_t ret_idx = eval_list(env, arg_fwd->push_front(f_idx));
+		if(!get_node(ret_idx)->can_eval()) {
+			return ret_idx;
+		}
+		f_idx = ret_idx;
+	}
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6442,6 +6462,7 @@ int main(int argc, char **argv) {
 	env->set("sort-by", new_node_native_function("sort-by", &native_sort_by, false, NODE_FLAG_PRERESOLVE));
 	env->set("subvec", new_node_native_function("subvec", &native_subvec, false, NODE_FLAG_PRERESOLVE));
 	env->set("symbol", new_node_native_function("symbol", &native_symbol, false, NODE_FLAG_PRERESOLVE));
+	env->set("trampoline", new_node_native_function("trampoline", &native_trampoline, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

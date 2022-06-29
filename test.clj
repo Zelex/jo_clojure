@@ -1040,6 +1040,14 @@
 (add-tap println)
 (tap> "hello from a tap")
 (remove-tap println)
+(tap> "you should not see this... ERROR if so")
+
+(defn foo [x]
+   (if (< x 0)
+     (println "done")
+     #(foo (do (println :x x) (dec x)))))
+
+(trampoline foo 3)
 
 (string-test)
 (if-test)
