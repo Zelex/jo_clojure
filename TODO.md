@@ -1,6 +1,5 @@
 * lazy read-dir-all and the like
 * REPL (not sure I would ever use this?)
-* implement promise/future with atoms instead of C++ primitives.
 
 *1
 *2
