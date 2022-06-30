@@ -87,7 +87,7 @@
         (swap! (@entity :physics) impulse-physics x y))})
 
 ; Create an output gif file
-(comment let [gif-file (gif/open "physics.gif" dim dim 0 4)]
+(let [gif-file (gif/open "physics.gif" dim dim 0 4)]
     (print "Making gif...")
     ; Simulate N frames
     (let [entities (atom [])]
