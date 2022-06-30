@@ -2287,6 +2287,7 @@ struct jo_hash_map {
         operator bool() const { return cur != end; }
         const entry_t &operator*() const { return *cur; }
         const entry_t *operator->() const { return &*cur; }
+        const entry_t *get() const { return cur; }
     };
 
     iterator begin() { return length ? iterator(vec.begin(), vec.end()) : iterator(); }

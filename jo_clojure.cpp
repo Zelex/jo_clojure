@@ -279,8 +279,19 @@ struct transaction_t {
 			return true;
 		}
 
-		// Transition all values to hold
+		jo_vector<const jo_hash_map<atom_idx_t, tx_t>::entry_t *> tx_list;
+		tx_list.reserve(tx_map.size());
 		for(auto tx = tx_map.begin(); tx; tx++) {
+			tx_list.push_back(tx.get());
+		}
+
+		std::sort(tx_list.begin(), tx_list.end(), [](const jo_hash_map<atom_idx_t, tx_t>::entry_t *a, const jo_hash_map<atom_idx_t, tx_t>::entry_t *b) {
+			return a->first < b->first;
+		});
+
+		// Transition all values to hold
+		for(auto txp = tx_list.begin(); txp != tx_list.end(); txp++) {
+			auto tx = *txp;
 			// Write stomp?
 			if(tx->second.old_val != INV_NODE) {
 				auto &atom = get_node_atom(tx->first);
@@ -288,12 +299,14 @@ struct transaction_t {
 				// use strong here since the cost of a spurious failure can be significant
 				int num_retry = 0;
 				compex_retry:
-				if(!atom.compare_exchange_strong(tx->second.old_val, lock_type)) {
-					if(atom.load() == TX_R_LOCK && num_retry++ <= 1) {
+				if(!atom.compare_exchange_weak(tx->second.old_val, lock_type)) {
+					if(atom.load() == TX_R_LOCK) {
+						jo_yield_backoff(&num_retry);
 						goto compex_retry;
 					}
 					// restore old values... we failed
-					for(auto tx2 = tx_map.begin(); tx2 != tx; tx2++) {
+					for(auto tx2p = tx_list.begin(); tx2p != txp; tx2p++) {
+						auto tx2 = *tx2p;
 						// Write stomp? ignore these... nothing to restore.
 						if(tx2->second.old_val != INV_NODE) {
 							auto &atom2 = get_node_atom(tx2->first);
@@ -308,7 +321,8 @@ struct transaction_t {
 		}
 
 		// Set new values / restore reads from hold status
-		for(auto tx = tx_map.begin(); tx; tx++) {
+		for(auto txp = tx_list.begin(); txp != tx_list.end(); txp++) {
+			auto tx = *txp;
 			node_idx_t store_val = tx->second.new_val != INV_NODE ? tx->second.new_val : tx->second.old_val;
 
 			auto &atom = get_node_atom(tx->first);
