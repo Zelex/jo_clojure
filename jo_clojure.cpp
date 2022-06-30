@@ -243,7 +243,8 @@ struct transaction_t {
 	};
 	//typedef node_idx_t atom_idx_t;
 	typedef node_idx_unsafe_t atom_idx_t;
-	jo_hash_map<atom_idx_t, tx_t> tx_map;
+	typedef jo_hash_map<atom_idx_t, tx_t> tx_map_t;
+	tx_map_t tx_map;
 	double start_time;
 	int num_retries;
 
@@ -279,13 +280,13 @@ struct transaction_t {
 			return true;
 		}
 
-		jo_vector<const jo_hash_map<atom_idx_t, tx_t>::entry_t *> tx_list;
+		jo_vector<const tx_map_t::entry_t *> tx_list;
 		tx_list.reserve(tx_map.size());
 		for(auto tx = tx_map.begin(); tx; tx++) {
 			tx_list.push_back(tx.get());
 		}
 
-		std::sort(tx_list.begin(), tx_list.end(), [](const jo_hash_map<atom_idx_t, tx_t>::entry_t *a, const jo_hash_map<atom_idx_t, tx_t>::entry_t *b) {
+		std::sort(tx_list.begin(), tx_list.end(), [](const tx_map_t::entry_t *a, const tx_map_t::entry_t *b) {
 			return a->first < b->first;
 		});
 
