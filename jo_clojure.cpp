@@ -299,7 +299,8 @@ struct transaction_t {
 				long long lock_type = tx->second.new_val != INV_NODE ? TX_HOLD_NODE : TX_R_LOCK;
 				int num_retry = 0;
 				compex_retry:
-				if(!atom.compare_exchange_weak(tx->second.old_val, lock_type)) {
+				// use strong here since the cost of a spurious failure can be significant
+				if(!atom.compare_exchange_strong(tx->second.old_val, lock_type)) {
 					// Don't abort if its just a read-lock. Instead retry.
 					if(atom.load() == TX_R_LOCK) {
 						jo_yield_backoff(&num_retry);
