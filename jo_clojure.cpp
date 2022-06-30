@@ -300,6 +300,7 @@ struct transaction_t {
 				int num_retry = 0;
 				compex_retry:
 				if(!atom.compare_exchange_weak(tx->second.old_val, lock_type)) {
+					// Don't abort if its just a read-lock. Instead retry.
 					if(atom.load() == TX_R_LOCK) {
 						jo_yield_backoff(&num_retry);
 						goto compex_retry;
