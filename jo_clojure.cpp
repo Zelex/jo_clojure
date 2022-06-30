@@ -297,7 +297,6 @@ struct transaction_t {
 			if(tx->second.old_val != INV_NODE) {
 				auto &atom = get_node_atom(tx->first);
 				long long lock_type = tx->second.new_val != INV_NODE ? TX_HOLD_NODE : TX_R_LOCK;
-				// use strong here since the cost of a spurious failure can be significant
 				int num_retry = 0;
 				compex_retry:
 				if(!atom.compare_exchange_weak(tx->second.old_val, lock_type)) {
