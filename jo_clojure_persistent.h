@@ -305,7 +305,7 @@ struct atomic_node_idx_t {
 #endif
 
 	node_idx_t load() const { 
-		return idx.load(); 
+		return idx.load(std::memory_order_relaxed); 
 	}
 	void store(node_idx_t _idx) {
 		node_add_ref(_idx);

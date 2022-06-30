@@ -54,9 +54,8 @@ static const auto processor_count = std::thread::hardware_concurrency();
 enum {
 
 	// hard coded nodes
-	TX_HOLD_NODE = -4, // Set to this value if in the middle of a transaction commit. Don't touch while in this state!
-	EOL_NODE = -3,
-	TMP_NODE = -2,
+	TX_R_LOCK = -3,
+	TX_HOLD_NODE = -2, // Set to this value if in the middle of a transaction commit. Don't touch while in this state!
 	INV_NODE = -1,
 	NIL_NODE = 0,
 	ZERO_NODE,
@@ -260,7 +259,7 @@ struct transaction_t {
 		auto &atom = get_node_atom(atom_idx);
 		node_idx_t old_val = atom.load();
 		int count = 0;
-		while(old_val == TX_HOLD_NODE) {
+		while(old_val <= TX_HOLD_NODE) {
 			jo_yield_backoff(&count);
 			old_val = atom.load();
 		}
@@ -285,8 +284,14 @@ struct transaction_t {
 			// Write stomp?
 			if(tx->second.old_val != INV_NODE) {
 				auto &atom = get_node_atom(tx->first);
+				long long lock_type = tx->second.new_val != INV_NODE ? TX_HOLD_NODE : TX_R_LOCK;
 				// use strong here since the cost of a spurious failure can be significant
-				if(!atom.compare_exchange_strong(tx->second.old_val, TX_HOLD_NODE)) {
+				int num_retry = 0;
+				compex_retry:
+				if(!atom.compare_exchange_strong(tx->second.old_val, lock_type)) {
+					if(atom.load() == TX_R_LOCK && num_retry++ <= 1) {
+						goto compex_retry;
+					}
 					// restore old values... we failed
 					for(auto tx2 = tx_map.begin(); tx2 != tx; tx2++) {
 						// Write stomp? ignore these... nothing to restore.
@@ -312,7 +317,7 @@ struct transaction_t {
 				node_idx_t old_val = atom.load();
 				do {
 					int count = 0;
-					while(old_val == TX_HOLD_NODE) {
+					while(old_val <= TX_HOLD_NODE) {
 						jo_yield_backoff(&count);
 						old_val = atom.load();
 					}
@@ -1029,7 +1034,7 @@ struct node_t {
 		if(type == NODE_FUTURE) {
 			node_idx_t ret = t_atom.load();
 			int count = 0;
-			while(ret == TX_HOLD_NODE || ret == INV_NODE) {
+			while(ret <= TX_HOLD_NODE || ret == INV_NODE) {
 				jo_yield_backoff(&count);
 				ret = t_atom.load();
 			}

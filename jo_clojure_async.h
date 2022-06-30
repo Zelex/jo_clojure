@@ -64,7 +64,7 @@ static node_idx_t node_swap(env_ptr_t env, node_idx_t atom_idx, node_idx_t f_idx
 	int count = 0;
 	do {
 		old_val = atom->t_atom.load();
-		while(old_val == TX_HOLD_NODE) {
+		while(old_val <= TX_HOLD_NODE) {
 			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
@@ -87,7 +87,7 @@ static node_idx_t node_reset(env_ptr_t env, node_idx_t atom_idx, node_idx_t new_
 		do {
 			old_val = atom->t_atom.load();
 			int count = 0;
-			while(old_val == TX_HOLD_NODE) {
+			while(old_val <= TX_HOLD_NODE) {
 				jo_yield_backoff(&count);
 				old_val = atom->t_atom.load();
 			}
@@ -193,9 +193,9 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 		} else {
 			node_idx_t ret = ref->t_atom.load();
 			int count = 0;
-			while(ret == TX_HOLD_NODE) {
+			while(ret <= TX_HOLD_NODE) {
 				jo_yield_backoff(&count);
-				ret = ref->t_atom;
+				ret = ref->t_atom.load();
 			}
 			return ret;
 		}
@@ -293,7 +293,7 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 	do {
 		old_val = atom->t_atom.load();
 		int count = 0;
-		while(old_val == TX_HOLD_NODE) {
+		while(old_val <= TX_HOLD_NODE) {
 			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
@@ -332,7 +332,7 @@ static node_idx_t native_reset_vals_e(env_ptr_t env, list_ptr_t args) {
 	do {
 		old_val = atom->t_atom.load();
 		int count = 0;
-		while(old_val == TX_HOLD_NODE) {
+		while(old_val <= TX_HOLD_NODE) {
 			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
@@ -896,7 +896,7 @@ static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
 	int count = 0;
 	do {
 		old_val = atom->t_atom.load();
-		while(old_val == TX_HOLD_NODE) {
+		while(old_val <= TX_HOLD_NODE) {
 			// re-entrant support
 			if(atom->t_thread_id == current_thread_id) {
 				break;
@@ -918,7 +918,7 @@ static node_idx_t native_locking(env_ptr_t env, list_ptr_t args) {
 	node_idx_t ret = eval_node_list(env, args->rest());
 
 	// unlock the atom
-	if(old_val != TX_HOLD_NODE) {
+	if(old_val > TX_HOLD_NODE) {
 		atom->t_atom.store(old_val);
 	}
 
