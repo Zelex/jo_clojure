@@ -48,6 +48,7 @@
 #include <sys/stat.h>
 #define jo_strdup _strdup
 #define jo_chdir _chdir
+#define jo_alloca _alloca
 #pragma warning(push)
 #pragma warning(disable : 4345)
 #elif defined(__APPLE__)
@@ -56,11 +57,13 @@
 #include <termios.h>
 #define jo_strdup strdup
 #define jo_chdir chdir
+#define jo_alloca alloca
 #else
 #include <unistd.h>
 #include <termios.h>
 #define jo_strdup strdup
 #define jo_chdir chdir
+#define jo_alloca alloca
 #endif
 
 template<typename T1, typename T2> static constexpr inline T1 jo_min(T1 a, T2 b) { return a < b ? a : b; }

@@ -280,18 +280,18 @@ struct transaction_t {
 			return true;
 		}
 
-		jo_vector<const tx_map_t::entry_t *> tx_list;
-		tx_list.reserve(tx_map.size());
+		const tx_map_t::entry_t **tx_list = (const tx_map_t::entry_t **)jo_alloca(tx_map.size() * sizeof(*tx_list));
+		int tx_list_size = 0;
 		for(auto tx = tx_map.begin(); tx; tx++) {
-			tx_list.push_back(tx.get());
+			tx_list[tx_list_size++] = tx.get();
 		}
 
-		std::sort(tx_list.begin(), tx_list.end(), [](const tx_map_t::entry_t *a, const tx_map_t::entry_t *b) {
+		std::sort(tx_list, tx_list + tx_list_size, [](const tx_map_t::entry_t *a, const tx_map_t::entry_t *b) {
 			return a->first < b->first;
 		});
 
 		// Transition all values to hold
-		for(auto txp = tx_list.begin(); txp != tx_list.end(); txp++) {
+		for(auto txp = tx_list; txp != tx_list + tx_list_size; txp++) {
 			auto tx = *txp;
 			// Write stomp?
 			if(tx->second.old_val != INV_NODE) {
@@ -307,7 +307,7 @@ struct transaction_t {
 						goto compex_retry;
 					}
 					// restore old values... we failed
-					for(auto tx2p = tx_list.begin(); tx2p != txp; tx2p++) {
+					for(auto tx2p = tx_list; tx2p != txp; tx2p++) {
 						auto tx2 = *tx2p;
 						// Write stomp? ignore these... nothing to restore.
 						if(tx2->second.old_val != INV_NODE) {
@@ -323,7 +323,7 @@ struct transaction_t {
 		}
 
 		// Set new values / restore reads from hold status
-		for(auto txp = tx_list.begin(); txp != tx_list.end(); txp++) {
+		for(auto txp = tx_list; txp != tx_list + tx_list_size; txp++) {
 			auto tx = *txp;
 			node_idx_t store_val = tx->second.new_val != INV_NODE ? tx->second.new_val : tx->second.old_val;
 
