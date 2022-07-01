@@ -1795,6 +1795,16 @@ struct jo_stable_sort {
                 tmp[k++] = array[j++];
             }
         }
+        while(i < mid) {
+            tmp[k++] = array[i++];
+        }
+        while(j < end) {
+            tmp[k++] = array[j++];
+        }
+        for(int l = 0; l < k; l++) {
+            array[start + l] = tmp[l];
+        }
+        delete[] tmp;
     }
 
     static void sort(T *array, int size, int start, int end) {
