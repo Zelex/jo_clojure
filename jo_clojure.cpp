@@ -770,7 +770,7 @@ struct node_t {
 	}
 
 	// first, rest, more?
-	typedef jo_triple<node_idx_t, node_idx_t, bool> seq_first_rest_t;
+	typedef jo_tuple<node_idx_t, node_idx_t, bool> seq_first_rest_t;
 	seq_first_rest_t seq_first_rest() const {
 		if(is_list()) {
 			if(t_list->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);

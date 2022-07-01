@@ -534,25 +534,6 @@ template<> struct jo_numeric_limits<int> {
 #define jo_endl ("\n")
 #define jo_npos ((size_t)(-1))
 
-template <class F> struct lambda_traits : lambda_traits<decltype(&F::operator())> { };
-template <typename F, typename R, typename... Args>
-struct lambda_traits<R(F::*)(Args...)> : lambda_traits<R(F::*)(Args...) const> { };
-template <class F, class R, class... Args>
-struct lambda_traits<R(F::*)(Args...) const> {
-    using pointer = typename std::add_pointer<R(Args...)>::type;
-    static pointer jo_cify(F&& f) {
-        static F fn = std::forward<F>(f);
-        return [](Args... args) {
-            return fn(std::forward<Args>(args)...);
-        };
-    }
-};
-
-template <class F>
-inline typename lambda_traits<F>::pointer jo_cify(F&& f) {
-    return lambda_traits<F>::jo_cify(std::forward<F>(f));
-}
-
 // jo_pair is a simple pair of values
 template<typename T1, typename T2>
 struct jo_pair {
@@ -577,19 +558,19 @@ inline jo_pair<T1, T2> jo_make_pair(const T1 &a, const T2 &b) {
     return jo_pair<T1, T2>(a, b);
 }
 
-// jo_triple
+// jo_tuple
 template<typename T1, typename T2, typename T3>
-struct jo_triple {
+struct jo_tuple {
     T1 first;
     T2 second;
     T3 third;
 
-    jo_triple() : first(), second(), third() {}
-    jo_triple(const T1 &a, const T2 &b, const T3 &c) : first(a), second(b), third(c) {}
+    jo_tuple() : first(), second(), third() {}
+    jo_tuple(const T1 &a, const T2 &b, const T3 &c) : first(a), second(b), third(c) {}
 
-    bool operator==(const jo_triple<T1, T2, T3> &other) const { return first == other.first && second == other.second && third == other.third; }
-    bool operator!=(const jo_triple<T1, T2, T3> &other) const { return !(*this == other); }
-    bool operator<(const jo_triple<T1, T2, T3> &other) const {
+    bool operator==(const jo_tuple<T1, T2, T3> &other) const { return first == other.first && second == other.second && third == other.third; }
+    bool operator!=(const jo_tuple<T1, T2, T3> &other) const { return !(*this == other); }
+    bool operator<(const jo_tuple<T1, T2, T3> &other) const {
         if(first < other.first) return true;
         if(first > other.first) return false;
         if(second < other.second) return true;
@@ -1781,264 +1762,6 @@ T *jo_upper_bound(T *begin, T *end, T &needle) {
     return begin + first;
 }
 
-// Maintains a linked list of blocks of objects which can be allocated from
-// and deallocated to.
-// Allocates single objects from blocks of 32 objects. Only frees memory when an entire block is free.
-template<typename T>
-struct jo_pool_alloc {
-    struct block_item {
-        // This points to the current block, can be looked up on deallocate
-        struct block *b;
-        T t;
-    };
-    struct block {
-        block *next;
-        block *prev;
-        block_item items[32];
-        int count;
-    };
-
-    block *first;
-    block *last;
-    size_t count;
-    size_t capacity;
-    jo_mutex mutex;
-
-    jo_pool_alloc() : first(0), last(0), count(0), capacity(0), mutex() {}
-
-    ~jo_pool_alloc() {
-        jo_lock_guard lock(mutex);
-        block *ptr = first;
-        while(ptr) {
-            block *next = ptr->next;
-            free(ptr);
-            ptr = next;
-        }
-    }
-
-    T *allocate() {
-        jo_lock_guard lock(mutex);
-        if(!first) {
-            first = (block *)malloc(sizeof(block));
-            first->next = 0;
-            first->prev = 0;
-            first->count = 0;
-            last = first;
-            capacity = 32;
-        }
-        if(last->count == 32) {
-            last->next = (block *)malloc(sizeof(block));
-            last->next->prev = last;
-            last->next->next = 0;
-            last->next->count = 0;
-            last = last->next;
-            capacity += 32;
-        }
-        last->items[last->count].b = last;
-        T *ptr = &last->items[last->count].t;
-        last->count++;
-        count++;
-        return ptr;
-    }
-
-    void deallocate(T *ptr) {
-        jo_lock_guard lock(mutex);
-        block_item *item = (block_item *)(ptr - offsetof(block_item, t));
-        block *b = item->b;
-        b->count--;
-        count--;
-        if(b->count == 0) {
-            if(b->prev) {
-                b->prev->next = b->next;
-            } else {
-                first = b->next;
-            }
-            if(b->next) {
-                b->next->prev = b->prev;
-            } else {
-                last = b->prev;
-            }
-            free(b);
-            capacity -= 32;
-        }
-    }
-
-    size_t size() {
-        return count;
-    }
-
-    void clear() {
-        jo_lock_guard lock(mutex);
-        block *ptr = first;
-        while(ptr) {
-            block *next = ptr->next;
-            free(ptr);
-            ptr = next;
-        }
-        first = 0;
-        last = 0;
-        count = 0;
-        capacity = 0;
-    }
-};
-
-template<typename T>
-class jo_set {
-    T *ptr;
-    size_t ptr_size;
-    size_t ptr_capacity;
-    bool (*cmp)(const T&, const T&);
-public:
-    jo_set(bool (*cmp)(const T&, const T&)) : ptr(0), ptr_size(0), ptr_capacity(0), cmp(cmp) {}
-    jo_set(const jo_set<T> &other) : ptr(0), ptr_size(0), ptr_capacity(0), cmp(other.cmp) {
-        *this = other;
-    }
-    jo_set<T> &operator=(const jo_set<T> &other) {
-        if(this == &other) return *this;
-        if(ptr_capacity < other.ptr_size) {
-            ptr_capacity = other.ptr_size;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        ptr_size = other.ptr_size;
-        jo_memcpy(ptr, other.ptr, sizeof(T)*ptr_size);
-        return *this;
-    }
-    ~jo_set() {
-        if(ptr) free(ptr);
-    }
-
-    void insert(const T &val) {
-        if(ptr_size == ptr_capacity) {
-            ptr_capacity = ptr_capacity ? ptr_capacity*2 : 4;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        ptr[ptr_size++] = val;
-        jo_sift_up(ptr, ptr_size-1, cmp);
-    }
-
-    void emplace(T &&val) {
-        if(ptr_size == ptr_capacity) {
-            ptr_capacity = ptr_capacity ? ptr_capacity*2 : 4;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        ptr[ptr_size++] = val;
-        jo_sift_up(ptr, ptr_size-1, cmp);
-    }
-
-    void erase(const T &val) {
-        T *ptr = jo_find(this->ptr, this->ptr + ptr_size, val);
-        if(ptr == this->ptr + ptr_size) return;
-        ptr_size--;
-        if(ptr != this->ptr + ptr_size) {
-            T tmp = *ptr;
-            *ptr = *(this->ptr + ptr_size);
-            *(this->ptr + ptr_size) = tmp;
-            jo_sift_down(this->ptr, this->ptr + ptr_size, (size_t)(ptr - this->ptr), cmp);
-            jo_sift_up(this->ptr, ptr_size, cmp);
-        }
-    }
-
-    void erase_if(bool (*pred)(const T&)) {
-        T *ptr = jo_find_if(this->ptr, this->ptr + ptr_size, pred);
-        if(ptr == this->ptr + ptr_size) return;
-        ptr_size--;
-        if(ptr != this->ptr + ptr_size) {
-            T tmp = *ptr;
-            *ptr = *(this->ptr + ptr_size);
-            *(this->ptr + ptr_size) = tmp;
-            jo_sift_down(this->ptr, this->ptr + ptr_size, (size_t)(ptr - this->ptr), cmp);
-            jo_sift_up(this->ptr, ptr_size, cmp);
-        }
-    }
-
-    void clear() { ptr_size = 0; }
-    size_t size() const { return ptr_size; }
-    size_t max_size() const { return ptr_capacity; }
-
-    const T &operator[](size_t i) const { return ptr[i]; }
-    T &operator[](size_t i) { return ptr[i]; }
-    const T &at(size_t i) const { return ptr[i]; }
-    T &at(size_t i) { return ptr[i]; }
-
-    const T &front() const { return ptr[0]; }
-    T &front() { return ptr[0]; }
-    const T &back() const { return ptr[ptr_size-1]; }
-    T &back() { return ptr[ptr_size-1]; }
-
-    void sort() { jo_sort_heap(ptr, ptr + ptr_size, cmp); }
-
-    void push(const T &val) { insert(val); }
-
-    void pop_back() { erase(ptr[--ptr_size]); }
-    void pop_front() { erase(ptr[0]); }
-
-    void swap(jo_set<T> &other) {
-        jo_swap(ptr, other.ptr);
-        jo_swap(ptr_size, other.ptr_size);
-        jo_swap(ptr_capacity, other.ptr_capacity);
-        jo_swap(cmp, other.cmp);
-    }
-
-    void reserve(size_t n) {
-        if(ptr_capacity < n) {
-            ptr_capacity = n;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-    }
-
-    void shrink_to_fit() {
-        if(ptr_capacity > ptr_size) {
-            ptr_capacity = ptr_size;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-    }
-
-    void resize(size_t n) {
-        if(ptr_capacity < n) {
-            ptr_capacity = n;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        ptr_size = n;
-    }
-
-    void resize(size_t n, const T &val) {
-        if(ptr_capacity < n) {
-            ptr_capacity = n;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        if(ptr_size < n) {
-            jo_memset(ptr + ptr_size, 0, sizeof(T)*(n - ptr_size));
-        }
-        ptr_size = n;
-    }
-
-    void resize(size_t n, const T &val, bool (*cmp)(const T&, const T&)) {
-        if(ptr_capacity < n) {
-            ptr_capacity = n;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        if(ptr_size < n) {
-            jo_memset(ptr + ptr_size, 0, sizeof(T)*(n - ptr_size));
-        }
-        ptr_size = n;
-        jo_sort_heap(ptr, ptr + ptr_size, cmp);
-    }
-
-    T *lower_bound(const T &val) { return jo_lower_bound(ptr, ptr + ptr_size, val, cmp);}
-    const T *lower_bound(const T &val) const { return jo_lower_bound(ptr, ptr + ptr_size, val, cmp);}
-
-    T *upper_bound(const T &val) { return jo_upper_bound(ptr, ptr + ptr_size, val, cmp); }
-    const T *upper_bound(const T &val) const { return jo_upper_bound(ptr, ptr + ptr_size, val, cmp); }
-};
-
-// jo_exception class
-class jo_exception {
-public:
-    const char *msg;
-    jo_exception(const char *msg) : msg(msg) {}
-};
-
-
 // std sort implementation using quicksort
 template<typename T>
 struct jo_sort {
@@ -2244,7 +1967,7 @@ size_t jo_hash_value(const jo_string &value) { return jo_hash_value(value.c_str(
 
 template<typename K, typename V>
 struct jo_hash_map {
-    typedef jo_triple<K, V, bool> entry_t;
+    typedef jo_tuple<K, V, bool> entry_t;
 
     // vec is used to store the keys and values
     jo_vector<entry_t> vec;
