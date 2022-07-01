@@ -60,8 +60,8 @@
 #include <termios.h>
 #endif
 
-// if clang
-#if defined(__clang__)
+// if clang or GCC
+#if defined(__clang__) || defined(__GNUC__)
 #define jo_strdup strdup
 #define jo_chdir chdir
 #define jo_alloca __builtin_alloca
