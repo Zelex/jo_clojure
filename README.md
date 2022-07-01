@@ -28,6 +28,7 @@ The long-term goal is to add types/functions for machine learning, tensors, etc.
 
 # Future:
 * Compile to C/C++ code so you can compile a native executable. 
+* Save/Restore program state (continue later, saved in binary format). 
 * Native types and operations for Matrices and Tensors. 
 * Automatic Parallelization.
 * sorted-set
