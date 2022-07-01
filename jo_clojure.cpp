@@ -6149,6 +6149,24 @@ static node_idx_t native_trampoline(env_ptr_t env, list_ptr_t args) {
 	}
 }
 
+// (zipmap keys vals)
+// Returns a map with the keys mapped to the corresponding vals.
+static node_idx_t native_zipmap(env_ptr_t env, list_ptr_t args) {
+	node_idx_t keys_idx = args->first_value();
+	node_idx_t vals_idx = args->second_value();
+	hash_map_ptr_t map = new_hash_map();
+	if (get_node(keys_idx)->is_seq() && get_node(vals_idx)->is_seq()) {
+		seq_iterator_t keys_it(keys_idx);
+		seq_iterator_t vals_it(vals_idx);
+		while (keys_it.val != INV_NODE && vals_it.val != INV_NODE) {
+			map->assoc_inplace(keys_it.val, vals_it.val, node_eq);
+			keys_it.next();
+			vals_it.next();
+		}
+	}
+	return new_node_hash_map(map);
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6484,6 +6502,7 @@ int main(int argc, char **argv) {
 	env->set("subvec", new_node_native_function("subvec", &native_subvec, false, NODE_FLAG_PRERESOLVE));
 	env->set("symbol", new_node_native_function("symbol", &native_symbol, false, NODE_FLAG_PRERESOLVE));
 	env->set("trampoline", new_node_native_function("trampoline", &native_trampoline, false, NODE_FLAG_PRERESOLVE));
+	env->set("zipmap", new_node_native_function("zipmap", &native_zipmap, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

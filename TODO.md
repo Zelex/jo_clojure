@@ -337,5 +337,4 @@ with-precision
 with-redefs
 with-redefs-fn
 xml-seq
-zipmap
 

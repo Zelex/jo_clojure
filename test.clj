@@ -403,6 +403,17 @@
   (is (= (list 1 3)     (interleave (list 1 2) (list 3)))))
 (defn flatten-test []
   (is (= (list 1 2 3 4 5) (flatten (list 1 2 (list 3) 4 5)))))
+(defn zipmap-test []
+  (is (= {:a 1 :b 2} (zipmap [:a :b] [1 2])))
+  (is (= {:a 1} (zipmap [:a] [1 2])))
+  (is (= {:a 1} (zipmap [:a :b] [1])))
+  (is (= {} (zipmap [] [1 2])))
+  (is (= {} (zipmap [:a :b] [])))
+  (is (= {} (zipmap [] [])))
+  (is (= {} (zipmap nil nil)))
+  (is (= {:a 1 :b 2} (zipmap [:a :b] '(1 2))))
+  (is (= {:a 1} (zipmap '(:a) [1 2])))
+  (is (= {} (zipmap '(:a :b) nil))))
 (defn number-test []
   ;(is (= 0.5       1/2)) ; don't support ratios yet
   ;(is (= 0.33333   1/3)) ; don't support ratios yet
@@ -1093,6 +1104,7 @@
 (every?-test)
 (interleave-test)
 (flatten-test)
+(zipmap-test)
 (number-test)
 (zero?-test)
 (pos?-test)
