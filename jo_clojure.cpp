@@ -134,8 +134,6 @@ enum {
 struct node_t;
 struct lazy_list_iterator_t;
 
-//typedef jo_persistent_vector_bidirectional<node_idx_t> list_t;
-
 typedef jo_shared_ptr_t<jo_object> object_ptr_t;
 
 struct transaction_t;
@@ -657,28 +655,28 @@ struct node_t {
 		t_int = 0;
 	}
 
-	bool is_symbol() const { return type == NODE_SYMBOL; }
-	bool is_keyword() const { return type == NODE_KEYWORD; }
-	bool is_list() const { return type == NODE_LIST; }
-	bool is_vector() const { return type == NODE_VECTOR; }
-	bool is_matrix() const { return type == NODE_MATRIX; }
-	bool is_hash_map() const { return type == NODE_MAP; }
-	bool is_hash_set() const { return type == NODE_HASH_SET; }
-	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
-	bool is_string() const { return type == NODE_STRING; }
-	bool is_func() const { return type == NODE_FUNC; }
-	bool is_native_func() const { return type == NODE_NATIVE_FUNC; }
-	bool is_macro() const { return flags & NODE_FLAG_MACRO;}
-	bool is_float() const { return type == NODE_FLOAT; }
-	bool is_int() const { return type == NODE_INT; }
-	bool is_file() const { return type == NODE_FILE; }
-	bool is_dir() const { return type == NODE_DIR; }
-	bool is_atom() const { return type == NODE_ATOM; }
-	bool is_future() const { return type == NODE_FUTURE; }
-	bool is_promise() const { return type == NODE_PROMISE; }
+	inline bool is_symbol() const { return type == NODE_SYMBOL; }
+	inline bool is_keyword() const { return type == NODE_KEYWORD; }
+	inline bool is_list() const { return type == NODE_LIST; }
+	inline bool is_vector() const { return type == NODE_VECTOR; }
+	inline bool is_matrix() const { return type == NODE_MATRIX; }
+	inline bool is_hash_map() const { return type == NODE_MAP; }
+	inline bool is_hash_set() const { return type == NODE_HASH_SET; }
+	inline bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
+	inline bool is_string() const { return type == NODE_STRING; }
+	inline bool is_func() const { return type == NODE_FUNC; }
+	inline bool is_native_func() const { return type == NODE_NATIVE_FUNC; }
+	inline bool is_macro() const { return flags & NODE_FLAG_MACRO;}
+	inline bool is_float() const { return type == NODE_FLOAT; }
+	inline bool is_int() const { return type == NODE_INT; }
+	inline bool is_file() const { return type == NODE_FILE; }
+	inline bool is_dir() const { return type == NODE_DIR; }
+	inline bool is_atom() const { return type == NODE_ATOM; }
+	inline bool is_future() const { return type == NODE_FUTURE; }
+	inline bool is_promise() const { return type == NODE_PROMISE; }
 
-	bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector() || is_string(); }
-	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_vector() || is_hash_map() || is_hash_set() || is_func() || is_native_func(); }
+	inline bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector() || is_string(); }
+	inline bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_vector() || is_hash_map() || is_hash_set() || is_func() || is_native_func(); }
 
 	// first, more?
 	typedef jo_pair<node_idx_t, bool> seq_first_t;
@@ -2110,17 +2108,11 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 	}
 
 	// eval the list
-	/*
-	{
-		list_ptr_t ret = new_list();
-		for(list_t::iterator it(list); it; it++) {
-			ret->push_back_inplace(eval_node(env, *it));
-		}
-		return new_node_list(ret);
+	list_ptr_t ret = new_list();
+	for(list_t::iterator it(list); it; it++) {
+		ret->push_back_inplace(eval_node(env, *it));
 	}
-	*/
-
-	return new_node_list(list);
+	return new_node_list(ret, NODE_FLAG_LITERAL);
 }
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
