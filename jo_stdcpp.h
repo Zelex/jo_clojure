@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <atomic>
 #include <mutex>
+#include <condition_variable>
 
 #ifdef _WIN32
 #include <conio.h>
