@@ -2254,7 +2254,6 @@ static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx
 
 // Print the node heirarchy
 static void print_node(node_idx_t node, int depth, bool same_line) {
-#if 1
 	int type = get_node_type(node);
 	int flags = get_node_flags(node);
 	if(type == NODE_LIST) {
@@ -2327,52 +2326,6 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	} else {
 		printf("<<%s>>", get_node_type_string(node));
 	}
-#else
-	node_t *n = get_node(node);
-	if(n->type == NODE_LIST) {
-		printf("%*s(\n", depth, "");
-		print_node_list(n->t_list, depth + 1);
-		printf("%*s)\n", depth, "");
-	} else if(n->type == NODE_LAZY_LIST) {
-		printf("%*s(lazy-list\n", depth, "");
-		print_node(n->t_extra, depth + 1);
-		printf("%*s)\n", depth, "");
-	} else if(n->type == NODE_STRING) {
-		printf("%*s\"%s\"\n", depth, "", get_node(node).t_string.c_str());
-	} else if(n->type == NODE_SYMBOL) {
-		printf("%*s%s\n", depth, "", get_node(node).t_string.c_str());
-	} else if(n->type == NODE_KEYWORD) {
-		printf("%*s:%s\n", depth, "", get_node(node).t_string.c_str());
-	} else if(n->type == NODE_INT) {
-		printf("%*s%d\n", depth, "", n->t_int);
-	} else if(n->type == NODE_FLOAT) {
-		printf("%*s%f\n", depth, "", n->t_float);
-	} else if(n->type == NODE_BOOL) {
-		printf("%*s%s\n", depth, "", n->t_bool ? "true" : "false");
-	} else if(n->type == NODE_NATIVE_FUNC) {
-		printf("%*s<%s>\n", depth, "", n->t_string.c_str());
-	} else if(n->type == NODE_FUNC) {
-		printf("%*s(fn \n", depth, "");
-		print_node_list(n->t_func.args, depth + 1);
-		print_node_list(n->t_func.body, depth + 1);
-		printf("%*s)\n", depth, "");
-	} else if(n->type == NODE_DELAY) {
-		printf("%*s(def  (delay\n", depth, "");
-		print_node_list(n->t_func.body, depth + 1);
-		printf("%*s)\n", depth, "");
-	} else if(n->type == NODE_VAR) {
-		printf("%*s%s = ", depth, "", get_node(node).t_string.c_str());
-		print_node(n->t_extra, depth + 1);
-	} else if(n->type == NODE_MAP) {
-		printf("%*s<map>\n", depth, "");
-	} else if(n->type == NODE_HASH_SET) {
-		printf("%*s<set>\n", depth, "");
-	} else if(n->type == NODE_NIL) {
-		printf("%*snil\n", depth, "");
-	} else {
-		printf("%*s<unknown>\n", depth, "");
-	}
-#endif
 }
 
 static void print_node_list(list_ptr_t nodes, int depth) {
@@ -6499,7 +6452,6 @@ int main(int argc, char **argv) {
 
 	{
 		node_idx_t res_idx = eval_node_list(env, main_list);
-		//native_println(env, list_va(res_idx));
 		printf("%s\n", get_node(res_idx)->as_string(3).c_str());
 	}
 
@@ -6509,28 +6461,6 @@ int main(int argc, char **argv) {
 	}
 	debugf("atom_retries = %zu\n", atom_retries.load());
 	debugf("stm_retries = %zu\n", stm_retries.load());
-
-	/*
-	for(int i = -20; i <= 20; i++) {
-		for(int j = -20; j <= 20; j++) {
-			jo_bigint big_i = i;
-			jo_bigint big_j = j;
-			if((big_i + big_j).to_int() != i + j) {
-				printf("FAILED: %d + %d was %d, should be %d\n", i, j, (big_i + big_j).to_int(), i + j);
-				debug_break();
-				printf("FAILED: %d + %d was %d, should be %d\n", i, j, (big_i + big_j).to_int(), i + j);
-			}
-			if((big_i - big_j).to_int() != i - j) {
-				printf("FAILED: %d - %d was %d, should be %d\n", i, j, (big_i - big_j).to_int(), i - j);
-				debug_break();
-				printf("FAILED: %d - %d was %d, should be %d\n", i, j, (big_i - big_j).to_int(), i - j);
-			}
-		}
-	}
-	*/
-	//jo_float f("1.23456789");
-	//jo_string f_str = f.to_string();
-	//printf("f = %s\n", f_str.c_str());
 
 #ifdef WITH_TELEMETRY
 	tmClose(0);
