@@ -7,14 +7,10 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
-#include <string>
-#include <map>
-#include <unordered_map>
 #include <functional>
 #include <atomic>
 #include <future>
 #include <thread>
-#include <shared_mutex>
 
 //#define WITH_TELEMETRY
 #ifdef WITH_TELEMETRY

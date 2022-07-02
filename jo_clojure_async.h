@@ -1,15 +1,10 @@
 #pragma once
 
-#include <algorithm>
-#include <vector>
-#include <deque>
-
-
 typedef std::packaged_task<node_idx_t()> jo_task_t;
 typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
 
 class jo_threadpool {
-	std::vector<std::thread> pool;
+	jo_vector<std::thread> pool;
 	typedef std::function<void()> task_t;
 	jo_mpmcq<task_t*, nullptr, 4096> tasks;
 
@@ -27,7 +22,7 @@ public:
 					delete task;
 				}
 			});
-			pool.push_back(std::move(t));
+			pool.emplace_back(std::move(t));
 		}
 	}
 

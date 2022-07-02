@@ -28,10 +28,7 @@
 #define JO_STDCPP
 #pragma once
 
-// Not in any way intended to be fastest implementation, just simple bare minimum we need to compile tinyexr
-
 #include <string.h>
-//#include <malloc.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -1314,7 +1311,43 @@ struct jo_vector {
         insert(where, what_begin, (size_t)(what_end - what_begin));
     }
 
-    void push_back(const T& val) { insert(end(), &val, 1); }
+    void push_back(const T &val) { 
+        size_t n = ptr_size + 1;
+        if(n > ptr_capacity) {
+            size_t new_capacity = n + n/2; // grow by 50%
+            T *newptr = (T*)malloc(new_capacity*sizeof(T));
+            if(!newptr) return;
+            if(ptr) {
+                jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
+                //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
+                if(ptr != (T*)static_data) free(ptr);
+            }
+            ptr = newptr;
+            ptr_capacity = new_capacity;
+        }
+        
+        new(ptr+ptr_size) T(val);
+        ptr_size = n;
+    }
+
+    void emplace_back(T &&val) { 
+        size_t n = ptr_size + 1;
+        if(n > ptr_capacity) {
+            size_t new_capacity = n + n/2; // grow by 50%
+            T *newptr = (T*)malloc(new_capacity*sizeof(T));
+            if(!newptr) return;
+            if(ptr) {
+                jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
+                //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
+                if(ptr != (T*)static_data) free(ptr);
+            }
+            ptr = newptr;
+            ptr_capacity = new_capacity;
+        }
+        
+        new(ptr+ptr_size) T(std::move(val));
+        ptr_size = n;
+    }
     void push_front(const T& val) { insert(begin(), &val, 1); }
     T pop_back() { T ret = ptr[ptr_size-1]; resize(ptr_size-1); return ret; }
     T &back() { return ptr[ptr_size-1]; }
