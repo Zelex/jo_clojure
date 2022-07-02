@@ -6117,6 +6117,16 @@ static node_idx_t native_when_first(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(env2, body);
 }
 
+// (zipmap keys vals)
+// Returns a map with the keys mapped to the corresponding vals.
+static node_idx_t native_zipmap(env_ptr_t env, list_ptr_t args) {
+	hash_map_ptr_t map = new_hash_map();
+	for(seq_iterator_t i(args->first_value()), j(args->second_value()); i && j; i.next(), j.next()) {
+		map->assoc_inplace(i.val, j.val, node_eq);
+	}
+	return new_node_hash_map(map);
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6454,6 +6464,7 @@ int main(int argc, char **argv) {
 	env->set("trampoline", new_node_native_function("trampoline", &native_trampoline, false, NODE_FLAG_PRERESOLVE));
 	env->set("type", new_node_native_function("type", &native_type, false, NODE_FLAG_PRERESOLVE));
 	env->set("when-first", new_node_native_function("when-first", &native_when_first, true, NODE_FLAG_PRERESOLVE));
+	env->set("zipmap", new_node_native_function("zipmap", &native_zipmap, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);
