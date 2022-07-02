@@ -1918,37 +1918,6 @@ struct jo_shared_ptr {
 template<typename T> jo_shared_ptr<T> jo_make_shared() { return jo_shared_ptr<T>(new T()); }
 template<typename T> jo_shared_ptr<T> jo_make_shared(const T& other) { return jo_shared_ptr<T>(new T(other)); }
 
-// jo_unqiue_ptr
-template<typename T>
-struct jo_unique_ptr {
-    T* ptr;
-    jo_unique_ptr(T* ptr) : ptr(ptr) {}
-    jo_unique_ptr(const jo_unique_ptr& other) = delete;
-    jo_unique_ptr(jo_unique_ptr&& other) : ptr(other.ptr) {
-        other.ptr = nullptr;
-    }
-    jo_unique_ptr& operator=(const jo_unique_ptr& other) = delete;
-    jo_unique_ptr& operator=(jo_unique_ptr&& other) {
-        if (this != &other) {
-            delete ptr;
-            ptr = other.ptr;
-            other.ptr = nullptr;
-        }
-        return *this;
-    }
-    ~jo_unique_ptr() {
-        delete ptr;
-    }
-};
-
-// jo_hash
-template<typename T>
-struct jo_hash {
-    size_t operator()(const T &value) const {
-        return jo_hash_value(value);
-    }
-};
-
 // jo_hash_value
 size_t jo_hash_value(const bool &value) { return value ? 1 : 0; }
 size_t jo_hash_value(const char &value) { return value; }
