@@ -6093,6 +6093,30 @@ static node_idx_t native_type(env_ptr_t env, list_ptr_t args) {
 	return new_node_string(get_node(args->first_value())->type_name());
 }
 
+// (when-first bindings & body)
+// bindings => x xs
+// Roughly the same as (when (seq xs) (let [x (first xs)] body)) but xs is evaluated only once
+static node_idx_t native_when_first(env_ptr_t env, list_ptr_t args) {
+	node_idx_t bindings_idx = args->first_value();
+	node_t *bindings_node = get_node(bindings_idx);
+	if(!bindings_node->is_vector()) {
+		warnf("when-first: first argument must be a vector");
+		return NIL_NODE;
+	}
+	vector_ptr_t bindings = bindings_node->as_vector();
+
+	// loop through bindings, setting up a env2
+	env_ptr_t env2 = new_env(env);
+	for(vector_t::iterator i = bindings->begin(); i;) {
+		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
+		node_idx_t value_idx = get_node(eval_node(env2, *i++))->seq_first().first;
+		node_let(env2, key_idx, value_idx);
+	}
+
+	list_ptr_t body = args->rest();
+	return eval_node_list(env2, body);
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6429,6 +6453,7 @@ int main(int argc, char **argv) {
 	env->set("symbol", new_node_native_function("symbol", &native_symbol, false, NODE_FLAG_PRERESOLVE));
 	env->set("trampoline", new_node_native_function("trampoline", &native_trampoline, false, NODE_FLAG_PRERESOLVE));
 	env->set("type", new_node_native_function("type", &native_type, false, NODE_FLAG_PRERESOLVE));
+	env->set("when-first", new_node_native_function("when-first", &native_when_first, true, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

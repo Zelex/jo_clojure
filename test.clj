@@ -1035,6 +1035,10 @@
 (is (= (subvec [1 2 3 4 5 6 7] 2) [3 4 5 6 7]))
 (is (= (subvec [1 2 3 4 5 6 7] 2 4) [3 4]))
 
+(is (= (when-first [a [1 2 3]] a) 1))
+(is (= (when-first [a []] :x) :x))
+(is (= (when-first [a nil] :x) :x))
+
 (run! println (range 5))
 
 (add-tap println)
