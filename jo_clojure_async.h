@@ -1,6 +1,6 @@
 #pragma once
 
-typedef std::packaged_task<node_idx_t()> jo_task_t;
+typedef std::function<node_idx_t()> jo_task_t;
 typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
 
 class jo_threadpool {

@@ -7,9 +7,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
-#include <functional>
 #include <atomic>
-#include <future>
 #include <thread>
 
 //#define WITH_TELEMETRY
