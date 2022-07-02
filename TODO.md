@@ -323,7 +323,6 @@ volatile!
 volatile?
 vreset!
 vswap!
-when-first
 with-bindings
 with-bindings*
 with-in-str
