@@ -6087,6 +6087,12 @@ static node_idx_t native_trampoline(env_ptr_t env, list_ptr_t args) {
 	}
 }
 
+// (type x)
+// Returns the type of x.
+static node_idx_t native_type(env_ptr_t env, list_ptr_t args) {
+	return new_node_string(get_node(args->first_value())->type_name());
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6422,6 +6428,7 @@ int main(int argc, char **argv) {
 	env->set("subvec", new_node_native_function("subvec", &native_subvec, false, NODE_FLAG_PRERESOLVE));
 	env->set("symbol", new_node_native_function("symbol", &native_symbol, false, NODE_FLAG_PRERESOLVE));
 	env->set("trampoline", new_node_native_function("trampoline", &native_trampoline, false, NODE_FLAG_PRERESOLVE));
+	env->set("type", new_node_native_function("type", &native_type, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

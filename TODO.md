@@ -302,7 +302,6 @@ transduce
 transient
 tree-seq
 try
-type
 unchecked-byte
 unchecked-char
 unchecked-double
