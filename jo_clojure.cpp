@@ -6038,11 +6038,11 @@ static node_idx_t native_sort(env_ptr_t env, list_ptr_t args) {
 		return true;
 	});
 	if(args->size() == 1) {
-		jo_stable_sort(vec.begin(), vec.size(), [](node_idx_t a, node_idx_t b) {
+		pdqsort(vec.begin(), vec.end(), [](node_idx_t a, node_idx_t b) {
 			return node_lt(a, b);
 		});
 	} else {
-		jo_stable_sort(vec.begin(), vec.size(), [env,comp](node_idx_t a, node_idx_t b) {
+		pdqsort(vec.begin(), vec.end(), [env,comp](node_idx_t a, node_idx_t b) {
 			return get_node_bool(eval_va(env, comp, a, b));
 		});
 	}

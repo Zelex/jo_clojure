@@ -78,8 +78,6 @@
 #define jo_expect(expr, val) expr
 #endif
 
-// jo_
-
 template<typename T1, typename T2> static constexpr inline T1 jo_min(T1 a, T2 b) { return a < b ? a : b; }
 template<typename T1, typename T2> static constexpr inline T1 jo_max(T1 a, T2 b) { return a > b ? a : b; }
 
@@ -120,8 +118,7 @@ static const char *va(const char *fmt, ...) {
 }
 
 #ifdef _WIN32
-static int jo_setenv(const char *name, const char *value, int overwrite)
-{
+static int jo_setenv(const char *name, const char *value, int overwrite) {
     int errcode = 0;
     if(!overwrite) {
         size_t envsize = 0;
@@ -134,8 +131,7 @@ static int jo_setenv(const char *name, const char *value, int overwrite)
 #define jo_setenv setenv
 #endif
 
-static bool jo_file_exists(const char *path)
-{
+static bool jo_file_exists(const char *path) {
     FILE *f = fopen(path, "r");
     if(f) {
         fclose(f);
@@ -144,8 +140,7 @@ static bool jo_file_exists(const char *path)
     return false;
 }
 
-static size_t jo_file_size(const char *path)
-{
+static size_t jo_file_size(const char *path) {
     FILE *f = fopen(path, "r");
     if(!f) return 0;
     fseek(f, 0, SEEK_END);
@@ -154,8 +149,7 @@ static size_t jo_file_size(const char *path)
     return size;
 }
 
-static bool jo_file_readable(const char *path)
-{
+static bool jo_file_readable(const char *path) {
     FILE *f = fopen(path, "r");
     if(!f) return false;
     fclose(f);
@@ -163,8 +157,7 @@ static bool jo_file_readable(const char *path)
 }
 
 // tests to see if it can write to a file without truncating it
-static bool jo_file_writable(const char *path)
-{
+static bool jo_file_writable(const char *path) {
     FILE *f = fopen(path, "r+");
     if(!f) return false;
     fclose(f);
@@ -172,8 +165,7 @@ static bool jo_file_writable(const char *path)
 }
 
 // checks to see if file can be executed (cross-platform)
-static bool jo_file_executable(const char *path)
-{
+static bool jo_file_executable(const char *path) {
 #ifdef _WIN32
     // check stat to see if it has executable bit set
     struct _stat s;
@@ -185,8 +177,7 @@ static bool jo_file_executable(const char *path)
 #endif
 }
 
-static bool jo_file_empty(const char *path)
-{
+static bool jo_file_empty(const char *path) {
     FILE *f = fopen(path, "r");
     if(!f) return true;
     fseek(f, 0, SEEK_END);
@@ -196,8 +187,7 @@ static bool jo_file_empty(const char *path)
 }
 
 // copy file 16k at a time
-static bool jo_file_copy(const char *src, const char *dst)
-{
+static bool jo_file_copy(const char *src, const char *dst) {
     FILE *fsrc = fopen(src, "rb");
     if(!fsrc) return false;
     FILE *fdst = fopen(dst, "wb");
@@ -215,8 +205,7 @@ static bool jo_file_copy(const char *src, const char *dst)
     return true;
 }
 
-static int jo_kbhit()
-{
+static int jo_kbhit() {
 #ifdef _WIN32
     return _kbhit();
 #else
@@ -231,8 +220,7 @@ static int jo_kbhit()
 #endif
 }
 
-static int jo_getch()
-{
+static int jo_getch() {
 #ifdef _WIN32
     return _getch();
 #else
@@ -250,8 +238,7 @@ static int jo_getch()
 
 #ifndef _WIN32
 #include <dirent.h>
-static bool jo_dir_exists(const char *path)
-{
+static bool jo_dir_exists(const char *path) {
     DIR *d = opendir(path);
     if(d) {
         closedir(d);
@@ -262,8 +249,7 @@ static bool jo_dir_exists(const char *path)
 #else
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-static bool jo_dir_exists(const char *path)
-{
+static bool jo_dir_exists(const char *path) {
     DWORD attrib = GetFileAttributes(path);
     return (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
@@ -272,8 +258,7 @@ static bool jo_dir_exists(const char *path)
 #endif
 
 // always adds a 0 terminator
-static void *jo_slurp_file(const char *path, size_t *size)
-{
+static void *jo_slurp_file(const char *path, size_t *size) {
     FILE *f = fopen(path, "rb");
     if(!f) return NULL;
     fseek(f, 0, SEEK_END);
@@ -295,8 +280,7 @@ static void *jo_slurp_file(const char *path, size_t *size)
     return data;
 }
 
-static char *jo_slurp_file(const char *path)
-{
+static char *jo_slurp_file(const char *path) {
     size_t size = 0;
     void *data = jo_slurp_file(path, &size);
     if(!data) return NULL;
@@ -305,8 +289,7 @@ static char *jo_slurp_file(const char *path)
     return str;
 }
 
-static int jo_spit_file(const char *path, const void *data, size_t size)
-{
+static int jo_spit_file(const char *path, const void *data, size_t size) {
     FILE *f = fopen(path, "wb");
     if(!f) return 1;
     size_t written = fwrite(data, 1, size, f);
@@ -314,37 +297,31 @@ static int jo_spit_file(const char *path, const void *data, size_t size)
     return written != size;
 }
 
-static int jo_spit_file(const char *path, const char *data)
-{
+static int jo_spit_file(const char *path, const char *data) {
     return jo_spit_file(path, data, strlen(data));
 }
 
-static int jo_tolower(int c)
-{
+static int jo_tolower(int c) {
     if(c >= 'A' && c <= 'Z') return c + 32;
     return c;
 }
 
-static int jo_toupper(int c)
-{
+static int jo_toupper(int c) {
     if(c >= 'a' && c <= 'z') return c - 32;
     return c;
 }
 
-static int jo_isspace(int c)
-{
+static int jo_isspace(int c) {
     return (c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r');
 }
 
-static int jo_isletter(int c)
-{
+static int jo_isletter(int c) {
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
 // returns a pointer to the last occurrence of needle in haystack
 // or NULL if needle is not found
-static const char *jo_strrstr(const char *haystack, const char *needle)
-{
+static const char *jo_strrstr(const char *haystack, const char *needle) {
     const char *h = haystack + strlen(haystack);
     const char *n = needle + strlen(needle);
     while(h > haystack) {
@@ -1766,9 +1743,9 @@ T *jo_upper_bound(T *begin, T *end, T &needle) {
 
 // std sort implementation using quicksort
 template<typename T, typename F>
-void jo_sort(T *array, size_t size, F cmp) {
+void jo_sort(T *array, int size, F cmp) {
     if(size <= 1) return;
-    size_t pivot = size / 2;
+    int pivot = size / 2;
     jo_swap(array[0], array[pivot]);
     int i = 1;
     for(int j = 1; j < size; j++) {
@@ -1784,21 +1761,14 @@ void jo_sort(T *array, size_t size, F cmp) {
 
 // std stable sort implementation using merge sort
 template<typename T, typename F>
-void jo_stable_sort(T *array, size_t size, size_t start, size_t end, F cmp) {
+void jo_stable_sort(T *array, int size, int start, int end, F cmp) {
     if(end - start <= 1) return;
-    size_t mid = (start + end) / 2;
+    int mid = (start + end) / 2;
     jo_stable_sort(array, size, start, mid, cmp);
     jo_stable_sort(array, size, mid, end, cmp);
 
-
-    // if size is <= 4k, use stack memory, otherwise use heap memory
-    T *tmp;
-    if(size <= 4096) {
-        tmp = (T*)jo_alloca(sizeof(T) * size);
-    } else {
-        tmp = (T*)malloc(sizeof(T) * size);
-    }
-    size_t i = start, j = mid, k = 0;
+    T *tmp = new T[end - start];
+    int i = start, j = mid, k = 0;
     while(i < mid && j < end) {
         if(cmp(array[i], array[j])) {
             tmp[k++] = array[i++];
@@ -1815,16 +1785,13 @@ void jo_stable_sort(T *array, size_t size, size_t start, size_t end, F cmp) {
     for(int l = 0; l < k; l++) {
         array[start + l] = tmp[l];
     }
-    if(size > 4096) {
-        free(tmp);
-    }
+    delete[] tmp;
 }
 
 template<typename T, typename F>
-void jo_stable_sort(T *array, size_t size, F cmp) {
+void jo_stable_sort(T *array, int size, F cmp) {
     jo_stable_sort(array, size, 0, size, cmp);
 }
-
 
 template<typename T> 
 struct jo_shared_ptr {
