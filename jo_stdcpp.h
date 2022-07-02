@@ -1111,22 +1111,23 @@ struct jo_stringstream {
 //inline void *operator new(size_t, void *p) { return p; }
 #endif
 
-template<typename T>
+template<typename T, int vec_static_size=8>
 struct jo_vector {
+    char static_data[vec_static_size*sizeof(T)];
     T *ptr;
     size_t ptr_size;
     size_t ptr_capacity;
 
     jo_vector() {
-        ptr = 0;
+        ptr = (T*)static_data;
         ptr_size = 0;
-        ptr_capacity = 0;
+        ptr_capacity = vec_static_size;
     }
 
     jo_vector(size_t n) {
-        ptr = 0;
+        ptr = (T*)static_data;
         ptr_size = 0;
-        ptr_capacity = 0;
+        ptr_capacity = vec_static_size;
         
         resize(n);
     }
@@ -1137,9 +1138,9 @@ struct jo_vector {
 
     // copy 
     jo_vector(const jo_vector &other) {
-        ptr = 0;
+        ptr = (T*)static_data;
         ptr_size = 0;
-        ptr_capacity = 0;
+        ptr_capacity = vec_static_size;
         resize(other.ptr_size);
         if(std::is_pod<T>::value) {
             jo_memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
@@ -1152,12 +1153,19 @@ struct jo_vector {
 
     // move 
     jo_vector(jo_vector &&other) {
-        ptr = other.ptr;
-        ptr_size = other.ptr_size;
-        ptr_capacity = other.ptr_capacity;
-        other.ptr = 0;
-        other.ptr_size = 0;
-        other.ptr_capacity = 0;
+        if(other.ptr == (T*)other.static_data) {
+            ptr = (T*)static_data;
+            ptr_size = other.ptr_size;
+            ptr_capacity = vec_static_size;
+            jo_memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
+        } else {
+            ptr = other.ptr;
+            ptr_size = other.ptr_size;
+            ptr_capacity = other.ptr_capacity;
+            other.ptr = (T*)other.static_data;
+            other.ptr_size = 0;
+            other.ptr_capacity = vec_static_size;
+        }
     }
 
     // assign
@@ -1176,12 +1184,19 @@ struct jo_vector {
     // move assign
     jo_vector &operator=(jo_vector &&other) {
         clear();
-        ptr = other.ptr;
-        ptr_size = other.ptr_size;
-        ptr_capacity = other.ptr_capacity;
-        other.ptr = 0;
-        other.ptr_size = 0;
-        other.ptr_capacity = 0;
+        if(other.ptr == (T*)other.static_data) {
+            ptr = (T*)static_data;
+            ptr_size = other.ptr_size;
+            ptr_capacity = vec_static_size;
+            jo_memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
+        } else {
+            ptr = other.ptr;
+            ptr_size = other.ptr_size;
+            ptr_capacity = other.ptr_capacity;
+            other.ptr = (T*)other.static_data;
+            other.ptr_size = 0;
+            other.ptr_capacity = vec_static_size;
+        }
         return *this;
     }
 
@@ -1195,12 +1210,6 @@ struct jo_vector {
 
     T *end() { return ptr + ptr_size; }
     const T *end() const { return ptr + ptr_size; }
-
-    T *rbegin() { return ptr + ptr_size - 1; }
-    const T *rbegin() const { return ptr + ptr_size - 1; }
-
-    T *rend() { return ptr - 1; }
-    const T *rend() const { return ptr - 1; }
 
     T &at(size_t i) { return ptr[i]; }
     const T &at(size_t i) const { return ptr[i]; }
@@ -1225,7 +1234,7 @@ struct jo_vector {
             if(ptr) {
                 jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
                 //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
-                free(ptr);
+                if(ptr != (T*)static_data) free(ptr);
             }
             ptr = newptr;
             ptr_capacity = n;
@@ -1240,14 +1249,14 @@ struct jo_vector {
         
         if ( n == 0 )
         {
-          if ( ptr ) free( ptr );
-          ptr = 0;
-          ptr_size = 0;
-          ptr_capacity = 0;
+          if(ptr != (T*)static_data) free( ptr );
+          ptr = (T*)static_data;
+          ptr_capacity = vec_static_size;
         }
 
         ptr_size = n;
     }
+
     void clear() { resize(0); }
 
     void insert(const T *where, const T *what, size_t how_many) {
@@ -1262,14 +1271,11 @@ struct jo_vector {
         if(n > ptr_capacity) {
             size_t new_capacity = n + n/2; // grow by 50%
             T *newptr = (T*)malloc(new_capacity*sizeof(T));
-            if(!newptr) {
-                // malloc failed!
-                return;
-            }
+            if(!newptr) return;
             if(ptr) {
                 jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
                 //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
-                free(ptr);
+                if(ptr != (T*)static_data) free(ptr);
             }
             ptr = newptr;
             ptr_capacity = new_capacity;
@@ -1306,14 +1312,10 @@ struct jo_vector {
     const T &front() const { return ptr[0]; }
 
     void shrink_to_fit() {
-        if(ptr_capacity == ptr_size) {
-            return;
-        }
+        if(ptr == (T*)static_data) return;
+        if(ptr_capacity == ptr_size) return;
         T *newptr = (T*)malloc(ptr_size*sizeof(T));
-        if(!newptr) {
-            // malloc failed!
-            return;
-        }
+        if(!newptr) return;
         jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
         //jo_memset(ptr, 0xFE, ptr_capacity*sizeof(T)); // DEBUG
         free(ptr);
@@ -1323,17 +1325,14 @@ struct jo_vector {
 
     // reserve
     void reserve(size_t n) {
+        if(n <= ptr_capacity) return;
         if(n > ptr_capacity) {
             T *newptr = (T*)malloc(n*sizeof(T));
-            if(!newptr) {
-                // malloc failed!
-                return;
-            }
-
+            if(!newptr) return;
             if(ptr) {
                 jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
                 //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
-                free(ptr);
+                if(ptr != (T*)static_data) free(ptr);
             }
             ptr = newptr;
             ptr_capacity = n;
@@ -1942,7 +1941,7 @@ struct jo_hash_map {
     typedef jo_tuple<K, V, bool> entry_t;
 
     // vec is used to store the keys and values
-    jo_vector<entry_t> vec;
+    jo_vector<entry_t, 32> vec;
     // number of entries actually in the hash table
     size_t length;
 
@@ -1958,7 +1957,7 @@ struct jo_hash_map {
     bool empty() const { return !length; }
 
     void clear() {
-        vec = std::move(jo_vector<entry_t>(32));
+        vec = std::move(jo_vector<entry_t,32>(32));
         length = 0;
     }
 
@@ -1999,7 +1998,7 @@ struct jo_hash_map {
     iterator begin() const  { return length ? iterator(vec.begin(), vec.end()) : iterator(); }
 
     void resize(size_t new_size) {
-        jo_vector<entry_t> nv(new_size);
+        jo_vector<entry_t,32> nv(new_size);
         for(iterator it = begin(); it; ++it) {
             auto &entry = *it;
             int index = jo_hash_value(entry.first) % new_size;
