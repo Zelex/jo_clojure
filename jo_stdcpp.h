@@ -1242,8 +1242,12 @@ struct jo_vector {
 
         if(n > ptr_size) {
             // in-place new on new data after moving memory to new location
-            for(size_t i = ptr_size; i < n; ++i) {
-                new(ptr+i) T(); // default c-tor
+            if(std::is_pod<T>::value) {
+                //jo_memset(ptr + ptr_size, 0, (n - ptr_size)*sizeof(T));
+            } else {
+                for(size_t i = ptr_size; i < n; ++i) {
+                    new (&ptr[i]) T;
+                }
             }
         }
         
@@ -1283,8 +1287,12 @@ struct jo_vector {
 
         // simple case... add to end of array.
         if(where == ptr+ptr_size || where == 0) {
-            for(size_t i = ptr_size; i < n; ++i) {
-                new(ptr+i) T(what[i - ptr_size]);
+            if(std::is_pod<T>::value) {
+                jo_memcpy(ptr+ptr_size, what, how_many*sizeof(T));
+            } else {
+                for(size_t i = ptr_size; i < n; ++i) {
+                    new(ptr+i) T(what[i - ptr_size]);
+                }
             }
             ptr_size = n;
             return;
@@ -1292,8 +1300,12 @@ struct jo_vector {
 
         // insert begin/middle means we need to move the data past where to the right, and insert how_many there...
         jo_memmove(ptr + where_at + how_many, ptr + where_at, sizeof(T)*(ptr_size - where_at));
+        if(std::is_pod<T>::value) {
+            jo_memcpy(ptr + where_at, what, how_many*sizeof(T));
+        } else {
         for(size_t i = where_at; i < where_at + how_many; ++i) {
-            new(ptr+i) T(what[i - where_at]);
+                new(ptr+i) T(what[i - where_at]);
+            }
         }
         ptr_size = n;
     }
