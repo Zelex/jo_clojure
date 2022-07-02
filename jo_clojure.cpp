@@ -29,6 +29,7 @@ static std::atomic<size_t> thread_uid(0);
 static thread_local size_t thread_id = thread_uid.fetch_add(1, std::memory_order_relaxed);
 
 #include "debugbreak.h"
+#include "pdqsort.h"
 #include "jo_stdcpp.h"
 #include "jo_clojure_persistent.h"
 
@@ -286,7 +287,7 @@ struct transaction_t {
 			tx_list[tx_list_size++] = tx.get();
 		}
 
-		std::sort(tx_list, tx_list + tx_list_size, [](const tx_map_t::entry_t *a, const tx_map_t::entry_t *b) {
+		pdqsort(tx_list, tx_list + tx_list_size, [](const tx_map_t::entry_t *a, const tx_map_t::entry_t *b) {
 			return a->first < b->first;
 		});
 
@@ -6036,13 +6037,12 @@ static node_idx_t native_sort(env_ptr_t env, list_ptr_t args) {
 		vec.push_back(idx);
 		return true;
 	});
-	// std::stable_sort the vector
 	if(args->size() == 1) {
-		std::stable_sort(vec.begin(), vec.end(), [](node_idx_t a, node_idx_t b) {
+		jo_stable_sort(vec.begin(), vec.size(), [](node_idx_t a, node_idx_t b) {
 			return node_lt(a, b);
 		});
 	} else {
-		std::stable_sort(vec.begin(), vec.end(), [env,comp](node_idx_t a, node_idx_t b) {
+		jo_stable_sort(vec.begin(), vec.size(), [env,comp](node_idx_t a, node_idx_t b) {
 			return get_node_bool(eval_va(env, comp, a, b));
 		});
 	}
@@ -6077,13 +6077,12 @@ static node_idx_t native_sort_by(env_ptr_t env, list_ptr_t args) {
 		vec.push_back(jo_make_pair(idx, eval_va(env, keyfn, idx)));
 		return true;
 	});
-	// std::stable_sort the vector
 	if(args->size() == 2) {
-		std::stable_sort(vec.begin(), vec.end(), [](const elem_t &a, const elem_t &b) {
+		pdqsort(vec.begin(), vec.end(), [](const elem_t &a, const elem_t &b) {
 			return node_lt(a.second, b.second);
 		});
 	} else {
-		std::stable_sort(vec.begin(), vec.end(), [env,comp](const elem_t &a, const elem_t &b) {
+		pdqsort(vec.begin(), vec.end(), [env,comp](const elem_t &a, const elem_t &b) {
 			return get_node_bool(eval_va(env, comp, a.second, b.second));
 		});
 	}

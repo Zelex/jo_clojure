@@ -78,6 +78,8 @@
 #define jo_expect(expr, val) expr
 #endif
 
+// jo_
+
 template<typename T1, typename T2> static constexpr inline T1 jo_min(T1 a, T2 b) { return a < b ? a : b; }
 template<typename T1, typename T2> static constexpr inline T1 jo_max(T1 a, T2 b) { return a > b ? a : b; }
 
@@ -1763,73 +1765,66 @@ T *jo_upper_bound(T *begin, T *end, T &needle) {
 }
 
 // std sort implementation using quicksort
-template<typename T>
-struct jo_sort {
-    static void sort(T *array, int size) {
-        if(size <= 1) return;
-        int pivot = size / 2;
-        jo_swap(array[0], array[pivot]);
-        int i = 1;
-        for(int j = 1; j < size; j++) {
-            if(array[j] < array[0]) {
-                jo_swap(array[i], array[j]);
-                i++;
-            }
+template<typename T, typename F>
+void jo_sort(T *array, size_t size, F cmp) {
+    if(size <= 1) return;
+    size_t pivot = size / 2;
+    jo_swap(array[0], array[pivot]);
+    int i = 1;
+    for(int j = 1; j < size; j++) {
+        if(cmp(array[j], array[0])) {
+            jo_swap(array[i], array[j]);
+            i++;
         }
-        jo_swap(array[0], array[i - 1]);
-        sort(array, i - 1);
-        sort(array + i, size - i);
     }
-};
+    jo_swap(array[0], array[i - 1]);
+    jo_sort(array, i - 1, cmp);
+    jo_sort(array + i, size - i, cmp);
+}
 
 // std stable sort implementation using merge sort
-template<typename T>
-struct jo_stable_sort {
-    static void merge(T *array, int size, int start, int mid, int end) {
-        T *tmp = new T[end - start];
-        int i = start, j = mid, k = 0;
-        while(i < mid && j < end) {
-            if(array[i] < array[j]) {
-                tmp[k++] = array[i++];
-            } else {
-                tmp[k++] = array[j++];
-            }
-        }
-        while(i < mid) {
+template<typename T, typename F>
+void jo_stable_sort(T *array, size_t size, size_t start, size_t end, F cmp) {
+    if(end - start <= 1) return;
+    size_t mid = (start + end) / 2;
+    jo_stable_sort(array, size, start, mid, cmp);
+    jo_stable_sort(array, size, mid, end, cmp);
+
+
+    // if size is <= 4k, use stack memory, otherwise use heap memory
+    T *tmp;
+    if(size <= 4096) {
+        tmp = (T*)jo_alloca(sizeof(T) * size);
+    } else {
+        tmp = (T*)malloc(sizeof(T) * size);
+    }
+    size_t i = start, j = mid, k = 0;
+    while(i < mid && j < end) {
+        if(cmp(array[i], array[j])) {
             tmp[k++] = array[i++];
-        }
-        while(j < end) {
+        } else {
             tmp[k++] = array[j++];
         }
-        for(int l = 0; l < k; l++) {
-            array[start + l] = tmp[l];
-        }
-        delete[] tmp;
     }
+    while(i < mid) {
+        tmp[k++] = array[i++];
+    }
+    while(j < end) {
+        tmp[k++] = array[j++];
+    }
+    for(int l = 0; l < k; l++) {
+        array[start + l] = tmp[l];
+    }
+    if(size > 4096) {
+        free(tmp);
+    }
+}
 
-    static void sort(T *array, int size, int start, int end) {
-        if(end - start <= 1) return;
-        int mid = (start + end) / 2;
-        sort(array, size, start, mid);
-        sort(array, size, mid, end);
-        merge(array, size, start, mid, end);
-    }
+template<typename T, typename F>
+void jo_stable_sort(T *array, size_t size, F cmp) {
+    jo_stable_sort(array, size, 0, size, cmp);
+}
 
-    static void sort(T *array, int size) {
-        sort(array, size, 0, size);
-    }
-
-    static void merge(T *array, int size, int start, int end) {
-        if(end - start <= 1) return;
-        int mid = (start + end) / 2;
-        merge(array, size, start, mid, end);
-        merge(array, size, mid, end);
-    }
-
-    static void merge(T *array, int size) {
-        merge(array, size, 0, size);
-    }
-};
 
 template<typename T> 
 struct jo_shared_ptr {
