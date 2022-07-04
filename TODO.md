@@ -302,7 +302,6 @@ transduce
 transient
 tree-seq
 try
-type
 unchecked-byte
 unchecked-char
 unchecked-double
@@ -324,7 +323,6 @@ volatile!
 volatile?
 vreset!
 vswap!
-when-first
 with-bindings
 with-bindings*
 with-in-str

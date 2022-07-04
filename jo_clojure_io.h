@@ -40,7 +40,7 @@ static node_idx_t native_io_slurp(env_ptr_t env, list_ptr_t args) {
 	// TODO: HTTP/HTTPS!
     jo_string path = get_node_string(args->first_value());
     char *c = (char*)jo_slurp_file(path.c_str());
-    node_idx_t ret = new_node_string(c);
+    node_idx_t ret = new_node_string(c?c:"");
     free(c);
     return ret;
 }

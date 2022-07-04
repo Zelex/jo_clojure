@@ -28,10 +28,7 @@
 #define JO_STDCPP
 #pragma once
 
-// Not in any way intended to be fastest implementation, just simple bare minimum we need to compile tinyexr
-
 #include <string.h>
-//#include <malloc.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -39,6 +36,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 #ifdef _WIN32
 #include <conio.h>
@@ -55,15 +54,27 @@
 #include <mach/mach_time.h>
 #include <unistd.h>
 #include <termios.h>
-#define jo_strdup strdup
-#define jo_chdir chdir
-#define jo_alloca alloca
 #else
 #include <unistd.h>
 #include <termios.h>
+#endif
+
+// if clang or GCC
+#if defined(__clang__) || defined(__GNUC__)
 #define jo_strdup strdup
 #define jo_chdir chdir
-#define jo_alloca alloca
+#define jo_alloca __builtin_alloca
+#define jo_memcpy __builtin_memcpy
+#define jo_memmove __builtin_memmove
+#define jo_memset __builtin_memset
+#define jo_assume __builtin_assume
+#define jo_expect __builtin_expect
+#else
+#define jo_memcpy memcpy
+#define jo_memmove memmove
+#define jo_memset memset
+#define jo_assume sizeof
+#define jo_expect(expr, val) expr
 #endif
 
 template<typename T1, typename T2> static constexpr inline T1 jo_min(T1 a, T2 b) { return a < b ? a : b; }
@@ -106,8 +117,7 @@ static const char *va(const char *fmt, ...) {
 }
 
 #ifdef _WIN32
-static int jo_setenv(const char *name, const char *value, int overwrite)
-{
+static int jo_setenv(const char *name, const char *value, int overwrite) {
     int errcode = 0;
     if(!overwrite) {
         size_t envsize = 0;
@@ -120,8 +130,7 @@ static int jo_setenv(const char *name, const char *value, int overwrite)
 #define jo_setenv setenv
 #endif
 
-static bool jo_file_exists(const char *path)
-{
+static bool jo_file_exists(const char *path) {
     FILE *f = fopen(path, "r");
     if(f) {
         fclose(f);
@@ -130,8 +139,7 @@ static bool jo_file_exists(const char *path)
     return false;
 }
 
-static size_t jo_file_size(const char *path)
-{
+static size_t jo_file_size(const char *path) {
     FILE *f = fopen(path, "r");
     if(!f) return 0;
     fseek(f, 0, SEEK_END);
@@ -140,8 +148,7 @@ static size_t jo_file_size(const char *path)
     return size;
 }
 
-static bool jo_file_readable(const char *path)
-{
+static bool jo_file_readable(const char *path) {
     FILE *f = fopen(path, "r");
     if(!f) return false;
     fclose(f);
@@ -149,8 +156,7 @@ static bool jo_file_readable(const char *path)
 }
 
 // tests to see if it can write to a file without truncating it
-static bool jo_file_writable(const char *path)
-{
+static bool jo_file_writable(const char *path) {
     FILE *f = fopen(path, "r+");
     if(!f) return false;
     fclose(f);
@@ -158,8 +164,7 @@ static bool jo_file_writable(const char *path)
 }
 
 // checks to see if file can be executed (cross-platform)
-static bool jo_file_executable(const char *path)
-{
+static bool jo_file_executable(const char *path) {
 #ifdef _WIN32
     // check stat to see if it has executable bit set
     struct _stat s;
@@ -171,8 +176,7 @@ static bool jo_file_executable(const char *path)
 #endif
 }
 
-static bool jo_file_empty(const char *path)
-{
+static bool jo_file_empty(const char *path) {
     FILE *f = fopen(path, "r");
     if(!f) return true;
     fseek(f, 0, SEEK_END);
@@ -182,8 +186,7 @@ static bool jo_file_empty(const char *path)
 }
 
 // copy file 16k at a time
-static bool jo_file_copy(const char *src, const char *dst)
-{
+static bool jo_file_copy(const char *src, const char *dst) {
     FILE *fsrc = fopen(src, "rb");
     if(!fsrc) return false;
     FILE *fdst = fopen(dst, "wb");
@@ -201,8 +204,7 @@ static bool jo_file_copy(const char *src, const char *dst)
     return true;
 }
 
-static int jo_kbhit()
-{
+static int jo_kbhit() {
 #ifdef _WIN32
     return _kbhit();
 #else
@@ -217,8 +219,7 @@ static int jo_kbhit()
 #endif
 }
 
-static int jo_getch()
-{
+static int jo_getch() {
 #ifdef _WIN32
     return _getch();
 #else
@@ -236,8 +237,7 @@ static int jo_getch()
 
 #ifndef _WIN32
 #include <dirent.h>
-static bool jo_dir_exists(const char *path)
-{
+static bool jo_dir_exists(const char *path) {
     DIR *d = opendir(path);
     if(d) {
         closedir(d);
@@ -248,8 +248,7 @@ static bool jo_dir_exists(const char *path)
 #else
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-static bool jo_dir_exists(const char *path)
-{
+static bool jo_dir_exists(const char *path) {
     DWORD attrib = GetFileAttributes(path);
     return (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
@@ -258,8 +257,7 @@ static bool jo_dir_exists(const char *path)
 #endif
 
 // always adds a 0 terminator
-static void *jo_slurp_file(const char *path, size_t *size)
-{
+static void *jo_slurp_file(const char *path, size_t *size) {
     FILE *f = fopen(path, "rb");
     if(!f) return NULL;
     fseek(f, 0, SEEK_END);
@@ -281,8 +279,7 @@ static void *jo_slurp_file(const char *path, size_t *size)
     return data;
 }
 
-static char *jo_slurp_file(const char *path)
-{
+static char *jo_slurp_file(const char *path) {
     size_t size = 0;
     void *data = jo_slurp_file(path, &size);
     if(!data) return NULL;
@@ -291,8 +288,7 @@ static char *jo_slurp_file(const char *path)
     return str;
 }
 
-static int jo_spit_file(const char *path, const void *data, size_t size)
-{
+static int jo_spit_file(const char *path, const void *data, size_t size) {
     FILE *f = fopen(path, "wb");
     if(!f) return 1;
     size_t written = fwrite(data, 1, size, f);
@@ -300,37 +296,31 @@ static int jo_spit_file(const char *path, const void *data, size_t size)
     return written != size;
 }
 
-static int jo_spit_file(const char *path, const char *data)
-{
+static int jo_spit_file(const char *path, const char *data) {
     return jo_spit_file(path, data, strlen(data));
 }
 
-static int jo_tolower(int c)
-{
+static int jo_tolower(int c) {
     if(c >= 'A' && c <= 'Z') return c + 32;
     return c;
 }
 
-static int jo_toupper(int c)
-{
+static int jo_toupper(int c) {
     if(c >= 'a' && c <= 'z') return c - 32;
     return c;
 }
 
-static int jo_isspace(int c)
-{
+static int jo_isspace(int c) {
     return (c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r');
 }
 
-static int jo_isletter(int c)
-{
+static int jo_isletter(int c) {
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
 // returns a pointer to the last occurrence of needle in haystack
 // or NULL if needle is not found
-static const char *jo_strrstr(const char *haystack, const char *needle)
-{
+static const char *jo_strrstr(const char *haystack, const char *needle) {
     const char *h = haystack + strlen(haystack);
     const char *n = needle + strlen(needle);
     while(h > haystack) {
@@ -345,10 +335,6 @@ static const char *jo_strrstr(const char *haystack, const char *needle)
 
 // returns in floating point seconds
 static inline double jo_time() {
-    // c++11 monotonic
-    //return std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now().time_since_epoch()).count();
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() / 1000000000.0;
-    /*
 #if defined(__APPLE__)
     static mach_timebase_info_data_t sTimebaseInfo;
     if (sTimebaseInfo.denom == 0) {
@@ -370,7 +356,6 @@ static inline double jo_time() {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 #endif
-*/
 }
 
 void jo_sleep(double seconds) {
@@ -527,25 +512,6 @@ template<> struct jo_numeric_limits<int> {
 #define jo_endl ("\n")
 #define jo_npos ((size_t)(-1))
 
-template <class F> struct lambda_traits : lambda_traits<decltype(&F::operator())> { };
-template <typename F, typename R, typename... Args>
-struct lambda_traits<R(F::*)(Args...)> : lambda_traits<R(F::*)(Args...) const> { };
-template <class F, class R, class... Args>
-struct lambda_traits<R(F::*)(Args...) const> {
-    using pointer = typename std::add_pointer<R(Args...)>::type;
-    static pointer jo_cify(F&& f) {
-        static F fn = std::forward<F>(f);
-        return [](Args... args) {
-            return fn(std::forward<Args>(args)...);
-        };
-    }
-};
-
-template <class F>
-inline typename lambda_traits<F>::pointer jo_cify(F&& f) {
-    return lambda_traits<F>::jo_cify(std::forward<F>(f));
-}
-
 // jo_pair is a simple pair of values
 template<typename T1, typename T2>
 struct jo_pair {
@@ -570,19 +536,19 @@ inline jo_pair<T1, T2> jo_make_pair(const T1 &a, const T2 &b) {
     return jo_pair<T1, T2>(a, b);
 }
 
-// jo_triple
+// jo_tuple
 template<typename T1, typename T2, typename T3>
-struct jo_triple {
+struct jo_tuple {
     T1 first;
     T2 second;
     T3 third;
 
-    jo_triple() : first(), second(), third() {}
-    jo_triple(const T1 &a, const T2 &b, const T3 &c) : first(a), second(b), third(c) {}
+    jo_tuple() : first(), second(), third() {}
+    jo_tuple(const T1 &a, const T2 &b, const T3 &c) : first(a), second(b), third(c) {}
 
-    bool operator==(const jo_triple<T1, T2, T3> &other) const { return first == other.first && second == other.second && third == other.third; }
-    bool operator!=(const jo_triple<T1, T2, T3> &other) const { return !(*this == other); }
-    bool operator<(const jo_triple<T1, T2, T3> &other) const {
+    bool operator==(const jo_tuple<T1, T2, T3> &other) const { return first == other.first && second == other.second && third == other.third; }
+    bool operator!=(const jo_tuple<T1, T2, T3> &other) const { return !(*this == other); }
+    bool operator<(const jo_tuple<T1, T2, T3> &other) const {
         if(first < other.first) return true;
         if(first > other.first) return false;
         if(second < other.second) return true;
@@ -690,13 +656,13 @@ struct jo_string {
     }
     jo_string(const char *a, size_t size) {
         str = (char*)malloc(size+1);
-        memcpy(str, a, size);
+        jo_memcpy(str, a, size);
         str[size] = 0;
     }
     jo_string(const char *a, const char *b) {
         ptrdiff_t size = b - a;
         str = (char*)malloc(size+1);
-        memcpy(str, a, size);
+        jo_memcpy(str, a, size);
         str[size] = 0;
     }
 
@@ -733,7 +699,7 @@ struct jo_string {
             return *this;
         }
         str = new_str;
-        memcpy(str+l0, s, l1);
+        jo_memcpy(str+l0, s, l1);
         str[l0+l1] = 0;
         return *this;
     }
@@ -777,7 +743,7 @@ struct jo_string {
             str[n] = 0;
             return *this;
         }
-        memmove(str+n, str+m, l-m+1);
+        jo_memmove(str+n, str+m, l-m+1);
         return *this;
     }
 
@@ -790,8 +756,8 @@ struct jo_string {
             return *this;
         }
         str = new_str;
-        memmove(str+n+l1, str+n, l0-n+1);
-        memcpy(str+n, s, l1);
+        jo_memmove(str+n+l1, str+n, l0-n+1);
+        jo_memcpy(str+n, s, l1);
         return *this;
     }
 
@@ -941,7 +907,7 @@ struct jo_string {
                 // malloc failed!
                 return *this;
             }
-            memcpy(tmp, str+start, end-start+1);
+            jo_memcpy(tmp, str+start, end-start+1);
             tmp[end-start+1] = 0;
             free(str);
             str = tmp;
@@ -960,7 +926,7 @@ struct jo_string {
                 // malloc failed!
                 return *this;
             }
-            memcpy(tmp, str+start, size()-start);
+            jo_memcpy(tmp, str+start, size()-start);
             tmp[size()-start] = 0;
             free(str);
             str = tmp;
@@ -979,7 +945,7 @@ struct jo_string {
                 // malloc failed!
                 return *this;
             }
-            memcpy(tmp, str, end+1);
+            jo_memcpy(tmp, str, end+1);
             tmp[end+1] = 0;
             free(str);
             str = tmp;
@@ -1032,7 +998,7 @@ struct jo_string {
             // malloc failed!
             return *this;
         }
-        memcpy(tmp, str, n);
+        jo_memcpy(tmp, str, n);
         tmp[n] = 0;
         free(str);
         str = tmp;
@@ -1049,7 +1015,7 @@ struct jo_string {
             // malloc failed!
             return *this;
         }
-        memcpy(tmp, str+n, l-n);
+        jo_memcpy(tmp, str+n, l-n);
         tmp[l-n] = 0;
         free(str);
         str = tmp;
@@ -1144,22 +1110,23 @@ struct jo_stringstream {
 //inline void *operator new(size_t, void *p) { return p; }
 #endif
 
-template<typename T>
+template<typename T, int vec_static_size=8>
 struct jo_vector {
+    char static_data[vec_static_size*sizeof(T)];
     T *ptr;
     size_t ptr_size;
     size_t ptr_capacity;
 
     jo_vector() {
-        ptr = 0;
+        ptr = (T*)static_data;
         ptr_size = 0;
-        ptr_capacity = 0;
+        ptr_capacity = vec_static_size;
     }
 
     jo_vector(size_t n) {
-        ptr = 0;
+        ptr = (T*)static_data;
         ptr_size = 0;
-        ptr_capacity = 0;
+        ptr_capacity = vec_static_size;
         
         resize(n);
     }
@@ -1170,12 +1137,12 @@ struct jo_vector {
 
     // copy 
     jo_vector(const jo_vector &other) {
-        ptr = 0;
+        ptr = (T*)static_data;
         ptr_size = 0;
-        ptr_capacity = 0;
+        ptr_capacity = vec_static_size;
         resize(other.ptr_size);
         if(std::is_pod<T>::value) {
-            memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
+            jo_memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
         } else {
             for(size_t i=0; i<other.ptr_size; i++) {
                 ptr[i] = other.ptr[i];
@@ -1185,19 +1152,26 @@ struct jo_vector {
 
     // move 
     jo_vector(jo_vector &&other) {
-        ptr = other.ptr;
-        ptr_size = other.ptr_size;
-        ptr_capacity = other.ptr_capacity;
-        other.ptr = 0;
-        other.ptr_size = 0;
-        other.ptr_capacity = 0;
+        if(other.ptr == (T*)other.static_data) {
+            ptr = (T*)static_data;
+            ptr_size = other.ptr_size;
+            ptr_capacity = vec_static_size;
+            jo_memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
+        } else {
+            ptr = other.ptr;
+            ptr_size = other.ptr_size;
+            ptr_capacity = other.ptr_capacity;
+            other.ptr = (T*)other.static_data;
+            other.ptr_size = 0;
+            other.ptr_capacity = vec_static_size;
+        }
     }
 
     // assign
     jo_vector &operator=(const jo_vector &other) {
         resize(other.ptr_size);
         if(std::is_pod<T>::value) {
-            memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
+            jo_memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
         } else {
             for(size_t i=0; i<other.ptr_size; i++) {
                 ptr[i] = other.ptr[i];
@@ -1209,12 +1183,19 @@ struct jo_vector {
     // move assign
     jo_vector &operator=(jo_vector &&other) {
         clear();
-        ptr = other.ptr;
-        ptr_size = other.ptr_size;
-        ptr_capacity = other.ptr_capacity;
-        other.ptr = 0;
-        other.ptr_size = 0;
-        other.ptr_capacity = 0;
+        if(other.ptr == (T*)other.static_data) {
+            ptr = (T*)static_data;
+            ptr_size = other.ptr_size;
+            ptr_capacity = vec_static_size;
+            jo_memcpy(ptr, other.ptr, other.ptr_size*sizeof(T));
+        } else {
+            ptr = other.ptr;
+            ptr_size = other.ptr_size;
+            ptr_capacity = other.ptr_capacity;
+            other.ptr = (T*)other.static_data;
+            other.ptr_size = 0;
+            other.ptr_capacity = vec_static_size;
+        }
         return *this;
     }
 
@@ -1228,12 +1209,6 @@ struct jo_vector {
 
     T *end() { return ptr + ptr_size; }
     const T *end() const { return ptr + ptr_size; }
-
-    T *rbegin() { return ptr + ptr_size - 1; }
-    const T *rbegin() const { return ptr + ptr_size - 1; }
-
-    T *rend() { return ptr - 1; }
-    const T *rend() const { return ptr - 1; }
 
     T &at(size_t i) { return ptr[i]; }
     const T &at(size_t i) const { return ptr[i]; }
@@ -1256,9 +1231,9 @@ struct jo_vector {
                 return;
             }
             if(ptr) {
-                memcpy(newptr, ptr, ptr_size*sizeof(T));
-                //memset(ptr, 0xFE, ptr_size*sizeof(T));
-                free(ptr);
+                jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
+                //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
+                if(ptr != (T*)static_data) free(ptr);
             }
             ptr = newptr;
             ptr_capacity = n;
@@ -1266,21 +1241,25 @@ struct jo_vector {
 
         if(n > ptr_size) {
             // in-place new on new data after moving memory to new location
-            for(size_t i = ptr_size; i < n; ++i) {
-                new(ptr+i) T(); // default c-tor
+            if(std::is_pod<T>::value) {
+                //jo_memset(ptr + ptr_size, 0, (n - ptr_size)*sizeof(T));
+            } else {
+                for(size_t i = ptr_size; i < n; ++i) {
+                    new (&ptr[i]) T;
+                }
             }
         }
         
         if ( n == 0 )
         {
-          if ( ptr ) free( ptr );
-          ptr = 0;
-          ptr_size = 0;
-          ptr_capacity = 0;
+          if(ptr != (T*)static_data) free( ptr );
+          ptr = (T*)static_data;
+          ptr_capacity = vec_static_size;
         }
 
         ptr_size = n;
     }
+
     void clear() { resize(0); }
 
     void insert(const T *where, const T *what, size_t how_many) {
@@ -1295,14 +1274,11 @@ struct jo_vector {
         if(n > ptr_capacity) {
             size_t new_capacity = n + n/2; // grow by 50%
             T *newptr = (T*)malloc(new_capacity*sizeof(T));
-            if(!newptr) {
-                // malloc failed!
-                return;
-            }
+            if(!newptr) return;
             if(ptr) {
-                memcpy(newptr, ptr, ptr_size*sizeof(T));
-                //memset(ptr, 0xFE, ptr_size*sizeof(T));
-                free(ptr);
+                jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
+                //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
+                if(ptr != (T*)static_data) free(ptr);
             }
             ptr = newptr;
             ptr_capacity = new_capacity;
@@ -1310,17 +1286,25 @@ struct jo_vector {
 
         // simple case... add to end of array.
         if(where == ptr+ptr_size || where == 0) {
-            for(size_t i = ptr_size; i < n; ++i) {
-                new(ptr+i) T(what[i - ptr_size]);
+            if(std::is_pod<T>::value) {
+                jo_memcpy(ptr+ptr_size, what, how_many*sizeof(T));
+            } else {
+                for(size_t i = ptr_size; i < n; ++i) {
+                    new(ptr+i) T(what[i - ptr_size]);
+                }
             }
             ptr_size = n;
             return;
         }
 
         // insert begin/middle means we need to move the data past where to the right, and insert how_many there...
-        memmove(ptr + where_at + how_many, ptr + where_at, sizeof(T)*(ptr_size - where_at));
+        jo_memmove(ptr + where_at + how_many, ptr + where_at, sizeof(T)*(ptr_size - where_at));
+        if(std::is_pod<T>::value) {
+            jo_memcpy(ptr + where_at, what, how_many*sizeof(T));
+        } else {
         for(size_t i = where_at; i < where_at + how_many; ++i) {
-            new(ptr+i) T(what[i - where_at]);
+                new(ptr+i) T(what[i - where_at]);
+            }
         }
         ptr_size = n;
     }
@@ -1329,7 +1313,43 @@ struct jo_vector {
         insert(where, what_begin, (size_t)(what_end - what_begin));
     }
 
-    void push_back(const T& val) { insert(end(), &val, 1); }
+    void push_back(const T &val) { 
+        size_t n = ptr_size + 1;
+        if(n > ptr_capacity) {
+            size_t new_capacity = n + n/2; // grow by 50%
+            T *newptr = (T*)malloc(new_capacity*sizeof(T));
+            if(!newptr) return;
+            if(ptr) {
+                jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
+                //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
+                if(ptr != (T*)static_data) free(ptr);
+            }
+            ptr = newptr;
+            ptr_capacity = new_capacity;
+        }
+        
+        new(ptr+ptr_size) T(val);
+        ptr_size = n;
+    }
+
+    void emplace_back(T &&val) { 
+        size_t n = ptr_size + 1;
+        if(n > ptr_capacity) {
+            size_t new_capacity = n + n/2; // grow by 50%
+            T *newptr = (T*)malloc(new_capacity*sizeof(T));
+            if(!newptr) return;
+            if(ptr) {
+                jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
+                //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
+                if(ptr != (T*)static_data) free(ptr);
+            }
+            ptr = newptr;
+            ptr_capacity = new_capacity;
+        }
+        
+        new(ptr+ptr_size) T(std::move(val));
+        ptr_size = n;
+    }
     void push_front(const T& val) { insert(begin(), &val, 1); }
     T pop_back() { T ret = ptr[ptr_size-1]; resize(ptr_size-1); return ret; }
     T &back() { return ptr[ptr_size-1]; }
@@ -1339,16 +1359,12 @@ struct jo_vector {
     const T &front() const { return ptr[0]; }
 
     void shrink_to_fit() {
-        if(ptr_capacity == ptr_size) {
-            return;
-        }
+        if(ptr == (T*)static_data) return;
+        if(ptr_capacity == ptr_size) return;
         T *newptr = (T*)malloc(ptr_size*sizeof(T));
-        if(!newptr) {
-            // malloc failed!
-            return;
-        }
-        memcpy(newptr, ptr, ptr_size*sizeof(T));
-        //memset(ptr, 0xFE, ptr_capacity*sizeof(T)); // DEBUG
+        if(!newptr) return;
+        jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
+        //jo_memset(ptr, 0xFE, ptr_capacity*sizeof(T)); // DEBUG
         free(ptr);
         ptr = newptr;
         ptr_capacity = ptr_size;
@@ -1356,17 +1372,14 @@ struct jo_vector {
 
     // reserve
     void reserve(size_t n) {
+        if(n <= ptr_capacity) return;
         if(n > ptr_capacity) {
             T *newptr = (T*)malloc(n*sizeof(T));
-            if(!newptr) {
-                // malloc failed!
-                return;
-            }
-
+            if(!newptr) return;
             if(ptr) {
-                memcpy(newptr, ptr, ptr_size*sizeof(T));
-                //memset(ptr, 0xFE, ptr_size*sizeof(T));
-                free(ptr);
+                jo_memcpy(newptr, ptr, ptr_size*sizeof(T));
+                //jo_memset(ptr, 0xFE, ptr_size*sizeof(T));
+                if(ptr != (T*)static_data) free(ptr);
             }
             ptr = newptr;
             ptr_capacity = n;
@@ -1533,7 +1546,7 @@ struct jo_pinned_vector {
             }
         }
         if(std::is_pod<T>::value) {
-            memcpy(buckets[top] + bottom, &val, sizeof(T));
+            jo_memcpy(buckets[top] + bottom, &val, sizeof(T));
         } else {
             new(buckets[top] + bottom) T(val);
         }
@@ -1774,322 +1787,57 @@ T *jo_upper_bound(T *begin, T *end, T &needle) {
     return begin + first;
 }
 
-// Maintains a linked list of blocks of objects which can be allocated from
-// and deallocated to.
-// Allocates single objects from blocks of 32 objects. Only frees memory when an entire block is free.
-template<typename T>
-struct jo_pool_alloc {
-    struct block_item {
-        // This points to the current block, can be looked up on deallocate
-        struct block *b;
-        T t;
-    };
-    struct block {
-        block *next;
-        block *prev;
-        block_item items[32];
-        int count;
-    };
-
-    block *first;
-    block *last;
-    size_t count;
-    size_t capacity;
-    jo_mutex mutex;
-
-    jo_pool_alloc() : first(0), last(0), count(0), capacity(0), mutex() {}
-
-    ~jo_pool_alloc() {
-        jo_lock_guard lock(mutex);
-        block *ptr = first;
-        while(ptr) {
-            block *next = ptr->next;
-            free(ptr);
-            ptr = next;
-        }
-    }
-
-    T *allocate() {
-        jo_lock_guard lock(mutex);
-        if(!first) {
-            first = (block *)malloc(sizeof(block));
-            first->next = 0;
-            first->prev = 0;
-            first->count = 0;
-            last = first;
-            capacity = 32;
-        }
-        if(last->count == 32) {
-            last->next = (block *)malloc(sizeof(block));
-            last->next->prev = last;
-            last->next->next = 0;
-            last->next->count = 0;
-            last = last->next;
-            capacity += 32;
-        }
-        last->items[last->count].b = last;
-        T *ptr = &last->items[last->count].t;
-        last->count++;
-        count++;
-        return ptr;
-    }
-
-    void deallocate(T *ptr) {
-        jo_lock_guard lock(mutex);
-        block_item *item = (block_item *)(ptr - offsetof(block_item, t));
-        block *b = item->b;
-        b->count--;
-        count--;
-        if(b->count == 0) {
-            if(b->prev) {
-                b->prev->next = b->next;
-            } else {
-                first = b->next;
-            }
-            if(b->next) {
-                b->next->prev = b->prev;
-            } else {
-                last = b->prev;
-            }
-            free(b);
-            capacity -= 32;
-        }
-    }
-
-    size_t size() {
-        return count;
-    }
-
-    void clear() {
-        jo_lock_guard lock(mutex);
-        block *ptr = first;
-        while(ptr) {
-            block *next = ptr->next;
-            free(ptr);
-            ptr = next;
-        }
-        first = 0;
-        last = 0;
-        count = 0;
-        capacity = 0;
-    }
-};
-
-template<typename T>
-class jo_set {
-    T *ptr;
-    size_t ptr_size;
-    size_t ptr_capacity;
-    bool (*cmp)(const T&, const T&);
-public:
-    jo_set(bool (*cmp)(const T&, const T&)) : ptr(0), ptr_size(0), ptr_capacity(0), cmp(cmp) {}
-    jo_set(const jo_set<T> &other) : ptr(0), ptr_size(0), ptr_capacity(0), cmp(other.cmp) {
-        *this = other;
-    }
-    jo_set<T> &operator=(const jo_set<T> &other) {
-        if(this == &other) return *this;
-        if(ptr_capacity < other.ptr_size) {
-            ptr_capacity = other.ptr_size;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        ptr_size = other.ptr_size;
-        memcpy(ptr, other.ptr, sizeof(T)*ptr_size);
-        return *this;
-    }
-    ~jo_set() {
-        if(ptr) free(ptr);
-    }
-
-    void insert(const T &val) {
-        if(ptr_size == ptr_capacity) {
-            ptr_capacity = ptr_capacity ? ptr_capacity*2 : 4;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        ptr[ptr_size++] = val;
-        jo_sift_up(ptr, ptr_size-1, cmp);
-    }
-
-    void emplace(T &&val) {
-        if(ptr_size == ptr_capacity) {
-            ptr_capacity = ptr_capacity ? ptr_capacity*2 : 4;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        ptr[ptr_size++] = val;
-        jo_sift_up(ptr, ptr_size-1, cmp);
-    }
-
-    void erase(const T &val) {
-        T *ptr = jo_find(this->ptr, this->ptr + ptr_size, val);
-        if(ptr == this->ptr + ptr_size) return;
-        ptr_size--;
-        if(ptr != this->ptr + ptr_size) {
-            T tmp = *ptr;
-            *ptr = *(this->ptr + ptr_size);
-            *(this->ptr + ptr_size) = tmp;
-            jo_sift_down(this->ptr, this->ptr + ptr_size, (size_t)(ptr - this->ptr), cmp);
-            jo_sift_up(this->ptr, ptr_size, cmp);
-        }
-    }
-
-    void erase_if(bool (*pred)(const T&)) {
-        T *ptr = jo_find_if(this->ptr, this->ptr + ptr_size, pred);
-        if(ptr == this->ptr + ptr_size) return;
-        ptr_size--;
-        if(ptr != this->ptr + ptr_size) {
-            T tmp = *ptr;
-            *ptr = *(this->ptr + ptr_size);
-            *(this->ptr + ptr_size) = tmp;
-            jo_sift_down(this->ptr, this->ptr + ptr_size, (size_t)(ptr - this->ptr), cmp);
-            jo_sift_up(this->ptr, ptr_size, cmp);
-        }
-    }
-
-    void clear() { ptr_size = 0; }
-    size_t size() const { return ptr_size; }
-    size_t max_size() const { return ptr_capacity; }
-
-    const T &operator[](size_t i) const { return ptr[i]; }
-    T &operator[](size_t i) { return ptr[i]; }
-    const T &at(size_t i) const { return ptr[i]; }
-    T &at(size_t i) { return ptr[i]; }
-
-    const T &front() const { return ptr[0]; }
-    T &front() { return ptr[0]; }
-    const T &back() const { return ptr[ptr_size-1]; }
-    T &back() { return ptr[ptr_size-1]; }
-
-    void sort() { jo_sort_heap(ptr, ptr + ptr_size, cmp); }
-
-    void push(const T &val) { insert(val); }
-
-    void pop_back() { erase(ptr[--ptr_size]); }
-    void pop_front() { erase(ptr[0]); }
-
-    void swap(jo_set<T> &other) {
-        jo_swap(ptr, other.ptr);
-        jo_swap(ptr_size, other.ptr_size);
-        jo_swap(ptr_capacity, other.ptr_capacity);
-        jo_swap(cmp, other.cmp);
-    }
-
-    void reserve(size_t n) {
-        if(ptr_capacity < n) {
-            ptr_capacity = n;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-    }
-
-    void shrink_to_fit() {
-        if(ptr_capacity > ptr_size) {
-            ptr_capacity = ptr_size;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-    }
-
-    void resize(size_t n) {
-        if(ptr_capacity < n) {
-            ptr_capacity = n;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        ptr_size = n;
-    }
-
-    void resize(size_t n, const T &val) {
-        if(ptr_capacity < n) {
-            ptr_capacity = n;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        if(ptr_size < n) {
-            memset(ptr + ptr_size, 0, sizeof(T)*(n - ptr_size));
-        }
-        ptr_size = n;
-    }
-
-    void resize(size_t n, const T &val, bool (*cmp)(const T&, const T&)) {
-        if(ptr_capacity < n) {
-            ptr_capacity = n;
-            ptr = (T*)realloc(ptr, sizeof(T)*ptr_capacity);
-        }
-        if(ptr_size < n) {
-            memset(ptr + ptr_size, 0, sizeof(T)*(n - ptr_size));
-        }
-        ptr_size = n;
-        jo_sort_heap(ptr, ptr + ptr_size, cmp);
-    }
-
-    T *lower_bound(const T &val) { return jo_lower_bound(ptr, ptr + ptr_size, val, cmp);}
-    const T *lower_bound(const T &val) const { return jo_lower_bound(ptr, ptr + ptr_size, val, cmp);}
-
-    T *upper_bound(const T &val) { return jo_upper_bound(ptr, ptr + ptr_size, val, cmp); }
-    const T *upper_bound(const T &val) const { return jo_upper_bound(ptr, ptr + ptr_size, val, cmp); }
-};
-
-// jo_exception class
-class jo_exception {
-public:
-    const char *msg;
-    jo_exception(const char *msg) : msg(msg) {}
-};
-
-
 // std sort implementation using quicksort
-template<typename T>
-struct jo_sort {
-    static void sort(T *array, int size) {
-        if(size <= 1) return;
-        int pivot = size / 2;
-        jo_swap(array[0], array[pivot]);
-        int i = 1;
-        for(int j = 1; j < size; j++) {
-            if(array[j] < array[0]) {
-                jo_swap(array[i], array[j]);
-                i++;
-            }
+template<typename T, typename F>
+void jo_sort(T *array, int size, F cmp) {
+    if(size <= 1) return;
+    int pivot = size / 2;
+    jo_swap(array[0], array[pivot]);
+    int i = 1;
+    for(int j = 1; j < size; j++) {
+        if(cmp(array[j], array[0])) {
+            jo_swap(array[i], array[j]);
+            i++;
         }
-        jo_swap(array[0], array[i - 1]);
-        sort(array, i - 1);
-        sort(array + i, size - i);
     }
-};
+    jo_swap(array[0], array[i - 1]);
+    jo_sort(array, i - 1, cmp);
+    jo_sort(array + i, size - i, cmp);
+}
 
 // std stable sort implementation using merge sort
-template<typename T>
-struct jo_stable_sort {
-    static void merge(T *array, int size, int start, int mid, int end) {
-        T *tmp = new T[end - start];
-        int i = start, j = mid, k = 0;
-        while(i < mid && j < end) {
-            if(array[i] < array[j]) {
-                tmp[k++] = array[i++];
-            } else {
-                tmp[k++] = array[j++];
-            }
+template<typename T, typename F>
+void jo_stable_sort(T *array, int size, int start, int end, F cmp) {
+    if(end - start <= 1) return;
+    int mid = (start + end) / 2;
+    jo_stable_sort(array, size, start, mid, cmp);
+    jo_stable_sort(array, size, mid, end, cmp);
+
+    T *tmp = new T[end - start];
+    int i = start, j = mid, k = 0;
+    while(i < mid && j < end) {
+        if(cmp(array[i], array[j])) {
+            tmp[k++] = array[i++];
+        } else {
+            tmp[k++] = array[j++];
         }
     }
-
-    static void sort(T *array, int size, int start, int end) {
-        if(end - start <= 1) return;
-        int mid = (start + end) / 2;
-        sort(array, size, start, mid);
-        sort(array, size, mid, end);
-        merge(array, size, start, mid, end);
+    while(i < mid) {
+        tmp[k++] = array[i++];
     }
-
-    static void sort(T *array, int size) {
-        sort(array, size, 0, size);
+    while(j < end) {
+        tmp[k++] = array[j++];
     }
-
-    static void merge(T *array, int size, int start, int end) {
-        if(end - start <= 1) return;
-        int mid = (start + end) / 2;
-        merge(array, size, start, mid, end);
-        merge(array, size, mid, end);
+    for(int l = 0; l < k; l++) {
+        array[start + l] = tmp[l];
     }
+    delete[] tmp;
+}
 
-    static void merge(T *array, int size) {
-        merge(array, size, 0, size);
-    }
-};
+template<typename T, typename F>
+void jo_stable_sort(T *array, int size, F cmp) {
+    jo_stable_sort(array, size, 0, size, cmp);
+}
 
 template<typename T> 
 struct jo_shared_ptr {
@@ -2172,37 +1920,6 @@ struct jo_shared_ptr {
 template<typename T> jo_shared_ptr<T> jo_make_shared() { return jo_shared_ptr<T>(new T()); }
 template<typename T> jo_shared_ptr<T> jo_make_shared(const T& other) { return jo_shared_ptr<T>(new T(other)); }
 
-// jo_unqiue_ptr
-template<typename T>
-struct jo_unique_ptr {
-    T* ptr;
-    jo_unique_ptr(T* ptr) : ptr(ptr) {}
-    jo_unique_ptr(const jo_unique_ptr& other) = delete;
-    jo_unique_ptr(jo_unique_ptr&& other) : ptr(other.ptr) {
-        other.ptr = nullptr;
-    }
-    jo_unique_ptr& operator=(const jo_unique_ptr& other) = delete;
-    jo_unique_ptr& operator=(jo_unique_ptr&& other) {
-        if (this != &other) {
-            delete ptr;
-            ptr = other.ptr;
-            other.ptr = nullptr;
-        }
-        return *this;
-    }
-    ~jo_unique_ptr() {
-        delete ptr;
-    }
-};
-
-// jo_hash
-template<typename T>
-struct jo_hash {
-    size_t operator()(const T &value) const {
-        return jo_hash_value(value);
-    }
-};
-
 // jo_hash_value
 size_t jo_hash_value(const bool &value) { return value ? 1 : 0; }
 size_t jo_hash_value(const char &value) { return value; }
@@ -2237,10 +1954,10 @@ size_t jo_hash_value(const jo_string &value) { return jo_hash_value(value.c_str(
 
 template<typename K, typename V>
 struct jo_hash_map {
-    typedef jo_triple<K, V, bool> entry_t;
+    typedef jo_tuple<K, V, bool> entry_t;
 
     // vec is used to store the keys and values
-    jo_vector<entry_t> vec;
+    jo_vector<entry_t, 32> vec;
     // number of entries actually in the hash table
     size_t length;
 
@@ -2256,7 +1973,7 @@ struct jo_hash_map {
     bool empty() const { return !length; }
 
     void clear() {
-        vec = std::move(jo_vector<entry_t>(32));
+        vec = std::move(jo_vector<entry_t,32>(32));
         length = 0;
     }
 
@@ -2297,7 +2014,7 @@ struct jo_hash_map {
     iterator begin() const  { return length ? iterator(vec.begin(), vec.end()) : iterator(); }
 
     void resize(size_t new_size) {
-        jo_vector<entry_t> nv(new_size);
+        jo_vector<entry_t,32> nv(new_size);
         for(iterator it = begin(); it; ++it) {
             auto &entry = *it;
             int index = jo_hash_value(entry.first) % new_size;

@@ -1,2 +1,1 @@
-(subvec [1 2 3 4 5 6 7] 2 4)
-
+(when-first [a []] :x)

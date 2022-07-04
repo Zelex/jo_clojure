@@ -1046,6 +1046,16 @@
 (is (= (subvec [1 2 3 4 5 6 7] 2) [3 4 5 6 7]))
 (is (= (subvec [1 2 3 4 5 6 7] 2 4) [3 4]))
 
+(is (= (when-first [a [1 2 3]] a) 1))
+(is (= (when-first [a []] :x) :x))
+(is (= (when-first [a nil] :x) :x))
+
+(is (= (zipmap [:a :b :c :d :e] [1 2 3 4 5]) {:a 1, :b 2, :c 3, :d 4, :e 5}))
+(is (= (zipmap [:a :b :c] [1 2 3 4]) {:a 1, :b 2, :c 3}))
+(is (= (zipmap [:a :b :c] [1 2]) {:a 1, :b 2}))
+(is (= (zipmap [:a :b :c] (repeat 0)) {:a 0, :b 0, :c 0}))
+(is (= (zipmap [:a :b :c :a] [1 2 3 4]) {:a 4, :b 2, :c 3}))
+
 (run! println (range 5))
 
 (add-tap println)

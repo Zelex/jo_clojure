@@ -7,14 +7,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
-#include <string>
-#include <map>
-#include <unordered_map>
-#include <functional>
 #include <atomic>
-#include <future>
 #include <thread>
-#include <shared_mutex>
 
 //#define WITH_TELEMETRY
 #ifdef WITH_TELEMETRY
@@ -29,6 +23,7 @@ static std::atomic<size_t> thread_uid(0);
 static thread_local size_t thread_id = thread_uid.fetch_add(1, std::memory_order_relaxed);
 
 #include "debugbreak.h"
+#include "pdqsort.h"
 #include "jo_stdcpp.h"
 #include "jo_clojure_persistent.h"
 
@@ -138,8 +133,6 @@ enum {
 
 struct node_t;
 struct lazy_list_iterator_t;
-
-//typedef jo_persistent_vector_bidirectional<node_idx_t> list_t;
 
 typedef jo_shared_ptr_t<jo_object> object_ptr_t;
 
@@ -286,7 +279,7 @@ struct transaction_t {
 			tx_list[tx_list_size++] = tx.get();
 		}
 
-		std::sort(tx_list, tx_list + tx_list_size, [](const tx_map_t::entry_t *a, const tx_map_t::entry_t *b) {
+		pdqsort(tx_list, tx_list + tx_list_size, [](const tx_map_t::entry_t *a, const tx_map_t::entry_t *b) {
 			return a->first < b->first;
 		});
 
@@ -662,28 +655,28 @@ struct node_t {
 		t_int = 0;
 	}
 
-	bool is_symbol() const { return type == NODE_SYMBOL; }
-	bool is_keyword() const { return type == NODE_KEYWORD; }
-	bool is_list() const { return type == NODE_LIST; }
-	bool is_vector() const { return type == NODE_VECTOR; }
-	bool is_matrix() const { return type == NODE_MATRIX; }
-	bool is_hash_map() const { return type == NODE_MAP; }
-	bool is_hash_set() const { return type == NODE_HASH_SET; }
-	bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
-	bool is_string() const { return type == NODE_STRING; }
-	bool is_func() const { return type == NODE_FUNC; }
-	bool is_native_func() const { return type == NODE_NATIVE_FUNC; }
-	bool is_macro() const { return flags & NODE_FLAG_MACRO;}
-	bool is_float() const { return type == NODE_FLOAT; }
-	bool is_int() const { return type == NODE_INT; }
-	bool is_file() const { return type == NODE_FILE; }
-	bool is_dir() const { return type == NODE_DIR; }
-	bool is_atom() const { return type == NODE_ATOM; }
-	bool is_future() const { return type == NODE_FUTURE; }
-	bool is_promise() const { return type == NODE_PROMISE; }
+	inline bool is_symbol() const { return type == NODE_SYMBOL; }
+	inline bool is_keyword() const { return type == NODE_KEYWORD; }
+	inline bool is_list() const { return type == NODE_LIST; }
+	inline bool is_vector() const { return type == NODE_VECTOR; }
+	inline bool is_matrix() const { return type == NODE_MATRIX; }
+	inline bool is_hash_map() const { return type == NODE_MAP; }
+	inline bool is_hash_set() const { return type == NODE_HASH_SET; }
+	inline bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
+	inline bool is_string() const { return type == NODE_STRING; }
+	inline bool is_func() const { return type == NODE_FUNC; }
+	inline bool is_native_func() const { return type == NODE_NATIVE_FUNC; }
+	inline bool is_macro() const { return flags & NODE_FLAG_MACRO;}
+	inline bool is_float() const { return type == NODE_FLOAT; }
+	inline bool is_int() const { return type == NODE_INT; }
+	inline bool is_file() const { return type == NODE_FILE; }
+	inline bool is_dir() const { return type == NODE_DIR; }
+	inline bool is_atom() const { return type == NODE_ATOM; }
+	inline bool is_future() const { return type == NODE_FUTURE; }
+	inline bool is_promise() const { return type == NODE_PROMISE; }
 
-	bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector() || is_string(); }
-	bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_vector() || is_hash_map() || is_hash_set() || is_func() || is_native_func(); }
+	inline bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector() || is_string(); }
+	inline bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_vector() || is_hash_map() || is_hash_set() || is_func() || is_native_func(); }
 
 	// first, more?
 	typedef jo_pair<node_idx_t, bool> seq_first_t;
@@ -770,7 +763,7 @@ struct node_t {
 	}
 
 	// first, rest, more?
-	typedef jo_triple<node_idx_t, node_idx_t, bool> seq_first_rest_t;
+	typedef jo_tuple<node_idx_t, node_idx_t, bool> seq_first_rest_t;
 	seq_first_rest_t seq_first_rest() const {
 		if(is_list()) {
 			if(t_list->empty()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
@@ -2115,17 +2108,11 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 	}
 
 	// eval the list
-	/*
-	{
-		list_ptr_t ret = new_list();
-		for(list_t::iterator it(list); it; it++) {
-			ret->push_back_inplace(eval_node(env, *it));
-		}
-		return new_node_list(ret);
+	list_ptr_t ret = new_list();
+	for(list_t::iterator it(list); it; it++) {
+		ret->push_back_inplace(eval_node(env, *it));
 	}
-	*/
-
-	return new_node_list(list);
+	return new_node_list(ret, NODE_FLAG_LITERAL);
 }
 
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
@@ -2267,7 +2254,6 @@ static vector_ptr_t vector_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx
 
 // Print the node heirarchy
 static void print_node(node_idx_t node, int depth, bool same_line) {
-#if 1
 	int type = get_node_type(node);
 	int flags = get_node_flags(node);
 	if(type == NODE_LIST) {
@@ -2340,52 +2326,6 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 	} else {
 		printf("<<%s>>", get_node_type_string(node));
 	}
-#else
-	node_t *n = get_node(node);
-	if(n->type == NODE_LIST) {
-		printf("%*s(\n", depth, "");
-		print_node_list(n->t_list, depth + 1);
-		printf("%*s)\n", depth, "");
-	} else if(n->type == NODE_LAZY_LIST) {
-		printf("%*s(lazy-list\n", depth, "");
-		print_node(n->t_extra, depth + 1);
-		printf("%*s)\n", depth, "");
-	} else if(n->type == NODE_STRING) {
-		printf("%*s\"%s\"\n", depth, "", get_node(node).t_string.c_str());
-	} else if(n->type == NODE_SYMBOL) {
-		printf("%*s%s\n", depth, "", get_node(node).t_string.c_str());
-	} else if(n->type == NODE_KEYWORD) {
-		printf("%*s:%s\n", depth, "", get_node(node).t_string.c_str());
-	} else if(n->type == NODE_INT) {
-		printf("%*s%d\n", depth, "", n->t_int);
-	} else if(n->type == NODE_FLOAT) {
-		printf("%*s%f\n", depth, "", n->t_float);
-	} else if(n->type == NODE_BOOL) {
-		printf("%*s%s\n", depth, "", n->t_bool ? "true" : "false");
-	} else if(n->type == NODE_NATIVE_FUNC) {
-		printf("%*s<%s>\n", depth, "", n->t_string.c_str());
-	} else if(n->type == NODE_FUNC) {
-		printf("%*s(fn \n", depth, "");
-		print_node_list(n->t_func.args, depth + 1);
-		print_node_list(n->t_func.body, depth + 1);
-		printf("%*s)\n", depth, "");
-	} else if(n->type == NODE_DELAY) {
-		printf("%*s(def  (delay\n", depth, "");
-		print_node_list(n->t_func.body, depth + 1);
-		printf("%*s)\n", depth, "");
-	} else if(n->type == NODE_VAR) {
-		printf("%*s%s = ", depth, "", get_node(node).t_string.c_str());
-		print_node(n->t_extra, depth + 1);
-	} else if(n->type == NODE_MAP) {
-		printf("%*s<map>\n", depth, "");
-	} else if(n->type == NODE_HASH_SET) {
-		printf("%*s<set>\n", depth, "");
-	} else if(n->type == NODE_NIL) {
-		printf("%*snil\n", depth, "");
-	} else {
-		printf("%*s<unknown>\n", depth, "");
-	}
-#endif
 }
 
 static void print_node_list(list_ptr_t nodes, int depth) {
@@ -6036,13 +5976,12 @@ static node_idx_t native_sort(env_ptr_t env, list_ptr_t args) {
 		vec.push_back(idx);
 		return true;
 	});
-	// std::stable_sort the vector
 	if(args->size() == 1) {
-		std::stable_sort(vec.begin(), vec.end(), [](node_idx_t a, node_idx_t b) {
+		pdqsort(vec.begin(), vec.end(), [](node_idx_t a, node_idx_t b) {
 			return node_lt(a, b);
 		});
 	} else {
-		std::stable_sort(vec.begin(), vec.end(), [env,comp](node_idx_t a, node_idx_t b) {
+		pdqsort(vec.begin(), vec.end(), [env,comp](node_idx_t a, node_idx_t b) {
 			return get_node_bool(eval_va(env, comp, a, b));
 		});
 	}
@@ -6077,13 +6016,12 @@ static node_idx_t native_sort_by(env_ptr_t env, list_ptr_t args) {
 		vec.push_back(jo_make_pair(idx, eval_va(env, keyfn, idx)));
 		return true;
 	});
-	// std::stable_sort the vector
 	if(args->size() == 2) {
-		std::stable_sort(vec.begin(), vec.end(), [](const elem_t &a, const elem_t &b) {
+		pdqsort(vec.begin(), vec.end(), [](const elem_t &a, const elem_t &b) {
 			return node_lt(a.second, b.second);
 		});
 	} else {
-		std::stable_sort(vec.begin(), vec.end(), [env,comp](const elem_t &a, const elem_t &b) {
+		pdqsort(vec.begin(), vec.end(), [env,comp](const elem_t &a, const elem_t &b) {
 			return get_node_bool(eval_va(env, comp, a.second, b.second));
 		});
 	}
@@ -6149,20 +6087,42 @@ static node_idx_t native_trampoline(env_ptr_t env, list_ptr_t args) {
 	}
 }
 
+// (type x)
+// Returns the type of x.
+static node_idx_t native_type(env_ptr_t env, list_ptr_t args) {
+	return new_node_string(get_node(args->first_value())->type_name());
+}
+
+// (when-first bindings & body)
+// bindings => x xs
+// Roughly the same as (when (seq xs) (let [x (first xs)] body)) but xs is evaluated only once
+static node_idx_t native_when_first(env_ptr_t env, list_ptr_t args) {
+	node_idx_t bindings_idx = args->first_value();
+	node_t *bindings_node = get_node(bindings_idx);
+	if(!bindings_node->is_vector()) {
+		warnf("when-first: first argument must be a vector");
+		return NIL_NODE;
+	}
+	vector_ptr_t bindings = bindings_node->as_vector();
+
+	// loop through bindings, setting up a env2
+	env_ptr_t env2 = new_env(env);
+	for(vector_t::iterator i = bindings->begin(); i;) {
+		node_idx_t key_idx = *i++; // TODO: should this be eval'd?
+		node_idx_t value_idx = get_node(eval_node(env2, *i++))->seq_first().first;
+		node_let(env2, key_idx, value_idx);
+	}
+
+	list_ptr_t body = args->rest();
+	return eval_node_list(env2, body);
+}
+
 // (zipmap keys vals)
 // Returns a map with the keys mapped to the corresponding vals.
 static node_idx_t native_zipmap(env_ptr_t env, list_ptr_t args) {
-	node_idx_t keys_idx = args->first_value();
-	node_idx_t vals_idx = args->second_value();
 	hash_map_ptr_t map = new_hash_map();
-	if (get_node(keys_idx)->is_seq() && get_node(vals_idx)->is_seq()) {
-		seq_iterator_t keys_it(keys_idx);
-		seq_iterator_t vals_it(vals_idx);
-		while (keys_it.val != INV_NODE && vals_it.val != INV_NODE) {
-			map->assoc_inplace(keys_it.val, vals_it.val, node_eq);
-			keys_it.next();
-			vals_it.next();
-		}
+	for(seq_iterator_t i(args->first_value()), j(args->second_value()); i && j; i.next(), j.next()) {
+		map->assoc_inplace(i.val, j.val, node_eq);
 	}
 	return new_node_hash_map(map);
 }
@@ -6502,6 +6462,8 @@ int main(int argc, char **argv) {
 	env->set("subvec", new_node_native_function("subvec", &native_subvec, false, NODE_FLAG_PRERESOLVE));
 	env->set("symbol", new_node_native_function("symbol", &native_symbol, false, NODE_FLAG_PRERESOLVE));
 	env->set("trampoline", new_node_native_function("trampoline", &native_trampoline, false, NODE_FLAG_PRERESOLVE));
+	env->set("type", new_node_native_function("type", &native_type, false, NODE_FLAG_PRERESOLVE));
+	env->set("when-first", new_node_native_function("when-first", &native_when_first, true, NODE_FLAG_PRERESOLVE));
 	env->set("zipmap", new_node_native_function("zipmap", &native_zipmap, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
@@ -6533,7 +6495,6 @@ int main(int argc, char **argv) {
 
 	{
 		node_idx_t res_idx = eval_node_list(env, main_list);
-		//native_println(env, list_va(res_idx));
 		printf("%s\n", get_node(res_idx)->as_string(3).c_str());
 	}
 
@@ -6543,28 +6504,6 @@ int main(int argc, char **argv) {
 	}
 	debugf("atom_retries = %zu\n", atom_retries.load());
 	debugf("stm_retries = %zu\n", stm_retries.load());
-
-	/*
-	for(int i = -20; i <= 20; i++) {
-		for(int j = -20; j <= 20; j++) {
-			jo_bigint big_i = i;
-			jo_bigint big_j = j;
-			if((big_i + big_j).to_int() != i + j) {
-				printf("FAILED: %d + %d was %d, should be %d\n", i, j, (big_i + big_j).to_int(), i + j);
-				debug_break();
-				printf("FAILED: %d + %d was %d, should be %d\n", i, j, (big_i + big_j).to_int(), i + j);
-			}
-			if((big_i - big_j).to_int() != i - j) {
-				printf("FAILED: %d - %d was %d, should be %d\n", i, j, (big_i - big_j).to_int(), i - j);
-				debug_break();
-				printf("FAILED: %d - %d was %d, should be %d\n", i, j, (big_i - big_j).to_int(), i - j);
-			}
-		}
-	}
-	*/
-	//jo_float f("1.23456789");
-	//jo_string f_str = f.to_string();
-	//printf("f = %s\n", f_str.c_str());
 
 #ifdef WITH_TELEMETRY
 	tmClose(0);

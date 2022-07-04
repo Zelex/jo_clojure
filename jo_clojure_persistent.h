@@ -654,9 +654,6 @@ struct jo_persistent_list : jo_object {
             cur = cur->next;
             index--;
         }
-        if(!cur) {
-        //    throw jo_exception("nth");
-        }
         return cur->value;
     }
 
@@ -1927,7 +1924,7 @@ typedef jo_shared_ptr_t<hash_map_t> hash_map_ptr_t;
 template<typename... A>
 static hash_map_ptr_t new_hash_map(A... args) { return hash_map_ptr_t(hash_map_alloc.emplace(args...)); }
 
-typedef jo_triple<node_idx_t, node_idx_t, bool> jo_persistent_hash_map_entry_t;
+typedef jo_tuple<node_idx_t, node_idx_t, bool> jo_persistent_hash_map_entry_t;
 typedef jo_persistent_vector_node_t<jo_persistent_hash_map_entry_t> hash_map_node_t;
 typedef jo_alloc_t<jo_persistent_hash_map_entry_t> hash_map_node_alloc_t;
 hash_map_node_alloc_t hash_map_node_alloc;
