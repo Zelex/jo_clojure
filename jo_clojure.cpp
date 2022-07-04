@@ -2388,7 +2388,7 @@ struct seq_iterator_t {
 		} else if(type == NODE_LAZY_LIST) {
 			val = lit.val;
 		} else {
-			assert(false);
+			//warnf("seq_iterator_t: invalid type %d\n", type);
 		}
 	}
 
