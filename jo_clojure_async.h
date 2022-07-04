@@ -1053,12 +1053,18 @@ static jo_task_ptr_t native_send_internal(env_ptr_t env, list_ptr_t args) {
 }
 
 static node_idx_t native_send(env_ptr_t env, list_ptr_t args) {
-	thread_pool->add_task(native_send_internal(env, args));
+	node_t *agent = get_node(args->first_value());
+	if(agent->type == NODE_AGENT) {
+		thread_pool->add_task(native_send_internal(env, args));
+	}
 	return args->first_value();
 }
 
 static node_idx_t native_send_off(env_ptr_t env, list_ptr_t args) {
-	thread_pool2->add_task(native_send_internal(env, args));
+	node_t *agent = get_node(args->first_value());
+	if(agent->type == NODE_AGENT) {
+		thread_pool2->add_task(native_send_internal(env, args));
+	}
 	return args->first_value();
 }
 
@@ -1070,6 +1076,8 @@ static node_idx_t native_send_off(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_await(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator it(args); it; ++it) {
 		node_idx_t agent_idx = *it;
+		node_t *agent_node = get_node(agent_idx);
+		if(agent_node->type != NODE_AGENT) continue;
 		jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
 		node_idx_t set = node_deref(env, agent->pending);
 		seq_iterate(set, [&](node_idx_t idx) {
