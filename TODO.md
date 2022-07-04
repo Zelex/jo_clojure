@@ -31,7 +31,6 @@
 accessor
 aclone
 add-watch
-agent
 agent-error
 agent-errors
 aget
@@ -55,7 +54,6 @@ aset-long
 aset-short
 assoc!
 associative?
-await
 await-for
 await1
 bases
@@ -262,8 +260,6 @@ resolve
 restart-agent
 resultset-seq
 rsubseq
-send
-send-off
 send-via
 seque
 sequence

@@ -1,5 +1,21 @@
 #pragma once
 
+// simple wrapper so we can blop it into the t_object generic container
+struct jo_clojure_agent_t : jo_object {
+	node_idx_t validate;
+	node_idx_t handler;
+	node_idx_t mode;
+	node_idx_t pending;
+};
+
+typedef jo_alloc_t<jo_clojure_agent_t> jo_clojure_agent_alloc_t;
+jo_clojure_agent_alloc_t jo_clojure_agent_alloc;
+typedef jo_shared_ptr_t<jo_clojure_agent_t> jo_clojure_agent_ptr_t;
+template<typename...A>
+jo_clojure_agent_ptr_t new_agent(A...args) { return jo_clojure_agent_ptr_t(jo_clojure_agent_alloc.emplace(args...)); }
+
+static node_idx_t new_node_agent(jo_clojure_agent_ptr_t agent, int flags=0) { return new_node_object(NODE_AGENT, agent.cast<jo_object>(), flags); }
+
 typedef std::function<node_idx_t()> jo_task_t;
 typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
 
@@ -43,6 +59,7 @@ public:
 
 static jo_semaphore thread_limiter(processor_count);
 static jo_threadpool *thread_pool = new jo_threadpool(processor_count);
+static jo_threadpool *thread_pool2 = new jo_threadpool(processor_count);
 
 static node_idx_t node_swap(env_ptr_t env, node_idx_t atom_idx, node_idx_t f_idx, list_ptr_t args) {
 	node_t *atom = get_node(atom_idx);
@@ -103,6 +120,20 @@ static bool node_compare_and_set(env_ptr_t env, node_idx_t atom_idx, node_idx_t 
 	return atom->t_atom.compare_exchange_weak(old_val, new_val);
 }
 
+static node_idx_t node_deref(env_ptr_t env, node_idx_t atom_idx) {
+	node_t *atom = get_node(atom_idx);
+	if(env->tx.ptr) {
+		return env->tx->read(atom_idx);
+	}
+	node_idx_t ret = atom->t_atom.load();
+	int count = 0;
+	while(ret < 0) {
+		jo_yield_backoff(&count);
+		ret = atom->t_atom;
+	}
+	return ret;
+}
+
 static node_idx_t node_try_deref(env_ptr_t env, node_idx_t atom_idx) {
 	node_t *atom = get_node(atom_idx);
 	if(env->tx.ptr) {
@@ -113,7 +144,9 @@ static node_idx_t node_try_deref(env_ptr_t env, node_idx_t atom_idx) {
 
 static node_idx_t native_thread_workers(env_ptr_t env, list_ptr_t args) {
 	delete thread_pool;
+	delete thread_pool2;
 	thread_pool = new jo_threadpool(get_node_int(args->first_value()));
+	thread_pool2 = new jo_threadpool(get_node_int(args->first_value()));
 	return NIL_NODE;
 }
 
@@ -181,8 +214,8 @@ static node_idx_t native_deref(env_ptr_t env, list_ptr_t args) {
 
 	node_t *ref = get_node(ref_idx);
 	int type = ref->type;
-	if(type == NODE_VAR || type == NODE_AGENT) {
-	} else if(type == NODE_ATOM) {
+	if(type == NODE_VAR) {
+	} else if(type == NODE_ATOM || type == NODE_AGENT) {
 		if(env->tx.ptr) {
 			return env->tx->read(ref_idx);
 		} else {
@@ -973,6 +1006,81 @@ static node_idx_t native_tap(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (agent state & options)
+// Creates and returns an agent with an initial value of state and
+// zero or more options (in any order):
+// :meta metadata-map
+// :validator validate-fn
+// :error-handler handler-fn
+// :error-mode mode-keyword
+// If metadata-map is supplied, it will become the metadata on the
+// agent. validate-fn must be nil or a side-effect-free fn of one
+// argument, which will be passed the intended new state on any state
+// change. If the new state is unacceptable, the validate-fn should
+// return false or throw an exception.  handler-fn is called if an
+// action throws an exception or if validate-fn rejects a new state --
+// see set-error-handler! for details.  The mode-keyword may be either
+// :continue (the default if an error-handler is given) or :fail (the
+// default if no error-handler is given) -- see set-error-mode! for
+// details.
+static node_idx_t native_agent(env_ptr_t env, list_ptr_t args) {
+	node_idx_t state = args->first_value();
+	jo_clojure_agent_ptr_t a = new_agent();
+	a->pending = new_node_atom(EMPTY_SET_NODE);
+	node_idx_t agent_idx = new_node_agent(a);
+	node_t *agent = get_node(agent_idx);
+	agent->t_atom.store(state);
+	return agent_idx;
+}
+
+static jo_task_ptr_t native_send_internal(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t agent_idx = *it++;
+	node_idx_t action_fn = *it++;
+	list_ptr_t rest = args->rest(it);
+	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
+	node_reset(env, f_idx, INV_NODE);
+	jo_task_ptr_t task = new jo_task_t([env,f_idx,agent_idx,action_fn,rest]() -> node_idx_t {
+		jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
+		node_idx_t nv = node_swap(env, agent_idx, action_fn, rest);
+		node_reset(env, f_idx, nv);
+		node_swap(env, agent->pending, env->get("dissoc"), list_va(f_idx));
+		return NIL_NODE;
+	});
+	jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
+	node_swap(env, agent->pending, env->get("assoc"), list_va(f_idx));
+	return task;
+}
+
+static node_idx_t native_send(env_ptr_t env, list_ptr_t args) {
+	thread_pool->add_task(native_send_internal(env, args));
+	return args->first_value();
+}
+
+static node_idx_t native_send_off(env_ptr_t env, list_ptr_t args) {
+	thread_pool2->add_task(native_send_internal(env, args));
+	return args->first_value();
+}
+
+// (await & agents)
+// Blocks the current thread (indefinitely!) until all actions
+// dispatched thus far, from this thread or agent, to the agent(s) have
+// occurred.  Will block on failed agents.  Will never return if
+// a failed agent is restarted with :clear-actions true or shutdown-agents was called.
+static node_idx_t native_await(env_ptr_t env, list_ptr_t args) {
+	for(list_t::iterator it(args); it; ++it) {
+		node_idx_t agent_idx = *it;
+		jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
+		node_idx_t set = node_deref(env, agent->pending);
+		seq_iterate(set, [&](node_idx_t idx) {
+			node_deref(env, idx);
+			return true;
+		});
+	}
+	return NIL_NODE;
+}
+
+
 void jo_clojure_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, false, NODE_FLAG_PRERESOLVE));
@@ -1034,4 +1142,10 @@ void jo_clojure_async_init(env_ptr_t env) {
 	env->set("tap>", new_node_native_function("tap>", &native_tap, false, NODE_FLAG_PRERESOLVE));
 	env->set("add-tap", new_node_native_function("add-tap", &native_add_tap, false, NODE_FLAG_PRERESOLVE));
 	env->set("remove-tap", new_node_native_function("remove-tap", &native_remove_tap, false, NODE_FLAG_PRERESOLVE));
+
+	// agents
+	env->set("agent", new_node_native_function("agent", &native_agent, false, NODE_FLAG_PRERESOLVE));
+	env->set("send", new_node_native_function("send", &native_send, false, NODE_FLAG_PRERESOLVE));
+	env->set("send-off", new_node_native_function("send-off", &native_send_off, false, NODE_FLAG_PRERESOLVE));
+	env->set("await", new_node_native_function("await", &native_await, false, NODE_FLAG_PRERESOLVE));
 }

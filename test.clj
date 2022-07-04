@@ -1070,6 +1070,11 @@
 
 (trampoline foo 3)
 
+(def counter (agent 0))
+(send counter inc)
+(await counter)
+(is (= @counter 1))
+
 (string-test)
 (if-test)
 (when-test)
