@@ -83,6 +83,10 @@ enum {
 	K_WHEN_NODE,
 	K_WHILE_NODE,
 	K_LET_NODE,
+	K_META_NODE,
+	K_VALIDATOR_NODE,
+	K_ERROR_HANDLER_NODE,
+	K_ERROR_MODE_NODE,
 	K_PC_NODE,
 	K_ALL_NODE,
 	K_BY_NODE,
@@ -91,6 +95,7 @@ enum {
 
 	// node types
 	NODE_NIL = 0,
+	NODE_EXCEPTION,
 	NODE_BOOL,
 	NODE_INT,
 	NODE_FLOAT,
@@ -177,6 +182,7 @@ static inline env_ptr_t get_node_env(node_idx_t idx);
 static inline env_ptr_t get_node_env(const node_t *n);
 
 static node_idx_t new_node_symbol(const jo_string &s, int flags=0);
+static node_idx_t new_node_exception(const jo_string &s, int flags=0);
 static node_idx_t new_node_int(long long i, int flags = 0);
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_string(const jo_string &s, int flags = 0);
@@ -544,6 +550,7 @@ struct node_t {
 	jo_string t_string;
 	list_ptr_t t_list;
 	object_ptr_t t_object;
+	node_idx_t t_meta;
 	native_func_ptr_t t_native_function;
 	atomic_node_idx_t t_atom;
 	env_ptr_t t_env;
@@ -1288,6 +1295,14 @@ static node_idx_t new_node_symbol(const jo_string &s, int flags) {
 	return new_node(std::move(n));
 }
 
+static node_idx_t new_node_exception(const jo_string &s, int flags) {
+	node_t n;
+	n.type = NODE_EXCEPTION;
+	n.t_string = s;
+	n.flags = NODE_FLAG_STRING | flags;
+	return new_node(std::move(n));
+}
+
 static node_idx_t new_node_keyword(const jo_string &s, int flags=0) {
 	node_t n;
 	n.type = NODE_KEYWORD;
@@ -1699,6 +1714,10 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "when") return K_WHEN_NODE;
 		if(tok.str == "while") return K_WHILE_NODE;
 		if(tok.str == "let") return K_LET_NODE;
+		if(tok.str == "meta") return K_META_NODE;
+		if(tok.str == "validator") return K_VALIDATOR_NODE;
+		if(tok.str == "error-handler") return K_ERROR_HANDLER_NODE;
+		if(tok.str == "error-mode") return K_ERROR_MODE_NODE;
 		if(tok.str == "__PC__") return K_PC_NODE;
 		if(tok.str == "__ALL__") return K_ALL_NODE;
 		if(tok.str == "__BY__") return K_BY_NODE;
@@ -6261,6 +6280,10 @@ int main(int argc, char **argv) {
 		new_node_keyword("when", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("while", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("let", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("meta", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("validator", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("error-handler", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("error-mode", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__PC__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__ALL__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__BY__", NODE_FLAG_PRERESOLVE);
