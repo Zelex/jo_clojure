@@ -76,8 +76,7 @@ static node_idx_t node_swap(env_ptr_t env, node_idx_t atom_idx, node_idx_t f_idx
 			node_idx_t valid = eval_list(env, list_va(v_idx, new_val));
 			if(valid == FALSE_NODE) {
 				return new_node_exception("swap: validation failed");
-			}
-			if(get_node_type(valid) == NODE_EXCEPTION) {
+			} else if(get_node_type(valid) == NODE_EXCEPTION) {
 				return valid;
 			}
 		}
@@ -97,8 +96,7 @@ static node_idx_t node_swap(env_ptr_t env, node_idx_t atom_idx, node_idx_t f_idx
 			node_idx_t valid = eval_va(env, v_idx, new_val);
 			if(valid == FALSE_NODE) {
 				return new_node_exception("swap: validation failed");
-			}
-			if(get_node_type(valid) == NODE_EXCEPTION) {
+			} else if(get_node_type(valid) == NODE_EXCEPTION) {
 				return valid;
 			}
 		}
