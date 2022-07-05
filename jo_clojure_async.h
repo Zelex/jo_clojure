@@ -1072,8 +1072,13 @@ static jo_task_ptr_t native_send_internal(env_ptr_t env, list_ptr_t args) {
 	jo_task_ptr_t task = new jo_task_t([env,f_idx,agent_idx,action_fn,rest]() -> node_idx_t {
 		jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
 		node_idx_t nv = node_swap(env, agent_idx, action_fn, rest, agent->validate);
-		if(agent->handler != NIL_NODE && get_node_type(nv) == NODE_EXCEPTION) {
-			eval_va(env, agent->handler, agent_idx, nv);
+		if(get_node_type(nv) == NODE_EXCEPTION) {
+			if(agent->handler != NIL_NODE) {
+				eval_va(env, agent->handler, agent_idx, nv);
+				// continue by default
+			} else {
+				// fail by default
+			}
 		}
 		node_reset(env, f_idx, nv);
 		node_swap(env, agent->pending, env->get("dissoc"), list_va(f_idx));
