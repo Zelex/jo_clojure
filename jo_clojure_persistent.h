@@ -329,6 +329,14 @@ struct atomic_node_idx_t {
 	}
 };
 
+static node_idx_t new_node_int(long long i, int flags = 0);
+static inline long long get_node_int(node_idx_t idx);
+
+static bool node_sym_eq(node_idx_unsafe_t n1i, node_idx_unsafe_t n2i);
+static bool node_eq(node_idx_t n1i, node_idx_t n2i);
+static bool node_lt(node_idx_t n1i, node_idx_t n2i);
+static bool node_lte(node_idx_t n1i, node_idx_t n2i);
+
 size_t jo_hash_value(node_idx_t n);
 
 struct jo_persistent_list;
@@ -2341,9 +2349,6 @@ typedef jo_alloc_t<jo_persistent_hash_set_entry_t> hash_set_node_alloc_t;
 hash_set_node_alloc_t hash_set_node_alloc;
 typedef jo_shared_ptr_t<hash_set_node_t> hash_set_node_ptr_t;
 
-//template<typename T, typename...A> jo_shared_ptr_t<T> new_vector_node(A... args);
-//template<typename T, typename...A> jo_shared_ptr_t<hash_set_node_t> new_vector_node(A...args) { return jo_shared_ptr_t<(vector_node_alloc.emplace(args...)); }
-
 template<> 
 jo_persistent_vector<jo_persistent_hash_set_entry_t>::vector_node_alloc_t 
     jo_persistent_vector<jo_persistent_hash_set_entry_t>::alloc_node 
@@ -2657,3 +2662,102 @@ private:
 };
 
 hash_set_t::alloc_t hash_set_t::alloc;
+
+struct jo_persistent_queue;
+typedef jo_persistent_queue queue_t;
+typedef jo_alloc_t<queue_t> queue_alloc_t;
+queue_alloc_t queue_alloc;
+typedef jo_shared_ptr_t<queue_t> queue_ptr_t;
+
+template<typename... A>
+static queue_ptr_t new_queue(A... args) { return queue_ptr_t(queue_alloc.emplace(args...)); }
+
+struct jo_persistent_queue : jo_object {
+    typedef queue_ptr_t shared_ptr;
+
+    hash_map_ptr_t map;
+    std::atomic<size_t> read_index;
+    std::atomic<size_t> write_index;
+
+    jo_persistent_queue() : map(new_hash_map()), read_index(0), write_index(0) {}
+    jo_persistent_queue(const jo_persistent_queue &other) : map(other.map) {
+        read_index.store(other.read_index);
+        write_index.store(other.write_index);
+    }
+    jo_persistent_queue(jo_persistent_queue &&other) : map(other.map) {
+        read_index.store(other.read_index);
+        write_index.store(other.write_index);
+    }
+
+    jo_persistent_queue &operator=(const jo_persistent_queue &other) {
+        map = other.map;
+        read_index.store(other.read_index);
+        write_index.store(other.write_index);
+        return *this;
+    }
+
+    jo_persistent_queue &operator=(jo_persistent_queue &&other) {
+        map = other.map;
+        read_index.store(other.read_index);
+        write_index.store(other.write_index);
+        return *this;
+    }
+
+    shared_ptr clone() const {
+        return new_queue(*this);
+    }
+
+    shared_ptr push(const node_idx_t &key) const {
+        shared_ptr copy = clone();
+        size_t index = copy->write_index.fetch_add(1);
+        copy->map = copy->map->assoc(new_node_int(index), key, node_eq);
+        return copy;
+    }
+
+    void push_inplace(const node_idx_t &key) {
+        size_t index = write_index.fetch_add(1);
+        map->assoc_inplace(new_node_int(index), key, node_eq);
+    }
+
+    jo_pair<shared_ptr, node_idx_t> pop() const {
+        shared_ptr copy = clone();
+        if(read_index.load() >= write_index.load()) {
+            return jo_make_pair<shared_ptr, node_idx_t>(copy, 0);
+        }
+        size_t index = copy->read_index.fetch_add(1);
+        node_idx_t key = new_node_int(index);
+        auto entry = copy->map->find(key, node_eq);
+        if(entry.third) {
+            copy->map = copy->map->dissoc(key, node_eq);
+            return jo_make_pair<shared_ptr, node_idx_t>(copy, entry.second);
+        }
+        return jo_make_pair<shared_ptr, node_idx_t>(copy, 0);
+    }
+
+    node_idx_t pop_inplace() {
+        if(read_index.load() >= write_index.load()) {
+            return 0;
+        }
+        size_t index = read_index.fetch_add(1);
+        node_idx_t key = new_node_int(index);
+        auto entry = map->find(key, node_eq);
+        if(entry.third) {
+            map->dissoc_inplace(key, node_eq);
+            return entry.second;
+        }
+        return 0;
+    }
+
+    node_idx_t peek() const {
+        if(read_index.load() >= write_index.load()) {
+            return 0;
+        }
+        size_t index = read_index.load();
+        node_idx_t key = new_node_int(index);
+        auto entry = map->find(key, node_eq);
+        if(entry.third) {
+            return entry.second;
+        }
+        return 0;
+    }
+};

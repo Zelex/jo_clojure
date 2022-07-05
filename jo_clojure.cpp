@@ -69,6 +69,7 @@ enum {
 	EMPTY_VECTOR_NODE,
 	EMPTY_MAP_NODE,
 	EMPTY_SET_NODE,
+	EMPTY_QUEUE_NODE,
 	TAP_LIST_NODE,
 	PCT_NODE,
 	PCT1_NODE,
@@ -89,6 +90,7 @@ enum {
 	K_ERROR_MODE_NODE,
 	K_CONTINUE_NODE,
 	K_FAIL_NODE,
+	K_DEFAULT_NODE,
 	K_PC_NODE,
 	K_ALL_NODE,
 	K_BY_NODE,
@@ -110,7 +112,8 @@ enum {
 	NODE_VECTOR,
 	NODE_MATRIX,
 	NODE_HASH_SET,
-	NODE_MAP,
+	NODE_HASH_MAP,
+	NODE_QUEUE,
 	NODE_NATIVE_FUNC,
 	NODE_FUNC,
 	NODE_VAR,
@@ -185,20 +188,16 @@ static inline env_ptr_t get_node_env(const node_t *n);
 
 static node_idx_t new_node_symbol(const jo_string &s, int flags=0);
 static node_idx_t new_node_exception(const jo_string &s, int flags=0);
-static node_idx_t new_node_int(long long i, int flags = 0);
 static node_idx_t new_node_list(list_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_string(const jo_string &s, int flags = 0);
 static node_idx_t new_node_hash_map(hash_map_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_matrix(matrix_ptr_t nodes, int flags = 0);
+static node_idx_t new_node_queue(queue_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags = 0);
 static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flags = 0);
 
-static bool node_sym_eq(node_idx_unsafe_t n1i, node_idx_unsafe_t n2i);
-static bool node_eq(node_idx_t n1i, node_idx_t n2i);
-static bool node_lt(node_idx_t n1i, node_idx_t n2i);
-static bool node_lte(node_idx_t n1i, node_idx_t n2i);
 static node_idx_t node_add(node_idx_t n1i, node_idx_t n2i);
 static node_idx_t node_mul(node_idx_t n1i, node_idx_t n2i);
 static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
@@ -578,11 +577,13 @@ struct node_t {
 	inline matrix_ptr_t &as_matrix() { return t_object.cast<matrix_t>(); }
 	inline hash_map_ptr_t &as_hash_map() { return t_object.cast<hash_map_t>(); }
 	inline hash_set_ptr_t &as_hash_set() { return t_object.cast<hash_set_t>(); }
+	inline queue_ptr_t &as_queue() { return t_object.cast<queue_t>(); }
 
 	inline const vector_ptr_t &as_vector() const { return t_object.cast<vector_t>(); }
 	inline const matrix_ptr_t &as_matrix() const { return t_object.cast<matrix_t>(); }
 	inline const hash_map_ptr_t &as_hash_map() const { return t_object.cast<hash_map_t>(); }
 	inline const hash_set_ptr_t &as_hash_set() const { return t_object.cast<hash_set_t>(); }
+	inline const queue_ptr_t &as_queue() const { return t_object.cast<queue_t>(); }
 
 	node_t() 
 		: ref_count()
@@ -669,8 +670,9 @@ struct node_t {
 	inline bool is_list() const { return type == NODE_LIST; }
 	inline bool is_vector() const { return type == NODE_VECTOR; }
 	inline bool is_matrix() const { return type == NODE_MATRIX; }
-	inline bool is_hash_map() const { return type == NODE_MAP; }
+	inline bool is_hash_map() const { return type == NODE_HASH_MAP; }
 	inline bool is_hash_set() const { return type == NODE_HASH_SET; }
+	inline bool is_queue() const { return type == NODE_QUEUE; }
 	inline bool is_lazy_list() const { return type == NODE_LAZY_LIST; }
 	inline bool is_string() const { return type == NODE_STRING; }
 	inline bool is_func() const { return type == NODE_FUNC; }
@@ -901,7 +903,7 @@ struct node_t {
 			case NODE_VECTOR:
 			case NODE_MATRIX:
 			case NODE_HASH_SET:
-			case NODE_MAP:    return true; // TODO
+			case NODE_HASH_MAP:    return true; // TODO
 			default:          return false;
 		}
 	}
@@ -995,7 +997,7 @@ struct node_t {
 				s += "])";
 				return s;
 			}
-		case NODE_MAP:
+		case NODE_HASH_MAP:
 			{
 				jo_string s;
 				s = '{';
@@ -1073,7 +1075,7 @@ struct node_t {
 		case NODE_VECTOR:  return "vector";
 		case NODE_MATRIX:  return "matrix";
 		case NODE_HASH_SET: return "set";
-		case NODE_MAP:     return "map";
+		case NODE_HASH_MAP:     return "map";
 		case NODE_FUNC:	   return "function";
 		case NODE_NATIVE_FUNC: return "native_function";
 		case NODE_VAR:	   return "var";
@@ -1204,10 +1206,11 @@ static node_idx_t new_node_object(int type, object_ptr_t object, int flags) {
 	return idx;
 }
 
-static node_idx_t new_node_hash_map(hash_map_ptr_t nodes, int flags) { return new_node_object(NODE_MAP, nodes.cast<jo_object>(), flags); }
+static node_idx_t new_node_hash_map(hash_map_ptr_t nodes, int flags) { return new_node_object(NODE_HASH_MAP, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_hash_set(hash_set_ptr_t nodes, int flags) { return new_node_object(NODE_HASH_SET, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_vector(vector_ptr_t nodes, int flags) { return new_node_object(NODE_VECTOR, nodes.cast<jo_object>(), flags); }
 static node_idx_t new_node_matrix(matrix_ptr_t nodes, int flags) { return new_node_object(NODE_MATRIX, nodes.cast<jo_object>(), flags); }
+static node_idx_t new_node_queue(queue_ptr_t nodes, int flags) { return new_node_object(NODE_QUEUE, nodes.cast<jo_object>(), flags); }
 
 static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags) {
 	node_idx_t idx = new_node(NODE_LAZY_LIST, NODE_FLAG_LAZY | flags);
@@ -1579,7 +1582,7 @@ static list_ptr_t get_symbols_vector_r(vector_ptr_t list) {
 		int type = get_node_type(*it);
 		if(type == NODE_SYMBOL) {
 			symbol_list->push_back_inplace(*it);			
-		} else if(type == NODE_MAP) {
+		} else if(type == NODE_HASH_MAP) {
 			printf("TODO: map @ %i\n", __LINE__);
 		} else if(type == NODE_VECTOR) {
 			if(get_node(*it)->as_vector().ptr) {
@@ -1606,7 +1609,7 @@ static list_ptr_t get_symbols_list_r(list_ptr_t list) {
 		int type = get_node_type(*it);
 		if(type == NODE_SYMBOL) {
 			symbol_list->push_back_inplace(*it);			
-		} else if(type == NODE_MAP) {
+		} else if(type == NODE_HASH_MAP) {
 			printf("TODO: map @ %i\n", __LINE__);
 		} else if(type == NODE_VECTOR) {
 			if(get_node(*it)->as_vector().ptr) {
@@ -1722,6 +1725,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "error-mode") return K_ERROR_MODE_NODE;
 		if(tok.str == "continue") return K_CONTINUE_NODE;
 		if(tok.str == "fail") return K_FAIL_NODE;
+		if(tok.str == "default") return K_DEFAULT_NODE;
 		if(tok.str == "__PC__") return K_PC_NODE;
 		if(tok.str == "__ALL__") return K_ALL_NODE;
 		if(tok.str == "__BY__") return K_BY_NODE;
@@ -1955,7 +1959,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	if(c == '{') {
 		debugf("map begin\n");
 		node_t n;
-		n.type = NODE_MAP;
+		n.type = NODE_HASH_MAP;
 		n.flags = NODE_FLAG_FOREVER;
 		hash_map_ptr_t m = new_hash_map();
 		node_idx_t next = parse_next(env, state, '}');
@@ -1993,7 +1997,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 	|| n1_type == NODE_STRING 
 	|| n1_type == NODE_NATIVE_FUNC
 	|| n1_type == NODE_FUNC
-	|| n1_type == NODE_MAP
+	|| n1_type == NODE_HASH_MAP
 	|| n1_type == NODE_HASH_SET
 	|| n1_type == NODE_VECTOR
 	) {
@@ -2079,7 +2083,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				sym_node->t_extra = last;
 			}
 			return last;
-		} else if(sym_type == NODE_MAP) {
+		} else if(sym_type == NODE_HASH_MAP) {
 			if(it) {
 				// lookup the key in the map
 				node_idx_t n2i = eval_node(env, *it++);
@@ -2106,7 +2110,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				// lookup the key in the map
 				node_idx_t n2i = eval_node(env, *it++);
 				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
-				if(get_node_type(n2i) == NODE_MAP) {
+				if(get_node_type(n2i) == NODE_HASH_MAP) {
 					auto it2 = get_node(n2i)->as_hash_map()->find(sym_idx, node_eq);
 					if(it2.third) {
 						return it2.second;
@@ -2166,7 +2170,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 			}
 		}
 		return new_node_vector(vec, NODE_FLAG_LITERAL);
-	} else if(type == NODE_MAP) {
+	} else if(type == NODE_HASH_MAP) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the map
 		hash_map_ptr_t map = node->as_hash_map();
@@ -2299,7 +2303,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 			printf(" ");
 		}
 		printf("]");
-	} else if(type == NODE_MAP) {
+	} else if(type == NODE_HASH_MAP) {
 		hash_map_ptr_t map = get_node(node)->as_hash_map();
 		if(map->size() == 0) {
 			printf("{}");
@@ -2398,7 +2402,7 @@ struct seq_iterator_t {
 			if(!done()) {
 				val = *vit;
 			}
-		} else if(type == NODE_MAP) {
+		} else if(type == NODE_HASH_MAP) {
 			mit = get_node(node_idx)->as_hash_map()->begin();
 			if(!done()) {
 				val = mit->second;
@@ -2424,7 +2428,7 @@ struct seq_iterator_t {
 			return !it;
 		} else if(type == NODE_VECTOR) {
 			return !vit;
-		} else if(type == NODE_MAP) {
+		} else if(type == NODE_HASH_MAP) {
 			return !mit;
 		} else if(type == NODE_HASH_SET) {
 			return !hsit;
@@ -2444,7 +2448,7 @@ struct seq_iterator_t {
 		} else if(type == NODE_VECTOR) {
 			*vit++;
 			val = vit ? *vit : INV_NODE;
-		} else if(type == NODE_MAP) {
+		} else if(type == NODE_HASH_MAP) {
 			mit++;
 			val = mit ? mit->second : INV_NODE;
 		} else if(type == NODE_HASH_SET) {
@@ -2503,7 +2507,7 @@ static inline bool seq_iterate(node_idx_t seq, F f) {
 			if(!f(*i)) break;
 		}
 		return true;
-	} else if(n->type == NODE_MAP) {
+	} else if(n->type == NODE_HASH_MAP) {
 		for(hash_map_t::iterator i = n->as_hash_map()->begin(); i; i++) {
 			if(!f(new_node_vector(vector_va(i->first, i->second)))) break;
 		}
@@ -2601,7 +2605,7 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 			}
 		}
 		return true;
-	} else if(n1->type == NODE_MAP && n2->type == NODE_MAP) {
+	} else if(n1->type == NODE_HASH_MAP && n2->type == NODE_HASH_MAP) {
 		for(auto i1 = n1->as_hash_map()->begin(); i1; i1++) {
 			auto elem = n2->as_hash_map()->find(i1->first, node_eq);
 			if(!elem.third) return false;
@@ -3299,7 +3303,7 @@ static node_idx_t native_quasiquote_1(env_ptr_t env, node_idx_t arg) {
 		}
 		return new_node_list(ret);
 	}
-	if(n->type == NODE_MAP) {
+	if(n->type == NODE_HASH_MAP) {
 		hash_map_ptr_t ret = new_hash_map();
 		for(auto i = n->as_hash_map()->begin(); i; i++) {
 			ret = ret->assoc(i->first, native_quasiquote_1(env, i->second), node_eq);
@@ -3469,7 +3473,7 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 	if(get_node_type(*i) == NODE_STRING) {
 		doc_string = *i++;
 	}
-	if(get_node_type(*i) == NODE_MAP) { // attribute map
+	if(get_node_type(*i) == NODE_HASH_MAP) { // attribute map
 		i++; // skip for now, TODO
 	}
 
@@ -3494,7 +3498,7 @@ static node_idx_t native_defmacro(env_ptr_t env, list_ptr_t args) {
 	if(get_node_type(*i) == NODE_STRING) {
 		doc_string = *i++;
 	}
-	if(get_node_type(*i) == NODE_MAP) { // attribute map
+	if(get_node_type(*i) == NODE_HASH_MAP) { // attribute map
 		i++; // skip for now, TODO
 	}
 
@@ -3923,7 +3927,7 @@ static node_idx_t native_is_letter(env_ptr_t env, list_ptr_t args) { return jo_i
 // (e.g. sets and maps) implement IFn
 static node_idx_t native_is_ifn(env_ptr_t env, list_ptr_t args) {
 	int type =  get_node_type(args->first_value());
-	return type == NODE_FUNC || type == NODE_NATIVE_FUNC || type == NODE_VECTOR || type == NODE_MAP || type == NODE_HASH_SET || type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
+	return type == NODE_FUNC || type == NODE_NATIVE_FUNC || type == NODE_VECTOR || type == NODE_HASH_MAP || type == NODE_HASH_SET || type == NODE_SYMBOL || type == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE;
 }
 
 // Return true if x is a symbol or keyword
@@ -3931,7 +3935,7 @@ static node_idx_t native_is_ident(env_ptr_t env, list_ptr_t args) { int type =  
 static node_idx_t native_is_symbol(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_SYMBOL ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_keyword(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_KEYWORD ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_list(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_LIST ? TRUE_NODE : FALSE_NODE; }
-static node_idx_t native_is_hash_map(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_MAP ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_hash_map(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_HASH_MAP ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_set(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_HASH_SET ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_vector(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_VECTOR ? TRUE_NODE : FALSE_NODE; }
 
@@ -4189,10 +4193,10 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 		seq_iterate(from, [&ret](node_idx_t item) { ret->push_back_inplace(item); return true; });
 		return new_node_vector(ret);
 	}
-	if(get_node_type(to) == NODE_MAP) {
+	if(get_node_type(to) == NODE_HASH_MAP) {
 		hash_map_ptr_t ret = new_hash_map(*get_node(to)->as_hash_map());
 		seq_iterate(from, [&ret](node_idx_t item) { 
-			if(get_node_type(item) == NODE_MAP) {
+			if(get_node_type(item) == NODE_HASH_MAP) {
 				ret = ret->conj(get_node(item)->as_hash_map().ptr, node_eq);
 			}
 			return true;
@@ -4474,7 +4478,7 @@ static node_idx_t native_shuffle(env_ptr_t env, list_ptr_t args) {
 	int type = get_node_type(coll_idx);
 	if(type == NODE_LIST)     return new_node_list(get_node(coll_idx)->t_list->shuffle());
 	if(type == NODE_VECTOR)   return new_node_vector(get_node(coll_idx)->as_vector()->shuffle());
-	if(type == NODE_MAP)      return coll_idx;
+	if(type == NODE_HASH_MAP)      return coll_idx;
 	if(type == NODE_HASH_SET) return coll_idx;
 	return NIL_NODE;
 }
@@ -4959,7 +4963,7 @@ static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
 		vector_ptr_t coll = get_node_vector(coll_idx);
 		long long key = get_node_int(key_idx);
 		return key >= 0 && key < coll->size() ? TRUE_NODE : FALSE_NODE;
-	} else if(coll_type == NODE_MAP) {
+	} else if(coll_type == NODE_HASH_MAP) {
 		hash_map_ptr_t coll = get_node_map(coll_idx);
 		return coll->contains(key_idx, node_eq) ? TRUE_NODE : FALSE_NODE;
 	} else if(coll_type == NODE_HASH_SET) {
@@ -4977,7 +4981,7 @@ static node_idx_t native_is_counted(env_ptr_t env, list_ptr_t args) {
 	int coll_type = get_node_type(coll_idx);
 	if(coll_type == NODE_LIST) return TRUE_NODE;
 	if(coll_type == NODE_VECTOR) return TRUE_NODE;
-	if(coll_type == NODE_MAP) return TRUE_NODE;
+	if(coll_type == NODE_HASH_MAP) return TRUE_NODE;
 	if(coll_type == NODE_HASH_SET) return TRUE_NODE;
 	return FALSE_NODE;
 }
@@ -5007,7 +5011,7 @@ static node_idx_t native_empty(env_ptr_t env, list_ptr_t args) {
 	switch(get_node_type(args->first_value())) {
 		case NODE_LIST: return EMPTY_LIST_NODE;
 		case NODE_VECTOR: return EMPTY_VECTOR_NODE;
-		case NODE_MAP: return EMPTY_MAP_NODE;
+		case NODE_HASH_MAP: return EMPTY_MAP_NODE;
 		case NODE_HASH_SET: return EMPTY_SET_NODE;
 		case NODE_LAZY_LIST: return EMPTY_LIST_NODE;
 		default: return NIL_NODE;
@@ -5665,7 +5669,7 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 	node_idx_t map_first_idx = *it++;
 	node_t *map_first_node = get_node(map_first_idx);
 	hash_map_ptr_t r;
-	if(map_first_node->type != NODE_MAP) {
+	if(map_first_node->type != NODE_HASH_MAP) {
 		r = new_hash_map();
 	} else {
 		r = map_first_node->as_hash_map();
@@ -5673,7 +5677,7 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 	for(; it; it++) {
 		node_idx_t map_idx = *it;
 		node_t *map_node = get_node(map_idx);
-		if(map_node->type != NODE_MAP) {
+		if(map_node->type != NODE_HASH_MAP) {
 			continue;
 		}
 		hash_map_ptr_t map = map_node->as_hash_map();
@@ -5698,7 +5702,7 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 	node_idx_t map_first_idx = *it++;
 	node_t *map_first_node = get_node(map_first_idx);
 	hash_map_ptr_t r;
-	if(map_first_node->type != NODE_MAP) {
+	if(map_first_node->type != NODE_HASH_MAP) {
 		r = new_hash_map();
 	} else {
 		r = map_first_node->as_hash_map();
@@ -5706,7 +5710,7 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 	for(; it; it++) {
 		node_idx_t map_idx = *it;
 		node_t *map_node = get_node(map_idx);
-		if(map_node->type != NODE_MAP) {
+		if(map_node->type != NODE_HASH_MAP) {
 			continue;
 		}
 		hash_map_ptr_t map = map_node->as_hash_map();
@@ -5771,7 +5775,7 @@ static node_idx_t native_reduce_kv(env_ptr_t env, list_ptr_t args) {
 		}
 		return result;
 	}
-	if(coll_node->type == NODE_MAP) {
+	if(coll_node->type == NODE_HASH_MAP) {
 		hash_map_ptr_t coll_map = coll_node->as_hash_map();
 		if(coll_map->size() == 0) {
 			return init;
@@ -5863,7 +5867,7 @@ static node_idx_t native_select_keys(env_ptr_t env, list_ptr_t args) {
 	node_t *map_node = get_node(map_idx);
 	node_idx_t keyseq = args->second_value();
 	hash_map_ptr_t r = new_hash_map();
-	if(map_node->type == NODE_MAP) {
+	if(map_node->type == NODE_HASH_MAP) {
 		hash_map_ptr_t map = map_node->as_hash_map();
 		seq_iterate(keyseq, [&](node_idx_t key) {
 			auto it = map->find(key, node_eq);
@@ -6150,6 +6154,54 @@ static node_idx_t native_zipmap(env_ptr_t env, list_ptr_t args) {
 	return new_node_hash_map(map);
 }
 
+static node_idx_t native_queue(env_ptr_t env, list_ptr_t args) {
+	queue_ptr_t q = new_queue();
+	for(list_t::iterator it(args); it; it++) {
+		q->push_inplace(*it);
+	}
+	return new_node_queue(q);
+}
+
+static node_idx_t native_queue_push(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t q_idx = *it++;
+	node_t *q = get_node(q_idx);
+	if(!q->is_queue()) {
+		warnf("queue-push: argument must be a queue");
+		return NIL_NODE;
+	}
+	queue_ptr_t q_ptr = q->as_queue();
+	for(; it; it++) {
+		q_ptr = q_ptr->push(*it);
+	}
+	return new_node_queue(q_ptr);
+}
+
+static node_idx_t native_queue_peek(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t q_idx = *it++;
+	node_t *q = get_node(q_idx);
+	if(!q->is_queue()) {
+		warnf("queue-push: argument must be a queue");
+		return NIL_NODE;
+	}
+	queue_ptr_t q_ptr = q->as_queue();
+	return q_ptr->peek();
+}
+
+static node_idx_t native_queue_pop(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t q_idx = *it++;
+	node_t *q = get_node(q_idx);
+	if(!q->is_queue()) {
+		warnf("queue-push: argument must be a queue");
+		return NIL_NODE;
+	}
+	queue_ptr_t q_ptr = q->as_queue();
+	auto e = q_ptr->pop();
+	return new_node_vector(vector_va(new_node_queue(e.first), e.second));
+}
+
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6270,6 +6322,7 @@ int main(int argc, char **argv) {
 		new_node_vector(new_vector(), NODE_FLAG_PRERESOLVE);
 		new_node_hash_map(new_hash_map(), NODE_FLAG_PRERESOLVE);
 		new_node_hash_set(new_hash_set(), NODE_FLAG_PRERESOLVE);
+		new_node_queue(new_queue(), NODE_FLAG_PRERESOLVE);
 		new_node_atom(EMPTY_SET_NODE, NODE_FLAG_PRERESOLVE); // TAP_LIST_NODE
 		new_node_symbol("%", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%1", NODE_FLAG_PRERESOLVE);
@@ -6290,6 +6343,7 @@ int main(int argc, char **argv) {
 		new_node_keyword("error-mode", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("continue", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("fail", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("default", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__PC__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__ALL__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__BY__", NODE_FLAG_PRERESOLVE);
@@ -6494,6 +6548,12 @@ int main(int argc, char **argv) {
 	env->set("type", new_node_native_function("type", &native_type, false, NODE_FLAG_PRERESOLVE));
 	env->set("when-first", new_node_native_function("when-first", &native_when_first, true, NODE_FLAG_PRERESOLVE));
 	env->set("zipmap", new_node_native_function("zipmap", &native_zipmap, false, NODE_FLAG_PRERESOLVE));
+
+	// persistent queue data structure
+	env->set("queue", new_node_native_function("queue", &native_queue, false, NODE_FLAG_PRERESOLVE));
+	env->set("queue-push", new_node_native_function("queue-push", &native_queue_push, false, NODE_FLAG_PRERESOLVE));
+	env->set("queue-peek", new_node_native_function("queue-peek", &native_queue_peek, false, NODE_FLAG_PRERESOLVE));
+	env->set("queue-pop", new_node_native_function("queue-pop", &native_queue_pop, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);
