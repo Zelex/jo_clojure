@@ -87,6 +87,8 @@ enum {
 	K_VALIDATOR_NODE,
 	K_ERROR_HANDLER_NODE,
 	K_ERROR_MODE_NODE,
+	K_CONTINUE_NODE,
+	K_FAIL_NODE,
 	K_PC_NODE,
 	K_ALL_NODE,
 	K_BY_NODE,
@@ -1718,6 +1720,8 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "validator") return K_VALIDATOR_NODE;
 		if(tok.str == "error-handler") return K_ERROR_HANDLER_NODE;
 		if(tok.str == "error-mode") return K_ERROR_MODE_NODE;
+		if(tok.str == "continue") return K_CONTINUE_NODE;
+		if(tok.str == "fail") return K_FAIL_NODE;
 		if(tok.str == "__PC__") return K_PC_NODE;
 		if(tok.str == "__ALL__") return K_ALL_NODE;
 		if(tok.str == "__BY__") return K_BY_NODE;
@@ -6284,6 +6288,8 @@ int main(int argc, char **argv) {
 		new_node_keyword("validator", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("error-handler", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("error-mode", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("continue", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("fail", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__PC__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__ALL__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__BY__", NODE_FLAG_PRERESOLVE);
