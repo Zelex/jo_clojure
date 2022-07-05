@@ -2,6 +2,7 @@
 
 // simple wrapper so we can blop it into the t_object generic container
 struct jo_clojure_agent_t : jo_object {
+	node_idx_t state = K_CONTINUE_NODE;
 	node_idx_t validate = NIL_NODE;
 	node_idx_t handler = NIL_NODE;
 	node_idx_t mode = NIL_NODE;
