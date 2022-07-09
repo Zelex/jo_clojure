@@ -6550,10 +6550,10 @@ int main(int argc, char **argv) {
 	env->set("zipmap", new_node_native_function("zipmap", &native_zipmap, false, NODE_FLAG_PRERESOLVE));
 
 	// persistent queue data structure
-	env->set("queue", new_node_native_function("queue", &native_queue, false, NODE_FLAG_PRERESOLVE));
-	env->set("queue-push", new_node_native_function("queue-push", &native_queue_push, false, NODE_FLAG_PRERESOLVE));
-	env->set("queue-peek", new_node_native_function("queue-peek", &native_queue_peek, false, NODE_FLAG_PRERESOLVE));
-	env->set("queue-pop", new_node_native_function("queue-pop", &native_queue_pop, false, NODE_FLAG_PRERESOLVE));
+	env->set("jo/queue", new_node_native_function("jo/queue", &native_queue, false, NODE_FLAG_PRERESOLVE));
+	env->set("jo/queue-push", new_node_native_function("jo/queue-push", &native_queue_push, false, NODE_FLAG_PRERESOLVE));
+	env->set("jo/queue-peek", new_node_native_function("jo/queue-peek", &native_queue_peek, false, NODE_FLAG_PRERESOLVE));
+	env->set("jo/queue-pop", new_node_native_function("jo/queue-pop", &native_queue_pop, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_math_init(env);
 	jo_clojure_string_init(env);

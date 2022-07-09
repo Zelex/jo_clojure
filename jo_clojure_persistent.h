@@ -2676,30 +2676,31 @@ struct jo_persistent_queue : jo_object {
     typedef queue_ptr_t shared_ptr;
 
     hash_map_ptr_t map;
-    std::atomic<size_t> read_index;
-    std::atomic<size_t> write_index;
+    size_t read_index;
+    size_t write_index;
 
     jo_persistent_queue() : map(new_hash_map()), read_index(0), write_index(0) {}
-    jo_persistent_queue(const jo_persistent_queue &other) : map(other.map) {
-        read_index.store(other.read_index);
-        write_index.store(other.write_index);
-    }
-    jo_persistent_queue(jo_persistent_queue &&other) : map(other.map) {
-        read_index.store(other.read_index);
-        write_index.store(other.write_index);
+    jo_persistent_queue(const jo_persistent_queue &other) : map(other.map), read_index(other.read_index), write_index(other.write_index) {}
+    jo_persistent_queue(jo_persistent_queue &&other) : map(other.map), read_index(other.read_index), write_index(other.write_index) {
+        other.map = nullptr;
+        other.read_index = 0;
+        other.write_index = 0;
     }
 
     jo_persistent_queue &operator=(const jo_persistent_queue &other) {
         map = other.map;
-        read_index.store(other.read_index);
-        write_index.store(other.write_index);
+        read_index = other.read_index;
+        write_index = other.write_index;
         return *this;
     }
 
     jo_persistent_queue &operator=(jo_persistent_queue &&other) {
         map = other.map;
-        read_index.store(other.read_index);
-        write_index.store(other.write_index);
+        read_index = other.read_index;
+        write_index = other.write_index;
+        other.map = nullptr;
+        other.read_index = 0;
+        other.write_index = 0;
         return *this;
     }
 
@@ -2709,22 +2710,22 @@ struct jo_persistent_queue : jo_object {
 
     shared_ptr push(const node_idx_t &key) const {
         shared_ptr copy = clone();
-        size_t index = copy->write_index.fetch_add(1);
+        size_t index = copy->write_index++;
         copy->map = copy->map->assoc(new_node_int(index), key, node_eq);
         return copy;
     }
 
     void push_inplace(const node_idx_t &key) {
-        size_t index = write_index.fetch_add(1);
+        size_t index = write_index++;
         map->assoc_inplace(new_node_int(index), key, node_eq);
     }
 
     jo_pair<shared_ptr, node_idx_t> pop() const {
         shared_ptr copy = clone();
-        if(read_index.load() >= write_index.load()) {
+        if(read_index >= write_index) {
             return jo_make_pair<shared_ptr, node_idx_t>(copy, 0);
         }
-        size_t index = copy->read_index.fetch_add(1);
+        size_t index = copy->read_index++;
         node_idx_t key = new_node_int(index);
         auto entry = copy->map->find(key, node_eq);
         if(entry.third) {
@@ -2735,10 +2736,10 @@ struct jo_persistent_queue : jo_object {
     }
 
     node_idx_t pop_inplace() {
-        if(read_index.load() >= write_index.load()) {
+        if(read_index >= write_index) {
             return 0;
         }
-        size_t index = read_index.fetch_add(1);
+        size_t index = read_index++;
         node_idx_t key = new_node_int(index);
         auto entry = map->find(key, node_eq);
         if(entry.third) {
@@ -2749,10 +2750,10 @@ struct jo_persistent_queue : jo_object {
     }
 
     node_idx_t peek() const {
-        if(read_index.load() >= write_index.load()) {
+        if(read_index >= write_index) {
             return 0;
         }
-        size_t index = read_index.load();
+        size_t index = read_index;
         node_idx_t key = new_node_int(index);
         auto entry = map->find(key, node_eq);
         if(entry.third) {
