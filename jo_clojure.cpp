@@ -986,7 +986,7 @@ struct node_t {
 			{
 				matrix_ptr_t M = as_matrix();
 				jo_string s;
-				s = va("(matrix %d %d [", M->width, M->height);
+				s = va("(jo/matrix %d %d [", M->width, M->height);
 				for(int j = 0; j < M->height; ++j) {
 					for(int i = 0; i < M->width; ++i) {
 						s += get_node(M->get(i,j))->as_string(3);
