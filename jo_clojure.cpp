@@ -1073,7 +1073,7 @@ struct node_t {
 		case NODE_LIST:    return "list";
 		case NODE_LAZY_LIST: return "lazy-list";
 		case NODE_VECTOR:  return "vector";
-		case NODE_MATRIX:  return "matrix";
+		case NODE_MATRIX:  return "jo/matrix";
 		case NODE_HASH_SET: return "set";
 		case NODE_HASH_MAP:     return "map";
 		case NODE_FUNC:	   return "function";
@@ -6517,7 +6517,7 @@ int main(int argc, char **argv) {
 	env->set("recur", new_node_native_function("recur", &native_recur, false, NODE_FLAG_PRERESOLVE));
 	env->set("mapv", new_node_native_function("mapv", &native_mapv, false, NODE_FLAG_PRERESOLVE));
 	env->set("vector", new_node_native_function("vector", &native_vector, false, NODE_FLAG_PRERESOLVE));
-	env->set("matrix", new_node_native_function("matrix", &native_matrix, false, NODE_FLAG_PRERESOLVE));
+	env->set("jo/matrix", new_node_native_function("jo/matrix", &native_matrix, false, NODE_FLAG_PRERESOLVE));
 	env->set("max-key", new_node_native_function("max-key", &native_max_key, false, NODE_FLAG_PRERESOLVE));
 	env->set("min-key", new_node_native_function("min-key", &native_min_key, false, NODE_FLAG_PRERESOLVE));
 	env->set("key", new_node_native_function("key", &native_key, false, NODE_FLAG_PRERESOLVE));
