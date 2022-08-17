@@ -205,7 +205,6 @@ static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i);
 static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
 static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
-
 #define list_va(...) new_list()->push_front_inplace(__VA_ARGS__)
 #define eval_va(env, ...) eval_list(env, list_va(__VA_ARGS__))
 
@@ -3757,16 +3756,8 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t list_idx = *it++;
 	node_t *list = get_node(list_idx);
-	if(list->is_list()) {
-		list_ptr_t list_list = list->t_list;
-		if(list_list->size() == 0) return NIL_NODE;
-		return list_list->first_value();
-	}
-	if(list->is_vector()) {
-		vector_ptr_t list_vec = list->as_vector();
-		if(list_vec->size() == 0) return NIL_NODE;
-		return list_vec->first_value();
-	}
+	if(list->is_list()) return list->t_list->first_value();
+	if(list->is_vector()) return list->as_vector()->first_value();
 	if(list->is_string()) {
 		jo_string s = list->as_string();
 		if(s.size() == 0) return NIL_NODE;
