@@ -769,32 +769,32 @@ struct jo_persistent_list : jo_object {
         return copy;
     }
 
-    auto push_front2_inplace(const T &value1, const T &value2) {
+    auto push_front_inplace(const T &value1, const T &value2) {
         push_front_inplace(value2);
         push_front_inplace(value1);
         return this;
     }
 
-    list_ptr_t push_front2(const T &value1, const T &value2) const {
+    list_ptr_t push_front(const T &value1, const T &value2) const {
         list_ptr_t copy = new_list(*this);
-        copy->push_front2_inplace(value1, value2);
+        copy->push_front_inplace(value1, value2);
         return copy;
     }
 
-    auto push_front3_inplace(const T &value1, const T &value2, const T &value3) {
+    auto push_front_inplace(const T &value1, const T &value2, const T &value3) {
         push_front_inplace(value3);
         push_front_inplace(value2);
         push_front_inplace(value1);
         return this;
     }
 
-    list_ptr_t push_front3(const T &value1, const T &value2, const T &value3) const {
+    list_ptr_t push_front(const T &value1, const T &value2, const T &value3) const {
         list_ptr_t copy = new_list(*this);
-        copy->push_front3_inplace(value1, value2, value3);
+        copy->push_front_inplace(value1, value2, value3);
         return copy;
     }
 
-    auto push_front4_inplace(const T &value1, const T &value2, const T &value3, const T &value4) {
+    auto push_front_inplace(const T &value1, const T &value2, const T &value3, const T &value4) {
         push_front_inplace(value4);
         push_front_inplace(value3);
         push_front_inplace(value2);
@@ -802,13 +802,13 @@ struct jo_persistent_list : jo_object {
         return this;
     }
 
-    list_ptr_t push_front4(const T &value1, const T &value2, const T &value3, const T &value4) const {
+    list_ptr_t push_front(const T &value1, const T &value2, const T &value3, const T &value4) const {
         list_ptr_t copy = new_list(*this);
-        copy->push_front4_inplace(value1, value2, value3, value4);
+        copy->push_front_inplace(value1, value2, value3, value4);
         return copy;
     }
 
-    auto push_front5_inplace(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5) {
+    auto push_front_inplace(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5) {
         push_front_inplace(value5);
         push_front_inplace(value4);
         push_front_inplace(value3);
@@ -817,13 +817,13 @@ struct jo_persistent_list : jo_object {
         return this;
     }
 
-    list_ptr_t push_front5(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5) const {
+    list_ptr_t push_front(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5) const {
         list_ptr_t copy = new_list(*this);
-        copy->push_front5_inplace(value1, value2, value3, value4, value5);
+        copy->push_front_inplace(value1, value2, value3, value4, value5);
         return copy;
     }
 
-    auto push_front6_inplace(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5, const T &value6) {
+    auto push_front_inplace(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5, const T &value6) {
         push_front_inplace(value6);
         push_front_inplace(value5);
         push_front_inplace(value4);
@@ -833,9 +833,9 @@ struct jo_persistent_list : jo_object {
         return this;
     }
 
-    list_ptr_t push_front6(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5, const T &value6) const {
+    list_ptr_t push_front(const T &value1, const T &value2, const T &value3, const T &value4, const T &value5, const T &value6) const {
         list_ptr_t copy = new_list(*this);
-        copy->push_front6_inplace(value1, value2, value3, value4, value5, value6);
+        copy->push_front_inplace(value1, value2, value3, value4, value5, value6);
         return copy;
     }
 

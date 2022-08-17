@@ -206,19 +206,8 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root);
 static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list);
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags=0);
 
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
-
-static inline list_ptr_t list_va(node_idx_t a);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e);
-static inline list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f);
+#define list_va(...) new_list()->push_front_inplace(__VA_ARGS__)
+#define eval_va(env, ...) eval_list(env, list_va(__VA_ARGS__))
 
 static vector_ptr_t vector_va(node_idx_t a);
 static vector_ptr_t vector_va(node_idx_t a, node_idx_t b);
@@ -2214,19 +2203,6 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 	return res;
 }
 
-static list_ptr_t list_va(node_idx_t a) { list_ptr_t L = new_list(); L->push_front_inplace(a); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b) { list_ptr_t L = new_list(); L->push_front2_inplace(a, b); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c) { list_ptr_t L = new_list(); L->push_front3_inplace(a, b, c); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) { list_ptr_t L = new_list(); L->push_front4_inplace(a, b, c, d); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) { list_ptr_t L = new_list(); L->push_front5_inplace(a, b, c, d, e); return L; }
-static list_ptr_t list_va(node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) { list_ptr_t L = new_list(); L->push_front6_inplace(a, b, c, d, e, f); return L; }
-
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a) { return eval_list(env, list_va(a)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b) { return eval_list(env, list_va(a, b)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c) { return eval_list(env, list_va(a, b, c)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d) { return eval_list(env, list_va(a, b, c, d)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e) { return eval_list(env, list_va(a, b, c, d, e)); }
-static node_idx_t eval_va(env_ptr_t env, node_idx_t a, node_idx_t b, node_idx_t c, node_idx_t d, node_idx_t e, node_idx_t f) { return eval_list(env, list_va(a, b, c, d, e, f)); }
 
 static vector_ptr_t vector_va(node_idx_t a) {
 	vector_ptr_t vec = new_vector();
@@ -4404,7 +4380,7 @@ static node_idx_t native_update(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = *it++;
 	list_ptr_t rest = args->rest(it);
 	node_idx_t val_idx = eval_va(env, f_idx, native_get(env, list_va(map_idx, key_idx)));
-	return native_assoc(env, rest->push_front3(map_idx, key_idx, val_idx));
+	return native_assoc(env, rest->push_front(map_idx, key_idx, val_idx));
 }
 
 // (update-in m ks f & args)
@@ -4435,7 +4411,7 @@ static node_idx_t native_update_in(env_ptr_t env, list_ptr_t args) {
 	} else {
 		list_ptr_t rest = args->rest(it);
 		node_idx_t map2 = native_get(env, list_va(map_idx, key_vector->first_value()));
-		return native_assoc(env, list_va(map_idx, key_vector->first_value(), eval_list(env, rest->push_front2(f_idx, map2))));
+		return native_assoc(env, list_va(map_idx, key_vector->first_value(), eval_list(env, rest->push_front(f_idx, map2))));
 	}
 }
 
@@ -4618,10 +4594,10 @@ static node_idx_t native_thread(env_ptr_t env, list_ptr_t args) {
 		if(get_node_type(*it) == NODE_LIST) {
 			list_ptr_t form_list = form_node->t_list;
 			args2 = form_list->rest();
-			args2->push_front2_inplace(form_list->first_value(), x_idx);
+			args2->push_front_inplace(form_list->first_value(), x_idx);
 		} else {
 			args2 = new_list();
-			args2->push_front2_inplace(*it, x_idx);
+			args2->push_front_inplace(*it, x_idx);
 		}
 		x_idx = eval_list(env, args2);
 	}
@@ -4645,7 +4621,7 @@ static node_idx_t native_thread_last(env_ptr_t env, list_ptr_t args) {
 			args2->push_back_inplace(x_idx);
 		} else {
 			args2 = new_list();
-			args2->push_front2_inplace(*it, x_idx);
+			args2->push_front_inplace(*it, x_idx);
 		}
 		x_idx = eval_list(env, args2);
 	}
@@ -4843,13 +4819,13 @@ static node_idx_t native_cond_thread(env_ptr_t env, list_ptr_t args) {
 			int form_type = get_node_type(form_idx);
 			if(form_type == NODE_SYMBOL || form_type == NODE_FUNC || form_type == NODE_NATIVE_FUNC) {
 				list_ptr_t form_args = new_list();
-				form_args->push_front2_inplace(form_idx, value_idx);
+				form_args->push_front_inplace(form_idx, value_idx);
 				value_idx = eval_list(env, form_args);
 			} else if(form_type == NODE_LIST) {
 				list_ptr_t form_args = get_node(form_idx)->t_list;
 				node_idx_t sym = form_args->first_value();
 				form_args = form_args->pop_front();
-				form_args->push_front2_inplace(sym, value_idx);
+				form_args->push_front_inplace(sym, value_idx);
 				value_idx = eval_list(env, form_args);
 			} else {
 				warnf("(cond->) requires a symbol or list");
@@ -4875,7 +4851,7 @@ static node_idx_t native_cond_thread_last(env_ptr_t env, list_ptr_t args) {
 			int form_type = get_node_type(form_idx);
 			if(form_type == NODE_SYMBOL || form_type == NODE_FUNC || form_type == NODE_NATIVE_FUNC) {
 				list_ptr_t form_args = new_list();
-				form_args->push_front2_inplace(form_idx, value_idx);
+				form_args->push_front_inplace(form_idx, value_idx);
 				value_idx = eval_list(env, form_args);
 			} else if(form_type == NODE_LIST) {
 				list_ptr_t form_args = get_node_list(form_idx);
@@ -4926,7 +4902,7 @@ static node_idx_t native_condp(env_ptr_t env, list_ptr_t args) {
 		node_idx_t test_idx = eval_node(env, *it++);
 		node_idx_t form_idx = *it++;
 		list_ptr_t test_args = new_list();
-		test_args->push_front3_inplace(pred_idx, test_idx, expr_idx);
+		test_args->push_front_inplace(pred_idx, test_idx, expr_idx);
 		if(eval_list(env, test_args) == TRUE_NODE) {
 			return eval_node(env, form_idx);
 		}
@@ -5938,7 +5914,7 @@ static node_idx_t native_some_thread(env_ptr_t env, list_ptr_t args) {
 		if(get_node_type(*it) == NODE_LIST) {
 			list_ptr_t form_list = form_node->t_list;
 			list_ptr_t args2 = form_list->rest();
-			args2->push_front2_inplace(form_list->first_value(), x_idx);
+			args2->push_front_inplace(form_list->first_value(), x_idx);
 			x_idx = eval_list(env, args2);
 		} else {
 			x_idx = eval_va(env, form_idx, x_idx);

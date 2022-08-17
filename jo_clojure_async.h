@@ -72,7 +72,7 @@ static node_idx_t node_swap(env_ptr_t env, node_idx_t atom_idx, node_idx_t f_idx
 
 	if(env->tx.ptr) {
 		old_val = env->tx->read(atom_idx);
-		new_val = eval_list(env, args->push_front2(f_idx, old_val));
+		new_val = eval_list(env, args->push_front(f_idx, old_val));
 		if(v_idx != NIL_NODE) {
 			node_idx_t valid = eval_list(env, list_va(v_idx, new_val));
 			if(valid == FALSE_NODE) {
@@ -92,7 +92,7 @@ static node_idx_t node_swap(env_ptr_t env, node_idx_t atom_idx, node_idx_t f_idx
 			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
-		new_val = eval_list(env, args->push_front2(f_idx, old_val));
+		new_val = eval_list(env, args->push_front(f_idx, old_val));
 		if(v_idx != NIL_NODE) {
 			node_idx_t valid = eval_va(env, v_idx, new_val);
 			if(valid == FALSE_NODE) {
@@ -338,7 +338,7 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 
 	if(env->tx.ptr) {
 		old_val = env->tx->read(atom_idx);
-		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
+		new_val = eval_list(env, args2->push_front(f_idx, old_val));
 		env->tx->write(atom_idx, new_val);
 		vector_ptr_t ret = new_vector();
 		ret->push_back_inplace(old_val);
@@ -353,7 +353,7 @@ static node_idx_t native_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 			jo_yield_backoff(&count);
 			old_val = atom->t_atom.load();
 		}
-		new_val = eval_list(env, args2->push_front2(f_idx, old_val));
+		new_val = eval_list(env, args2->push_front(f_idx, old_val));
 	} while(!atom->t_atom.compare_exchange_weak(old_val, new_val));
 	vector_ptr_t ret = new_vector();
 	ret->push_back_inplace(old_val);
@@ -442,7 +442,7 @@ static node_idx_t native_multi_swap_e(env_ptr_t env, list_ptr_t args) {
 			node_idx_t f_idx = *it2++;
 			list_ptr_t args2 = list->rest(it2);
 			node_idx_t old_val = env2->tx->read(atom_idx);
-			node_idx_t new_val = eval_list(env2, args2->push_front2(f_idx, old_val));
+			node_idx_t new_val = eval_list(env2, args2->push_front(f_idx, old_val));
 			old_vals[i] = old_val;
 			new_vals[i] = new_val;
 			env2->tx->write(atom_idx, new_val);
@@ -563,7 +563,7 @@ static node_idx_t native_multi_swap_vals_e(env_ptr_t env, list_ptr_t args) {
 			node_idx_t f_idx = *it2++;
 			list_ptr_t args2 = list->rest(it2);
 			node_idx_t old_val = env2->tx->read(atom_idx);
-			node_idx_t new_val = eval_list(env2, args2->push_front2(f_idx, old_val));
+			node_idx_t new_val = eval_list(env2, args2->push_front(f_idx, old_val));
 			old_vals[i] = old_val;
 			new_vals[i] = new_val;
 			env2->tx->write(atom_idx, new_val);
@@ -891,7 +891,7 @@ static node_idx_t native_pcalls_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t ret = native_auto_future_call(env, list_va(args->first_value()));
-	return new_node_list(args->rest()->push_front2(ret, env->get("pcalls-next")));
+	return new_node_list(args->rest()->push_front(ret, env->get("pcalls-next")));
 }
 
 // (pvalues & fns)
@@ -906,7 +906,7 @@ static node_idx_t native_pvalues_next(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_idx_t ret = native_auto_future(env, list_va(args->first_value()));
-	return new_node_list(args->rest()->push_front2(ret, env->get("pvalues-next")));
+	return new_node_list(args->rest()->push_front(ret, env->get("pvalues-next")));
 }
 
 // TODO: Implement promise with atoms so its STM compliant!
