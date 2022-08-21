@@ -144,7 +144,6 @@ find-protocol-method
 find-var
 float-array
 floats
-force
 format
 gen-class
 gen-interface
