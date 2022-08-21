@@ -6169,6 +6169,12 @@ static node_idx_t native_queue_pop(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(vector_va(new_node_queue(e.first), e.second));
 }
 
+// (force x)
+// If x is a Delay, returns the (possibly cached) value of its expression, else returns x
+static node_idx_t native_force(env_ptr_t env, list_ptr_t args) {
+	// delay resolution is in the eval_node function
+	return args->first_value();
+}
 
 #include "jo_clojure_math.h"
 #include "jo_clojure_string.h"
@@ -6515,6 +6521,7 @@ int main(int argc, char **argv) {
 	env->set("type", new_node_native_function("type", &native_type, false, NODE_FLAG_PRERESOLVE));
 	env->set("when-first", new_node_native_function("when-first", &native_when_first, true, NODE_FLAG_PRERESOLVE));
 	env->set("zipmap", new_node_native_function("zipmap", &native_zipmap, false, NODE_FLAG_PRERESOLVE));
+	env->set("force", new_node_native_function("force", &native_force, false, NODE_FLAG_PRERESOLVE));
 
 	// persistent queue data structure
 	env->set("jo/queue", new_node_native_function("jo/queue", &native_queue, false, NODE_FLAG_PRERESOLVE));
