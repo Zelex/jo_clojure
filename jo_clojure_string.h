@@ -79,6 +79,37 @@ static node_idx_t native_join(env_ptr_t env, list_ptr_t args) {
     return new_node_string(str);
 }
 
+// (split s re)(split s re limit)
+// Splits string on a regular expression.  Optional argument limit is
+// the maximum number of splits. Not lazy. Returns vector of the splits.
+static node_idx_t native_split(env_ptr_t env, list_ptr_t args) {
+	node_idx_t node_idx = args->first_value();
+	node_t *node = get_node(node_idx);
+	if(!node->is_string()) {
+		return NIL_NODE;
+	}
+	jo_string str = node->as_string();
+	jo_string re = get_node(args->second_value())->as_string();
+	int limit = get_node_int(args->third_value());
+	vector_ptr_t V = new_vector();
+	long long pos = 0;
+	long long prev_pos = 0;
+	int count = 0;
+	while(pos != jo_npos) {
+		pos = str.find(re, prev_pos);
+		if(pos == jo_npos) {
+			V->push_back_inplace(new_node_string(str.substr(prev_pos)));
+		} else {
+			V->push_back_inplace(new_node_string(str.substr(prev_pos, pos - prev_pos)));
+		}
+		prev_pos = pos + re.length();
+		if(limit && ++count >= limit) {
+			break;
+		}
+	}
+	return new_node_vector(V);
+}
+
 
 void jo_clojure_string_init(env_ptr_t env) {
 	env->set("str", new_node_native_function("str", &native_str, false, NODE_FLAG_PRERESOLVE));
@@ -104,4 +135,5 @@ void jo_clojure_string_init(env_ptr_t env) {
 	env->set("string?", new_node_native_function("string?", &native_is_string, false, NODE_FLAG_PRERESOLVE));
 	env->set("ston", new_node_native_function("ston", &native_ston, false, NODE_FLAG_PRERESOLVE));
 	env->set("ntos", new_node_native_function("ntos", &native_ntos, false, NODE_FLAG_PRERESOLVE));
+	env->set("split", new_node_native_function("split", &native_split, false, NODE_FLAG_PRERESOLVE));
 }

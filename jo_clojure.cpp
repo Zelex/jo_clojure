@@ -3961,7 +3961,7 @@ static node_idx_t native_fnext(env_ptr_t env, list_ptr_t args) { return native_f
 // like next, but always returns a list
 static node_idx_t native_rest(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_rest().first; }
 
-static node_idx_t native_when_not(env_ptr_t env, list_ptr_t args) { return !get_node_bool(args->first_value()) ? eval_node_list(env, args->rest()) : NIL_NODE; }
+static node_idx_t native_when_not(env_ptr_t env, list_ptr_t args) { return !get_node_bool(eval_node(env, args->first_value())) ? eval_node_list(env, args->rest()) : NIL_NODE; }
 
 // (let [a 1 b 2] (+ a b))
 static node_idx_t native_let(env_ptr_t env, list_ptr_t args) {
@@ -6558,7 +6558,7 @@ int main(int argc, char **argv) {
 
 	{
 		node_idx_t res_idx = eval_node_list(env, main_list);
-		printf("%s\n", get_node(res_idx)->as_string(3).c_str());
+		//printf("%s\n", get_node(res_idx)->as_string(3).c_str());
 	}
 
 	debugf("nodes.size() = %zu\n", nodes.size());
@@ -6573,5 +6573,7 @@ int main(int argc, char **argv) {
 	tmShutdown();
 	free(telemetry_memory);
 #endif
+
+	return 0;
 }
 
