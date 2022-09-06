@@ -4445,7 +4445,7 @@ static node_idx_t native_shuffle(env_ptr_t env, list_ptr_t args) {
 	int type = get_node_type(coll_idx);
 	if(type == NODE_LIST)     return new_node_list(get_node(coll_idx)->t_list->shuffle());
 	if(type == NODE_VECTOR)   return new_node_vector(get_node(coll_idx)->as_vector()->shuffle());
-	if(type == NODE_HASH_MAP)      return coll_idx;
+	if(type == NODE_HASH_MAP) return coll_idx;
 	if(type == NODE_HASH_SET) return coll_idx;
 	return NIL_NODE;
 }

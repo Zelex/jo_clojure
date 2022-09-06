@@ -76,6 +76,32 @@ static node_idx_t native_system_tmpnam(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+static node_idx_t native_system_move_file(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	jo_string from = node->as_string(env);
+	node_idx_t value_idx = *it++;
+	node_t *value = get_node(value_idx);
+	jo_string to = value->as_string(env);
+	return new_node_bool(jo_file_move(from.c_str(), to.c_str()) == 0);
+}
+
+static node_idx_t native_system_copy_file(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t node_idx = *it++;
+	node_t *node = get_node(node_idx);
+	jo_string from = node->as_string(env);
+	node_idx_t value_idx = *it++;
+	node_t *value = get_node(value_idx);
+	jo_string to = value->as_string(env);
+	return new_node_bool(jo_file_copy(from.c_str(), to.c_str()) == 0);
+}
+
+static node_idx_t native_system_delete_file(env_ptr_t env, list_ptr_t args) {
+	return new_node_bool(remove(get_node_string(args->first_value()).c_str()) == 0);
+}
+
 void jo_clojure_system_init(env_ptr_t env) {
 	env->set("System/setenv", new_node_native_function("System/setenv", &native_system_setenv, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/getenv", new_node_native_function("System/getenv", &native_system_getenv, false, NODE_FLAG_PRERESOLVE));
@@ -87,6 +113,9 @@ void jo_clojure_system_init(env_ptr_t env) {
 	env->set("System/date", new_node_native_function("System/date", &native_system_date, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/currentTimeMillis", new_node_native_function("System/currentTimeMillis", &native_system_currentTimeMillis, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/tmpnam", new_node_native_function("System/tmpnam", &native_system_tmpnam, false, NODE_FLAG_PRERESOLVE));
+	env->set("System/move-file", new_node_native_function("System/move-file", &native_system_move_file, false, NODE_FLAG_PRERESOLVE));
+	env->set("System/copy-file", new_node_native_function("System/copy-file", &native_system_copy_file, false, NODE_FLAG_PRERESOLVE));
+	env->set("System/delete-file", new_node_native_function("System/delete-file", &native_system_delete_file, false, NODE_FLAG_PRERESOLVE));
 	env->set("read-line", new_node_native_function("read-line", &native_system_read_line, false, NODE_FLAG_PRERESOLVE));
 	env->set("-d", new_node_native_function("-d", &native_system_dir_exists, false, NODE_FLAG_PRERESOLVE));
 	env->set("-e", new_node_native_function("-e", &native_system_file_exists, false, NODE_FLAG_PRERESOLVE));

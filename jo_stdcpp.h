@@ -204,6 +204,12 @@ static bool jo_file_copy(const char *src, const char *dst) {
     return true;
 }
 
+// move file
+static bool jo_file_move(const char *src, const char *dst) {
+    if(!jo_file_copy(src, dst)) return false;
+    return remove(src) == 0;
+}
+
 static int jo_kbhit() {
 #ifdef _WIN32
     return _kbhit();
@@ -739,10 +745,6 @@ struct jo_string {
         size_t l = strlen(str);
         if(n >= l) return *this;
         if(m > l) m = l;
-        if(m <= n) {
-            str[n] = 0;
-            return *this;
-        }
         jo_memmove(str+n, str+m, l-m+1);
         return *this;
     }
@@ -750,14 +752,17 @@ struct jo_string {
     jo_string &insert(size_t n, const char *s) {
         size_t l0 = strlen(str);
         size_t l1 = strlen(s);
-        char *new_str = (char*)realloc(str, l0 + l1 + 1);
+        if(n > l0) n = l0;
+        char *new_str = (char*)malloc(l0 + l1 + 1);
         if(!new_str) {
             // malloc failed!
             return *this;
         }
+        jo_memcpy(new_str, str, n);
+        jo_memcpy(new_str+n, s, l1);
+        jo_memcpy(new_str+n+l1, str+n, l0-n+1);
+        free(str);
         str = new_str;
-        jo_memmove(str+n+l1, str+n, l0-n+1);
-        jo_memcpy(str+n, s, l1);
         return *this;
     }
 
@@ -971,7 +976,7 @@ struct jo_string {
             if(pos2 == jo_npos) {
                 break;
             }
-            erase(pos2, strlen(s));
+            erase(pos2, pos2+strlen(s));
             insert(pos2, r);
             pos = pos2 + strlen(r);
         }
@@ -983,7 +988,7 @@ struct jo_string {
         if(pos == jo_npos) {
             return *this;
         }
-        erase(pos, strlen(s));
+        erase(pos, pos+strlen(s));
         insert(pos, r);
         return *this;
     }
