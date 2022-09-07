@@ -488,6 +488,10 @@ static char *jo_tmpnam() {
 #endif
 }
 
+static unsigned jo_lrotl(unsigned x, int r) {
+    return (x << r) | (x >> (32 - r));
+}
+
 
 // 
 // Simple C++std replacements...
@@ -1925,6 +1929,8 @@ struct jo_shared_ptr {
 template<typename T> jo_shared_ptr<T> jo_make_shared() { return jo_shared_ptr<T>(new T()); }
 template<typename T> jo_shared_ptr<T> jo_make_shared(const T& other) { return jo_shared_ptr<T>(new T(other)); }
 
+#define DWORD_HAS_ZERO_BYTE(V)       (((V) - 0x01010101UL) & ~(V) & 0x80808080UL)
+
 // jo_hash_value
 size_t jo_hash_value(const bool &value) { return value ? 1 : 0; }
 size_t jo_hash_value(const char &value) { return value; }
@@ -1941,6 +1947,40 @@ size_t jo_hash_value(const double value) { return *(size_t *)&value; }
 size_t jo_hash_value(const long double &value) { return *(size_t *)&value; }
 size_t jo_hash_value(const char *value) {
 #if 1
+    const unsigned PRIME = 709607;
+    unsigned hash32 = 2166136261;
+    const char *p = value;
+
+    for(;;)
+    {
+        unsigned dw1 = *(unsigned *)p;
+        if ( DWORD_HAS_ZERO_BYTE(dw1) )
+            break;
+        
+        p += 4;
+        hash32 = hash32 ^ jo_lrotl(dw1,5);
+        
+        unsigned dw2 = *(unsigned *)p;
+        if ( DWORD_HAS_ZERO_BYTE(dw2) )
+        {
+            // finish dw1 without dw2
+            hash32 *= PRIME;
+            break;
+        }
+        
+        p += 4;
+            
+        hash32 = (hash32 ^ dw2) * PRIME;        
+    }
+    
+    while( *p )
+    {
+        hash32 = (hash32 ^ *p) * PRIME;
+        p++;
+    }
+    
+    return hash32;
+#elif 1
     // FNV1 https://cbloomrants.blogspot.com/2010/11/11-29-10-useless-hash-test.html
     size_t hash = 2166136261;
     while(*value) {

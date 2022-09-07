@@ -2741,11 +2741,11 @@ static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 inline size_t jo_hash_value(node_idx_t n) {
 	node_t *n1 = get_node(n);
 	if(n1->flags & NODE_FLAG_STRING) {
-		return jo_hash_value(n1->t_string.c_str()) & 0x7FFFFFFFFFFFFFFFull;
+		return jo_hash_value(n1->t_string.c_str()) & INT_MAX;
 	} else if(n1->type == NODE_INT) {
-		return n1->t_int & 0x7FFFFFFFFFFFFFFFull;
+		return n1->t_int & INT_MAX;
 	} else if(n1->type == NODE_FLOAT) {
-		return jo_hash_value(n1->as_float()) & 0x7FFFFFFFFFFFFFFFull;
+		return jo_hash_value(n1->as_float()) & INT_MAX;
 	} else if(n1->type == NODE_BOOL) {
 		return n1->t_bool ? 1 : 0;
 	} else if(n1->is_seq()) {
@@ -2764,7 +2764,7 @@ inline size_t jo_hash_value(node_idx_t n) {
 			return true;
 		});
 		size_t hash = ((hash0 ^ hash1) ^ (hash2 ^ hash3)) ^ ((hash4 ^ hash5) ^ (hash6 ^ hash7));
-		return hash & 0x7FFFFFFFFFFFFFFFull;
+		return hash & INT_MAX;
 	}
 	return 0;
 }
@@ -5275,21 +5275,11 @@ static node_idx_t native_group_by(env_ptr_t env, list_ptr_t args) {
 // consistent with =, and thus is different than .hashCode for Integer,
 // Short, Byte and Clojure collections.
 static node_idx_t native_hash(env_ptr_t env, list_ptr_t args) {
-	size_t hash0 = 2166136261, hash1 = 2166136261, hash2 = 2166136261, hash3 = 2166136261;
-	size_t hash4 = 2166136261, hash5 = 2166136261, hash6 = 2166136261, hash7 = 2166136261;
+	size_t hash = 0;
 	for(list_t::iterator it(args); it; it++) {
-		size_t h = jo_hash_value(*it);
-		hash0 = (16777619 * hash0) ^ ((h>>0) & 255);
-		hash1 = (16777619 * hash1) ^ ((h>>8) & 255);
-		hash2 = (16777619 * hash2) ^ ((h>>16) & 255);
-		hash3 = (16777619 * hash3) ^ ((h>>24) & 255);
-		hash4 = (16777619 * hash4) ^ ((h>>32) & 255);
-		hash5 = (16777619 * hash5) ^ ((h>>40) & 255);
-		hash6 = (16777619 * hash6) ^ ((h>>48) & 255);
-		hash7 = (16777619 * hash7) ^ ((h>>56) & 255);
+		hash ^= jo_hash_value(*it);
 	}
-	size_t hash = ((hash0 ^ hash1) ^ (hash2 ^ hash3)) ^ ((hash4 ^ hash5) ^ (hash6 ^ hash7));
-	return new_node_int(hash & 0x7FFFFFFFFFFFFFFFull);
+	return new_node_int(hash & INT_MAX);
 }
 
 // (hash-combine x y)
