@@ -1386,6 +1386,46 @@ static node_idx_t native_math_matrix_set_col(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(ret);
 }
 
+static node_idx_t native_math_matrix_cholesky(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        warnf("native_math_matrix_cholesky: not a matrix. arg type is %s\n", A_node->type_name());
+        return NIL_NODE;
+    }
+    matrix_ptr_t A = A_node->as_matrix();
+    int n = A->width;
+    if(n != A->height) {
+        warnf("native_math_matrix_cholesky: matrix is not square\n");
+        return NIL_NODE;
+    }
+    matrix_ptr_t L = A->clone();
+    for(int i = 0; i < n; ++i) {
+        for(int j = i; j < n; ++j) {
+            double sum = get_node_float(L->get(j, i));
+            for(int k = i-1; k >= 0; --k) {
+                sum -= get_node_float(L->get(k, i)) * get_node_float(L->get(k, j));
+            }
+            if(i == j) {
+                if(sum <= 0) {
+                    warnf("native_math_matrix_cholesky: matrix is not positive definite symmetric\n");
+                    return NIL_NODE;
+                }
+                L->set(i, j, new_node_float(jo_math_sqrt(sum)));
+            } else {
+                L->set(i,j, new_node_float(sum / get_node_float(L->get(i, i))));
+            }
+        }
+    }
+    for(int i = 0; i < n; ++i) {
+        for(int j = 0; j < i; ++j) {
+            L->set(i, j, ZERO_NODE);
+        }
+    }
+    return new_node_matrix(L);
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
     env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
     env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -1481,6 +1521,7 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/rand", new_node_native_function("matrix/rand", &native_math_matrix_rand, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/set-row", new_node_native_function("matrix/set-row", &native_math_matrix_set_row, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/set-col", new_node_native_function("matrix/set-col", &native_math_matrix_set_col, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/cholesky", new_node_native_function("matrix/cholesky", &native_math_matrix_cholesky, false, NODE_FLAG_PRERESOLVE));
     //env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
