@@ -1,1 +1,1 @@
-cl /O2 /Zi jo_clojure.cpp /EHsc- /D_CRT_SECURE_NO_WARNINGS
+cl /O2 /Zi jo_basic.cpp /EHsc- /D_CRT_SECURE_NO_WARNINGS

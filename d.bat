@@ -1,1 +1,1 @@
-cl /Od /Zi jo_clojure.cpp /EHsc
+cl /Od /Zi jo_basic.cpp /EHsc
