@@ -1,4 +1,4 @@
-# basic
+# BASIC
 
 Author Jon Olick. @JonOlick on twitter. 
 
