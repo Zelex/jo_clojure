@@ -1254,6 +1254,28 @@ static node_idx_t native_math_matrix_div(env_ptr_t env, list_ptr_t args) {
 }
 
 // pseudo-inverse via SVD (economy)
+static node_idx_t native_math_matrix_svd(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        warnf("native_math_matrix_pinv: not a matrix. arg type is %s\n", A_node->type_name());
+    }
+    matrix_ptr_t A = A_node->as_matrix();
+    int m = A->height;
+    int n = A->width;
+
+    matrix_ptr_t U = A->clone();
+    matrix_ptr_t S = new_matrix(n, n);
+    matrix_ptr_t V = new_matrix(n, n);
+
+    // SVD
+	jo_math_svd(U, S, V);
+
+    return new_node_list(list_va(new_node_matrix(U), new_node_matrix(S), new_node_matrix(V)));
+}
+
+// pseudo-inverse via SVD (economy)
 static node_idx_t native_math_matrix_pinv(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
     node_idx_t A_idx = *it++;
@@ -1654,7 +1676,7 @@ static node_idx_t native_math_matrix_qr(env_ptr_t env, list_ptr_t args) {
         }
     }
     free(cd);
-    return singular ? NIL_NODE : new_node_list(list_va(2, new_node_matrix(QT), new_node_matrix(R)));
+    return singular ? NIL_NODE : new_node_list(list_va(new_node_matrix(QT), new_node_matrix(R)));
 }
 
 static node_idx_t native_math_matrix_solve_qr(env_ptr_t env, list_ptr_t args) {
@@ -1809,6 +1831,7 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/sub", new_node_native_function("matrix/sub", &native_math_matrix_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/mul", new_node_native_function("matrix/mul", &native_math_matrix_mul, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/div", new_node_native_function("matrix/div", &native_math_matrix_div, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/svd", new_node_native_function("matrix/svd", &native_math_matrix_svd, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/pinv", new_node_native_function("matrix/pinv", &native_math_matrix_pinv, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/rand", new_node_native_function("matrix/rand", &native_math_matrix_rand, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/set-row", new_node_native_function("matrix/set-row", &native_math_matrix_set_row, false, NODE_FLAG_PRERESOLVE));
