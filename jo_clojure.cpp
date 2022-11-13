@@ -941,7 +941,7 @@ struct node_t {
 				return jo_string(t_int);
 			}
 			return va("%lld", t_int);
-		case NODE_FLOAT:  return va("%f", t_float);
+		case NODE_FLOAT:  return va("%lg", t_float);
 		case NODE_LIST: 
 			{
 				jo_string s;
