@@ -24,9 +24,10 @@
 #define jo_math_log(v) (log(v))
 #endif
 
-template <typename T> constexpr T jo_math_abs(T a) {
-    return a > 0 ? a : -a;
-}
+template<typename T> constexpr T jo_math_max(T a, T b) { return a > b ? a : b; }
+template <typename T> constexpr T jo_math_abs(T a) { return a > 0 ? a : -a; }
+template <typename T> constexpr T jo_math_sqr(T a) { return a*a; }
+template<typename T> constexpr T jo_math_sign(T a, T b) { return b >= 0.0 ? jo_math_abs(a) : -jo_math_abs(a); }
 
 template <typename T> constexpr T jo_math_pythag(T a, T b) {
     T absa = jo_math_abs(a), absb = jo_math_abs(b);
@@ -1034,7 +1035,7 @@ static node_idx_t native_math_normalize(env_ptr_t env, list_ptr_t args) {
     for (size_t i = 0; i < vec->size(); i++) {
         len += get_node_float(vec->nth(i)) * get_node_float(vec->nth(i));
     }
-    len = len ? sqrt(len) : 1;
+    len = len ? jo_math_sqrt(len) : 1;
     vector_ptr_t res = new_vector();
     for (size_t i = 0; i < vec->size(); i++) {
         res->push_back_inplace(new_node_float(get_node_float(vec->nth(i)) / len));
@@ -1067,7 +1068,7 @@ static node_idx_t native_math_refract(env_ptr_t env, list_ptr_t args) {
     }
     vector_ptr_t res = new_vector();
     for (size_t i = 0; i < min_dim; i++) {
-        res->push_back_inplace(new_node_float(eta_val * get_node_float(I_vec->nth(i)) - (eta_val * dot + sqrt(k)) * get_node_float(N_vec->nth(i))));
+        res->push_back_inplace(new_node_float(eta_val * get_node_float(I_vec->nth(i)) - (eta_val * dot + jo_math_sqrt(k)) * get_node_float(N_vec->nth(i))));
     }
     return new_node_vector(res);
 }
@@ -1564,6 +1565,99 @@ static node_idx_t native_math_matrix_regularize(env_ptr_t env, list_ptr_t args) 
     return new_node_matrix(O);
 }
 
+// Compute the QR decomposition of A
+// A is a n x n matrix input
+// QT is a n x n matrix output (transpose of Q)
+// R is a n x n matrix output
+// returns NIL_NODE if input was singular
+static node_idx_t native_math_matrix_qr(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        warnf("native_math_matrix_qr: not a matrix. arg type is %s\n", A_node->type_name());
+        return NIL_NODE;
+    }
+    double eps = get_node_float(*it++);
+    matrix_ptr_t A = A_node->as_matrix();
+    int n = A->width;
+    if(n != A->height) {
+        warnf("native_math_matrix_cholesky: matrix is not square\n");
+        return NIL_NODE;
+    }
+    matrix_ptr_t R = A->clone();
+
+    double *cd = (double *)malloc(sizeof(double) * n * 2);
+    double *c = cd;
+    double *d = cd+n;
+    bool singular = false;
+    for(int k = 0; k < n-1; ++k) {
+        double scale = 0;
+        for(int i = k; i < n; ++i) {
+            scale = jo_math_max(scale, jo_math_abs(get_node_float(R->get(k,i))));
+        }
+        if(scale == 0) {
+            singular = true;
+            c[k] = d[k] = 0;
+        } else {
+            for(int i = k; i < n; ++i) {
+                R->set(k, i, new_node_float(get_node_float(R->get(k,i)) / scale));
+            }
+            double sum = 0;
+            for(int i = k; i < n; ++i) {
+                sum += jo_math_sqr(get_node_float(R->get(k,i)));
+            }
+            double sigma = jo_math_sign(jo_math_sqrt(sum), get_node_float(R->get(k,k)));
+            double tmp = get_node_float(R->get(k,k)) + sigma;
+            R->set(k, k, new_node_float(tmp));
+            c[k] = sigma * tmp;
+            d[k] = -scale * sigma;
+            for(int j = k+1; j < n; ++j) {
+                sum = 0;
+                for(int i = k; i < n; ++i) {
+                    sum += get_node_float(R->get(k,i)) * get_node_float(R->get(j,i));
+                }
+                double tau = sum / c[k];
+                for(int i = k; i < n; ++i) {
+                    R->set(j, i, new_node_float(get_node_float(R->get(j,i)) - tau * get_node_float(R->get(k,i))));
+                }
+            }
+        }
+    }
+    d[n-1] = get_node_float(R->get(n-1,n-1));
+    singular |= d[n-1] == 0;
+    // Start QT off as an identity matrix
+    matrix_ptr_t QT = new_matrix(n, n);
+    for(int i = 0; i < n; ++i) {
+        QT->set(i,i, ONE_NODE);
+    }
+    // Calc QT
+    for(int k = 0; k < n-1; ++k) {
+        if(c[k] == 0) {
+            continue;
+        }
+        for(int j = 0; j < n; ++j) {
+            double sum = 0;
+            for(int i = k; i < n; ++i) {
+                sum += get_node_float(R->get(k,i)) * get_node_float(QT->get(j,i));
+            }
+            sum /= c[k];
+            for(int i = k; i < n; ++i) {
+                QT->set(j, i, new_node_float(get_node_float(QT->get(j,i)) - sum * get_node_float(R->get(k,i))));
+            }
+        }
+    }
+    // Finish R
+    for(int i = 0; i < n; ++i) {
+        R->set(i,i, new_node_float(d[i]));
+        for(int j = 0; j < i; ++j) {
+            R->set(j,i, ZERO_NODE);
+        }
+    }
+    free(cd);
+    return singular ? NIL_NODE : new_node_list(list_va(2, new_node_matrix(QT), new_node_matrix(R)));
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
     env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
     env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -1665,7 +1759,7 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/add-diag", new_node_native_function("matrix/add-diag", &native_math_matrix_add_diag, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/max-diag", new_node_native_function("matrix/max-diag", &native_math_matrix_max_diag, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/regularize", new_node_native_function("matrix/regularize", &native_math_matrix_regularize, false, NODE_FLAG_PRERESOLVE));
-    //env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
     env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
