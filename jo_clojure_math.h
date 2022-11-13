@@ -1427,7 +1427,7 @@ static node_idx_t native_math_matrix_cholesky(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(L);
 }
 
-static node_idx_t native_math_matrix_cholesky_solve(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_math_matrix_solve_cholesky(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
     node_idx_t L_idx = *it++;
     node_t *L_node = get_node(L_idx);
@@ -1578,7 +1578,6 @@ static node_idx_t native_math_matrix_qr(env_ptr_t env, list_ptr_t args) {
         warnf("native_math_matrix_qr: not a matrix. arg type is %s\n", A_node->type_name());
         return NIL_NODE;
     }
-    double eps = get_node_float(*it++);
     matrix_ptr_t A = A_node->as_matrix();
     int n = A->width;
     if(n != A->height) {
@@ -1656,6 +1655,67 @@ static node_idx_t native_math_matrix_qr(env_ptr_t env, list_ptr_t args) {
     }
     free(cd);
     return singular ? NIL_NODE : new_node_list(list_va(2, new_node_matrix(QT), new_node_matrix(R)));
+}
+
+static node_idx_t native_math_matrix_solve_qr(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t QT_idx = *it++;
+    node_t *QT_node = get_node(QT_idx);
+    if (!QT_node->is_matrix()) {
+        warnf("native_math_matrix_solve_qr: QT is not a matrix. arg type is %s\n", QT_node->type_name());
+        return NIL_NODE;
+    }
+    matrix_ptr_t QT = QT_node->as_matrix();
+    int n = QT->width;
+    if(n != QT->height) {
+        warnf("native_math_matrix_solve_qr: matrix is not square\n");
+        return NIL_NODE;
+    }
+
+    node_idx_t R_idx = *it++;
+    node_t *R_node = get_node(R_idx);
+    if (!R_node->is_matrix()) {
+        warnf("native_math_matrix_solve_qr: R is not a matrix. arg type is %s\n", R_node->type_name());
+        return NIL_NODE;
+    }
+    matrix_ptr_t R = R_node->as_matrix();
+    if(n != R->height || n != R->width) {
+        warnf("native_math_matrix_solve_qr: R is not square\n");
+        return NIL_NODE;
+    }
+
+    node_idx_t b_idx = *it++;
+    node_t *b_node = get_node(b_idx);
+    if (!b_node->is_matrix()) {
+        warnf("native_math_matrix_solve_qr: b is not a matrix. arg type is %s\n", b_node->type_name());
+        return NIL_NODE;
+    }
+    matrix_ptr_t b = b_node->as_matrix();
+    if(n != b->height || 1 != b->width) {
+        warnf("native_math_matrix_solve_qr: b is not the right size\n");
+        return NIL_NODE;
+    }
+
+    matrix_ptr_t x = new_matrix(n, 1);
+
+    // Calc x = QT*b
+    for(int i = 0; i < n; ++i) {
+        double sum = 0;
+        for(int j = 0; j < n; ++j) {
+            sum += get_node_float(QT->get(j,i)) * get_node_float(b->get(0,j));
+        }
+        x->set(0, i, new_node_float(sum));
+    }
+    // Solve R*x = QT*b
+    for(int i = n-1; i >= 0; --i) {
+        double sum = get_node_float(x->get(i,0));
+        for(int j = i+1; j < n; ++j) {
+            sum -= get_node_float(R->get(j,i)) * get_node_float(x->get(0,j));
+        }
+        x->set(0, i, new_node_float(sum / get_node_float(R->get(i,i))));
+    }
+
+    return new_node_matrix(x);
 }
 
 void jo_clojure_math_init(env_ptr_t env) {
@@ -1754,12 +1814,13 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/set-row", new_node_native_function("matrix/set-row", &native_math_matrix_set_row, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/set-col", new_node_native_function("matrix/set-col", &native_math_matrix_set_col, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/cholesky", new_node_native_function("matrix/cholesky", &native_math_matrix_cholesky, false, NODE_FLAG_PRERESOLVE));
-    env->set("matrix/cholesky-solve", new_node_native_function("matrix/cholesky-solve", &native_math_matrix_cholesky_solve, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/solve-cholesky", new_node_native_function("matrix/solve-cholesky", &native_math_matrix_solve_cholesky, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/reflect-upper", new_node_native_function("matrix/reflect-upper", &native_math_matrix_reflect_upper, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/add-diag", new_node_native_function("matrix/add-diag", &native_math_matrix_add_diag, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/max-diag", new_node_native_function("matrix/max-diag", &native_math_matrix_max_diag, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/regularize", new_node_native_function("matrix/regularize", &native_math_matrix_regularize, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/solve-qr", new_node_native_function("matrix/solve-qr", &native_math_matrix_solve_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
     env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
