@@ -1499,6 +1499,46 @@ static node_idx_t native_math_matrix_reflect_upper(env_ptr_t env, list_ptr_t arg
     return new_node_matrix(O);
 }
 
+// Add a number to the diagonal
+static node_idx_t native_math_matrix_add_diag(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        warnf("native_math_matrix_add_diag: not a matrix. arg type is %s\n", A_node->type_name());
+        return NIL_NODE;
+    }
+    double add = get_node_float(*it++);
+    matrix_ptr_t A = A_node->as_matrix();
+    matrix_ptr_t O = A->clone();
+    int mn = A->width < A->height ? A->width : A->height;
+    for(int i = 0; i < mn; ++i) {
+        O->set(i,i, new_node_float(get_node_float(O->get(i,i)) + add));
+    }
+    return new_node_matrix(O);
+}
+
+// Max number on the diagonal
+static node_idx_t native_math_matrix_max_diag(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        warnf("native_math_matrix_max_diag: not a matrix. arg type is %s\n", A_node->type_name());
+        return NIL_NODE;
+    }
+    matrix_ptr_t A = A_node->as_matrix();
+    int mn = A->width < A->height ? A->width : A->height;
+    double max = -__DBL_MAX__;
+    for(int i = 0; i < mn; ++i) {
+        double v = get_node_float(A->get(i,i));
+        max = v > max ? v : max;
+    }
+    return new_node_float(max);
+}
+
+
+
 void jo_clojure_math_init(env_ptr_t env) {
     env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
     env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -1597,6 +1637,8 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/cholesky", new_node_native_function("matrix/cholesky", &native_math_matrix_cholesky, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/cholesky-solve", new_node_native_function("matrix/cholesky-solve", &native_math_matrix_cholesky_solve, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/reflect-upper", new_node_native_function("matrix/reflect-upper", &native_math_matrix_reflect_upper, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/add-diag", new_node_native_function("matrix/add-diag", &native_math_matrix_add_diag, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/max-diag", new_node_native_function("matrix/max-diag", &native_math_matrix_max_diag, false, NODE_FLAG_PRERESOLVE));
     //env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
