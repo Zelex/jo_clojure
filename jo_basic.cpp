@@ -25,7 +25,7 @@ static thread_local size_t thread_id = thread_uid.fetch_add(1, std::memory_order
 #include "debugbreak.h"
 #include "pdqsort.h"
 #include "jo_stdcpp.h"
-#include "jo_clojure_persistent.h"
+#include "jo_basic_persistent.h"
 
 //#define debugf printf
 #ifndef debugf
@@ -6166,13 +6166,13 @@ static node_idx_t native_force(env_ptr_t env, list_ptr_t args) {
 	return args->first_value();
 }
 
-#include "jo_clojure_math.h"
-#include "jo_clojure_string.h"
-#include "jo_clojure_system.h"
-#include "jo_clojure_io.h"
-#include "jo_clojure_lazy.h"
-#include "jo_clojure_async.h"
-#include "jo_clojure_gif.h"
+#include "jo_basic_math.h"
+#include "jo_basic_string.h"
+#include "jo_basic_system.h"
+#include "jo_basic_io.h"
+#include "jo_basic_lazy.h"
+#include "jo_basic_async.h"
+#include "jo_basic_gif.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -6207,7 +6207,7 @@ int main(int argc, char **argv) {
 	tm_int32 telemetry_memory_size = 128 * 1024 * 1024;
 	char* telemetry_memory = (char*)malloc(telemetry_memory_size);
 	tmInitialize(telemetry_memory_size, telemetry_memory);
-	tm_error err = tmOpen(0, "jo_clojure", __DATE__ " " __TIME__, "localhost", TMCT_TCP, 4719, TMOF_INIT_NETWORKING, 100);
+	tm_error err = tmOpen(0, "jo_basic", __DATE__ " " __TIME__, "localhost", TMCT_TCP, 4719, TMOF_INIT_NETWORKING, 100);
 	tmThreadName(0,0,"main");
 	tmProfileThread(0,0,0);
 #endif
@@ -6218,7 +6218,7 @@ int main(int argc, char **argv) {
 
     if(argc == 1) {
 		GetModuleFileNameA(GetModuleHandle(NULL), real_exe_path, MAX_PATH);
-		bool register_clj = !IsRegistered("CLJ") && (MessageBoxA(0, "Do you want to register .CLJ files with this program?", "JO_CLOJURE", MB_OKCANCEL) == 1);
+		bool register_clj = !IsRegistered("CLJ") && (MessageBoxA(0, "Do you want to register .CLJ files with this program?", "JO_BASIC", MB_OKCANCEL) == 1);
 		if(register_clj) {
 			char tmp[128];
 			sprintf(tmp, "%s.reg", tmpnam(0));
@@ -6519,13 +6519,13 @@ int main(int argc, char **argv) {
 	env->set("jo/queue-peek", new_node_native_function("jo/queue-peek", &native_queue_peek, false, NODE_FLAG_PRERESOLVE));
 	env->set("jo/queue-pop", new_node_native_function("jo/queue-pop", &native_queue_pop, false, NODE_FLAG_PRERESOLVE));
 
-	jo_clojure_math_init(env);
-	jo_clojure_string_init(env);
-	jo_clojure_system_init(env);
-	jo_clojure_lazy_init(env);
-	jo_clojure_io_init(env);
-	jo_clojure_async_init(env);
-	jo_clojure_gif_init(env);
+	jo_basic_math_init(env);
+	jo_basic_string_init(env);
+	jo_basic_system_init(env);
+	jo_basic_lazy_init(env);
+	jo_basic_io_init(env);
+	jo_basic_async_init(env);
+	jo_basic_gif_init(env);
 	
 	FILE *fp = fopen(argv[1], "r");
 	if(!fp) {
