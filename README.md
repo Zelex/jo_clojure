@@ -1,10 +1,8 @@
-# jo_clojure
+# basic
 
 Author Jon Olick. @JonOlick on twitter. 
 
-A Fast, Embeddable Clojure language implementation in C/C++. 
-
-Just started the project, nothing is done, everything is messy. Will clean up before version 1.0.
+A Fast, Embeddable Clojure-like language implementation in C/C++. 
 
 The near-term goal is to re-make clojure in an embedable form. 
 
@@ -14,7 +12,7 @@ The long-term goal is to add types/functions for machine learning, tensors, etc.
 * Native implementation of almost entire core lib. See TODO.md
 * Parses code into native structures (AST), then executes. Essentially interpreted - though does some clever things here and there. 
 * Lazy sequences
-* Startup time is ridiculously fast by comparison
+* Startup time is ridiculously fast by comparison to clojure
 * Implementations of persistent lists, vectors, hash-map, hash-set, matrix
 * Software Transactional Memory (STM)
 * Atoms
