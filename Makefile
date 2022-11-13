@@ -1,4 +1,4 @@
-JO_TARGET=jo
+JO_TARGET=basic
 DESTDIR=/usr/local/bin
 
 $(JO_TARGET):
