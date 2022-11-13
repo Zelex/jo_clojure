@@ -1259,7 +1259,7 @@ static node_idx_t native_math_matrix_svd(env_ptr_t env, list_ptr_t args) {
     node_idx_t A_idx = *it++;
     node_t *A_node = get_node(A_idx);
     if (!A_node->is_matrix()) {
-        warnf("native_math_matrix_pinv: not a matrix. arg type is %s\n", A_node->type_name());
+        warnf("native_math_matrix_svd: not a matrix. arg type is %s\n", A_node->type_name());
     }
     matrix_ptr_t A = A_node->as_matrix();
     int m = A->height;
@@ -1740,6 +1740,28 @@ static node_idx_t native_math_matrix_solve_qr(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(x);
 }
 
+static node_idx_t native_math_matrix_transpose(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        warnf("native_math_matrix_svd: not a matrix. arg type is %s\n", A_node->type_name());
+    }
+    matrix_ptr_t A = A_node->as_matrix();
+    int m = A->height;
+    int n = A->width;
+
+    matrix_ptr_t V = new_matrix(m, n);
+
+    for(int i = 0; i < m; ++i) {
+        for(int j = 0; j < n; ++j) {
+            V->set(j, i, A->get(i,j));
+        }
+    }
+
+    return new_node_matrix(V);
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
     env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
     env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -1844,6 +1866,7 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/regularize", new_node_native_function("matrix/regularize", &native_math_matrix_regularize, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/solve-qr", new_node_native_function("matrix/solve-qr", &native_math_matrix_solve_qr, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/transpose", new_node_native_function("matrix/transpose", &native_math_matrix_transpose, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
     env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
