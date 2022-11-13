@@ -1102,7 +1102,7 @@ struct jo_stringstream {
 #ifdef _WIN32
         sprintf_s(tmp, "%i", val);
 #else
-        sprintf(tmp, "%i", val);
+        snprintf(tmp, 33, "%i", val);
 #endif
         s += tmp;
         return *this;
