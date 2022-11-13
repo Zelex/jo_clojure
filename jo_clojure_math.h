@@ -1426,6 +1426,55 @@ static node_idx_t native_math_matrix_cholesky(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(L);
 }
 
+static node_idx_t native_math_matrix_cholesky_solve(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t L_idx = *it++;
+    node_t *L_node = get_node(L_idx);
+    if (!L_node->is_matrix()) {
+        warnf("native_math_matrix_cholesky_solve: L is not a matrix. arg type is %s\n", L_node->type_name());
+        return NIL_NODE;
+    }
+    matrix_ptr_t L = L_node->as_matrix();
+    int n = L->width;
+    if(n != L->height) {
+        warnf("native_math_matrix_cholesky_solve: L matrix is not square\n");
+        return NIL_NODE;
+    }
+    node_idx_t b_idx = *it++;
+    node_t *b_node = get_node(b_idx);
+    if (!b_node->is_matrix()) {
+        warnf("native_math_matrix_cholesky_solve: b is not a matrix. arg type is %s\n", b_node->type_name());
+        return NIL_NODE;
+    }
+    matrix_ptr_t b = b_node->as_matrix();
+    if(b->width != n || b->height != 1) {
+        warnf("native_math_matrix_cholesky_solve: b matrix is %i by 1\n", n);
+        return NIL_NODE;
+    }
+
+    matrix_ptr_t x = new_matrix(n, 1);
+
+    // Solve Ly=b
+    for(int i = 0; i < n; ++i) {
+        double sum = get_node_float(b->get(i, 1));
+        for(int k = i-1; k >= 0; --k) {
+            sum -= get_node_float(L->get(k,i))*get_node_float(x->get(k,1));
+        }
+        x->set(i, 1, new_node_float(sum / get_node_float(L->get(i,i))));
+    }
+
+    // Solve L^Tx=y
+    for(int i = n-1; i >= 0; --i) {
+        double sum = get_node_float(x->get(i,1));
+        for(int k = i+1; k < n; ++k) {
+            sum -= get_node_float(L->get(i,k))*get_node_float(x->get(k,1));
+        }
+        x->set(i, 1, new_node_float(sum / get_node_float(L->get(i,i))));
+    }
+
+    return new_node_matrix(x);
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
     env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
     env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
@@ -1522,6 +1571,7 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/set-row", new_node_native_function("matrix/set-row", &native_math_matrix_set_row, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/set-col", new_node_native_function("matrix/set-col", &native_math_matrix_set_col, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/cholesky", new_node_native_function("matrix/cholesky", &native_math_matrix_cholesky, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/cholesky-solve", new_node_native_function("matrix/cholesky-solve", &native_math_matrix_cholesky_solve, false, NODE_FLAG_PRERESOLVE));
     //env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
