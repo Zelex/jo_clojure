@@ -885,14 +885,18 @@ struct node_t {
 			case NODE_FLOAT:  return t_float != 0.0;
 			case NODE_SYMBOL:
 			case NODE_KEYWORD:
-			case NODE_STRING: return t_string.length() != 0;
+			case NODE_STRING: 
+			 	if(t_string == "nil") return false;
+				return t_string.length() > 0;
 			case NODE_LIST:
 			case NODE_LAZY_LIST:
 			case NODE_VECTOR:
 			case NODE_MATRIX:
 			case NODE_HASH_SET:
 			case NODE_HASH_MAP:    return true; // TODO
-			default:          return false;
+			case NODE_NIL:
+			default:
+				return false;
 		}
 	}
 
@@ -941,7 +945,7 @@ struct node_t {
 				return jo_string(t_int);
 			}
 			return va("%lld", t_int);
-		case NODE_FLOAT:  return va("%lg", t_float);
+		case NODE_FLOAT:  return va("%g", t_float);
 		case NODE_LIST: 
 			{
 				jo_string s;
@@ -4989,7 +4993,9 @@ static node_idx_t native_empty(env_ptr_t env, list_ptr_t args) {
 // If coll is empty, returns nil, else coll
 static node_idx_t native_not_empty(env_ptr_t env, list_ptr_t args) {
 	node_idx_t coll_idx = args->first_value();
-	if(get_node(coll_idx)->seq_empty()) return NIL_NODE;
+	for(list_t::iterator it(args); it; it++) {
+		if(get_node(coll_idx)->seq_empty()) return NIL_NODE;
+	}
 	return coll_idx;
 }
 
@@ -6173,6 +6179,7 @@ static node_idx_t native_force(env_ptr_t env, list_ptr_t args) {
 #include "jo_basic_lazy.h"
 #include "jo_basic_async.h"
 #include "jo_basic_gif.h"
+#include "jo_basic_b64.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -6526,6 +6533,7 @@ int main(int argc, char **argv) {
 	jo_basic_io_init(env);
 	jo_basic_async_init(env);
 	jo_basic_gif_init(env);
+	jo_basic_b64_init(env);
 	
 	FILE *fp = fopen(argv[1], "r");
 	if(!fp) {

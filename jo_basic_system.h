@@ -2,7 +2,6 @@
 
 #include "jo_stdcpp.h"
 
-
 // execute a shell command
 static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
 	jo_string str;
@@ -29,7 +28,10 @@ static node_idx_t native_system_setenv(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
-static node_idx_t native_system_getenv(env_ptr_t env, list_ptr_t args) { return new_node_string(getenv(get_node_string(args->first_value()).c_str())); }
+static node_idx_t native_system_getenv(env_ptr_t env, list_ptr_t args) { 
+	const char *val = getenv(get_node_string(args->first_value()).c_str());
+	return val ? new_node_string(val) : NIL_NODE; 
+}
 static node_idx_t native_system_dir_exists(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_dir_exists(get_node_string(args->first_value()).c_str())); }
 static node_idx_t native_system_file_exists(env_ptr_t env, list_ptr_t args) { return new_node_bool(jo_file_exists(get_node_string(args->first_value()).c_str())); }
 static node_idx_t native_system_file_size(env_ptr_t env, list_ptr_t args) { return new_node_int(jo_file_size(get_node_string(args->first_value()).c_str())); }
