@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sys/wait.h>
 #include "jo_stdcpp.h"
 
 // for popen and pclose
@@ -28,6 +29,66 @@
 // Might as well embrace them in this case.
 
 // TODO: should directory scans be lazy? would make sense for read-dir-all and the like
+
+// simple wrapper so we can blop it into the t_object generic container
+struct jo_basic_popen2_t : jo_object {
+	pid_t child_pid;
+	int from_child, to_child;
+};
+
+typedef jo_alloc_t<jo_basic_popen2_t> jo_basic_popen2_alloc_t;
+jo_basic_popen2_alloc_t jo_basic_popen2_alloc;
+typedef jo_shared_ptr_t<jo_basic_popen2_t> jo_basic_popen2_ptr_t;
+template<typename...A>
+jo_basic_popen2_ptr_t new_popen2(A...args) { return jo_basic_popen2_ptr_t(jo_basic_popen2_alloc.emplace(args...)); }
+
+//typedef jo_shared_ptr<jo_basic_popen2_t> jo_basic_popen2_ptr_t;
+//static jo_basic_popen2_ptr_t new_popen2() { return jo_basic_popen2_ptr_t(new jo_basic_popen2_t()); }
+static node_idx_t new_node_popen2(jo_basic_popen2_ptr_t nodes, int flags=0) { return new_node_object(NODE_POPEN2, nodes.cast<jo_object>(), flags); }
+static node_idx_t native_io_open_proc2(env_ptr_t env, list_ptr_t args) {
+	jo_string cmdline = get_node_string(args->first_value());
+
+	pid_t p;
+	int pipe_stdin[2], pipe_stdout[2];
+	if(pipe(pipe_stdin)) return NIL_NODE;
+	if(pipe(pipe_stdout)) return NIL_NODE;
+
+	printf("popen2 %s\n", cmdline.c_str());
+	printf("pipe_stdin[0] = %d, pipe_stdin[1] = %d\n", pipe_stdin[0], pipe_stdin[1]);
+	printf("pipe_stdout[0] = %d, pipe_stdout[1] = %d\n", pipe_stdout[0], pipe_stdout[1]);
+
+	p = fork();
+	if(p < 0) return NIL_NODE; /* Fork failed */
+	if(p == 0) { /* child */
+		setvbuf(stdout, NULL, _IONBF, 0);
+		setvbuf(stdin, NULL, _IONBF, 0);
+		close(pipe_stdin[1]);
+		dup2(pipe_stdin[0], 0);
+		close(pipe_stdout[0]);
+		dup2(pipe_stdout[1], 1);
+		execl("/bin/sh", "sh", "-c", cmdline.c_str(), NULL);
+		perror("execl"); 
+		exit(99);
+	}
+
+	jo_basic_popen2_ptr_t childinfo = new_popen2();
+	childinfo->child_pid = p;
+	childinfo->to_child = pipe_stdin[1];
+	childinfo->from_child = pipe_stdout[0];
+	close(pipe_stdin[0]);
+	close(pipe_stdout[1]);
+	return new_node_popen2(childinfo); 
+}
+
+static node_idx_t native_io_close_proc2(env_ptr_t env, list_ptr_t args) {
+	node_t *childinfo_node = get_node(args->first_value());
+	if(childinfo_node->type != NODE_POPEN2) {
+		return NIL_NODE;
+	}
+	jo_basic_popen2_ptr_t kid = childinfo_node->t_object.cast<jo_basic_popen2_t>();
+	waitpid(kid->child_pid, NULL, 0);
+	kill(kid->child_pid, 0);
+}
 
 // (file-seq dir)
 // A tree seq on java.io.Files
@@ -104,28 +165,47 @@ static node_idx_t native_io_close_file(env_ptr_t env, list_ptr_t args) {
 // (io/read-line file)
 // Reads a line from the file.
 static node_idx_t native_io_read_line(env_ptr_t env, list_ptr_t args) {
-    node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE || !n->t_file) {
-        return NIL_NODE;
-    }
-    char buf[1024]; // TODO: not sure I like this fixed size, but its better to have a limit than no limit... right?
-    if(!fgets(buf, 1024, n->t_file)) {
-        return NIL_NODE;
-    }
-    return new_node_string(buf);
+	char buf[1024]; // TODO: not sure I like this fixed size, but its better to have a limit than no limit... right?
+	node_t *n = get_node(args->first_value());
+	if(n->type == NODE_POPEN2) {
+		jo_basic_popen2_ptr_t kid = n->t_object.cast<jo_basic_popen2_t>();
+		char *buf_ptr = buf;
+		while(buf_ptr < buf + sizeof(buf)) {
+			int c;
+			read(kid->from_child, &c, 1);
+			*buf_ptr++ = c;
+			if(c == '\r' || c == '\n') {
+				break;
+			}
+		}
+		*buf_ptr++ = 0;
+		return new_node_string(buf);
+	}
+	if(n->type != NODE_FILE || !n->t_file) {
+		return NIL_NODE;
+	}
+	if(!fgets(buf, 1024, n->t_file)) {
+		return NIL_NODE;
+	}
+	return new_node_string(buf);
 }
 
 // (io/write-line file str)
 // Writes a line to the file.
 static node_idx_t native_io_write_line(env_ptr_t env, list_ptr_t args) {
-    node_t *n = get_node(args->first_value());
-    if(n->type != NODE_FILE || !n->t_file) {
-        return NIL_NODE;
-    }
-    jo_string str = get_node_string(args->second_value());
-    str += "\n";
-    fputs(str.c_str(), n->t_file);
-    return NIL_NODE;
+	node_t *n = get_node(args->first_value());
+	jo_string str = get_node_string(args->second_value());
+	str += "\n";
+	if(n->type == NODE_POPEN2) {
+		jo_basic_popen2_ptr_t kid = n->t_object.cast<jo_basic_popen2_t>();
+		write(kid->to_child, str.c_str(), str.length());
+		return NIL_NODE;
+	}
+	if(n->type != NODE_FILE || !n->t_file) {
+		return NIL_NODE;
+	}
+	fputs(str.c_str(), n->t_file);
+	return NIL_NODE;
 }
 
 // (io/flush file)
@@ -241,6 +321,7 @@ static node_idx_t native_io_open_proc(env_ptr_t env, list_ptr_t args) {
     jo_string opts = get_node_string(args->second_value());
     FILE *fp = popen(cmd.c_str(), opts.c_str());
     if(!fp) {
+	warnf("popen execution failed for '%s' with opts '%s'\n", cmd.c_str(), opts.c_str());
         return NIL_NODE;
     }
     return new_node_file(fp);
@@ -613,6 +694,8 @@ void jo_basic_io_init(env_ptr_t env) {
     env->set("io/file-executable?", new_node_native_function("io/file-executable?", &native_io_file_executable, false, NODE_FLAG_PRERESOLVE));
     env->set("io/delete-file", new_node_native_function("io/delete-file", &native_io_delete_file, false, NODE_FLAG_PRERESOLVE));
     env->set("io/copy", new_node_native_function("io/copy", &native_io_copy, false, NODE_FLAG_PRERESOLVE));
+    env->set("io/open-proc2", new_node_native_function("io/open-proc2", &native_io_open_proc2, false, NODE_FLAG_PRERESOLVE));
+    env->set("io/close-proc2", new_node_native_function("io/close-proc2", &native_io_close_proc2, false, NODE_FLAG_PRERESOLVE));
     env->set("*in*", new_node_file(stdin, NODE_FLAG_PRERESOLVE));
     env->set("*out*", new_node_file(stdout, NODE_FLAG_PRERESOLVE));
     env->set("*err*", new_node_file(stderr, NODE_FLAG_PRERESOLVE));

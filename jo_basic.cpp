@@ -127,6 +127,7 @@ enum {
 	NODE_RECUR,
 	NODE_REDUCED,
 	NODE_GIF, // jo_gif library
+	NODE_POPEN2,
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
