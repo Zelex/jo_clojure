@@ -62,8 +62,17 @@ static node_idx_t native_system_date(env_ptr_t env, list_ptr_t args) {
 
 // reads a single line from stdin
 static node_idx_t native_system_read_line(env_ptr_t env, list_ptr_t args) {
+	node_idx_t file_idx = args->first_value();
+	node_t *file = get_node(file_idx);
     char line[1024];
-    fgets(line, sizeof(line), stdin);
+	line[0] = 0;
+	if(file_idx == NIL_NODE ) {
+		fgets(line, sizeof(line), stdin);
+	} else if(file->is_file()) {
+		fgets(line, sizeof(line), file->t_file);
+	} else {
+		warnf("read-line: not a file");
+	}
     return new_node_string(line);
 }
 
