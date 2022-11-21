@@ -2949,9 +2949,9 @@ static node_idx_t native_gt(env_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i(args);
 	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_lte(n2, n1);
+	bool ret = node_lt(n2, n1);
 	for(; i && ret; i++) {
-		ret = ret && node_lte(*i, n1);
+		ret = ret && node_lt(*i, n1);
 		n2 = *i;
 	}
 	return ret ? TRUE_NODE : FALSE_NODE;
@@ -2963,9 +2963,9 @@ static node_idx_t native_gte(env_ptr_t env, list_ptr_t args) {
 	}
 	list_t::iterator i(args);
 	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_lt(n2, n1);
+	bool ret = node_lte(n2, n1);
 	for(; i && ret; i++) {
-		ret = ret && node_lt(n2, *i);
+		ret = ret && node_lte(n2, *i);
 		n2 = *i;
 	}
 	return ret ? TRUE_NODE : FALSE_NODE;
