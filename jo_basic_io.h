@@ -123,8 +123,8 @@ static node_idx_t native_io_write_line(env_ptr_t env, list_ptr_t args) {
         return NIL_NODE;
     }
     jo_string str = get_node_string(args->second_value());
+    str += "\n";
     fputs(str.c_str(), n->t_file);
-    fputs("\n", n->t_file);
     return NIL_NODE;
 }
 
