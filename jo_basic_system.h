@@ -15,6 +15,28 @@ static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
 	return new_node_int(ret);
 }
 
+// execute a shell command
+static node_idx_t native_system_exec_output(env_ptr_t env, list_ptr_t args) {
+	jo_string str;
+	for(list_t::iterator it(args); it; it++) {
+		node_t *n = get_node(*it);
+		str += " ";
+		str += n->as_string(env);
+	}
+	jo_string output = "";
+	FILE *fp = popen(str.c_str(), "r");
+	if (fp == NULL) {
+		warnf("failed to run command '%s'\n", str.c_str());
+	}
+	char line[16384] = {0};
+	while (fgets(line, sizeof(line), fp) != NULL) {
+		output += line;
+		output += "\n";
+	}
+	pclose(fp);
+	return new_node_string(output);
+}
+
 // Set system enviorment variables
 static node_idx_t native_system_setenv(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
@@ -116,6 +138,7 @@ static node_idx_t native_system_delete_file(env_ptr_t env, list_ptr_t args) {
 void jo_basic_system_init(env_ptr_t env) {
 	env->set("System/setenv", new_node_native_function("System/setenv", &native_system_setenv, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/getenv", new_node_native_function("System/getenv", &native_system_getenv, false, NODE_FLAG_PRERESOLVE));
+	env->set("System/exec-output", new_node_native_function("System/exec-output", &native_system_exec_output, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/exec", new_node_native_function("System/exec", &native_system_exec, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/getcwd", new_node_native_function("System/getcwd", &native_system_getcwd, false, NODE_FLAG_PRERESOLVE));
 	env->set("System/chdir", new_node_native_function("System/chdir", &native_system_chdir, false, NODE_FLAG_PRERESOLVE));
