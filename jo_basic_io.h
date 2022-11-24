@@ -9,19 +9,14 @@
 #include <fcntl.h>
 #define popen _popen
 #define pclose _pclose
-#else
-#include <unistd.h>
-#endif
-
-// for opendir and closedir
-#ifdef _WIN32
-#include <io.h>
-#include <fcntl.h>
 #define opendir _opendir
 #define closedir _closedir
 #else
+#include <unistd.h>
 #include <dirent.h>
+#include <signal.h>
 #endif
+
 
 // This functionality deviates from clojure's IO library, cause in my personal opinion, 
 // clojure's IO library is not great. I assume because Rich was trying to be purist.
@@ -88,6 +83,7 @@ static node_idx_t native_io_close_proc2(env_ptr_t env, list_ptr_t args) {
 	jo_basic_popen2_ptr_t kid = childinfo_node->t_object.cast<jo_basic_popen2_t>();
 	waitpid(kid->child_pid, NULL, 0);
 	kill(kid->child_pid, 0);
+	return NIL_NODE;
 }
 
 // (file-seq dir)
