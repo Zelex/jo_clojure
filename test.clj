@@ -1056,6 +1056,15 @@
 (is (= (zipmap [:a :b :c] (repeat 0)) {:a 0, :b 0, :c 0}))
 (is (= (zipmap [:a :b :c :a] [1 2 3 4]) {:a 4, :b 2, :c 3}))
 
+(is (> 5 1))
+(is (>= 5 1))
+(is (> 5 4 3 2 1))
+(is (>= 5 4 3 2 1))
+(is (< 1 5))
+(is (<= 1 5))
+(is (< 1 2 3 4 5))
+(is (<= 1 2 3 4 5))
+
 (run! println (range 5))
 
 (add-tap println)

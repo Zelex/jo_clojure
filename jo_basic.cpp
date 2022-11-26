@@ -2549,35 +2549,7 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 	} else if(n1->flags & n2->flags & NODE_FLAG_STRING) {
 		return n1->t_string == n2->t_string;
 	} else if(n1->is_func() && n2->is_func()) {
-		#if 1 // ?? is this correct?
-			return n1i == n2i;
-		#else // actual function comparison.... not spec compliant it seems
-		{ 
-			vector_t::iterator i1 = n1->t_func.args->begin();
-			vector_t::iterator i2 = n2->t_func.args->begin();
-			for(; i1 && i2; ++i1, ++i2) {
-				if(!node_eq(*i1, *i2)) {
-					return false;
-				}
-			}
-			if(i1 || i2) {
-				return false;
-			}
-		}
-		{
-			list_t::iterator i1 = n1->t_func.body->begin();
-			list_t::iterator i2 = n2->t_func.body->begin();
-			for(; i1 && i2; ++i1, ++i2) {
-				if(!node_eq(*i1, *i2)) {
-					return false;
-				}
-			}
-			if(i1 || i2) {
-				return false;
-			}
-		}
-		return true;
-		#endif
+		return n1i == n2i;
 	} else if(n1->type == NODE_HASH_SET && n2->type == NODE_HASH_SET) {
 		for(auto i1 = n1->as_hash_set()->begin(); i1; i1++) {
 			if(!n2->as_hash_set()->contains(i1->first, node_eq)) {
@@ -2611,105 +2583,60 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 	return false;
 }
 
-static bool node_lt(node_idx_t n1i, node_idx_t n2i) {
-	if(n1i == INV_NODE || n2i == INV_NODE) {
-		return false;
-	}
-
-	node_t *n1 = get_node(n1i);
-	node_t *n2 = get_node(n2i);
-
-	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
-		n1i = n1->deref();
-		n1 = get_node(n1i);
-	}
-
-	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
-		n2i = n2->deref();
-		n2 = get_node(n2i);
-	}
-
-	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
-		return false;
-	} else if(n1->is_seq() && n2->is_seq()) {
-		// in this case we want to iterate over the sequences and compare
-		// each element
-		seq_iterator_t i1(n1i), i2(n2i);
-		for(; i1 && i2; i1.next(), i2.next()) {
-			if(!node_lt(i1.val, i2.val)) {
-				return false;
-			}
-		}
-		if(i1.val != INV_NODE || i2.val != INV_NODE) {
-			if(!node_lt(i1.val, i2.val)) {
-				return false;
-			}
-		}
-		if(i1 || i2) {
-			return false;
-		}
-		return true;
-	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
-		return n1->t_bool < n2->t_bool;
-	} else if(n1->type == NODE_STRING && n2->type == NODE_STRING) {
-		return n1->t_string < n2->t_string;
-	} else if(n1->type == NODE_INT && n2->type == NODE_INT) {
-		return n1->t_int < n2->t_int;
-	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
-		return n1->as_float() < n2->as_float();
-	}
-	return false;
+static bool node_neq(node_idx_t n1i, node_idx_t n2i) {
+	return !node_eq(n1i, n2i);
 }
 
-static bool node_lte(node_idx_t n1i, node_idx_t n2i) {
-	if(n1i == INV_NODE || n2i == INV_NODE) {
-		return false;
-	}
-
-	node_t *n1 = get_node(n1i);
-	node_t *n2 = get_node(n2i);
-
-	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {
-		n1i = n1->deref();
-		n1 = get_node(n1i);
-	}
-
-	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {
-		n2i = n2->deref();
-		n2 = get_node(n2i);
-	}
-
-	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {
-		return false;
-	} else if(n1->is_seq() && n2->is_seq()) {
-		// in this case we want to iterate over the sequences and compare
-		// each element
-		seq_iterator_t i1(n1i), i2(n2i);
-		for(; i1 && i2; i1.next(), i2.next()) {
-			if(!node_lte(i1.val, i2.val)) {
-				return false;
-			}
-		}
-		if(i1.val != INV_NODE || i2.val != INV_NODE) {
-			if(!node_lte(i1.val, i2.val)) {
-				return false;
-			}
-		}
-		if(i1 || i2) {
-			return false;
-		}
-		return true;
-	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {
-		return n1->t_bool <= n2->t_bool;
-	} else if(n1->type == NODE_STRING && n2->type == NODE_STRING) {
-		return n1->t_string <= n2->t_string;
-	} else if(n1->type == NODE_INT && n2->type == NODE_INT) {
-		return n1->t_int <= n2->t_int;
-	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {
-		return n1->as_float() <= n2->as_float();
-	}
-	return false;
+#define node_cmp(fn, op) static bool fn(node_idx_t n1i, node_idx_t n2i) { \
+	if(n1i == INV_NODE || n2i == INV_NODE) return false; \
+	node_t *n1 = get_node(n1i); \
+	node_t *n2 = get_node(n2i); \
+	if(n1->type == NODE_FUTURE && (n1->flags & NODE_FLAG_AUTO_DEREF)) {\
+		n1i = n1->deref();\
+		n1 = get_node(n1i);\
+	}\
+	if(n2->type == NODE_FUTURE && (n2->flags & NODE_FLAG_AUTO_DEREF)) {\
+		n2i = n2->deref();\
+		n2 = get_node(n2i);\
+	}\
+	if(n1->type == NODE_NIL || n2->type == NODE_NIL) {\
+		return false;\
+	} else if(n1->is_seq() && n2->is_seq()) {\
+		seq_iterator_t i1(n1i), i2(n2i);\
+		for(; i1 && i2; i1.next(), i2.next()) {\
+			if(!fn(i1.val, i2.val)) {\
+				return false;\
+			}\
+		}\
+		if(i1.val != INV_NODE || i2.val != INV_NODE) {\
+			if(!fn(i1.val, i2.val)) {\
+				return false;\
+			}\
+		}\
+		if(i1 || i2) {\
+			return false;\
+		}\
+		return true;\
+	} else if(n1->type == NODE_BOOL && n2->type == NODE_BOOL) {\
+		return n1->t_bool op n2->t_bool;\
+	} else if(n1->flags & n2->flags & NODE_FLAG_STRING) {\
+		return n1->t_string op n2->t_string;\
+	} else if(n1->type == NODE_INT && n2->type == NODE_INT) {\
+		return n1->t_int op n2->t_int;\
+	} else if(n1->type == NODE_FLOAT || n2->type == NODE_FLOAT) {\
+		return n1->as_float() op n2->as_float();\
+	} else if(n1->type == NODE_ATOM || n2->type == NODE_ATOM) {\
+		return n1i op n2i;\
+	} else if(n1->is_func() && n2->is_func()) {\
+		return n1i op n2i;\
+	}\
+	return false;\
 }
+
+node_cmp(node_lt, <)
+node_cmp(node_gt, >)
+node_cmp(node_lte, <=)
+node_cmp(node_gte, >=)
 
 static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 	node_t *n1 = get_node(n1i);
@@ -2888,88 +2815,27 @@ static node_idx_t node_mul(node_idx_t n1i, node_idx_t n2i) {
 	return new_node_float(n1->as_float() * n2->as_float());
 }
 
-// Tests the equality between two or more objects
-static node_idx_t native_eq(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 2) {
-		return TRUE_NODE;
-	}
-	list_t::iterator i(args);
-	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_eq(n1, n2);
-	for(; i && ret; i++) {
-		ret &= node_eq(n1, *i);
-	}
-	return ret ? TRUE_NODE : FALSE_NODE;
+#define native_cmp(fn, op) \
+static node_idx_t fn(env_ptr_t env, list_ptr_t args) {\
+	if(args->size() < 2) {\
+		return TRUE_NODE;\
+	}\
+	list_t::iterator i(args);\
+	node_idx_t n1 = *i++, n2 = *i++;\
+	bool ret = op(n1, n2);\
+	for(; i && ret; i++) {\
+		ret = ret && op(n2, *i);\
+		n2 = *i;\
+	}\
+	return ret ? TRUE_NODE : FALSE_NODE;\
 }
 
-static node_idx_t native_neq(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 2) {
-		return NIL_NODE;
-	}
-	list_t::iterator i(args);
-	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_eq(n1, n2);
-	for(; i && ret; i++) {
-		ret = ret && node_eq(n1, *i);
-	}
-	return !ret ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_lt(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 2) {
-		return TRUE_NODE;
-	}
-	list_t::iterator i(args);
-	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_lt(n1, n2);
-	for(; i && ret; i++) {
-		ret = ret && node_lt(n2, *i);
-		n2 = *i;
-	}
-	return ret ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_lte(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 2) {
-		return TRUE_NODE;
-	}
-	list_t::iterator i(args);
-	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_lte(n1, n2);
-	for(; i && ret; i++) {
-		ret = ret && node_lte(n2, *i);
-		n2 = *i;
-	}
-	return ret ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_gt(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 2) {
-		return TRUE_NODE;
-	}
-	list_t::iterator i(args);
-	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_lt(n2, n1);
-	for(; i && ret; i++) {
-		ret = ret && node_lt(*i, n1);
-		n2 = *i;
-	}
-	return ret ? TRUE_NODE : FALSE_NODE;
-}
-
-static node_idx_t native_gte(env_ptr_t env, list_ptr_t args) {
-	if(args->size() < 2) {
-		return TRUE_NODE;
-	}
-	list_t::iterator i(args);
-	node_idx_t n1 = *i++, n2 = *i++;
-	bool ret = node_lte(n2, n1);
-	for(; i && ret; i++) {
-		ret = ret && node_lte(n2, *i);
-		n2 = *i;
-	}
-	return ret ? TRUE_NODE : FALSE_NODE;
-}
+native_cmp(native_eq, node_eq)
+native_cmp(native_neq, node_neq)
+native_cmp(native_lt, node_lt)
+native_cmp(native_gt, node_gt)
+native_cmp(native_lte, node_lte)
+native_cmp(native_gte, node_gte)
 
 static node_idx_t native_if(env_ptr_t env, list_ptr_t args) {
 	if(args->size() < 2) {
