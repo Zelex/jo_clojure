@@ -4346,6 +4346,69 @@ static node_idx_t native_random_sample(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+// (take-random num coll)
+// Returns a random num items from coll
+static node_idx_t native_take_random(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	long long N = get_node_int(*it++);
+	node_idx_t coll_idx = *it++;
+	node_t *coll_node = get_node(coll_idx);
+	if(coll_node->type == NODE_LIST) {
+		list_ptr_t inp = coll_node->t_list;
+		long long inp_size = inp->size();
+		if(inp_size <= N) {
+			return coll_idx;
+		}
+		if(inp_size > INT_MAX) {
+			warnf("take-random: list too large");
+			return NIL_NODE;
+		}
+		int *thus_far = (int*)jo_alloca(sizeof(int)*N);
+		list_ptr_t ret = new_list();
+		for(long long i = 0; i < N; ++i) {
+			int j = jo_random_int(inp_size);
+			for(long long k = 0; k < i; ++k) {
+				if(j == thus_far[k]) {
+					j = jo_random_int(inp_size);
+					k = -1;
+				}
+			}
+			thus_far[i] = j;
+			ret->conj_inplace(inp->nth(j));
+		}
+		return new_node_list(ret);
+	}
+	if(coll_node->type == NODE_VECTOR) {
+		vector_ptr_t inp = coll_node->as_vector();
+		long long inp_size = inp->size();
+		if(inp_size <= N) {
+			return coll_idx;
+		}
+		if(inp_size > INT_MAX) {
+			warnf("take-random: list too large");
+			return NIL_NODE;
+		}
+		int *thus_far = (int*)jo_alloca(sizeof(int)*N);
+		vector_ptr_t ret = new_vector();
+		for(long long i = 0; i < N; ++i) {
+			int j = jo_random_int(inp_size);
+			for(long long k = 0; k < i; ++k) {
+				if(j == thus_far[k]) {
+					j = jo_random_int(inp_size);
+					k = -1;
+				}
+			}
+			thus_far[i] = j;
+			ret->push_back_inplace(inp->nth(j));
+		}
+		return new_node_vector(ret);
+	}
+	if(coll_node->is_lazy_list()) {
+		warnf("take-random: lazy list not supported");
+	}
+	return NIL_NODE;
+}
+
 // (is form)(is form msg)
 // Generic assertion macro.  'form' is any predicate test.
 // 'msg' is an optional message to attach to the assertion.
@@ -6386,6 +6449,7 @@ int main(int argc, char **argv) {
 	env->set("when-first", new_node_native_function("when-first", &native_when_first, true, NODE_FLAG_PRERESOLVE));
 	env->set("zipmap", new_node_native_function("zipmap", &native_zipmap, false, NODE_FLAG_PRERESOLVE));
 	env->set("force", new_node_native_function("force", &native_force, false, NODE_FLAG_PRERESOLVE));
+	env->set("take-random", new_node_native_function("take-random", &native_take_random, false, NODE_FLAG_PRERESOLVE));
 
 	// persistent queue data structure
 	env->set("jo/queue", new_node_native_function("jo/queue", &native_queue, false, NODE_FLAG_PRERESOLVE));
