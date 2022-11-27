@@ -1438,6 +1438,8 @@ static token_t get_token(parse_state_t *state) {
 				case 'n': C = '\n'; break;
 				case 't': C = '\t'; break;
 				case 'r': C = '\r'; break;
+				case 'b': C = '\b'; break;
+				case 'a': C = '\a'; break;
 				case '\\': C = '\\'; break;
 				case '"': C = '"'; break;
 				default:
@@ -1637,7 +1639,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	int c = tok_ptr[0];
 	int c2 = tok_ptr[1];
 
-	if(c == stop_on_sep) {
+	if(c == stop_on_sep && tok.type != TOK_STRING) {
 		// end of list
 		return INV_NODE;
 	}
