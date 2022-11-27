@@ -3733,6 +3733,48 @@ static node_idx_t native_nth(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;
 }
 
+static node_idx_t native_find_nth(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t list_idx = *it++;
+	node_t *list = get_node(list_idx);
+	node_idx_t what_idx = *it++;
+	if(list->is_string()) {
+		jo_string &str = list->t_string;
+		size_t at = str.find(get_node_string(what_idx));
+		return at == jo_npos ? NODE_NIL : new_node_int(at);
+	} else if(list->is_list()) {
+		list_ptr_t L = list->as_list();
+		long long n = 0;
+		for(list_t::iterator L_it; L_it; ++L_it, ++n) {
+			if(node_eq(*L_it, what_idx)) {
+				return new_node_int(n);
+			}
+		}
+	} else if(list->is_vector()) {
+		vector_ptr_t V = list->as_vector();
+		for(long long n = 0; n <= V->size(); ++n) {
+			if(node_eq(V->nth(n), what_idx)) {
+				return new_node_int(n);
+			}
+		}
+		return NIL_NODE;
+	} else if(list->is_seq()) {
+		long long n = 0;
+		long long found = -1;
+		seq_iterate(list_idx, [&](node_idx_t i) {
+			++n;
+			if(node_eq(i, what_idx))
+			{
+				found = n-1;
+				return true;
+			}
+			return false;
+		});
+		return found >= 0 ? new_node_int(found) : NODE_NIL;
+	}
+	return NIL_NODE;
+}
+
 // (rand-nth coll)
 // Return a random element of the (sequential) collection. Will have
 // the same performance characteristics as nth for the given
@@ -6294,6 +6336,7 @@ int main(int argc, char **argv) {
 	env->set("second", new_node_native_function("second", &native_second, false, NODE_FLAG_PRERESOLVE));
 	env->set("last", new_node_native_function("last", &native_last, false, NODE_FLAG_PRERESOLVE));
 	env->set("nth", new_node_native_function("nth", &native_nth, false, NODE_FLAG_PRERESOLVE));
+	env->set("find-nth", new_node_native_function("find-nth", &native_find_nth, false, NODE_FLAG_PRERESOLVE));
 	env->set("rand-nth", new_node_native_function("rand-nth", &native_rand_nth, false, NODE_FLAG_PRERESOLVE));
 	env->set("ffirst", new_node_native_function("ffirst", &native_ffirst, false, NODE_FLAG_PRERESOLVE));
 	env->set("next", new_node_native_function("next", &native_next, false, NODE_FLAG_PRERESOLVE));
