@@ -17,10 +17,10 @@ struct jo_basic_canvas_t : jo_object {
     int channels;
     pixels_ptr_t pixels;
 
-    jo_basic_canvas_t(int width, int height, int channels) {
-        width = width;
-        height = height;
-        channels = channels;
+    jo_basic_canvas_t(int w, int h, int c) {
+        width = w;
+        height = h;
+        channels = c;
         pixels = new_pixels(width*channels, height);
     }
 };
@@ -57,10 +57,12 @@ static node_idx_t native_canvas_load_file(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
     jo_string filename = get_node_string(*it++);
 
+    warnf("Note: load image file: %s\n", filename.c_str());
+
     int width, height, channels;
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &channels, 0);
     if(!data) {
-        warnf("failed to load image file: %s", filename.c_str());
+        warnf("Warning: Failed to load image file: %s\n", filename.c_str());
         return NIL_NODE;
     }
 
@@ -78,8 +80,9 @@ static node_idx_t native_canvas_load_file(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_canvas_save_file(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
-    jo_string filename = get_node_string(*it++);
     jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    jo_string filename = get_node_string(*it++);
+    jo_string type = get_node_string(*it++);
 
     int width = canvas->width;
     int height = canvas->height;
@@ -92,7 +95,17 @@ static node_idx_t native_canvas_save_file(env_ptr_t env, list_ptr_t args) {
             }
         }
     }
-    stbi_write_png(filename.c_str(), width, height, channels, data, width*channels);
+    if(type == "png") {
+        stbi_write_png(filename.c_str(), width, height, channels, data, width*channels);
+    } else if(type == "bmp") {
+        stbi_write_bmp(filename.c_str(), width, height, channels, data);
+    } else if(type == "tga") {
+        stbi_write_tga(filename.c_str(), width, height, channels, data);
+    } else if(type == "jpg") {
+        stbi_write_jpg(filename.c_str(), width, height, channels, data, 85);
+    } else {
+        warnf("Warning: Unknown image type: %s\n", type.c_str());
+    }
     free(data);
     return NIL_NODE;
 }
@@ -139,11 +152,32 @@ static node_idx_t native_canvas_resize(env_ptr_t env, list_ptr_t args) {
     return new_node_canvas(canvas_new);
 }
 
+static node_idx_t native_canvas_width(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+    jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    return new_node_int(canvas->width);
+}
+
+static node_idx_t native_canvas_height(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    return new_node_int(canvas->height);
+}
+
+static node_idx_t native_canvas_channels(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    return new_node_int(canvas->channels);
+}
+
 void jo_basic_canvas_init(env_ptr_t env) {
 	env->set("canvas", new_node_native_function("canvas", &native_canvas, false, NODE_FLAG_PRERESOLVE));
 	env->set("canvas/load-file", new_node_native_function("canvas/load-file", &native_canvas_load_file, false, NODE_FLAG_PRERESOLVE));
-	env->set("canvas/save-file", new_node_native_function("canvas/save-file", &native_canvas_load_file, false, NODE_FLAG_PRERESOLVE));
+	env->set("canvas/save-file", new_node_native_function("canvas/save-file", &native_canvas_save_file, false, NODE_FLAG_PRERESOLVE));
 	env->set("canvas/resize", new_node_native_function("canvas/resize", &native_canvas_resize, false, NODE_FLAG_PRERESOLVE));
+	env->set("canvas/width", new_node_native_function("canvas/width", &native_canvas_width, false, NODE_FLAG_PRERESOLVE));
+	env->set("canvas/height", new_node_native_function("canvas/height", &native_canvas_height, false, NODE_FLAG_PRERESOLVE));
+	env->set("canvas/channels", new_node_native_function("canvas/channels", &native_canvas_channels, false, NODE_FLAG_PRERESOLVE));
 }
 
 
