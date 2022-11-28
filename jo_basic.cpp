@@ -6513,6 +6513,15 @@ int main(int argc, char **argv) {
 	jo_basic_gif_init(env);
 	jo_basic_b64_init(env);
 	jo_basic_canvas_init(env);
+
+	// setup *command-line-args*
+	{
+		list_ptr_t args = new_list();
+		for(int i = 0; i < argc; i++) {
+			args->push_back_inplace(new_node_string(argv[i]));
+		}
+		env->set("*command-line-args*", new_node_list(args));
+	}
 	
 	FILE *fp = fopen(argv[1], "r");
 	if(!fp) {

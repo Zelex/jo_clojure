@@ -7,7 +7,6 @@
 *3
 *agent*
 *clojure-version*
-*command-line-args*
 *compile-files*
 *compile-path*
 *compiler-options*
