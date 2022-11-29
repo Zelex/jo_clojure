@@ -3746,7 +3746,7 @@ static node_idx_t native_find_nth(env_ptr_t env, list_ptr_t args) {
 	} else if(list->is_list()) {
 		list_ptr_t L = list->as_list();
 		long long n = 0;
-		for(list_t::iterator L_it; L_it; ++L_it, ++n) {
+		for(list_t::iterator L_it(L); L_it; ++L_it, ++n) {
 			if(node_eq(*L_it, what_idx)) {
 				return new_node_int(n);
 			}

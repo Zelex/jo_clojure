@@ -1065,6 +1065,8 @@
 (is (< 1 2 3 4 5))
 (is (<= 1 2 3 4 5))
 
+(is (= 0 (find-nth (1,2,3,4,5) 1)))
+
 (run! println (range 5))
 
 (add-tap println)
