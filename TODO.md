@@ -62,7 +62,6 @@ bigdec
 bigint
 biginteger
 binding
-boolean-array
 booleans
 bound-fn
 bound-fn*
