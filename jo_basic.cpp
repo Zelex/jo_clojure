@@ -129,6 +129,7 @@ enum {
 	NODE_GIF, // jo_gif library
 	NODE_POPEN2,
 	NODE_CANVAS,
+	NODE_ARRAY,
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
@@ -6156,6 +6157,7 @@ static node_idx_t native_force(env_ptr_t env, list_ptr_t args) {
 #include "jo_basic_gif.h"
 #include "jo_basic_b64.h"
 #include "jo_basic_canvas.h"
+#include "jo_basic_array.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -6513,6 +6515,7 @@ int main(int argc, char **argv) {
 	jo_basic_gif_init(env);
 	jo_basic_b64_init(env);
 	jo_basic_canvas_init(env);
+	jo_basic_array_init(env);
 
 	// setup *command-line-args*
 	{
