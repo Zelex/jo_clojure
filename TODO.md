@@ -68,7 +68,6 @@ bound-fn*
 bound?
 bounded-count
 byte
-byte-array
 bytes
 bytes?
 cast
