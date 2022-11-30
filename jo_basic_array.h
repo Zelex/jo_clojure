@@ -30,6 +30,19 @@ struct jo_basic_array_t : jo_object {
         type = t;
         data = new_array_data(num_elements*element_size);
     }
+
+    void poke(long long index, void *value, int num) {
+        unsigned char *v = (unsigned char *)value;
+        for (int i = 0; i < num; i++) {
+            data->assoc(index*element_size+i, v[i]);
+        }
+    }
+
+    inline void poke_short(long long index, short value) { poke(index, &value, sizeof(short)); }
+    inline void poke_int(long long index, int value) { poke(index, &value, sizeof(int)); }
+    inline void poke_long(long long index, long long value) { poke(index, &value, sizeof(long long)); }
+    inline void poke_float(long long index, float value) { poke(index, &value, sizeof(float)); }
+    inline void poke_double(long long index, double value) { poke(index, &value, sizeof(double)); }
 };
 
 typedef jo_alloc_t<jo_basic_array_t> jo_basic_array_alloc_t;
@@ -71,8 +84,8 @@ static node_idx_t native_boolean_array(env_ptr_t env, list_ptr_t args) {
             });
         } else {
             bool init = init_or_seq->as_bool();
-            for(int i=0; i<size; ) {
-                array->data->assoc(i++, init);
+            for(int i=0; i<size; ++i) {
+                array->data->assoc(i, init);
             }
         }
     }
@@ -108,8 +121,8 @@ static node_idx_t native_byte_array(env_ptr_t env, list_ptr_t args) {
             });
         } else {
             unsigned char init = init_or_seq->as_int() & 0xFF;
-            for(int i=0; i<size; ) {
-                array->data->assoc(i++, init);
+            for(int i=0; i<size; ++i) {
+                array->data->assoc(i, init);
             }
         }
     }
@@ -145,8 +158,8 @@ static node_idx_t native_char_array(env_ptr_t env, list_ptr_t args) {
             });
         } else {
             unsigned char init = init_or_seq->as_int() & 0xFF;
-            for(int i=0; i<size; ) {
-                array->data->assoc(i++, init);
+            for(int i=0; i<size; ++i) {
+                array->data->assoc(i, init);
             }
         }
     }
@@ -163,10 +176,7 @@ static node_idx_t native_short_array(env_ptr_t env, list_ptr_t args) {
         jo_basic_array_ptr_t array = new_array(size, 2, TYPE_SHORT);
         long long i = 0;
         seq_iterate(size_or_seq_idx, [&](node_idx_t idx) {
-            node_t *n = get_node(idx);
-            int v = n->as_int();
-            array->data->assoc(i++, v & 0xFF);
-            array->data->assoc(i++, (v >> 8) & 0xFF);
+            array->poke_short(i++, get_node_int(idx));
             return true;
         });
         return new_node_array(array);
@@ -178,19 +188,13 @@ static node_idx_t native_short_array(env_ptr_t env, list_ptr_t args) {
         if(init_or_seq->is_seq()) {
             long long i = 0;
             seq_iterate(seq_idx, [&](node_idx_t idx) {
-                node_t *n = get_node(idx);
-                int v = n->as_int();
-                array->data->assoc(i++, v & 0xFF);
-                array->data->assoc(i++, (v >> 8) & 0xFF);
+                array->poke_short(i++, get_node_int(idx));
                 return true;
             });
         } else {
-            int v = init_or_seq->as_int();
-            unsigned char v0 = v & 0xFF;
-            unsigned char v1 = (v >> 8) & 0xFF;
-            for(int i=0; i<size*2; ) {
-                array->data->assoc(i++, v0);
-                array->data->assoc(i++, v1);
+            long long v = init_or_seq->as_int();
+            for(int i=0; i<size; ++i) {
+                array->poke_short(i, v);
             }
         }
     }
@@ -207,12 +211,7 @@ static node_idx_t native_int_array(env_ptr_t env, list_ptr_t args) {
         jo_basic_array_ptr_t array = new_array(size, 4, TYPE_INT);
         long long i = 0;
         seq_iterate(size_or_seq_idx, [&](node_idx_t idx) {
-            node_t *n = get_node(idx);
-            int v = n->as_int();
-            array->data->assoc(i++, v & 0xFF);
-            array->data->assoc(i++, (v >> 8) & 0xFF);
-            array->data->assoc(i++, (v >> 16) & 0xFF);
-            array->data->assoc(i++, (v >> 24) & 0xFF);
+            array->poke_int(i++, get_node_int(idx));
             return true;
         });
         return new_node_array(array);
@@ -224,25 +223,13 @@ static node_idx_t native_int_array(env_ptr_t env, list_ptr_t args) {
         if(init_or_seq->is_seq()) {
             long long i = 0;
             seq_iterate(seq_idx, [&](node_idx_t idx) {
-                node_t *n = get_node(idx);
-                int v = n->as_int();
-                array->data->assoc(i++, v & 0xFF);
-                array->data->assoc(i++, (v >> 8) & 0xFF);
-                array->data->assoc(i++, (v >> 16) & 0xFF);
-                array->data->assoc(i++, (v >> 24) & 0xFF);
+                array->poke_int(i++, get_node_int(idx));
                 return true;
             });
         } else {
-            int v = init_or_seq->as_int();
-            unsigned char v0 = v & 0xFF;
-            unsigned char v1 = (v >> 8) & 0xFF;
-            unsigned char v2 = (v >> 16) & 0xFF;
-            unsigned char v3 = (v >> 24) & 0xFF;
-            for(int i=0; i<size*4; ) {
-                array->data->assoc(i++, v0);
-                array->data->assoc(i++, v1);
-                array->data->assoc(i++, v2);
-                array->data->assoc(i++, v3);
+            long long v = init_or_seq->as_int();
+            for(int i=0; i<size; ++i) {
+                array->poke_int(i, v);
             }
         }
     }
@@ -259,16 +246,7 @@ static node_idx_t native_long_array(env_ptr_t env, list_ptr_t args) {
         jo_basic_array_ptr_t array = new_array(size, 8, TYPE_LONG);
         long long i = 0;
         seq_iterate(size_or_seq_idx, [&](node_idx_t idx) {
-            node_t *n = get_node(idx);
-            long long v = n->as_int();
-            array->data->assoc(i++, v & 0xFF);
-            array->data->assoc(i++, (v >> 8) & 0xFF);
-            array->data->assoc(i++, (v >> 16) & 0xFF);
-            array->data->assoc(i++, (v >> 24) & 0xFF);
-            array->data->assoc(i++, (v >> 32) & 0xFF);
-            array->data->assoc(i++, (v >> 40) & 0xFF);
-            array->data->assoc(i++, (v >> 48) & 0xFF);
-            array->data->assoc(i++, (v >> 56) & 0xFF);
+            array->poke_long(i++, get_node_int(idx));
             return true;
         });
         return new_node_array(array);
@@ -280,37 +258,48 @@ static node_idx_t native_long_array(env_ptr_t env, list_ptr_t args) {
         if(init_or_seq->is_seq()) {
             long long i = 0;
             seq_iterate(seq_idx, [&](node_idx_t idx) {
-                node_t *n = get_node(idx);
-                long long v = n->as_int();
-                array->data->assoc(i++, v & 0xFF);
-                array->data->assoc(i++, (v >> 8) & 0xFF);
-                array->data->assoc(i++, (v >> 16) & 0xFF);
-                array->data->assoc(i++, (v >> 24) & 0xFF);
-                array->data->assoc(i++, (v >> 32) & 0xFF);
-                array->data->assoc(i++, (v >> 40) & 0xFF);
-                array->data->assoc(i++, (v >> 48) & 0xFF);
-                array->data->assoc(i++, (v >> 56) & 0xFF);
+                array->poke_long(i++, get_node_int(idx));
                 return true;
             });
         } else {
             long long v = init_or_seq->as_int();
-            unsigned char v0 = v & 0xFF;
-            unsigned char v1 = (v >> 8) & 0xFF;
-            unsigned char v2 = (v >> 16) & 0xFF;
-            unsigned char v3 = (v >> 24) & 0xFF;
-            unsigned char v4 = (v >> 32) & 0xFF;
-            unsigned char v5 = (v >> 40) & 0xFF;
-            unsigned char v6 = (v >> 48) & 0xFF;
-            unsigned char v7 = (v >> 56) & 0xFF;
-            for(int i=0; i<size*8; ) {
-                array->data->assoc(i++, v0);
-                array->data->assoc(i++, v1);
-                array->data->assoc(i++, v2);
-                array->data->assoc(i++, v3);
-                array->data->assoc(i++, v4);
-                array->data->assoc(i++, v5);
-                array->data->assoc(i++, v6);
-                array->data->assoc(i++, v7);
+            for(int i=0; i<size; ++i) {
+                array->poke_long(i++, v);
+            }
+        }
+    }
+    return new_node_array(array);
+}
+
+// float-array
+static node_idx_t native_float_array(env_ptr_t env, list_ptr_t args) {
+    node_idx_t size_or_seq_idx = args->first_value();
+    node_idx_t seq_idx = args->second_value();
+    node_t *size_or_seq = get_node(size_or_seq_idx);
+    if(size_or_seq->is_seq()) {
+        long long size = size_or_seq->seq_size();
+        jo_basic_array_ptr_t array = new_array(size, 4, TYPE_FLOAT);
+        long long i = 0;
+        seq_iterate(size_or_seq_idx, [&](node_idx_t idx) {
+            array->poke_float(i++, get_node_float(idx));
+            return true;
+        });
+        return new_node_array(array);
+    }
+    long long size = size_or_seq->as_int();
+    jo_basic_array_ptr_t array = new_array(size, 4, TYPE_FLOAT);
+    if(seq_idx != NIL_NODE) {
+        node_t *init_or_seq = get_node(seq_idx);
+        if(init_or_seq->is_seq()) {
+            long long i = 0;
+            seq_iterate(seq_idx, [&](node_idx_t idx) {
+                array->poke_float(i++, get_node_float(idx));
+                return true;
+            });
+        } else {
+            float v = init_or_seq->as_float();
+            for(int i=0; i<size; ++i) {
+                array->poke_float(i++, v);
             }
         }
     }
@@ -318,8 +307,39 @@ static node_idx_t native_long_array(env_ptr_t env, list_ptr_t args) {
 }
 
 // double-array
-// float-array
-
+static node_idx_t native_double_array(env_ptr_t env, list_ptr_t args) {
+    node_idx_t size_or_seq_idx = args->first_value();
+    node_idx_t seq_idx = args->second_value();
+    node_t *size_or_seq = get_node(size_or_seq_idx);
+    if(size_or_seq->is_seq()) {
+        long long size = size_or_seq->seq_size();
+        jo_basic_array_ptr_t array = new_array(size, 8, TYPE_DOUBLE);
+        long long i = 0;
+        seq_iterate(size_or_seq_idx, [&](node_idx_t idx) {
+            array->poke_double(i++, get_node_float(idx));
+            return true;
+        });
+        return new_node_array(array);
+    }
+    long long size = size_or_seq->as_int();
+    jo_basic_array_ptr_t array = new_array(size, 8, TYPE_DOUBLE);
+    if(seq_idx != NIL_NODE) {
+        node_t *init_or_seq = get_node(seq_idx);
+        if(init_or_seq->is_seq()) {
+            long long i = 0;
+            seq_iterate(seq_idx, [&](node_idx_t idx) {
+                array->poke_double(i++, get_node_float(idx));
+                return true;
+            });
+        } else {
+            double v = init_or_seq->as_float();
+            for(int i=0; i<size; ++i) {
+                array->poke_double(i++, v);
+            }
+        }
+    }
+    return new_node_array(array);
+}
 void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("byte-array", new_node_native_function("byte-array", &native_byte_array, false, NODE_FLAG_PRERESOLVE));
@@ -327,4 +347,6 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("short-array", new_node_native_function("short-array", &native_short_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("int-array", new_node_native_function("int-array", &native_int_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("long-array", new_node_native_function("long-array", &native_long_array, false, NODE_FLAG_PRERESOLVE));
+	env->set("float-array", new_node_native_function("float-array", &native_float_array, false, NODE_FLAG_PRERESOLVE));
+	env->set("double-array", new_node_native_function("double-array", &native_double_array, false, NODE_FLAG_PRERESOLVE));
 }
