@@ -973,7 +973,7 @@ static node_idx_t native_is_float(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_is_double(env_ptr_t env, list_ptr_t args) {
     return get_node_type(args->first_value()) == NODE_FLOAT ? TRUE_NODE : FALSE_NODE;
 }
-static node_idx_t native_is_int(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_integer_q(env_ptr_t env, list_ptr_t args) {
     return get_node_type(args->first_value()) == NODE_INT ? TRUE_NODE : FALSE_NODE;
 }
 
@@ -1776,10 +1776,28 @@ static node_idx_t native_byte(env_ptr_t env, list_ptr_t args) {
     return new_node_int(b);
 }
 
+static node_idx_t native_byte_q(env_ptr_t env, list_ptr_t args) {
+    node_idx_t idx = args->first_value();
+    if(get_node_type(idx) != NODE_INT) {
+        return FALSE_NODE;
+    }
+    long long v = get_node_int(idx);
+    return v >= 0 && v <= 255 ? TRUE_NODE : FALSE_NODE;
+}
+
 // char
 static node_idx_t native_char(env_ptr_t env, list_ptr_t args) {
     signed char b = get_node_int(args->first_value());
     return new_node_int(b);
+}
+
+static node_idx_t native_char_q(env_ptr_t env, list_ptr_t args) {
+    node_idx_t idx = args->first_value();
+    if(get_node_type(idx) != NODE_INT) {
+        return FALSE_NODE;
+    }
+    long long v = get_node_int(idx);
+    return v >= -128 && v <= 127 ? TRUE_NODE : FALSE_NODE;
 }
 
 // short
@@ -1788,22 +1806,53 @@ static node_idx_t native_short(env_ptr_t env, list_ptr_t args) {
     return new_node_int(b);
 }
 
+static node_idx_t native_short_q(env_ptr_t env, list_ptr_t args) {
+    node_idx_t idx = args->first_value();
+    if(get_node_type(idx) != NODE_INT) {
+        return FALSE_NODE;
+    }
+    long long v = get_node_int(idx);
+    return v >= -32768 && v <= 32767 ? TRUE_NODE : FALSE_NODE;
+}
+
+static node_idx_t native_int_q(env_ptr_t env, list_ptr_t args) {
+    node_idx_t idx = args->first_value();
+    if(get_node_type(idx) != NODE_INT) {
+        return FALSE_NODE;
+    }
+    long long v = get_node_int(idx);
+    return v >= -2147483648 && v <= 2147483647 ? TRUE_NODE : FALSE_NODE;
+}
+
 // long
 static node_idx_t native_long(env_ptr_t env, list_ptr_t args) {
     signed long long b = get_node_int(args->first_value());
     return new_node_int(b);
 }
 
+static node_idx_t native_long_q(env_ptr_t env, list_ptr_t args) {
+    node_idx_t idx = args->first_value();
+    if(get_node_type(idx) != NODE_INT) {
+        return FALSE_NODE;
+    }
+    long long v = get_node_int(idx);
+    return v >= -9223372036854775808LL && v <= 9223372036854775807LL ? TRUE_NODE : FALSE_NODE;
+}
+
 void jo_basic_math_init(env_ptr_t env) {
 	env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
 	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
     env->set("byte", new_node_native_function("byte", &native_byte, false, NODE_FLAG_PRERESOLVE));
+    env->set("byte?", new_node_native_function("byte?", &native_byte_q, false, NODE_FLAG_PRERESOLVE));
     env->set("char", new_node_native_function("char", &native_char, false, NODE_FLAG_PRERESOLVE));
+    env->set("char?", new_node_native_function("char?", &native_char_q, false, NODE_FLAG_PRERESOLVE));
     env->set("short", new_node_native_function("short", &native_short, false, NODE_FLAG_PRERESOLVE));
+    env->set("short?", new_node_native_function("short?", &native_short_q, false, NODE_FLAG_PRERESOLVE));
     env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
-    env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
-    env->set("integer?", new_node_native_function("integer?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
+    env->set("int?", new_node_native_function("int?", &native_int_q, false, NODE_FLAG_PRERESOLVE));
+    env->set("integer?", new_node_native_function("integer?", &native_integer_q, false, NODE_FLAG_PRERESOLVE));
     env->set("long", new_node_native_function("long", &native_long, false, NODE_FLAG_PRERESOLVE));
+    env->set("long?", new_node_native_function("long?", &native_long_q, false, NODE_FLAG_PRERESOLVE));
     env->set("float", new_node_native_function("float", &native_float, false, NODE_FLAG_PRERESOLVE));
     env->set("float?", new_node_native_function("float?", &native_is_float, false, NODE_FLAG_PRERESOLVE));
     env->set("double", new_node_native_function("double", &native_double, false, NODE_FLAG_PRERESOLVE));
