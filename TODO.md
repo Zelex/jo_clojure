@@ -165,7 +165,6 @@ list*
 load
 loaded-libs
 long
-long-array
 longs
 macroexpand-1
 make-array
