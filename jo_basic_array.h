@@ -62,7 +62,45 @@ struct jo_basic_array_t : jo_object {
                 break;
         }
     }
+
+    inline void peek(long long index, void *value, int num) {
+        // peek individual bytes and put them together
+        unsigned char *v = (unsigned char *)value;
+        for (int i = 0; i < num; i++) {
+            v[i] = data->nth(index*element_size+i);
+        }
+    }
+
+    inline bool peek_bool(long long index) { return data->nth(index*element_size); }
+    inline unsigned char peek_byte(long long index) { return data->nth(index*element_size); }
+    inline char peek_char(long long index) { return data->nth(index*element_size); }
+    inline short peek_short(long long index) { short result; peek(index, &result, sizeof(short)); return result; }
+    inline int peek_int(long long index) { int result; peek(index, &result, sizeof(int)); return result; }
+    inline long long peek_long(long long index) { long long result; peek(index, &result, sizeof(long long)); return result; }
+    inline float peek_float(long long index) { float result; peek(index, &result, sizeof(float)); return result; }
+    inline double peek_double(long long index) { double result; peek(index, &result, sizeof(double)); return result; }
+
+    // peek_node
+    // returns a node_idx_t to a new node containing the value at the given index
+    node_idx_t peek_node(long long index) {
+        switch(type) {
+            case TYPE_BOOL: return new_node_bool(peek_bool(index));
+            case TYPE_BYTE: return new_node_int(peek_byte(index));
+            case TYPE_CHAR: return new_node_int(peek_char(index));
+            case TYPE_SHORT: return new_node_int(peek_short(index));
+            case TYPE_INT: return new_node_int(peek_int(index));
+            case TYPE_LONG: return new_node_int(peek_long(index));
+            case TYPE_FLOAT: return new_node_float(peek_float(index));
+            case TYPE_DOUBLE: return new_node_float(peek_double(index));
+            default:
+                warnf("jo_basic_array_t::peek_node: unknown type %d", type);
+                return 0;
+        }
+    }
+
+
 };
+
 
 typedef jo_alloc_t<jo_basic_array_t> jo_basic_array_alloc_t;
 jo_basic_array_alloc_t jo_basic_array_alloc;
@@ -470,6 +508,18 @@ static node_idx_t native_aset_double(env_ptr_t env, list_ptr_t args) {
     return val_idx;
 }
 
+// (aget array idx)(aget array idx & idxs)
+// Returns the value at the index/indices. Works on Java arrays of all
+// types.
+static node_idx_t native_aget(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    node_idx_t idx = *it++;
+    // TODO: multidimensional arrays
+    return A->peek_node(get_node_int(idx));
+}
+
 void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("byte-array", new_node_native_function("byte-array", &native_byte_array, false, NODE_FLAG_PRERESOLVE));
@@ -488,4 +538,5 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("aset-long", new_node_native_function("aset-long", &native_aset_long, false, NODE_FLAG_PRERESOLVE));
 	env->set("aset-float", new_node_native_function("aset-float", &native_aset_float, false, NODE_FLAG_PRERESOLVE));
 	env->set("aset-double", new_node_native_function("aset-double", &native_aset_double, false, NODE_FLAG_PRERESOLVE));
+	env->set("aget", new_node_native_function("aget", &native_aget, false, NODE_FLAG_PRERESOLVE));
 }
