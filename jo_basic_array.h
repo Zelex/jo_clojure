@@ -31,6 +31,8 @@ struct jo_basic_array_t : jo_object {
         data = new_array_data(num_elements*element_size);
     }
 
+    inline long long length() { return num_elements; }
+
     void poke(long long index, void *value, int num) {
         unsigned char *v = (unsigned char *)value;
         for (int i = 0; i < num; i++) {
@@ -520,6 +522,13 @@ static node_idx_t native_aget(env_ptr_t env, list_ptr_t args) {
     return A->peek_node(get_node_int(idx));
 }
 
+static node_idx_t native_alength(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    return new_node_int(A->length());
+}
+
 void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("byte-array", new_node_native_function("byte-array", &native_byte_array, false, NODE_FLAG_PRERESOLVE));
@@ -539,4 +548,5 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("aset-float", new_node_native_function("aset-float", &native_aset_float, false, NODE_FLAG_PRERESOLVE));
 	env->set("aset-double", new_node_native_function("aset-double", &native_aset_double, false, NODE_FLAG_PRERESOLVE));
 	env->set("aget", new_node_native_function("aget", &native_aget, false, NODE_FLAG_PRERESOLVE));
+	env->set("alength", new_node_native_function("alength", &native_alength, false, NODE_FLAG_PRERESOLVE));
 }
