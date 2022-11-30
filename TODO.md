@@ -37,9 +37,7 @@ all-ns
 alter
 alter-meta!
 alter-var-root
-amap
 ancestors
-areduce
 assoc!
 associative?
 await-for

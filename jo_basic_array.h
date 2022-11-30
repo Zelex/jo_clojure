@@ -546,6 +546,32 @@ static node_idx_t native_aclone(env_ptr_t env, list_ptr_t args) {
     return new_node_array(A->clone());
 }
 
+// (amap a idx ret expr)
+// Maps an expression across an array a, using an index named idx, and
+// return value named ret, initialized to a clone of a, then setting 
+// each element of ret to the evaluation of expr, returning the new 
+// array ret.
+static node_idx_t native_amap(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t key_idx = *it++; 
+    node_idx_t ret_idx = *it++; 
+    node_idx_t expr_idx = *it++; 
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    A = A->clone();
+    node_idx_t ret_A = new_node_array(A);
+	env_ptr_t env2 = new_env(env);
+    node_let(env2, ret_idx, ret_A);
+    for(long long i = 0; i < A->length(); ++i) {
+        node_let(env2, key_idx, new_node_int(i));
+        node_idx_t v = eval_node(env2, expr_idx);
+        A->poke_node(i, v);
+    }
+    return ret_A;
+}
+
+// areduce
+
 void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("byte-array", new_node_native_function("byte-array", &native_byte_array, false, NODE_FLAG_PRERESOLVE));
@@ -567,4 +593,5 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("aget", new_node_native_function("aget", &native_aget, false, NODE_FLAG_PRERESOLVE));
 	env->set("alength", new_node_native_function("alength", &native_alength, false, NODE_FLAG_PRERESOLVE));
 	env->set("aclone", new_node_native_function("aclone", &native_aclone, false, NODE_FLAG_PRERESOLVE));
+	env->set("amap", new_node_native_function("amap", &native_amap, false, NODE_FLAG_PRERESOLVE));
 }
