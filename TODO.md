@@ -33,7 +33,6 @@ aclone
 add-watch
 agent-error
 agent-errors
-alength
 alias
 all-ns
 alter
