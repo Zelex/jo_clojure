@@ -29,7 +29,6 @@
 *suppress-read*
 *unchecked-math*
 accessor
-aclone
 add-watch
 agent-error
 agent-errors

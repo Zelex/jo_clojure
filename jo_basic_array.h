@@ -6,6 +6,16 @@ template<> array_data_t::vector_alloc_t array_data_t::alloc = array_data_t::vect
 typedef jo_shared_ptr_t<array_data_t> array_data_ptr_t;
 template<typename...A> jo_shared_ptr_t<array_data_t> new_array_data(A... args) { return jo_shared_ptr_t<array_data_t>(array_data_t::alloc.emplace(args...)); }
 
+struct jo_basic_array_t;
+
+typedef jo_alloc_t<jo_basic_array_t> jo_basic_array_alloc_t;
+jo_basic_array_alloc_t jo_basic_array_alloc;
+typedef jo_shared_ptr_t<jo_basic_array_t> jo_basic_array_ptr_t;
+template<typename...A>
+jo_basic_array_ptr_t new_array(A...args) { return jo_basic_array_ptr_t(jo_basic_array_alloc.emplace(args...)); }
+
+static node_idx_t new_node_array(jo_basic_array_ptr_t nodes, int flags=0) { return new_node_object(NODE_ARRAY, nodes.cast<jo_object>(), flags); }
+
 enum array_type_t {
     TYPE_BOOL = 0,
     TYPE_BYTE = 1,
@@ -29,6 +39,17 @@ struct jo_basic_array_t : jo_object {
         element_size = size;
         type = t;
         data = new_array_data(num_elements*element_size);
+    }
+
+    jo_basic_array_t(jo_basic_array_t const& other) {
+        num_elements = other.num_elements;
+        element_size = other.element_size;
+        type = other.type;
+        data = other.data->clone();
+    }
+
+    jo_basic_array_ptr_t clone() const {
+        return new_array(*this);
     }
 
     inline long long length() { return num_elements; }
@@ -102,17 +123,6 @@ struct jo_basic_array_t : jo_object {
 
 
 };
-
-
-typedef jo_alloc_t<jo_basic_array_t> jo_basic_array_alloc_t;
-jo_basic_array_alloc_t jo_basic_array_alloc;
-typedef jo_shared_ptr_t<jo_basic_array_t> jo_basic_array_ptr_t;
-template<typename...A>
-jo_basic_array_ptr_t new_array(A...args) { return jo_basic_array_ptr_t(jo_basic_array_alloc.emplace(args...)); }
-
-//typedef jo_shared_ptr<jo_basic_array_t> jo_basic_array_ptr_t;
-//static jo_basic_array_ptr_t new_array() { return jo_basic_array_ptr_t(new jo_basic_array_t()); }
-static node_idx_t new_node_array(jo_basic_array_ptr_t nodes, int flags=0) { return new_node_object(NODE_ARRAY, nodes.cast<jo_object>(), flags); }
 
 // boolean-array -- really a byte array in disguise
 static node_idx_t native_boolean_array(env_ptr_t env, list_ptr_t args) {
@@ -529,6 +539,13 @@ static node_idx_t native_alength(env_ptr_t env, list_ptr_t args) {
     return new_node_int(A->length());
 }
 
+static node_idx_t native_aclone(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    return new_node_array(A->clone());
+}
+
 void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("byte-array", new_node_native_function("byte-array", &native_byte_array, false, NODE_FLAG_PRERESOLVE));
@@ -549,4 +566,5 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("aset-double", new_node_native_function("aset-double", &native_aset_double, false, NODE_FLAG_PRERESOLVE));
 	env->set("aget", new_node_native_function("aget", &native_aget, false, NODE_FLAG_PRERESOLVE));
 	env->set("alength", new_node_native_function("alength", &native_alength, false, NODE_FLAG_PRERESOLVE));
+	env->set("aclone", new_node_native_function("aclone", &native_aclone, false, NODE_FLAG_PRERESOLVE));
 }
