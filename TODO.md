@@ -74,7 +74,6 @@ cast
 cat
 catch
 char
-char-array
 char-escape-string
 char-name-string
 char?
@@ -268,7 +267,6 @@ set-error-handler!
 set-error-mode!
 set-validator!
 short
-short-array
 shorts
 shutdown-agents
 sorted-map
