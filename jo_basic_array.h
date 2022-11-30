@@ -570,7 +570,28 @@ static node_idx_t native_amap(env_ptr_t env, list_ptr_t args) {
     return ret_A;
 }
 
-// areduce
+// (areduce a idx ret init expr)
+// Reduces an expression across an array a, using an index named idx,
+// and return value named ret, initialized to init, setting ret to the 
+// evaluation of expr at each step, returning ret.
+static node_idx_t native_areduce(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = eval_node(env, *it++);
+    node_idx_t key_idx = *it++; 
+    node_idx_t ret_idx = *it++; 
+    node_idx_t init_idx = eval_node(env, *it++); 
+    node_idx_t expr_idx = *it++; 
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    env_ptr_t env2 = new_env(env);
+    node_idx_t ret = init_idx;
+    node_let(env2, ret_idx, ret);
+    for(long long i = 0; i < A->length(); ++i) {
+        node_let(env2, key_idx, new_node_int(i));
+        ret = eval_node(env2, expr_idx);
+        node_let(env2, ret_idx, ret);
+    }
+    return ret;
+}
 
 void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
@@ -594,4 +615,5 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("alength", new_node_native_function("alength", &native_alength, false, NODE_FLAG_PRERESOLVE));
 	env->set("aclone", new_node_native_function("aclone", &native_aclone, false, NODE_FLAG_PRERESOLVE));
 	env->set("amap", new_node_native_function("amap", &native_amap, true, NODE_FLAG_PRERESOLVE));
+	env->set("areduce", new_node_native_function("areduce", &native_areduce, true, NODE_FLAG_PRERESOLVE));
 }

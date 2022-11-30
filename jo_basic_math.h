@@ -1821,7 +1821,7 @@ static node_idx_t native_int_q(env_ptr_t env, list_ptr_t args) {
         return FALSE_NODE;
     }
     long long v = get_node_int(idx);
-    return v >= -2147483648 && v <= 2147483647 ? TRUE_NODE : FALSE_NODE;
+    return v >= INT_MIN && v <= INT_MAX ? TRUE_NODE : FALSE_NODE;
 }
 
 // long
@@ -1836,7 +1836,7 @@ static node_idx_t native_long_q(env_ptr_t env, list_ptr_t args) {
         return FALSE_NODE;
     }
     long long v = get_node_int(idx);
-    return v >= -9223372036854775808LL && v <= 9223372036854775807LL ? TRUE_NODE : FALSE_NODE;
+    return v >= LLONG_MIN && v <= LLONG_MAX ? TRUE_NODE : FALSE_NODE;
 }
 
 void jo_basic_math_init(env_ptr_t env) {
