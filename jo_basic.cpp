@@ -3662,7 +3662,14 @@ static node_idx_t native_is_empty(env_ptr_t env, list_ptr_t args) { return get_n
 static node_idx_t native_is_not_empty(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->seq_empty() ? FALSE_NODE : TRUE_NODE; }
 static node_idx_t native_is_false(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? FALSE_NODE : TRUE_NODE; }
 static node_idx_t native_is_true(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
-static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) != NODE_NIL ? TRUE_NODE : FALSE_NODE; }
+static node_idx_t native_is_some(env_ptr_t env, list_ptr_t args) { 
+	for(list_t::iterator it(args); it; ++it) {
+		if(get_node_type(*it) == NIL_NODE) {
+			return FALSE_NODE;
+		}
+	}
+	return TRUE_NODE;
+}
 
 // (first coll)
 // Returns the first item in the collection. Calls seq on its argument. If coll is nil, returns nil.
