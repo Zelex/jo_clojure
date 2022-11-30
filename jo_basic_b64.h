@@ -64,7 +64,26 @@ static node_idx_t native_b64_decode_to_array(env_ptr_t env, list_ptr_t args) {
   return new_node_array(array);
 }
 
+static node_idx_t native_b64_encode_from_array(env_ptr_t env, list_ptr_t args) {
+  list_t::iterator it(args);
+  jo_basic_array_ptr_t array = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+  jo_string out_file = get_node(*it++)->as_string();
+  size_t len = array->length();
+  size_t out_len = len * 4 / 3; // assume properly formed base64 here... ? 
+  char *out = new char[out_len];
+  char *in = new char[len];
+  for(size_t i = 0; i < len; i++) {
+    in[i] = array->peek_byte(i);
+  }
+  base64_encode(in, out, len);
+  jo_spit_file(out_file.c_str(), out, out_len);
+  delete [] out;
+  delete [] in;
+  return new_node_int(out_len);
+}
+
 void jo_basic_b64_init(env_ptr_t env) {
 	env->set("b64/decode-to-file", new_node_native_function("b64/decode-to-file", &native_b64_decode_to_file, false, NODE_FLAG_PRERESOLVE));
 	env->set("b64/decode-to-array", new_node_native_function("b64/decode-to-array", &native_b64_decode_to_array, false, NODE_FLAG_PRERESOLVE));
+	env->set("b64/encode-from-array", new_node_native_function("b64/encode-from-array", &native_b64_encode_from_array, false, NODE_FLAG_PRERESOLVE));
 }
