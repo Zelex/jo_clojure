@@ -1037,6 +1037,9 @@ struct jo_persistent_list : jo_object {
         operator bool() const {
             return cur;
         }
+        bool has_next() const {
+            return cur && cur->next;
+        }
         iterator &operator++() {
             if(cur) {
                 cur = cur->next;

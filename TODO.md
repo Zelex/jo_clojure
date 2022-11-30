@@ -43,15 +43,6 @@ alter-var-root
 amap
 ancestors
 areduce
-aset
-aset-boolean
-aset-byte
-aset-char
-aset-double
-aset-float
-aset-int
-aset-long
-aset-short
 assoc!
 associative?
 await-for

@@ -34,15 +34,34 @@ struct jo_basic_array_t : jo_object {
     void poke(long long index, void *value, int num) {
         unsigned char *v = (unsigned char *)value;
         for (int i = 0; i < num; i++) {
-            data->assoc(index*element_size+i, v[i]);
+            data->assoc_inplace(index*element_size+i, v[i]);
         }
     }
 
+    inline void poke_bool(long long index, bool value) { poke(index, &value, 1); }
+    inline void poke_byte(long long index, unsigned char value) { poke(index, &value, 1); }
+    inline void poke_char(long long index, char value) { poke(index, &value, 1); }
     inline void poke_short(long long index, short value) { poke(index, &value, sizeof(short)); }
     inline void poke_int(long long index, int value) { poke(index, &value, sizeof(int)); }
     inline void poke_long(long long index, long long value) { poke(index, &value, sizeof(long long)); }
     inline void poke_float(long long index, float value) { poke(index, &value, sizeof(float)); }
     inline void poke_double(long long index, double value) { poke(index, &value, sizeof(double)); }
+
+    void poke_node(long long index, node_idx_t node_idx) {
+        switch(type) {
+            case TYPE_BOOL: poke_bool(index, get_node_bool(node_idx)); break;
+            case TYPE_BYTE: poke_byte(index, get_node_int(node_idx)); break;
+            case TYPE_CHAR: poke_char(index, get_node_int(node_idx)); break;
+            case TYPE_SHORT: poke_short(index, get_node_int(node_idx)); break;
+            case TYPE_INT: poke_int(index, get_node_int(node_idx)); break;
+            case TYPE_LONG: poke_long(index, get_node_int(node_idx)); break;
+            case TYPE_FLOAT: poke_float(index, get_node_float(node_idx)); break;
+            case TYPE_DOUBLE: poke_double(index, get_node_float(node_idx)); break;
+            default:
+                warnf("jo_basic_array_t::poke_node: unknown type %d", type);
+                break;
+        }
+    }
 };
 
 typedef jo_alloc_t<jo_basic_array_t> jo_basic_array_alloc_t;
@@ -340,6 +359,117 @@ static node_idx_t native_double_array(env_ptr_t env, list_ptr_t args) {
     }
     return new_node_array(array);
 }
+
+// (aset array idx val)(aset array idx idx2 & idxv)
+// Sets the value at the index/indices. Works on Java arrays of
+// reference types. Returns val.
+static node_idx_t native_aset(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_node(get_node_int(*it), val_idx);
+    }
+    return val_idx;
+}
+
+// aset-boolean
+static node_idx_t native_aset_boolean(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_bool(get_node_int(*it), get_node_bool(val_idx));
+    }
+    return val_idx;
+}
+
+// aset-byte
+static node_idx_t native_aset_byte(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_byte(get_node_int(*it), get_node_int(val_idx));
+    }
+    return val_idx;
+}
+
+// aset-char
+static node_idx_t native_aset_char(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_char(get_node_int(*it), get_node_int(val_idx));
+    }
+    return val_idx;
+}
+
+// aset-short
+static node_idx_t native_aset_short(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_short(get_node_int(*it), get_node_int(val_idx));
+    }
+    return val_idx;
+}
+
+// aset-int
+static node_idx_t native_aset_int(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_int(get_node_int(*it), get_node_int(val_idx));
+    }
+    return val_idx;
+}
+
+// aset-long
+static node_idx_t native_aset_long(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_long(get_node_int(*it), get_node_int(val_idx));
+    }
+    return val_idx;
+}
+
+// aset-float
+static node_idx_t native_aset_float(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_float(get_node_int(*it), get_node_float(val_idx));
+    }
+    return val_idx;
+}
+
+// aset-double
+static node_idx_t native_aset_double(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    node_idx_t val_idx = args->last_value();
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    for(; it.has_next(); ++it) {
+        A->poke_double(get_node_int(*it), get_node_float(val_idx));
+    }
+    return val_idx;
+}
+
 void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("byte-array", new_node_native_function("byte-array", &native_byte_array, false, NODE_FLAG_PRERESOLVE));
@@ -349,4 +479,13 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("long-array", new_node_native_function("long-array", &native_long_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("float-array", new_node_native_function("float-array", &native_float_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("double-array", new_node_native_function("double-array", &native_double_array, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset", new_node_native_function("aset", &native_aset, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset-boolean", new_node_native_function("aset-boolean", &native_aset_boolean, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset-byte", new_node_native_function("aset-byte", &native_aset_byte, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset-char", new_node_native_function("aset-char", &native_aset_char, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset-short", new_node_native_function("aset-short", &native_aset_short, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset-int", new_node_native_function("aset-int", &native_aset_int, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset-long", new_node_native_function("aset-long", &native_aset_long, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset-float", new_node_native_function("aset-float", &native_aset_float, false, NODE_FLAG_PRERESOLVE));
+	env->set("aset-double", new_node_native_function("aset-double", &native_aset_double, false, NODE_FLAG_PRERESOLVE));
 }
