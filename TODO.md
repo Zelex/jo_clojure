@@ -115,7 +115,6 @@ destructure
 disj!
 dissoc!
 doto
-double-array
 doubles
 eduction
 EMPTY-NODE
@@ -138,7 +137,6 @@ find-ns
 find-protocol-impl
 find-protocol-method
 find-var
-float-array
 floats
 format
 gen-class
