@@ -53,13 +53,11 @@ bound-fn
 bound-fn*
 bound?
 bounded-count
-byte
 bytes
 bytes?
 cast
 cat
 catch
-char
 char-escape-string
 char-name-string
 char?
@@ -148,7 +146,6 @@ iterator-seq
 list*
 load
 loaded-libs
-long
 longs
 macroexpand-1
 make-array
@@ -248,7 +245,6 @@ set-agent-send-off-executor!
 set-error-handler!
 set-error-mode!
 set-validator!
-short
 shorts
 shutdown-agents
 sorted-map

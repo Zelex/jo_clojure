@@ -1762,10 +1762,48 @@ static node_idx_t native_math_matrix_transpose(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(V);
 }
 
+static node_idx_t native_boolean(env_ptr_t env, list_ptr_t args) { 
+    return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; 
+}
+
+static node_idx_t native_is_boolean(env_ptr_t env, list_ptr_t args) { 
+    return get_node_type(args->first_value()) == NODE_BOOL ? TRUE_NODE : FALSE_NODE; 
+}
+
+// byte
+static node_idx_t native_byte(env_ptr_t env, list_ptr_t args) {
+    unsigned char b = get_node_int(args->first_value());
+    return new_node_int(b);
+}
+
+// char
+static node_idx_t native_char(env_ptr_t env, list_ptr_t args) {
+    signed char b = get_node_int(args->first_value());
+    return new_node_int(b);
+}
+
+// short
+static node_idx_t native_short(env_ptr_t env, list_ptr_t args) {
+    signed short b = get_node_int(args->first_value());
+    return new_node_int(b);
+}
+
+// long
+static node_idx_t native_long(env_ptr_t env, list_ptr_t args) {
+    signed long long b = get_node_int(args->first_value());
+    return new_node_int(b);
+}
+
 void jo_basic_math_init(env_ptr_t env) {
+	env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
+	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
+    env->set("byte", new_node_native_function("byte", &native_byte, false, NODE_FLAG_PRERESOLVE));
+    env->set("char", new_node_native_function("char", &native_char, false, NODE_FLAG_PRERESOLVE));
+    env->set("short", new_node_native_function("short", &native_short, false, NODE_FLAG_PRERESOLVE));
     env->set("int", new_node_native_function("int", &native_int, false, NODE_FLAG_PRERESOLVE));
     env->set("int?", new_node_native_function("int?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
     env->set("integer?", new_node_native_function("integer?", &native_is_int, false, NODE_FLAG_PRERESOLVE));
+    env->set("long", new_node_native_function("long", &native_long, false, NODE_FLAG_PRERESOLVE));
     env->set("float", new_node_native_function("float", &native_float, false, NODE_FLAG_PRERESOLVE));
     env->set("float?", new_node_native_function("float?", &native_is_float, false, NODE_FLAG_PRERESOLVE));
     env->set("double", new_node_native_function("double", &native_double, false, NODE_FLAG_PRERESOLVE));

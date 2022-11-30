@@ -4658,8 +4658,6 @@ static node_idx_t native_is_every(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_is_not_every(env_ptr_t env, list_ptr_t args) { return native_is_every(env, args) == TRUE_NODE ? FALSE_NODE : TRUE_NODE; }
 static node_idx_t native_is_seqable(env_ptr_t env, list_ptr_t args) { return get_node(args->first_value())->is_seq() ? TRUE_NODE : FALSE_NODE; }
 static node_idx_t native_is_any(env_ptr_t env, list_ptr_t args) { return TRUE_NODE; }
-static node_idx_t native_boolean(env_ptr_t env, list_ptr_t args) { return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; }
-static node_idx_t native_is_boolean(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_BOOL ? TRUE_NODE : FALSE_NODE; }
 
 // (not-any? pred coll)
 // Returns false if (pred x) is logical true for any x in coll,
@@ -6427,8 +6425,6 @@ int main(int argc, char **argv) {
 	env->set("any?", new_node_native_function("any?", &native_is_any, false, NODE_FLAG_PRERESOLVE));
 	env->set("not-any?", new_node_native_function("not-any?", &native_is_not_any, false, NODE_FLAG_PRERESOLVE));
 	env->set("array-map", new_node_native_function("array-map", &native_array_map, false, NODE_FLAG_PRERESOLVE));
-	env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
-	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
 	env->set("butlast", new_node_native_function("butlast", &native_butlast, false, NODE_FLAG_PRERESOLVE));
 	env->set("complement", new_node_native_function("complement", &native_complement, false, NODE_FLAG_PRERESOLVE));
 	env->set("contains?", new_node_native_function("contains?", &native_is_contains, false, NODE_FLAG_PRERESOLVE));
