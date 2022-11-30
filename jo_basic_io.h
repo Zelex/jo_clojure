@@ -711,6 +711,8 @@ void jo_basic_io_init(env_ptr_t env) {
     env->set("io/copy", new_node_native_function("io/copy", &native_io_copy, false, NODE_FLAG_PRERESOLVE));
     env->set("io/open-proc2", new_node_native_function("io/open-proc2", &native_io_open_proc2, false, NODE_FLAG_PRERESOLVE));
     env->set("io/close-proc2", new_node_native_function("io/close-proc2", &native_io_close_proc2, false, NODE_FLAG_PRERESOLVE));
+    env->set("io/file-to-array", new_node_native_function("io/file-to-array", &native_io_file_to_array, false, NODE_FLAG_PRERESOLVE));
+
     env->set("*in*", new_node_file(stdin, NODE_FLAG_PRERESOLVE));
     env->set("*out*", new_node_file(stdout, NODE_FLAG_PRERESOLVE));
     env->set("*err*", new_node_file(stderr, NODE_FLAG_PRERESOLVE));
