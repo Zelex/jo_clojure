@@ -156,7 +156,6 @@ Inst
 inst-ms
 inst?
 instance?
-int-array
 intern
 into-array
 ints
