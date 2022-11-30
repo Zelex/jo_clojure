@@ -129,7 +129,12 @@ struct jo_basic_array_t : jo_object {
         }
     }
 
-
+    void write(FILE *fp) const {
+        // TODO: could be faster than fputc... but I don't care right now and this is simpler.
+        for(int i = 0; i < num_elements*element_size; i++) {
+            fputc(data->nth(i), fp);
+        }
+    }
 };
 
 // boolean-array -- really a byte array in disguise

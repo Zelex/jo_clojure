@@ -387,6 +387,18 @@ static node_idx_t native_io_write_byte(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
+static node_idx_t native_io_write_array(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_t *n = get_node(*it++);
+    if(n->type != NODE_FILE || !n->t_file) {
+        return NIL_NODE;
+    }
+    node_idx_t array_idx = *it++;
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    A->write(n->t_file);
+    return NIL_NODE;
+}
+
 static node_idx_t native_io_read_int(env_ptr_t env, list_ptr_t args) {
     node_t *n = get_node(args->first_value());
     if(n->type != NODE_FILE || !n->t_file) {
@@ -698,6 +710,7 @@ void jo_basic_io_init(env_ptr_t env) {
     env->set("io/write-float", new_node_native_function("io/write-float", &native_io_write_float, false, NODE_FLAG_PRERESOLVE));
     env->set("io/write-short", new_node_native_function("io/write-short", &native_io_write_short, false, NODE_FLAG_PRERESOLVE));
     env->set("io/write-byte", new_node_native_function("io/write-byte", &native_io_write_byte, false, NODE_FLAG_PRERESOLVE));
+    env->set("io/write-array", new_node_native_function("io/write-array", &native_io_write_array, false, NODE_FLAG_PRERESOLVE));
     env->set("io/flush", new_node_native_function("io/flush", &native_io_flush, false, NODE_FLAG_PRERESOLVE));
     env->set("io/seek", new_node_native_function("io/seek", &native_io_seek, false, NODE_FLAG_PRERESOLVE));
     env->set("io/tell", new_node_native_function("io/tell", &native_io_tell, false, NODE_FLAG_PRERESOLVE));
