@@ -553,7 +553,7 @@ static node_idx_t native_aclone(env_ptr_t env, list_ptr_t args) {
 // array ret.
 static node_idx_t native_amap(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
-    node_idx_t array_idx = *it++;
+    node_idx_t array_idx = eval_node(env, *it++);
     node_idx_t key_idx = *it++; 
     node_idx_t ret_idx = *it++; 
     node_idx_t expr_idx = *it++; 
@@ -593,5 +593,5 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("aget", new_node_native_function("aget", &native_aget, false, NODE_FLAG_PRERESOLVE));
 	env->set("alength", new_node_native_function("alength", &native_alength, false, NODE_FLAG_PRERESOLVE));
 	env->set("aclone", new_node_native_function("aclone", &native_aclone, false, NODE_FLAG_PRERESOLVE));
-	env->set("amap", new_node_native_function("amap", &native_amap, false, NODE_FLAG_PRERESOLVE));
+	env->set("amap", new_node_native_function("amap", &native_amap, true, NODE_FLAG_PRERESOLVE));
 }

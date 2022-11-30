@@ -6146,6 +6146,7 @@ static node_idx_t native_force(env_ptr_t env, list_ptr_t args) {
 	return args->first_value();
 }
 
+#include "jo_basic_array.h"
 #include "jo_basic_math.h"
 #include "jo_basic_string.h"
 #include "jo_basic_system.h"
@@ -6155,7 +6156,6 @@ static node_idx_t native_force(env_ptr_t env, list_ptr_t args) {
 #include "jo_basic_gif.h"
 #include "jo_basic_b64.h"
 #include "jo_basic_canvas.h"
-#include "jo_basic_array.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
