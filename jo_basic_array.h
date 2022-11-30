@@ -154,6 +154,48 @@ static node_idx_t native_char_array(env_ptr_t env, list_ptr_t args) {
 }
 
 // short-array
+static node_idx_t native_short_array(env_ptr_t env, list_ptr_t args) {
+    node_idx_t size_or_seq_idx = args->first_value();
+    node_idx_t seq_idx = args->second_value();
+    node_t *size_or_seq = get_node(size_or_seq_idx);
+    if(size_or_seq->is_seq()) {
+        long long size = size_or_seq->seq_size();
+        jo_basic_array_ptr_t array = new_array(size, 2, TYPE_SHORT);
+        long long i = 0;
+        seq_iterate(size_or_seq_idx, [&](node_idx_t idx) {
+            node_t *n = get_node(idx);
+            int v = n->as_int();
+            array->data->assoc(i++, v & 0xFF);
+            array->data->assoc(i++, (v >> 8) & 0xFF);
+            return true;
+        });
+        return new_node_array(array);
+    }
+    long long size = size_or_seq->as_int();
+    jo_basic_array_ptr_t array = new_array(size, 2, TYPE_SHORT);
+    if(seq_idx != NIL_NODE) {
+        node_t *init_or_seq = get_node(seq_idx);
+        if(init_or_seq->is_seq()) {
+            long long i = 0;
+            seq_iterate(seq_idx, [&](node_idx_t idx) {
+                node_t *n = get_node(idx);
+                int v = n->as_int();
+                array->data->assoc(i++, v & 0xFF);
+                array->data->assoc(i++, (v >> 8) & 0xFF);
+                return true;
+            });
+        } else {
+            int v = init_or_seq->as_int();
+            unsigned char v0 = v & 0xFF;
+            unsigned char v1 = (v >> 8) & 0xFF;
+            for(int i=0; i<size*2; i) {
+                array->data->assoc(i++, v0);
+                array->data->assoc(i++, v1);
+            }
+        }
+    }
+    return new_node_array(array);
+}
 // int-array
 // long-array
 // double-array
@@ -163,4 +205,5 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("byte-array", new_node_native_function("byte-array", &native_byte_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("char-array", new_node_native_function("char-array", &native_char_array, false, NODE_FLAG_PRERESOLVE));
+	env->set("short-array", new_node_native_function("short-array", &native_short_array, false, NODE_FLAG_PRERESOLVE));
 }
