@@ -48,14 +48,22 @@ struct jo_basic_array_t : jo_object {
         data = other.data->clone();
     }
 
+    jo_basic_array_t(const unsigned char *s, long long len) {
+        num_elements = len;
+        element_size = 1;
+        type = TYPE_BYTE;
+        data = new_array_data(num_elements*element_size);
+        poke(0, s, len);
+    }
+
     jo_basic_array_ptr_t clone() const {
         return new_array(*this);
     }
 
     inline long long length() { return num_elements; }
 
-    void poke(long long index, void *value, int num) {
-        unsigned char *v = (unsigned char *)value;
+    void poke(long long index, const void *value, int num) {
+        const unsigned char *v = (const unsigned char *)value;
         for (int i = 0; i < num; i++) {
             data->assoc_inplace(index*element_size+i, v[i]);
         }

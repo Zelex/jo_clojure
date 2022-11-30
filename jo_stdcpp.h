@@ -48,15 +48,18 @@
 #define jo_strdup _strdup
 #define jo_chdir _chdir
 #define jo_alloca _alloca
+#define jo_ftell64 _ftelli64
 #pragma warning(push)
 #pragma warning(disable : 4345)
 #elif defined(__APPLE__)
 #include <mach/mach_time.h>
 #include <unistd.h>
 #include <termios.h>
+#define jo_ftell64 ftello
 #else
 #include <unistd.h>
 #include <termios.h>
+#define jo_ftell64 ftello64
 #endif
 
 // if clang or GCC
@@ -143,7 +146,7 @@ static size_t jo_file_size(const char *path) {
     FILE *f = fopen(path, "r");
     if(!f) return 0;
     fseek(f, 0, SEEK_END);
-    size_t size = ftell(f);
+    size_t size = jo_ftell64(f);
     fclose(f);
     return size;
 }
@@ -180,7 +183,7 @@ static bool jo_file_empty(const char *path) {
     FILE *f = fopen(path, "r");
     if(!f) return true;
     fseek(f, 0, SEEK_END);
-    size_t size = ftell(f);
+    size_t size = jo_ftell64(f);
     fclose(f);
     return size == 0;
 }
@@ -267,7 +270,7 @@ static void *jo_slurp_file(const char *path, size_t *size) {
     FILE *f = fopen(path, "rb");
     if(!f) return NULL;
     fseek(f, 0, SEEK_END);
-    size_t fsize = ftell(f);
+    size_t fsize = jo_ftell64(f);
     fseek(f, 0, SEEK_SET);
     void *data = malloc(fsize + 1);
     if(!data) {

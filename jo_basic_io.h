@@ -648,6 +648,25 @@ static node_idx_t native_io_line_seq_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(list_va(line, env->get("line-seq-next"), rdr_idx));
 }
 
+static node_idx_t native_io_file_to_array(env_ptr_t env, list_ptr_t args) {
+    node_idx_t file_idx = args->first_value();
+    if(get_node_type(file_idx) != NODE_FILE) {
+        warnf("file->array: file must be a file\n");
+        return NIL_NODE;
+    }
+    node_t *file = get_node(file_idx);
+    if(!file->t_file) {
+        warnf("file->array: file is closed\n");
+        return NIL_NODE;
+    }
+    fseek(file->t_file, 0, SEEK_END);
+    long long size = jo_ftell64(file->t_file);
+    fseek(file->t_file, 0, SEEK_SET);
+    unsigned char *buf = (unsigned char*)malloc(size);
+    fread(buf, 1, size, file->t_file);
+    return new_node_array(new_array(buf, size));
+}   
+
 
 void jo_basic_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false, NODE_FLAG_PRERESOLVE));
