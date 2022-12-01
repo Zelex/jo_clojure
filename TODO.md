@@ -56,7 +56,6 @@
 * create-ns
 * create-struct
 * default-data-readers
-* definline
 * definterface
 * defmethod
 * defmulti

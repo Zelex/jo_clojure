@@ -6164,6 +6164,27 @@ static node_idx_t native_force(env_ptr_t env, list_ptr_t args) {
 	return args->first_value();
 }
 
+static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
+	// parse and eval the file
+	FILE *fp = fopen(get_node_string(args->first_value()).c_str(), "r");
+	if(!fp) {
+		warnf("include: could not open file");
+		return NIL_NODE;
+	}
+
+	parse_state_t parse_state;
+	parse_state.fp = fp;
+
+	// parse the base list
+	list_ptr_t expr_list = new_list();
+	for(node_idx_t next = parse_next(env, &parse_state, 0); next != INV_NODE; next = parse_next(env, &parse_state, 0)) {
+		expr_list->push_back_inplace(next);
+	}
+	fclose(fp);
+
+	return eval_node_list(env, expr_list);
+}
+
 #include "jo_basic_array.h"
 #include "jo_basic_math.h"
 #include "jo_basic_string.h"
@@ -6523,6 +6544,8 @@ int main(int argc, char **argv) {
 	env->set("jo/queue-push", new_node_native_function("jo/queue-push", &native_queue_push, false, NODE_FLAG_PRERESOLVE));
 	env->set("jo/queue-peek", new_node_native_function("jo/queue-peek", &native_queue_peek, false, NODE_FLAG_PRERESOLVE));
 	env->set("jo/queue-pop", new_node_native_function("jo/queue-pop", &native_queue_pop, false, NODE_FLAG_PRERESOLVE));
+	
+	env->set("include", new_node_native_function("include", &native_include, false, NODE_FLAG_PRERESOLVE));
 
 	jo_basic_math_init(env);
 	jo_basic_string_init(env);
@@ -6544,29 +6567,7 @@ int main(int argc, char **argv) {
 		env->set("*command-line-args*", new_node_list(args));
 	}
 	
-	FILE *fp = fopen(argv[1], "r");
-	if(!fp) {
-		return 0;
-	}
-	
-	debugf("Parsing...\n");
-
-	parse_state_t parse_state;
-	parse_state.fp = fp;
-
-	// parse the base list
-	list_ptr_t main_list = new_list();
-	for(node_idx_t next = parse_next(env, &parse_state, 0); next != INV_NODE; next = parse_next(env, &parse_state, 0)) {
-		main_list->push_back_inplace(next);
-	}
-	fclose(fp);
-
-	debugf("Evaluating...\n");
-
-	{
-		node_idx_t res_idx = eval_node_list(env, main_list);
-		//printf("%s\n", get_node(res_idx)->as_string(3).c_str());
-	}
+	native_include(env, list_va(new_node_string(argv[1])));
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	for(int i = 0; i < num_free_sectors; ++i) {
