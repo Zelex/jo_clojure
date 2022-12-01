@@ -393,7 +393,6 @@ static node_idx_t native_io_write_array(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
-    node_idx_t array_idx = *it++;
     jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
     A->write(n->t_file);
     return NIL_NODE;
