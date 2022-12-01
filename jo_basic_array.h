@@ -45,7 +45,7 @@ struct jo_basic_array_t : jo_object {
         num_elements = other.num_elements;
         element_size = other.element_size;
         type = other.type;
-        data = other.data->clone();
+        data = other.data;
     }
 
     jo_basic_array_t(const unsigned char *s, long long len) {
@@ -57,6 +57,12 @@ struct jo_basic_array_t : jo_object {
     }
 
     jo_basic_array_ptr_t clone() const {
+        jo_basic_array_ptr_t A = new_array(*this);
+        A->data = data->clone();
+        return A;
+    }
+
+    jo_basic_array_ptr_t shallow_clone() const {
         return new_array(*this);
     }
 
@@ -606,6 +612,155 @@ static node_idx_t native_areduce(env_ptr_t env, list_ptr_t args) {
     return ret;
 }
 
+static node_idx_t native_booleans(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    if(get_node_type(array_idx) != NODE_ARRAY) {
+        warnf("bytes: expected array\n");
+        return NIL_NODE;
+    }
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    if(A->type != TYPE_BOOL) {
+        A = A->shallow_clone();
+        A->type = TYPE_BOOL;
+        A->num_elements = A->data->size();
+        A->element_size = 1;
+        return new_node_array(A);
+    }
+    return array_idx;
+}
+
+static node_idx_t native_bytes(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    if(get_node_type(array_idx) != NODE_ARRAY) {
+        warnf("bytes: expected array\n");
+        return NIL_NODE;
+    }
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    if(A->type != TYPE_BYTE) {
+        A = A->shallow_clone();
+        A->type = TYPE_BYTE;
+        A->num_elements = A->data->size();
+        A->element_size = 1;
+        return new_node_array(A);
+    }
+    return array_idx;
+}
+
+static node_idx_t native_chars(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    if(get_node_type(array_idx) != NODE_ARRAY) {
+        warnf("bytes: expected array\n");
+        return NIL_NODE;
+    }
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    if(A->type != TYPE_CHAR) {
+        A = A->shallow_clone();
+        A->type = TYPE_CHAR;
+        A->num_elements = A->data->size();
+        A->element_size = 1;
+        return new_node_array(A);
+    }
+    return array_idx;
+}
+
+static node_idx_t native_shorts(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    if(get_node_type(array_idx) != NODE_ARRAY) {
+        warnf("bytes: expected array\n");
+        return NIL_NODE;
+    }
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    if(A->type != TYPE_SHORT) {
+        A = A->shallow_clone();
+        A->type = TYPE_SHORT;
+        A->num_elements = A->data->size();
+        A->element_size = 2;
+        A->num_elements /= A->element_size;
+        return new_node_array(A);
+    }
+    return array_idx;
+}
+
+static node_idx_t native_ints(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    if(get_node_type(array_idx) != NODE_ARRAY) {
+        warnf("bytes: expected array\n");
+        return NIL_NODE;
+    }
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    if(A->type != TYPE_INT) {
+        A = A->shallow_clone();
+        A->type = TYPE_INT;
+        A->num_elements = A->data->size();
+        A->element_size = 4;
+        A->num_elements /= A->element_size;
+        return new_node_array(A);
+    }
+    return array_idx;
+}
+
+static node_idx_t native_longs(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    if(get_node_type(array_idx) != NODE_ARRAY) {
+        warnf("bytes: expected array\n");
+        return NIL_NODE;
+    }
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    if(A->type != TYPE_LONG) {
+        A = A->shallow_clone();
+        A->type = TYPE_LONG;
+        A->num_elements = A->data->size();
+        A->element_size = 8;
+        A->num_elements /= A->element_size;
+        return new_node_array(A);
+    }
+    return array_idx;
+}
+
+static node_idx_t native_floats(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    if(get_node_type(array_idx) != NODE_ARRAY) {
+        warnf("bytes: expected array\n");
+        return NIL_NODE;
+    }
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    if(A->type != TYPE_FLOAT) {
+        A = A->shallow_clone();
+        A->type = TYPE_FLOAT;
+        A->num_elements = A->data->size();
+        A->element_size = 4;
+        A->num_elements /= A->element_size;
+        return new_node_array(A);
+    }
+    return array_idx;
+}
+
+static node_idx_t native_doubles(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t array_idx = *it++;
+    if(get_node_type(array_idx) != NODE_ARRAY) {
+        warnf("bytes: expected array\n");
+        return NIL_NODE;
+    }
+    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    if(A->type != TYPE_DOUBLE) {
+        A = A->shallow_clone();
+        A->type = TYPE_DOUBLE;
+        A->num_elements = A->data->size();
+        A->element_size = 8;
+        A->num_elements /= A->element_size;
+        return new_node_array(A);
+    }
+    return array_idx;
+}
+
 void jo_basic_array_init(env_ptr_t env) {
 	env->set("boolean-array", new_node_native_function("boolean-array", &native_boolean_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("byte-array", new_node_native_function("byte-array", &native_byte_array, false, NODE_FLAG_PRERESOLVE));
@@ -629,4 +784,12 @@ void jo_basic_array_init(env_ptr_t env) {
 	env->set("aclone", new_node_native_function("aclone", &native_aclone, false, NODE_FLAG_PRERESOLVE));
 	env->set("amap", new_node_native_function("amap", &native_amap, true, NODE_FLAG_PRERESOLVE));
 	env->set("areduce", new_node_native_function("areduce", &native_areduce, true, NODE_FLAG_PRERESOLVE));
+	env->set("booleans", new_node_native_function("booleans", &native_booleans, false, NODE_FLAG_PRERESOLVE));
+	env->set("bytes", new_node_native_function("bytes", &native_bytes, false, NODE_FLAG_PRERESOLVE));
+	env->set("chars", new_node_native_function("chars", &native_chars, false, NODE_FLAG_PRERESOLVE));
+	env->set("shorts", new_node_native_function("shorts", &native_shorts, false, NODE_FLAG_PRERESOLVE));
+	env->set("ints", new_node_native_function("ints", &native_ints, false, NODE_FLAG_PRERESOLVE));
+	env->set("longs", new_node_native_function("longs", &native_longs, false, NODE_FLAG_PRERESOLVE));
+	env->set("floats", new_node_native_function("floats", &native_floats, false, NODE_FLAG_PRERESOLVE));
+	env->set("doubles", new_node_native_function("doubles", &native_doubles, false, NODE_FLAG_PRERESOLVE));
 }
