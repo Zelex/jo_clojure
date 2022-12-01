@@ -7,15 +7,8 @@
 *3
 *agent*
 *clojure-version*
-*compile-files*
-*compile-path*
-*compiler-options*
-*data-readers*
-*e
 *file*
 *flush-on-newline*
-*fn-loader*
-*math-context*
 *ns*
 *print-dup*
 *print-length*
@@ -23,10 +16,6 @@
 *print-meta*
 *print-namespace-maps* 
 *print-readably*
-*read-eval*
-*reader-resolver*
-*source-path*
-*suppress-read*
 *unchecked-math*
 accessor
 add-watch
