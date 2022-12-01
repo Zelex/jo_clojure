@@ -6318,6 +6318,7 @@ int main(int argc, char **argv) {
 	env->set("print-str", new_node_native_function("print-str", &native_print_str, false, NODE_FLAG_PRERESOLVE));
 	env->set("println-str", new_node_native_function("println-str", &native_println_str, false, NODE_FLAG_PRERESOLVE));
 	env->set("=", new_node_native_function("=", &native_eq, false, NODE_FLAG_PRERESOLVE));
+	env->set("==", new_node_native_function("==", &native_eq, false, NODE_FLAG_PRERESOLVE));
 	env->set("not=", new_node_native_function("not=", &native_neq, false, NODE_FLAG_PRERESOLVE));
 	env->set("<", new_node_native_function("<", &native_lt, false, NODE_FLAG_PRERESOLVE));
 	env->set("<=", new_node_native_function("<=", &native_lte, false, NODE_FLAG_PRERESOLVE));
