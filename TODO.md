@@ -20,7 +20,6 @@
 accessor
 add-watch
 agent-error
-agent-errors
 alias
 all-ns
 alter
@@ -51,14 +50,6 @@ char-escape-string
 char-name-string
 char?
 chars
-chunk
-chunk-append
-chunk-buffer
-chunk-cons
-chunk-first
-chunk-next
-chunk-rest
-chunked-seq?
 class
 class?
 clojure-version
@@ -216,7 +207,6 @@ remove-all-methods
 remove-method
 remove-ns
 remove-watch
-replicate
 require
 requiring-resolve
 reset-meta!
