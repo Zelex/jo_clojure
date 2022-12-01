@@ -6547,16 +6547,16 @@ int main(int argc, char **argv) {
 	
 	env->set("include", new_node_native_function("include", &native_include, false, NODE_FLAG_PRERESOLVE));
 
+	jo_basic_array_init(env);
+	jo_basic_lazy_init(env);
+	jo_basic_async_init(env);
 	jo_basic_math_init(env);
 	jo_basic_string_init(env);
-	jo_basic_system_init(env);
-	jo_basic_lazy_init(env);
 	jo_basic_io_init(env);
-	jo_basic_async_init(env);
+	jo_basic_system_init(env);
 	jo_basic_gif_init(env);
 	jo_basic_b64_init(env);
 	jo_basic_canvas_init(env);
-	jo_basic_array_init(env);
 
 	// setup *command-line-args*
 	{
