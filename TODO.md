@@ -2,9 +2,6 @@
 * REPL (not sure I would ever use this?)
 * agents are not fully spec conformant. Need to fix this. (don't remember in what way unfortunately...)
 
-*1
-*2
-*3
 *agent*
 *clojure-version*
 *file*

@@ -71,6 +71,9 @@ enum {
 	EMPTY_SET_NODE,
 	EMPTY_QUEUE_NODE,
 	TAP_LIST_NODE,
+	STAR_1_NODE,
+	STAR_2_NODE,
+	STAR_3_NODE,
 	PCT_NODE,
 	PCT1_NODE,
 	PCT2_NODE,
@@ -2936,12 +2939,20 @@ static node_idx_t native_println_str(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
 	node_idx_t s_idx = native_print_str(env, args);
 	printf("%s", get_node(s_idx)->as_string(2).c_str());
+	// update *1, *2, *3
+	env->set_temp(STAR_3_NODE, env->get(STAR_2_NODE));
+	env->set_temp(STAR_2_NODE, env->get(STAR_1_NODE));
+	env->set_temp(STAR_1_NODE, s_idx);
 	return NIL_NODE;
 }
 
 static node_idx_t native_println(env_ptr_t env, list_ptr_t args) {
 	node_idx_t s_idx = native_print_str(env, args);
 	printf("%s\n", get_node(s_idx)->as_string(2).c_str());
+	// update *1, *2, *3
+	env->set_temp(STAR_3_NODE, env->get(STAR_2_NODE));
+	env->set_temp(STAR_2_NODE, env->get(STAR_1_NODE));
+	env->set_temp(STAR_1_NODE, s_idx);
 	return NIL_NODE;	
 }
 
@@ -6277,6 +6288,9 @@ int main(int argc, char **argv) {
 		new_node_hash_set(new_hash_set(), NODE_FLAG_PRERESOLVE);
 		new_node_queue(new_queue(), NODE_FLAG_PRERESOLVE);
 		new_node_atom(EMPTY_SET_NODE, NODE_FLAG_PRERESOLVE); // TAP_LIST_NODE
+		new_node_symbol("*1", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("*2", NODE_FLAG_PRERESOLVE);
+		new_node_symbol("*3", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%1", NODE_FLAG_PRERESOLVE);
 		new_node_symbol("%2", NODE_FLAG_PRERESOLVE);
