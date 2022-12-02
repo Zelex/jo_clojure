@@ -239,7 +239,7 @@ static node_idx_t native_io_copy(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_io_open_proc(env_ptr_t env, list_ptr_t args) {
 	jo_string cmd = get_node_string(args->first_value());
 	jo_string opts = get_node_string(args->second_value());
-#ifdef __linux__
+#if 0 //def __linux__ // not working correctly =/
 	int fds[2];
         pid_t pid;
 
