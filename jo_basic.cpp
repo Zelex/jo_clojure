@@ -1351,7 +1351,7 @@ static int is_num(int c) { return (c >= '0' && c <= '9'); }
 static int is_alnum(int c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
 static int is_separator(int c) { return c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' || c == ','; }
 
-enum token_type_t {
+enum jo_token_type_t {
 	TOK_EOF=0,
 	TOK_STRING,
 	TOK_SYMBOL,
@@ -1359,8 +1359,8 @@ enum token_type_t {
 	TOK_SEPARATOR,
 };
 
-struct token_t {
-	token_type_t type;
+struct jo_token_t {
+	jo_token_type_t type;
 	jo_string str;
 	int line;
 };
@@ -1392,7 +1392,7 @@ struct parse_state_t {
 	}
 };
 
-static token_t get_token(parse_state_t *state) {
+static jo_token_t get_token(parse_state_t *state) {
 	// skip leading whitepsace and comma
 	do {
 		int c = state->getc();
@@ -1402,7 +1402,7 @@ static token_t get_token(parse_state_t *state) {
 		}
 	} while(true);
 
-	token_t tok;
+	jo_token_t tok;
 	tok.line = state->line_num;
 
 	int c = state->getc();
@@ -1630,7 +1630,7 @@ static list_ptr_t get_symbols_list_r(list_ptr_t list) {
 }
 
 static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_sep) {
-	token_t tok = get_token(state);
+	jo_token_t tok = get_token(state);
 	debugf("parse_next \"%s\", with '%c'\n", tok.str.c_str(), stop_on_sep);
 
 	if(tok.type == TOK_EOF) {
@@ -6195,6 +6195,17 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 #include "jo_basic_b64.h"
 #include "jo_basic_canvas.h"
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#if defined(TARGET_OS_IPHONE) && !TARGET_OS_IPHONE
+#define JO_BASIC_MACOS
+#include "jo_basic_macos.h"
+#else
+#define JO_BASIC_IOS
+//#include "jo_basic_ios.h"
+#endif
+#endif
+
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
 #pragma comment(lib,"User32.lib")
@@ -6556,6 +6567,9 @@ int main(int argc, char **argv) {
 	jo_basic_gif_init(env);
 	jo_basic_b64_init(env);
 	jo_basic_canvas_init(env);
+#ifdef JO_BASIC_MACOS
+	jo_basic_macos_init(env);
+#endif
 
 	// setup *command-line-args*
 	{
