@@ -145,6 +145,76 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
     return 0;
 }
 
+/* returns true after sokol-app has been initialized */
+//SOKOL_APP_API_DECL bool sapp_isvalid(void);
+/* returns the current framebuffer width in pixels */
+//SOKOL_APP_API_DECL int sapp_width(void);
+/* same as sapp_width(), but returns float */
+//SOKOL_APP_API_DECL float sapp_widthf(void);
+/* returns the current framebuffer height in pixels */
+//SOKOL_APP_API_DECL int sapp_height(void);
+/* same as sapp_height(), but returns float */
+//SOKOL_APP_API_DECL float sapp_heightf(void);
+/* get default framebuffer color pixel format */
+//SOKOL_APP_API_DECL int sapp_color_format(void);
+/* get default framebuffer depth pixel format */
+//SOKOL_APP_API_DECL int sapp_depth_format(void);
+/* get default framebuffer sample count */
+//SOKOL_APP_API_DECL int sapp_sample_count(void);
+/* returns true when high_dpi was requested and actually running in a high-dpi scenario */
+//SOKOL_APP_API_DECL bool sapp_high_dpi(void);
+/* returns the dpi scaling factor (window pixels to framebuffer pixels) */
+//SOKOL_APP_API_DECL float sapp_dpi_scale(void);
+/* show or hide the mobile device onscreen keyboard */
+//SOKOL_APP_API_DECL void sapp_show_keyboard(bool show);
+/* return true if the mobile device onscreen keyboard is currently shown */
+//SOKOL_APP_API_DECL bool sapp_keyboard_shown(void);
+/* query fullscreen mode */
+//SOKOL_APP_API_DECL bool sapp_is_fullscreen(void);
+/* toggle fullscreen mode */
+//SOKOL_APP_API_DECL void sapp_toggle_fullscreen(void);
+/* show or hide the mouse cursor */
+//SOKOL_APP_API_DECL void sapp_show_mouse(bool show);
+/* show or hide the mouse cursor */
+//SOKOL_APP_API_DECL bool sapp_mouse_shown(void);
+/* enable/disable mouse-pointer-lock mode */
+//SOKOL_APP_API_DECL void sapp_lock_mouse(bool lock);
+/* return true if in mouse-pointer-lock mode (this may toggle a few frames later) */
+//SOKOL_APP_API_DECL bool sapp_mouse_locked(void);
+/* set mouse cursor type */
+//SOKOL_APP_API_DECL void sapp_set_mouse_cursor(sapp_mouse_cursor cursor);
+/* get current mouse cursor type */
+//SOKOL_APP_API_DECL sapp_mouse_cursor sapp_get_mouse_cursor(void);
+/* return the userdata pointer optionally provided in sapp_desc */
+//SOKOL_APP_API_DECL void* sapp_userdata(void);
+/* return a copy of the sapp_desc structure */
+//SOKOL_APP_API_DECL sapp_desc sapp_query_desc(void);
+/* initiate a "soft quit" (sends SAPP_EVENTTYPE_QUIT_REQUESTED) */
+//SOKOL_APP_API_DECL void sapp_request_quit(void);
+/* cancel a pending quit (when SAPP_EVENTTYPE_QUIT_REQUESTED has been received) */
+//SOKOL_APP_API_DECL void sapp_cancel_quit(void);
+/* initiate a "hard quit" (quit application without sending SAPP_EVENTTYPE_QUIT_REQUSTED) */
+//SOKOL_APP_API_DECL void sapp_quit(void);
+/* call from inside event callback to consume the current event (don't forward to platform) */
+//SOKOL_APP_API_DECL void sapp_consume_event(void);
+/* get the current frame counter (for comparison with sapp_event.frame_count) */
+//SOKOL_APP_API_DECL uint64_t sapp_frame_count(void);
+/* get an averaged/smoothed frame duration in seconds */
+//SOKOL_APP_API_DECL double sapp_frame_duration(void);
+/* write string into clipboard */
+//SOKOL_APP_API_DECL void sapp_set_clipboard_string(const char* str);
+/* read string from clipboard (usually during SAPP_EVENTTYPE_CLIPBOARD_PASTED) */
+//SOKOL_APP_API_DECL const char* sapp_get_clipboard_string(void);
+/* set the window title (only on desktop platforms) */
+//SOKOL_APP_API_DECL void sapp_set_window_title(const char* str);
+/* set the window icon (only on Windows and Linux) */
+//SOKOL_APP_API_DECL void sapp_set_icon(const sapp_icon_desc* icon_desc);
+/* gets the total number of dropped files (after an SAPP_EVENTTYPE_FILES_DROPPED event) */
+//SOKOL_APP_API_DECL int sapp_get_num_dropped_files(void);
+/* gets the dropped file paths */
+//SOKOL_APP_API_DECL const char* sapp_get_dropped_file_path(int index);
+
+
 void jo_basic_sokol_init(env_ptr_t env) {
 	env->set("sokol/run", new_node_native_function("sokol/run", &native_sokol_run, false, NODE_FLAG_PRERESOLVE));
 }
