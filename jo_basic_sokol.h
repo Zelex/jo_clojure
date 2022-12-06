@@ -146,77 +146,211 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
 }
 
 /* returns true after sokol-app has been initialized */
-//SOKOL_APP_API_DECL bool sapp_isvalid(void);
+static node_idx_t native_sokol_valid_q(env_ptr_t env, list_ptr_t args) {
+    return new_node_bool(sapp_isvalid());
+}
+
 /* returns the current framebuffer width in pixels */
-//SOKOL_APP_API_DECL int sapp_width(void);
+static node_idx_t native_sokol_width(env_ptr_t env, list_ptr_t args) {
+    return new_node_int(sapp_width());
+}
+
 /* same as sapp_width(), but returns float */
-//SOKOL_APP_API_DECL float sapp_widthf(void);
+static node_idx_t native_sokol_widthf(env_ptr_t env, list_ptr_t args) {
+    return new_node_float(sapp_widthf());
+}
+
 /* returns the current framebuffer height in pixels */
-//SOKOL_APP_API_DECL int sapp_height(void);
+static node_idx_t native_sokol_height(env_ptr_t env, list_ptr_t args) {
+    return new_node_int(sapp_height());
+}
+
 /* same as sapp_height(), but returns float */
-//SOKOL_APP_API_DECL float sapp_heightf(void);
+static node_idx_t native_sokol_heightf(env_ptr_t env, list_ptr_t args) {
+    return new_node_float(sapp_heightf());
+}
+
 /* get default framebuffer color pixel format */
-//SOKOL_APP_API_DECL int sapp_color_format(void);
+static node_idx_t native_sokol_color_format(env_ptr_t env, list_ptr_t args) {
+    return new_node_int(sapp_color_format());
+}
+
 /* get default framebuffer depth pixel format */
-//SOKOL_APP_API_DECL int sapp_depth_format(void);
+static node_idx_t native_sokol_depth_format(env_ptr_t env, list_ptr_t args) {
+    return new_node_int(sapp_depth_format());
+}
+
 /* get default framebuffer sample count */
-//SOKOL_APP_API_DECL int sapp_sample_count(void);
+static node_idx_t native_sokol_sample_count(env_ptr_t env, list_ptr_t args) {
+    return new_node_int(sapp_sample_count());
+}
+
 /* returns true when high_dpi was requested and actually running in a high-dpi scenario */
-//SOKOL_APP_API_DECL bool sapp_high_dpi(void);
+static node_idx_t native_sokol_high_dpi_q(env_ptr_t env, list_ptr_t args) {
+    return new_node_bool(sapp_high_dpi());
+}
+
 /* returns the dpi scaling factor (window pixels to framebuffer pixels) */
-//SOKOL_APP_API_DECL float sapp_dpi_scale(void);
+static node_idx_t native_sokol_dpi_scale(env_ptr_t env, list_ptr_t args) {
+    return new_node_float(sapp_dpi_scale());
+}
+
 /* show or hide the mobile device onscreen keyboard */
-//SOKOL_APP_API_DECL void sapp_show_keyboard(bool show);
+static node_idx_t native_sokol_show_keyboard(env_ptr_t env, list_ptr_t args) {
+    sapp_show_keyboard(get_node_bool(args->first_value()));
+    return NIL_NODE;
+}
+
 /* return true if the mobile device onscreen keyboard is currently shown */
-//SOKOL_APP_API_DECL bool sapp_keyboard_shown(void);
+static node_idx_t native_sokol_keyboard_shown_q(env_ptr_t env, list_ptr_t args) {
+    return new_node_bool(sapp_keyboard_shown());
+}
+
 /* query fullscreen mode */
-//SOKOL_APP_API_DECL bool sapp_is_fullscreen(void);
+static node_idx_t native_sokol_fullscreen_q(env_ptr_t env, list_ptr_t args) {
+    return new_node_bool(sapp_is_fullscreen());
+}
+
 /* toggle fullscreen mode */
-//SOKOL_APP_API_DECL void sapp_toggle_fullscreen(void);
+static node_idx_t native_sokol_toggle_fullscreen(env_ptr_t env, list_ptr_t args) {
+    sapp_toggle_fullscreen();
+    return NIL_NODE;
+}
+
 /* show or hide the mouse cursor */
-//SOKOL_APP_API_DECL void sapp_show_mouse(bool show);
+static node_idx_t native_sokol_show_mouse(env_ptr_t env, list_ptr_t args) {
+    sapp_show_mouse(get_node_bool(args->first_value()));
+    return NIL_NODE;
+}
+
 /* show or hide the mouse cursor */
-//SOKOL_APP_API_DECL bool sapp_mouse_shown(void);
+static node_idx_t native_sokol_mouse_shown_q(env_ptr_t env, list_ptr_t args) {
+    return new_node_bool(sapp_mouse_shown());
+}
+
 /* enable/disable mouse-pointer-lock mode */
-//SOKOL_APP_API_DECL void sapp_lock_mouse(bool lock);
+static node_idx_t native_sokol_lock_mouse(env_ptr_t env, list_ptr_t args) {
+    sapp_lock_mouse(get_node_bool(args->first_value()));
+    return NIL_NODE;
+}
+
 /* return true if in mouse-pointer-lock mode (this may toggle a few frames later) */
-//SOKOL_APP_API_DECL bool sapp_mouse_locked(void);
+static node_idx_t native_sokol_mouse_locked_q(env_ptr_t env, list_ptr_t args) {
+    return new_node_bool(sapp_mouse_locked());
+}
+
 /* set mouse cursor type */
-//SOKOL_APP_API_DECL void sapp_set_mouse_cursor(sapp_mouse_cursor cursor);
+static node_idx_t native_sokol_set_mouse_cursor(env_ptr_t env, list_ptr_t args) {
+    sapp_set_mouse_cursor((sapp_mouse_cursor)get_node_int(args->first_value()));
+    return NIL_NODE;
+}
+
 /* get current mouse cursor type */
-//SOKOL_APP_API_DECL sapp_mouse_cursor sapp_get_mouse_cursor(void);
-/* return the userdata pointer optionally provided in sapp_desc */
-//SOKOL_APP_API_DECL void* sapp_userdata(void);
-/* return a copy of the sapp_desc structure */
-//SOKOL_APP_API_DECL sapp_desc sapp_query_desc(void);
+static node_idx_t native_sokol_mouse_cursor(env_ptr_t env, list_ptr_t args) {
+    return new_node_int(sapp_get_mouse_cursor());
+}
+
 /* initiate a "soft quit" (sends SAPP_EVENTTYPE_QUIT_REQUESTED) */
-//SOKOL_APP_API_DECL void sapp_request_quit(void);
+static node_idx_t native_sokol_request_quit(env_ptr_t env, list_ptr_t args) {
+    sapp_request_quit();
+    return NIL_NODE;
+}
+
 /* cancel a pending quit (when SAPP_EVENTTYPE_QUIT_REQUESTED has been received) */
-//SOKOL_APP_API_DECL void sapp_cancel_quit(void);
+static node_idx_t native_sokol_cancel_quit(env_ptr_t env, list_ptr_t args) {
+    sapp_cancel_quit();
+    return NIL_NODE;
+}
+
 /* initiate a "hard quit" (quit application without sending SAPP_EVENTTYPE_QUIT_REQUSTED) */
-//SOKOL_APP_API_DECL void sapp_quit(void);
+static node_idx_t native_sokol_quit(env_ptr_t env, list_ptr_t args) {
+    sapp_quit();
+    return NIL_NODE;
+}
+
 /* call from inside event callback to consume the current event (don't forward to platform) */
-//SOKOL_APP_API_DECL void sapp_consume_event(void);
+static node_idx_t native_sokol_consume_event(env_ptr_t env, list_ptr_t args) {
+    sapp_consume_event();
+    return NIL_NODE;
+}
+
 /* get the current frame counter (for comparison with sapp_event.frame_count) */
-//SOKOL_APP_API_DECL uint64_t sapp_frame_count(void);
+static node_idx_t native_sokol_frame_count(env_ptr_t env, list_ptr_t args) {
+    return new_node_int(sapp_frame_count());
+}
+
 /* get an averaged/smoothed frame duration in seconds */
-//SOKOL_APP_API_DECL double sapp_frame_duration(void);
+static node_idx_t native_sokol_frame_duration(env_ptr_t env, list_ptr_t args) {
+    return new_node_float(sapp_frame_duration());
+}
+
 /* write string into clipboard */
-//SOKOL_APP_API_DECL void sapp_set_clipboard_string(const char* str);
+static node_idx_t native_sokol_set_clipboard_string(env_ptr_t env, list_ptr_t args) {
+    sapp_set_clipboard_string(get_node_string(args->first_value()).c_str());
+    return NIL_NODE;
+}
+
 /* read string from clipboard (usually during SAPP_EVENTTYPE_CLIPBOARD_PASTED) */
-//SOKOL_APP_API_DECL const char* sapp_get_clipboard_string(void);
+static node_idx_t native_sokol_clipboard_string(env_ptr_t env, list_ptr_t args) {
+    return new_node_string(sapp_get_clipboard_string());
+}
+
 /* set the window title (only on desktop platforms) */
-//SOKOL_APP_API_DECL void sapp_set_window_title(const char* str);
+static node_idx_t native_sokol_set_window_title(env_ptr_t env, list_ptr_t args) {
+    sapp_set_window_title(get_node_string(args->first_value()).c_str());
+    return NIL_NODE;
+}
+
 /* set the window icon (only on Windows and Linux) */
 //SOKOL_APP_API_DECL void sapp_set_icon(const sapp_icon_desc* icon_desc);
+// TODO: implement
+
 /* gets the total number of dropped files (after an SAPP_EVENTTYPE_FILES_DROPPED event) */
-//SOKOL_APP_API_DECL int sapp_get_num_dropped_files(void);
+static node_idx_t native_sokol_get_num_dropped_files(env_ptr_t env, list_ptr_t args) {
+    return new_node_int(sapp_get_num_dropped_files());
+}
+
 /* gets the dropped file paths */
-//SOKOL_APP_API_DECL const char* sapp_get_dropped_file_path(int index);
+static node_idx_t native_sokol_get_dropped_file_path(env_ptr_t env, list_ptr_t args) {
+    return new_node_string(sapp_get_dropped_file_path(get_node_int(args->first_value())));
+}
 
 
 void jo_basic_sokol_init(env_ptr_t env) {
 	env->set("sokol/run", new_node_native_function("sokol/run", &native_sokol_run, false, NODE_FLAG_PRERESOLVE));
+
+    env->set("sokol/valid?", new_node_native_function("sokol/valid?", &native_sokol_valid_q, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/width", new_node_native_function("sokol/width", &native_sokol_width, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/widthf", new_node_native_function("sokol/widthf", &native_sokol_widthf, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/height", new_node_native_function("sokol/height", &native_sokol_height, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/heightf", new_node_native_function("sokol/heightf", &native_sokol_heightf, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/dpi-scale", new_node_native_function("sokol/dpi-scale", &native_sokol_dpi_scale, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/high-dpi?", new_node_native_function("sokol/high-dpi?", &native_sokol_high_dpi_q, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/sample-count", new_node_native_function("sokol/sample-count", &native_sokol_sample_count, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/color-format", new_node_native_function("sokol/color-format", &native_sokol_color_format, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/depth-format", new_node_native_function("sokol/depth-format", &native_sokol_depth_format, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/show-keyboard", new_node_native_function("sokol/show-keyboard", &native_sokol_show_keyboard, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/keyboard-shown?", new_node_native_function("sokol/keyboard-shown?", &native_sokol_keyboard_shown_q, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/fullscreen?", new_node_native_function("sokol/fullscreen?", &native_sokol_fullscreen_q, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/toggle-fullscreen", new_node_native_function("sokol/toggle-fullscreen", &native_sokol_toggle_fullscreen, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/show-mouse", new_node_native_function("sokol/show-mouse", &native_sokol_show_mouse, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/mouse-shown?", new_node_native_function("sokol/mouse-shown?", &native_sokol_mouse_shown_q, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/lock-mouse", new_node_native_function("sokol/lock-mouse", &native_sokol_lock_mouse, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/mouse-locked?", new_node_native_function("sokol/mouse-locked?", &native_sokol_mouse_locked_q, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/mouse-cursor", new_node_native_function("sokol/mouse-cursor", &native_sokol_mouse_cursor, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/set-mouse-cursor", new_node_native_function("sokol/set-mouse-cursor", &native_sokol_set_mouse_cursor, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/request-quit", new_node_native_function("sokol/request-quit", &native_sokol_request_quit, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/cancel-quit", new_node_native_function("sokol/cancel-quit", &native_sokol_cancel_quit, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/quit", new_node_native_function("sokol/quit", &native_sokol_quit, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/consume-event", new_node_native_function("sokol/consume-event", &native_sokol_consume_event, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/frame-count", new_node_native_function("sokol/frame-count", &native_sokol_frame_count, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/frame-duration", new_node_native_function("sokol/frame-duration", &native_sokol_frame_duration, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/set-clipboard-string", new_node_native_function("sokol/set-clipboard-string", &native_sokol_set_clipboard_string, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/clipboard-string", new_node_native_function("sokol/clipboard-string", &native_sokol_clipboard_string, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/set-window-title", new_node_native_function("sokol/set-window-title", &native_sokol_set_window_title, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/get-num-dropped-files", new_node_native_function("sokol/get-num-dropped-files", &native_sokol_get_num_dropped_files, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/get-dropped-file-path", new_node_native_function("sokol/get-dropped-file-path", &native_sokol_get_dropped_file_path, false, NODE_FLAG_PRERESOLVE));
+
 }
 
 
