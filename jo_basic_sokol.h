@@ -24,6 +24,13 @@
 #include "sokol_glue.h"
 #include "imgui/imgui.h"
 #include "sokol_imgui.h"
+#include "sokol_gl.h"
+
+// overall state of the sgl stuffs
+static struct {
+    sg_pass_action pass_action;
+    sgl_pipeline pip_3d;
+} sokol_state;
 
 static node_idx_t get_map_idx(hash_map_ptr_t map, const char *key, node_idx_t default_value) {
     auto it = map->find(new_node_string(key), node_sym_eq);
@@ -65,6 +72,11 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         sg_setup(&sgd);
         simgui_desc_t simgui_desc = (simgui_desc_t){0};
         simgui_setup(&simgui_desc);
+        sgl_desc_t sgl_desc = (sgl_desc_t){0};
+        sgl_setup(&sgl_desc);
+        sokol_state.pass_action = (sg_pass_action) {
+            .colors[0] = { .action = SG_ACTION_CLEAR, .value = { 0.0f, 0.0f, 0.0f, 1.0 } }
+        };
         node_idx_t init_cb_idx = get_map_idx(desc_map, "init_cb", NIL_NODE);
         if(init_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(init_cb_idx)));
@@ -79,31 +91,31 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         };
         simgui_new_frame(&frame_desc);
 
-        static sg_pass_action pass_action = (sg_pass_action) {
-            .colors[0] = { .action = SG_ACTION_CLEAR, .value = { 0.0f, 0.5f, 1.0f, 1.0 } }
-        };
-
+        /*
         ImGui::SetNextWindowPos((ImVec2){10,10}, ImGuiCond_Once, (ImVec2){0,0});
         ImGui::SetNextWindowSize((ImVec2){400, 100}, ImGuiCond_Once);
         ImGui::Begin("Hello Dear ImGui!", 0, ImGuiWindowFlags_None);
-        ImGui::ColorEdit3("Background", &pass_action.colors[0].value.r, ImGuiColorEditFlags_None);
+        ImGui::ColorEdit3("Background", &sokol_state.pass_action.colors[0].value.r, ImGuiColorEditFlags_None);
         ImGui::End();
-
-        sg_begin_default_pass(&pass_action, sapp_width(), sapp_height());
-        simgui_render();
-        sg_end_pass();
-        sg_commit();
+        */
 
         node_idx_t frame_cb_idx = get_map_idx(desc_map, "frame_cb", NIL_NODE);
         if(frame_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(frame_cb_idx)));
         }
+
+        sg_begin_default_pass(&sokol_state.pass_action, sapp_width(), sapp_height());
+        sgl_draw();
+        simgui_render();
+        sg_end_pass();
+        sg_commit();
     };
     d.cleanup_cb = [=]() {
         node_idx_t cleanup_cb_idx = get_map_idx(desc_map, "cleanup_cb", NIL_NODE);
         if(cleanup_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(cleanup_cb_idx)));
         }
+        sgl_shutdown();
         simgui_shutdown();
         sg_shutdown();
     };
@@ -351,6 +363,606 @@ static node_idx_t native_sokol_get_dropped_file_path(env_ptr_t env, list_ptr_t a
     return new_node_string(sapp_get_dropped_file_path(get_node_int(args->first_value())));
 }
 
+/* render state functions */
+static node_idx_t native_sgl_defaults(env_ptr_t env, list_ptr_t args) {
+    sgl_defaults();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_viewport(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    sgl_viewportf(get_node_float(*it++), get_node_float(*it++), get_node_float(*it++), get_node_float(*it++), get_node_bool(*it++));
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_scissor_rect(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    sgl_scissor_rectf(get_node_float(*it++), get_node_float(*it++), get_node_float(*it++), get_node_float(*it++), get_node_bool(*it++));
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_enable_texture(env_ptr_t env, list_ptr_t args) {
+    sgl_enable_texture();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_disable_texture(env_ptr_t env, list_ptr_t args) {
+    sgl_disable_texture();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_texture(env_ptr_t env, list_ptr_t args) {
+    sg_image img;
+    img.id = get_node_int(args->first_value());
+    sgl_texture(img);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_layer(env_ptr_t env, list_ptr_t args) {
+    sgl_layer(get_node_int(args->first_value()));
+    return NIL_NODE;
+}
+
+/* pipeline stack functions */
+static node_idx_t native_sgl_load_default_pipeline(env_ptr_t env, list_ptr_t args) {
+    sgl_load_default_pipeline();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_load_pipeline(env_ptr_t env, list_ptr_t args) {
+    sgl_pipeline pip;
+    pip.id = get_node_int(args->first_value());
+    sgl_load_pipeline(pip);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_push_pipeline(env_ptr_t env, list_ptr_t args) {
+    sgl_push_pipeline();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_pop_pipeline(env_ptr_t env, list_ptr_t args) {
+    sgl_pop_pipeline();
+    return NIL_NODE;
+}
+
+/* matrix stack functions */
+static node_idx_t native_sgl_matrix_mode_modelview(env_ptr_t env, list_ptr_t args) {
+    sgl_matrix_mode_modelview();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_matrix_mode_projection(env_ptr_t env, list_ptr_t args) {
+    sgl_matrix_mode_projection();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_matrix_mode_texture(env_ptr_t env, list_ptr_t args) {
+    sgl_matrix_mode_texture();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_load_identity(env_ptr_t env, list_ptr_t args) {
+    sgl_load_identity();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_load_matrix(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    vector_ptr_t vec = get_node(*it++)->as_vector();
+    float m[16];
+    for (int i = 0; i < 16; i++) {
+        m[i] = get_node_float(vec->nth(i));
+    }
+    sgl_load_matrix(m);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_load_transpose_matrix(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    vector_ptr_t vec = get_node(*it++)->as_vector();
+    float m[16];
+    for (int i = 0; i < 16; i++) {
+        m[i] = get_node_float(vec->nth(i));
+    }
+    sgl_load_transpose_matrix(m);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_mult_matrix(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    vector_ptr_t vec = get_node(*it++)->as_vector();
+    float m[16];
+    for (int i = 0; i < 16; i++) {
+        m[i] = get_node_float(vec->nth(i));
+    }
+    sgl_mult_matrix(m);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_mult_transpose_matrix(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    vector_ptr_t vec = get_node(*it++)->as_vector();
+    float m[16];
+    for (int i = 0; i < 16; i++) {
+        m[i] = get_node_float(vec->nth(i));
+    }
+    sgl_mult_transpose_matrix(m);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_rotate(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float angle = get_node_float(*it++);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    sgl_rotate(angle, x, y, z);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_scale(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    sgl_scale(x, y, z);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_translate(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    sgl_translate(x, y, z);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_frustum(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float l = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    float t = get_node_float(*it++);
+    float n = get_node_float(*it++);
+    float f = get_node_float(*it++);
+    sgl_frustum(l, r, b, t, n, f);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_ortho(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float l = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    float t = get_node_float(*it++);
+    float n = get_node_float(*it++);
+    float f = get_node_float(*it++);
+    sgl_ortho(l, r, b, t, n, f);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_perspective(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float fov_y = get_node_float(*it++);
+    float aspect = get_node_float(*it++);
+    float z_near = get_node_float(*it++);
+    float z_far = get_node_float(*it++);
+    sgl_perspective(fov_y, aspect, z_near, z_far);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_lookat(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float eye_x = get_node_float(*it++);
+    float eye_y = get_node_float(*it++);
+    float eye_z = get_node_float(*it++);
+    float center_x = get_node_float(*it++);
+    float center_y = get_node_float(*it++);
+    float center_z = get_node_float(*it++);
+    float up_x = get_node_float(*it++);
+    float up_y = get_node_float(*it++);
+    float up_z = get_node_float(*it++);
+    sgl_lookat(eye_x, eye_y, eye_z, center_x, center_y, center_z, up_x, up_y, up_z);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_push_matrix(env_ptr_t env, list_ptr_t args) {
+    sgl_push_matrix();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_pop_matrix(env_ptr_t env, list_ptr_t args) {
+    sgl_pop_matrix();
+    return NIL_NODE;
+}
+
+/* these functions only set the internal 'current texcoord / color / point size' (valid inside or outside begin/end) */
+static node_idx_t native_sgl_t2f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    sgl_t2f(u, v);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_c3f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    sgl_c3f(r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_c4f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    float a = get_node_float(*it++);
+    sgl_c4f(r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_c3b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    sgl_c3b(r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_c4b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    uint8_t a = get_node_int(*it++);
+    sgl_c4b(r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_c1i(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    uint32_t rgba = get_node_int(*it++);
+    sgl_c1i(rgba);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_point_size(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float s = get_node_float(*it++);
+    sgl_point_size(s);
+    return NIL_NODE;
+}
+
+/* define primitives, each begin/end is one draw command */
+static node_idx_t native_sgl_begin_points(env_ptr_t env, list_ptr_t args) {
+    sgl_begin_points();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_begin_lines(env_ptr_t env, list_ptr_t args) {
+    sgl_begin_lines();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_begin_line_strip(env_ptr_t env, list_ptr_t args) {
+    sgl_begin_line_strip();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_begin_triangles(env_ptr_t env, list_ptr_t args) {
+    sgl_begin_triangles();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_begin_triangle_strip(env_ptr_t env, list_ptr_t args) {
+    sgl_begin_triangle_strip();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_begin_quads(env_ptr_t env, list_ptr_t args) {
+    sgl_begin_quads();
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    sgl_v2f(x, y);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    sgl_v3f(x, y, z);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_t2f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    sgl_v2f_t2f(x, y, u, v);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_t2f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    sgl_v3f_t2f(x, y, z, u, v);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_c3f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    sgl_v2f_c3f(x, y, r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_c3b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    sgl_v2f_c3b(x, y, r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_c4f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    float a = get_node_float(*it++);
+    sgl_v2f_c4f(x, y, r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_c4b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    uint8_t a = get_node_int(*it++);
+    sgl_v2f_c4b(x, y, r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_c1i(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    uint32_t rgba = get_node_int(*it++);
+    sgl_v2f_c1i(x, y, rgba);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_c3f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    sgl_v3f_c3f(x, y, z, r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_c3b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    sgl_v3f_c3b(x, y, z, r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_c4f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    float a = get_node_float(*it++);
+    sgl_v3f_c4f(x, y, z, r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_c4b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    uint8_t a = get_node_int(*it++);
+    sgl_v3f_c4b(x, y, z, r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_c1i(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    uint32_t rgba = get_node_int(*it++);
+    sgl_v3f_c1i(x, y, z, rgba);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_t2f_c3f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    sgl_v2f_t2f_c3f(x, y, u, v, r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_t2f_c3b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    sgl_v2f_t2f_c3b(x, y, u, v, r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_t2f_c4f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    float a = get_node_float(*it++);
+    sgl_v2f_t2f_c4f(x, y, u, v, r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_t2f_c4b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    uint8_t a = get_node_int(*it++);
+    sgl_v2f_t2f_c4b(x, y, u, v, r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v2f_t2f_c1i(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    uint32_t rgba = get_node_int(*it++);
+    sgl_v2f_t2f_c1i(x, y, u, v, rgba);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_t2f_c3f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    sgl_v3f_t2f_c3f(x, y, z, u, v, r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_t2f_c3b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    sgl_v3f_t2f_c3b(x, y, z, u, v, r, g, b);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_t2f_c4f(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    float r = get_node_float(*it++);
+    float g = get_node_float(*it++);
+    float b = get_node_float(*it++);
+    float a = get_node_float(*it++);
+    sgl_v3f_t2f_c4f(x, y, z, u, v, r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_t2f_c4b(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    uint8_t r = get_node_int(*it++);
+    uint8_t g = get_node_int(*it++);
+    uint8_t b = get_node_int(*it++);
+    uint8_t a = get_node_int(*it++);
+    sgl_v3f_t2f_c4b(x, y, z, u, v, r, g, b, a);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_v3f_t2f_c1i(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float z = get_node_float(*it++);
+    float u = get_node_float(*it++);
+    float v = get_node_float(*it++);
+    uint32_t rgba = get_node_int(*it++);
+    sgl_v3f_t2f_c1i(x, y, z, u, v, rgba);
+    return NIL_NODE;
+}
+
+static node_idx_t native_sgl_end(env_ptr_t env, list_ptr_t args) {
+    sgl_end();
+    return NIL_NODE;
+}
+
 
 void jo_basic_sokol_init(env_ptr_t env) {
 	env->set("sokol/run", new_node_native_function("sokol/run", &native_sokol_run, false, NODE_FLAG_PRERESOLVE));
@@ -387,6 +999,81 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sokol/get-num-dropped-files", new_node_native_function("sokol/get-num-dropped-files", &native_sokol_get_num_dropped_files, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/get-dropped-file-path", new_node_native_function("sokol/get-dropped-file-path", &native_sokol_get_dropped_file_path, false, NODE_FLAG_PRERESOLVE));
 
+    /* render state functions */
+    env->set("sgl/defaults", new_node_native_function("sgl/defaults", &native_sgl_defaults, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/viewport", new_node_native_function("sgl/viewport", &native_sgl_viewport, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/scissor-rect", new_node_native_function("sgl/scissor-rect", &native_sgl_scissor_rect, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/enable-texture", new_node_native_function("sgl/enable-texture", &native_sgl_enable_texture, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/disable-texture", new_node_native_function("sgl/disable-texture", &native_sgl_disable_texture, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/texture", new_node_native_function("sgl/texture", &native_sgl_texture, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/layer", new_node_native_function("sgl/layer", &native_sgl_layer, false, NODE_FLAG_PRERESOLVE));
+
+    /* pipeline stack functions */
+    env->set("sgl/load-default-pipeline", new_node_native_function("sgl/load-default-pipeline", &native_sgl_load_default_pipeline, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/load-pipeline", new_node_native_function("sgl/load-pipeline", &native_sgl_load_pipeline, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/push-pipeline", new_node_native_function("sgl/push-pipeline", &native_sgl_push_pipeline, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/pop-pipeline", new_node_native_function("sgl/pop-pipeline", &native_sgl_pop_pipeline, false, NODE_FLAG_PRERESOLVE));
+
+    /* matrix stack functions */
+    env->set("sgl/matrix-mode-modelview", new_node_native_function("sgl/matrix-mode-modelview", &native_sgl_matrix_mode_modelview, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/matrix-mode-projection", new_node_native_function("sgl/matrix-mode-projection", &native_sgl_matrix_mode_projection, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/matrix-mode-texture", new_node_native_function("sgl/matrix-mode-texture", &native_sgl_matrix_mode_texture, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/load-identity", new_node_native_function("sgl/load-identity", &native_sgl_load_identity, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/load-matrix", new_node_native_function("sgl/load-matrix", &native_sgl_load_matrix, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/load-transpose-matrix", new_node_native_function("sgl/load-transpose-matrix", &native_sgl_load_transpose_matrix, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/mult-matrix", new_node_native_function("sgl/mult-matrix", &native_sgl_mult_matrix, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/mult-transpose-matrix", new_node_native_function("sgl/mult-transpose-matrix", &native_sgl_mult_transpose_matrix, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/rotate", new_node_native_function("sgl/rotate", &native_sgl_rotate, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/scale", new_node_native_function("sgl/scale", &native_sgl_scale, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/translate", new_node_native_function("sgl/translate", &native_sgl_translate, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/frustum", new_node_native_function("sgl/frustum", &native_sgl_frustum, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/ortho", new_node_native_function("sgl/ortho", &native_sgl_ortho, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/perspective", new_node_native_function("sgl/perspective", &native_sgl_perspective, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/lookat", new_node_native_function("sgl/lookat", &native_sgl_lookat, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/push-matrix", new_node_native_function("sgl/push-matrix", &native_sgl_push_matrix, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/pop-matrix", new_node_native_function("sgl/pop-matrix", &native_sgl_pop_matrix, false, NODE_FLAG_PRERESOLVE));
+
+    /* these functions only set the internal 'current texcoord / color / point size' (valid inside or outside begin/end) */
+    env->set("sgl/t2f", new_node_native_function("sgl/t2f", &native_sgl_t2f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/c3f", new_node_native_function("sgl/c3f", &native_sgl_c3f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/c4f", new_node_native_function("sgl/c4f", &native_sgl_c4f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/c3b", new_node_native_function("sgl/c3b", &native_sgl_c3b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/c4b", new_node_native_function("sgl/c4b", &native_sgl_c4b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/c1i", new_node_native_function("sgl/c1i", &native_sgl_c1i, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/point-size", new_node_native_function("sgl/point-size", &native_sgl_point_size, false, NODE_FLAG_PRERESOLVE));
+
+    /* define primitives, each begin/end is one draw command */
+    env->set("sgl/begin-points", new_node_native_function("sgl/begin-points", &native_sgl_begin_points, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/begin-lines", new_node_native_function("sgl/begin-lines", &native_sgl_begin_lines, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/begin-line-strip", new_node_native_function("sgl/begin-line-strip", &native_sgl_begin_line_strip, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/begin-triangles", new_node_native_function("sgl/begin-triangles", &native_sgl_begin_triangles, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/begin-triangle-strip", new_node_native_function("sgl/begin-triangle-strip", &native_sgl_begin_triangle_strip, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/begin-quads", new_node_native_function("sgl/begin-quads", &native_sgl_begin_quads, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f", new_node_native_function("sgl/v2f", &native_sgl_v2f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f", new_node_native_function("sgl/v3f", &native_sgl_v3f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-t2f", new_node_native_function("sgl/v2f-t2f", &native_sgl_v2f_t2f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-t2f", new_node_native_function("sgl/v3f-t2f", &native_sgl_v3f_t2f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-c3f", new_node_native_function("sgl/v2f-c3f", &native_sgl_v2f_c3f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-c3b", new_node_native_function("sgl/v2f-c3b", &native_sgl_v2f_c3b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-c4f", new_node_native_function("sgl/v2f-c4f", &native_sgl_v2f_c4f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-c4b", new_node_native_function("sgl/v2f-c4b", &native_sgl_v2f_c4b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f_c1i", new_node_native_function("sgl/v2f_c1i", &native_sgl_v2f_c1i, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-c3f", new_node_native_function("sgl/v3f-c3f", &native_sgl_v3f_c3f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-c3b", new_node_native_function("sgl/v3f-c3b", &native_sgl_v3f_c3b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-c4f", new_node_native_function("sgl/v3f-c4f", &native_sgl_v3f_c4f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-c4b", new_node_native_function("sgl/v3f-c4b", &native_sgl_v3f_c4b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-c1i", new_node_native_function("sgl/v3f-c1i", &native_sgl_v3f_c1i, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-t2f-c3f", new_node_native_function("sgl/v2f-t2f-c3f", &native_sgl_v2f_t2f_c3f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-t2f-c3b", new_node_native_function("sgl/v2f-t2f-c3b", &native_sgl_v2f_t2f_c3b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-t2f-c4f", new_node_native_function("sgl/v2f-t2f-c4f", &native_sgl_v2f_t2f_c4f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-t2f-c4b", new_node_native_function("sgl/v2f-t2f-c4b", &native_sgl_v2f_t2f_c4b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v2f-t2f-c1i", new_node_native_function("sgl/v2f-t2f-c1i", &native_sgl_v2f_t2f_c1i, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-t2f-c3f", new_node_native_function("sgl/v3f-t2f-c3f", &native_sgl_v3f_t2f_c3f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-t2f-c3b", new_node_native_function("sgl/v3f-t2f-c3b", &native_sgl_v3f_t2f_c3b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-t2f-c4f", new_node_native_function("sgl/v3f-t2f-c4f", &native_sgl_v3f_t2f_c4f, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-t2f-c4b", new_node_native_function("sgl/v3f-t2f-c4b", &native_sgl_v3f_t2f_c4b, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/v3f-t2f-c1i", new_node_native_function("sgl/v3f-t2f-c1i", &native_sgl_v3f_t2f_c1i, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/end", new_node_native_function("sgl/end", &native_sgl_end, false, NODE_FLAG_PRERESOLVE));
 }
 
 

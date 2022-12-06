@@ -30,9 +30,6 @@ jo_basic_canvas_alloc_t jo_basic_canvas_alloc;
 typedef jo_shared_ptr_t<jo_basic_canvas_t> jo_basic_canvas_ptr_t;
 template<typename...A>
 jo_basic_canvas_ptr_t new_canvas(A...args) { return jo_basic_canvas_ptr_t(jo_basic_canvas_alloc.emplace(args...)); }
-
-//typedef jo_shared_ptr<jo_basic_canvas_t> jo_basic_canvas_ptr_t;
-//static jo_basic_canvas_ptr_t new_canvas() { return jo_basic_canvas_ptr_t(new jo_basic_canvas_t()); }
 static node_idx_t new_node_canvas(jo_basic_canvas_ptr_t nodes, int flags=0) { return new_node_object(NODE_CANVAS, nodes.cast<jo_object>(), flags); }
 
 #define STB_IMAGE_IMPLEMENTATION
