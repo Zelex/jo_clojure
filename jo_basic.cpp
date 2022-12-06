@@ -6194,17 +6194,8 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 #include "jo_basic_gif.h"
 #include "jo_basic_b64.h"
 #include "jo_basic_canvas.h"
+#include "jo_basic_sokol.h"
 
-#if defined(__APPLE__)
-#include <TargetConditionals.h>
-#if defined(TARGET_OS_IPHONE) && !TARGET_OS_IPHONE
-#define JO_BASIC_MACOS
-#include "jo_basic_macos.h"
-#else
-#define JO_BASIC_IOS
-//#include "jo_basic_ios.h"
-#endif
-#endif
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -6567,9 +6558,7 @@ int main(int argc, char **argv) {
 	jo_basic_gif_init(env);
 	jo_basic_b64_init(env);
 	jo_basic_canvas_init(env);
-#ifdef JO_BASIC_MACOS
-	jo_basic_macos_init(env);
-#endif
+	jo_basic_sokol_init(env);
 
 	// setup *command-line-args*
 	{

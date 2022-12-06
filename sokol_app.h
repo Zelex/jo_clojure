@@ -1478,11 +1478,11 @@ typedef struct sapp_logger {
 } sapp_logger;
 
 typedef struct sapp_desc {
-    void (*init_cb)(void);                  // these are the user-provided callbacks without user data
-    void (*frame_cb)(void);
-    void (*cleanup_cb)(void);
-    void (*event_cb)(const sapp_event*);
-    void (*fail_cb)(const char*);
+    std::function<void()> init_cb;                  // these are the user-provided callbacks without user data
+    std::function<void()> frame_cb;
+    std::function<void()> cleanup_cb;
+    std::function<void(const sapp_event*)> event_cb;
+    std::function<void(const char*)> fail_cb;
 
     void* user_data;                        // these are the user-provided callbacks with user data
     void (*init_userdata_cb)(void*);
