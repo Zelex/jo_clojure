@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# https://stackoverflow.com/questions/3466166/how-to-check-if-running-in-cygwin-mac-or-linux/27776822
+
 if [ "$(uname)" == "Darwin" ]; then
     c++ -std=c++17 -x objective-c++ \
      jo_basic.cpp \

@@ -63,12 +63,37 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         sg_desc sgd = {0};
         sgd.context = sapp_sgcontext();
         sg_setup(&sgd);
+        simgui_desc_t simgui_desc = (simgui_desc_t){0};
+        simgui_setup(&simgui_desc);
         node_idx_t init_cb_idx = get_map_idx(desc_map, "init_cb", NIL_NODE);
         if(init_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(init_cb_idx)));
         }
     };
     d.frame_cb = [=]() {
+        simgui_frame_desc_t frame_desc = (simgui_frame_desc_t){
+            .width = sapp_width(),
+            .height = sapp_height(),
+            .delta_time = sapp_frame_duration(),
+            .dpi_scale = sapp_dpi_scale(),
+        };
+        simgui_new_frame(&frame_desc);
+
+        static sg_pass_action pass_action = (sg_pass_action) {
+            .colors[0] = { .action = SG_ACTION_CLEAR, .value = { 0.0f, 0.5f, 1.0f, 1.0 } }
+        };
+
+        ImGui::SetNextWindowPos((ImVec2){10,10}, ImGuiCond_Once, (ImVec2){0,0});
+        ImGui::SetNextWindowSize((ImVec2){400, 100}, ImGuiCond_Once);
+        ImGui::Begin("Hello Dear ImGui!", 0, ImGuiWindowFlags_None);
+        ImGui::ColorEdit3("Background", &pass_action.colors[0].value.r, ImGuiColorEditFlags_None);
+        ImGui::End();
+
+        sg_begin_default_pass(&pass_action, sapp_width(), sapp_height());
+        simgui_render();
+        sg_end_pass();
+        sg_commit();
+
         node_idx_t frame_cb_idx = get_map_idx(desc_map, "frame_cb", NIL_NODE);
         if(frame_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(frame_cb_idx)));
@@ -79,9 +104,11 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         if(cleanup_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(cleanup_cb_idx)));
         }
+        simgui_shutdown();
         sg_shutdown();
     };
     d.event_cb = [=](const sapp_event*ev) {
+        simgui_handle_event(ev);
         node_idx_t event_cb_idx = get_map_idx(desc_map, "event_cb", NIL_NODE);
         if(event_cb_idx != NIL_NODE) {
             hash_map_ptr_t event_map = new_hash_map();
