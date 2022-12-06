@@ -22,6 +22,8 @@
 #include "sokol_app.h"
 #include "sokol_gfx.h"
 #include "sokol_glue.h"
+#include "imgui/imgui.h"
+#include "sokol_imgui.h"
 
 static node_idx_t get_map_idx(hash_map_ptr_t map, const char *key, node_idx_t default_value) {
     auto it = map->find(new_node_string(key), node_sym_eq);
