@@ -8,9 +8,9 @@
         (sgl/viewport 0 0 640 480)
         (sgl/defaults)
         (sgl/begin-triangles)
-        (sgl/v2f-c3b 0.0 0.5 255 0 0)
+        (sgl/v2f-c3b  0.0  0.5 255 0 0)
         (sgl/v2f-c3b -0.5 -0.5 0 255 0)
-        (sgl/v2f-c3b 0.5 -0.5 0 0 255)
+        (sgl/v2f-c3b  0.5 -0.5 0 0 255)
         (sgl/end)
     )
     :cleanup_cb (fn [] 
