@@ -20,6 +20,8 @@
 #endif
 
 #include "sokol_app.h"
+#include "sokol_gfx.h"
+#include "sokol_glue.h"
 
 static node_idx_t get_map_idx(hash_map_ptr_t map, const char *key, node_idx_t default_value) {
     auto it = map->find(new_node_string(key), node_sym_eq);
@@ -55,6 +57,10 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
     hash_map_ptr_t desc_map = desc_node->as_hash_map();
     sapp_desc d = {0};
     d.init_cb = [=]() {
+        // init sokol_gfx
+        sg_desc sgd = {0};
+        sgd.context = sapp_sgcontext();
+        sg_setup(&sgd);
         node_idx_t init_cb_idx = get_map_idx(desc_map, "init_cb", NIL_NODE);
         if(init_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(init_cb_idx)));
@@ -71,6 +77,7 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         if(cleanup_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(cleanup_cb_idx)));
         }
+        sg_shutdown();
     };
     d.event_cb = [=](const sapp_event*ev) {
         node_idx_t event_cb_idx = get_map_idx(desc_map, "event_cb", NIL_NODE);
