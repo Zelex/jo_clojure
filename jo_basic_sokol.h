@@ -203,19 +203,8 @@ static node_idx_t native_sokol_width(env_ptr_t env, list_ptr_t args) {
     return new_node_int(sapp_width());
 }
 
-/* same as sapp_width(), but returns float */
-static node_idx_t native_sokol_widthf(env_ptr_t env, list_ptr_t args) {
-    return new_node_float(sapp_widthf());
-}
-
-/* returns the current framebuffer height in pixels */
 static node_idx_t native_sokol_height(env_ptr_t env, list_ptr_t args) {
     return new_node_int(sapp_height());
-}
-
-/* same as sapp_height(), but returns float */
-static node_idx_t native_sokol_heightf(env_ptr_t env, list_ptr_t args) {
-    return new_node_float(sapp_heightf());
 }
 
 /* get default framebuffer color pixel format */
@@ -969,9 +958,7 @@ void jo_basic_sokol_init(env_ptr_t env) {
 
     env->set("sokol/valid?", new_node_native_function("sokol/valid?", &native_sokol_valid_q, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/width", new_node_native_function("sokol/width", &native_sokol_width, false, NODE_FLAG_PRERESOLVE));
-    env->set("sokol/widthf", new_node_native_function("sokol/widthf", &native_sokol_widthf, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/height", new_node_native_function("sokol/height", &native_sokol_height, false, NODE_FLAG_PRERESOLVE));
-    env->set("sokol/heightf", new_node_native_function("sokol/heightf", &native_sokol_heightf, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/dpi-scale", new_node_native_function("sokol/dpi-scale", &native_sokol_dpi_scale, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/high-dpi?", new_node_native_function("sokol/high-dpi?", &native_sokol_high_dpi_q, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/sample-count", new_node_native_function("sokol/sample-count", &native_sokol_sample_count, false, NODE_FLAG_PRERESOLVE));
