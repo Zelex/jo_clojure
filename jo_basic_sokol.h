@@ -107,22 +107,10 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         ImGui::End();
         //*/
 
-        //*
         node_idx_t frame_cb_idx = get_map_idx(desc_map, "frame_cb", NIL_NODE);
         if(frame_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(frame_cb_idx)));
         }
-        //*/
-
-        /*
-        sgl_viewport(0, 0, sapp_width(), sapp_height(), false);
-        sgl_defaults();
-        sgl_begin_triangles();
-        sgl_v2f_c3b( 0.0,  0.5, 255, 0, 0);
-        sgl_v2f_c3b(-0.5, -0.5, 0, 255, 0);
-        sgl_v2f_c3b( 0.5, -0.5, 0, 0, 255);
-        sgl_end();
-        */
 
         sg_begin_default_pass(&sokol_state.pass_action, sapp_width(), sapp_height());
         sgl_draw();
