@@ -2,6 +2,8 @@
 
 #define SOKOL_IMPL
 #define SOKOL_NO_ENTRY
+//#define SOKOL_DEBUG
+//#define SOKOL_TRACE_HOOKS 
 
 #ifdef _WIN32
 #define JO_BASIC_WINDOWS
@@ -95,17 +97,32 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         simgui_new_frame(&frame_desc);
 
         /*
-        ImGui::SetNextWindowPos((ImVec2){10,10}, ImGuiCond_Once, (ImVec2){0,0});
-        ImGui::SetNextWindowSize((ImVec2){400, 100}, ImGuiCond_Once);
+        ImVec2 window_pos = ImVec2(10, 10);
+        ImVec2 window_pos_pivot = ImVec2(0, 0);
+        ImGui::SetNextWindowPos(window_pos, ImGuiCond_Once, window_pos_pivot);
+        ImVec2 window_size = ImVec2(400, 100);
+        ImGui::SetNextWindowSize(window_size, ImGuiCond_Once);
         ImGui::Begin("Hello Dear ImGui!", 0, ImGuiWindowFlags_None);
         ImGui::ColorEdit3("Background", &sokol_state.pass_action.colors[0].value.r, ImGuiColorEditFlags_None);
         ImGui::End();
-        */
+        //*/
 
+        //*
         node_idx_t frame_cb_idx = get_map_idx(desc_map, "frame_cb", NIL_NODE);
         if(frame_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(frame_cb_idx)));
         }
+        //*/
+
+        /*
+        sgl_viewport(0, 0, sapp_width(), sapp_height(), false);
+        sgl_defaults();
+        sgl_begin_triangles();
+        sgl_v2f_c3b( 0.0,  0.5, 255, 0, 0);
+        sgl_v2f_c3b(-0.5, -0.5, 0, 255, 0);
+        sgl_v2f_c3b( 0.5, -0.5, 0, 0, 255);
+        sgl_end();
+        */
 
         sg_begin_default_pass(&sokol_state.pass_action, sapp_width(), sapp_height());
         sgl_draw();
@@ -363,13 +380,23 @@ static node_idx_t native_sgl_defaults(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_sgl_viewport(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
-    sgl_viewportf(get_node_float(*it++), get_node_float(*it++), get_node_float(*it++), get_node_float(*it++), get_node_bool(*it++));
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float w = get_node_float(*it++);
+    float h = get_node_float(*it++);
+    bool origin_top_left = get_node_bool(*it++);
+    sgl_viewport(x, y, w, h, origin_top_left);
     return NIL_NODE;
 }
 
 static node_idx_t native_sgl_scissor_rect(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
-    sgl_scissor_rectf(get_node_float(*it++), get_node_float(*it++), get_node_float(*it++), get_node_float(*it++), get_node_bool(*it++));
+    float x = get_node_float(*it++);
+    float y = get_node_float(*it++);
+    float w = get_node_float(*it++);
+    float h = get_node_float(*it++);
+    bool origin_top_left = get_node_bool(*it++);
+    sgl_scissor_rectf(x, y, w, h, origin_top_left);
     return NIL_NODE;
 }
 
