@@ -3,6 +3,11 @@
 #define SOKOL_IMPL
 #define SOKOL_NO_ENTRY
 
+#ifdef _WIN32
+#define JO_BASIC_WINDOWS
+#define SOKOL_D3D11
+#endif
+
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #if defined(TARGET_OS_IPHONE) && !TARGET_OS_IPHONE
@@ -70,25 +75,23 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         sg_desc sgd = {0};
         sgd.context = sapp_sgcontext();
         sg_setup(&sgd);
-        simgui_desc_t simgui_desc = (simgui_desc_t){0};
+        simgui_desc_t simgui_desc = {0};
         simgui_setup(&simgui_desc);
-        sgl_desc_t sgl_desc = (sgl_desc_t){0};
+        sgl_desc_t sgl_desc = {0};
         sgl_setup(&sgl_desc);
-        sokol_state.pass_action = (sg_pass_action) {
-            .colors[0] = { .action = SG_ACTION_CLEAR, .value = { 0.0f, 0.0f, 0.0f, 1.0 } }
-        };
+        sokol_state.pass_action.colors[0].action = SG_ACTION_CLEAR;
+        sokol_state.pass_action.colors[0].value = {0.0f, 0.0f, 0.0f, 1.0f};
         node_idx_t init_cb_idx = get_map_idx(desc_map, "init_cb", NIL_NODE);
         if(init_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(init_cb_idx)));
         }
     };
     d.frame_cb = [=]() {
-        simgui_frame_desc_t frame_desc = (simgui_frame_desc_t){
-            .width = sapp_width(),
-            .height = sapp_height(),
-            .delta_time = sapp_frame_duration(),
-            .dpi_scale = sapp_dpi_scale(),
-        };
+        simgui_frame_desc_t frame_desc = {0};
+        frame_desc.width = sapp_width();
+        frame_desc.height = sapp_height();
+        frame_desc.delta_time = sapp_frame_duration();
+        frame_desc.dpi_scale = sapp_dpi_scale();
         simgui_new_frame(&frame_desc);
 
         /*

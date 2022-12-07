@@ -24,7 +24,7 @@ static node_idx_t native_system_exec_output(env_ptr_t env, list_ptr_t args) {
 		str += n->as_string(env);
 	}
 	jo_string output = "";
-	FILE *fp = popen(str.c_str(), "r");
+	FILE *fp = jo_popen(str.c_str(), "r");
 	if (fp == NULL) {
 		warnf("failed to run command '%s'\n", str.c_str());
 	}
@@ -33,7 +33,7 @@ static node_idx_t native_system_exec_output(env_ptr_t env, list_ptr_t args) {
 		output += line;
 		output += "\n";
 	}
-	pclose(fp);
+	jo_pclose(fp);
 	return new_node_string(output);
 }
 

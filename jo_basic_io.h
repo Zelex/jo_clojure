@@ -1,6 +1,5 @@
 #pragma once
 
-#include <sys/wait.h>
 #include "jo_stdcpp.h"
 
 // for popen and pclose
@@ -19,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #endif
 
 

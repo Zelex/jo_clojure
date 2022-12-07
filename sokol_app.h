@@ -1569,7 +1569,9 @@ typedef enum sapp_mouse_cursor {
 } sapp_mouse_cursor;
 
 /* user-provided functions */
+#ifndef SOKOL_NO_ENTRY
 extern sapp_desc sokol_main(int argc, char* argv[]);
+#endif
 
 /* returns true after sokol-app has been initialized */
 SOKOL_APP_API_DECL bool sapp_isvalid(void);

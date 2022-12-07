@@ -1552,7 +1552,7 @@ static node_idx_t native_math_matrix_max_diag(env_ptr_t env, list_ptr_t args) {
     }
     matrix_ptr_t A = A_node->as_matrix();
     int mn = A->width < A->height ? A->width : A->height;
-    double max = -__DBL_MAX__;
+    double max = -DBL_MAX;
     for(int i = 0; i < mn; ++i) {
         double v = get_node_float(A->get(i,i));
         max = v > max ? v : max;
@@ -1575,7 +1575,7 @@ static node_idx_t native_math_matrix_regularize(env_ptr_t env, list_ptr_t args) 
     matrix_ptr_t O = A->clone();
     int mn = A->width < A->height ? A->width : A->height;
     // compute max diag
-    double max = -__DBL_MAX__;
+    double max = -DBL_MAX;
     for(int i = 0; i < mn; ++i) {
         double v = get_node_float(A->get(i,i));
         max = v > max ? v : max;
@@ -1953,7 +1953,7 @@ void jo_basic_math_init(env_ptr_t env) {
     env->set("matrix/regularize", new_node_native_function("matrix/regularize", &native_math_matrix_regularize, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/solve-qr", new_node_native_function("matrix/solve-qr", &native_math_matrix_solve_qr, false, NODE_FLAG_PRERESOLVE));
-    env->set("matrix/transpose", new_node_native_function("matrix/transpose", &native_math_matrix_transpose, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/transpose", new_node_native_function("matrix/transpose", &native_math_matrix_transpose, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
     env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));

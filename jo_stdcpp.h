@@ -49,6 +49,8 @@
 #define jo_chdir _chdir
 #define jo_alloca _alloca
 #define jo_ftell64 _ftelli64
+#define jo_popen _popen
+#define jo_pclose _pclose
 #pragma warning(push)
 #pragma warning(disable : 4345)
 #elif defined(__APPLE__)
@@ -56,10 +58,14 @@
 #include <unistd.h>
 #include <termios.h>
 #define jo_ftell64 ftello
+#define jo_popen popen
+#define jo_pclose pclose
 #else
 #include <unistd.h>
 #include <termios.h>
 #define jo_ftell64 ftello64
+#define jo_popen popen
+#define jo_pclose pclose
 #endif
 
 // if clang or GCC
