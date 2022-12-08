@@ -13,7 +13,9 @@ static node_idx_t native_str(env_ptr_t env, list_ptr_t args) {
 }
 
 // Returns the substring of ‘s’ beginning at start inclusive, and ending at end (defaults to length of string), exclusive.
-static node_idx_t native_subs(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).substr(get_node_int(args->second_value()), get_node_int(args->third_value()))); }
+static node_idx_t native_subs(env_ptr_t env, list_ptr_t args) { 
+	return new_node_string(get_node_string(args->first_value()).substr(get_node_int(args->second_value()), get_node_int(args->third_value()))); 
+}
 static node_idx_t native_compare(env_ptr_t env, list_ptr_t args) { return new_node_int(get_node_string(args->first_value()).compare(get_node_string(args->second_value()))); }
 static node_idx_t native_lower_case(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).lower()); }
 static node_idx_t native_upper_case(env_ptr_t env, list_ptr_t args) { return new_node_string(get_node_string(args->first_value()).upper()); }
