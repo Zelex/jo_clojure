@@ -104,12 +104,20 @@ static node_idx_t native_mysql_escape(env_ptr_t env, list_ptr_t args) {
     return node;
 }
 
+static node_idx_t native_mysql_reset(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_basic_mysql_ptr_t mysql = get_node(*it++)->t_object.cast<jo_basic_mysql_t>();
+    mysql_reset_connection(mysql->conn);
+    return NIL_NODE;
+}
+
 void jo_basic_mysql_init(env_ptr_t env) {
 	env->set("mysql", new_node_native_function("mysql", &native_mysql, false, NODE_FLAG_PRERESOLVE));
 	env->set("mysql/connect", new_node_native_function("mysql/connect", &native_mysql_connect, false, NODE_FLAG_PRERESOLVE));
+	env->set("mysql/reset", new_node_native_function("mysql/reset", &native_mysql_reset, false, NODE_FLAG_PRERESOLVE));
+	env->set("mysql/close", new_node_native_function("mysql/close", &native_mysql_close, false, NODE_FLAG_PRERESOLVE));
 	env->set("mysql/select-db", new_node_native_function("mysql/select-db", &native_mysql_select_db, false, NODE_FLAG_PRERESOLVE));
 	env->set("mysql/query", new_node_native_function("mysql/query", &native_mysql_query, false, NODE_FLAG_PRERESOLVE));
-	env->set("mysql/close", new_node_native_function("mysql/close", &native_mysql_close, false, NODE_FLAG_PRERESOLVE));
     env->set("mysql/escape", new_node_native_function("mysql/escape", &native_mysql_escape, false, NODE_FLAG_PRERESOLVE));
 }
 
