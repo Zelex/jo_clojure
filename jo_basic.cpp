@@ -132,6 +132,9 @@ enum {
 	NODE_GIF, // jo_gif library
 	NODE_CANVAS,
 	NODE_ARRAY,
+#ifndef NO_MYSQL
+	NODE_MYSQL,
+#endif
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
@@ -6199,6 +6202,9 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 #ifndef NO_SOKOL
 #include "jo_basic_sokol.h"
 #endif
+#ifndef NO_MYSQL
+#include "jo_basic_mysql.h"
+#endif
 
 
 #ifdef _MSC_VER
@@ -6564,6 +6570,9 @@ int main(int argc, char **argv) {
 	jo_basic_canvas_init(env);
 #ifndef NO_SOKOL
 	jo_basic_sokol_init(env);
+#endif
+#ifndef NO_MYSQL
+	jo_basic_mysql_init(env);
 #endif
 
 	// setup *command-line-args*

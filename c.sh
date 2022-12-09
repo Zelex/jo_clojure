@@ -4,9 +4,12 @@
 
 if [ "$(uname)" == "Darwin" ]; then
     c++ -std=c++17 -x objective-c++ \
+     -I/opt/homebrew/opt/mysql-client/include \
      jo_basic.cpp \
      imgui/imgui.cpp imgui/imgui_widgets.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_demo.cpp \
      -Os -fno-exceptions -lpthread -lobjc \
      -framework Cocoa -framework QuartzCore -framework OpenGL -framework Metal -framework MetalKit \
+     -L/opt/homebrew/opt/mysql-client/lib \
+     -lmysqlclient \
      -o basic
 fi
