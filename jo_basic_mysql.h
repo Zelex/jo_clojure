@@ -93,12 +93,24 @@ static node_idx_t native_mysql_close(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
+static node_idx_t native_mysql_escape(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_basic_mysql_ptr_t mysql = get_node(*it++)->t_object.cast<jo_basic_mysql_t>();
+    jo_string str = get_node_string(*it++);
+    char *escaped = new char[str.size() * 2 + 1];
+    mysql_real_escape_string(mysql->conn, escaped, str.c_str(), str.size());
+    node_idx_t node = new_node_string(escaped);
+    delete[] escaped;
+    return node;
+}
+
 void jo_basic_mysql_init(env_ptr_t env) {
 	env->set("mysql", new_node_native_function("mysql", &native_mysql, false, NODE_FLAG_PRERESOLVE));
 	env->set("mysql/connect", new_node_native_function("mysql/connect", &native_mysql_connect, false, NODE_FLAG_PRERESOLVE));
 	env->set("mysql/select-db", new_node_native_function("mysql/select-db", &native_mysql_select_db, false, NODE_FLAG_PRERESOLVE));
 	env->set("mysql/query", new_node_native_function("mysql/query", &native_mysql_query, false, NODE_FLAG_PRERESOLVE));
 	env->set("mysql/close", new_node_native_function("mysql/close", &native_mysql_close, false, NODE_FLAG_PRERESOLVE));
+    env->set("mysql/escape", new_node_native_function("mysql/escape", &native_mysql_escape, false, NODE_FLAG_PRERESOLVE));
 }
 
 
