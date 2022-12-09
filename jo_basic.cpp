@@ -4073,7 +4073,9 @@ static node_idx_t native_is_reversible(env_ptr_t env, list_ptr_t args) {
 	return FALSE_NODE;
 }
 
-static node_idx_t native_eval(env_ptr_t env, list_ptr_t args) { return eval_node(env, args->first_value()); }
+static node_idx_t native_eval(env_ptr_t env, list_ptr_t args) { 
+	return eval_node(env, args->first_value()); 
+}
 
 // (into) 
 // (into to)
