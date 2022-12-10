@@ -5,7 +5,7 @@
     :height 480
     :window_title "Basic App"
     :init_cb (fn [] 
-        (reset! img (sg/canvas-image (canvas/load-file "kodim01.png")))
+        (reset! img (sg/file-image "kodim01.png"))
         (println @img)
     )
     :frame_cb (fn [] 

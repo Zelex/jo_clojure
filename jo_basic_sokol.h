@@ -1071,6 +1071,34 @@ static node_idx_t native_sg_update_canvas_image(env_ptr_t env, list_ptr_t args) 
     return NIL_NODE;
 }
 
+static node_idx_t native_sg_file_image(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_string filename = get_node_string(*it++);
+    int flags = get_node_int(*it++);
+    sg_image img = sg_alloc_image();
+    sg_image_desc desc = {0};
+    desc.label = filename.c_str();
+    desc.usage = SG_USAGE_IMMUTABLE;
+    desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+    desc.min_filter = SG_FILTER_LINEAR;
+    desc.mag_filter = SG_FILTER_LINEAR;
+    desc.wrap_u = SG_WRAP_REPEAT;
+    desc.wrap_v = SG_WRAP_REPEAT;
+    desc.num_mipmaps = 1;
+    int width, height, channels;
+    unsigned char *data = stbi_load(filename.c_str(), &width, &height, &channels, 4);
+    if(!data) {
+        return NIL_NODE;
+    }
+    desc.width = width;
+    desc.height = height;
+    desc.data.subimage[0][0].ptr = data;
+    desc.data.subimage[0][0].size = width * height * 4;
+    sg_init_image(img, &desc);
+    stbi_image_free(data);
+    return new_node_int(img.id);
+}
+
 void jo_basic_sokol_init(env_ptr_t env) {
 	env->set("sokol/run", new_node_native_function("sokol/run", &native_sokol_run, false, NODE_FLAG_PRERESOLVE));
 
@@ -1106,6 +1134,7 @@ void jo_basic_sokol_init(env_ptr_t env) {
     
     // sokol_gfx.h
     env->set("sg/image", new_node_native_function("sg/image", &native_sg_image, false, NODE_FLAG_PRERESOLVE));
+    env->set("sg/file-image", new_node_native_function("sg/file-image", &native_sg_file_image, false, NODE_FLAG_PRERESOLVE));
     env->set("sg/canvas-image", new_node_native_function("sg/canvas-image", &native_sg_canvas_image, false, NODE_FLAG_PRERESOLVE));
     env->set("sg/update-canvas-image", new_node_native_function("sg/update-canvas-image", &native_sg_update_canvas_image, false, NODE_FLAG_PRERESOLVE));
     env->set("sg/destroy-image", new_node_native_function("sg/destroy-image", &native_sg_destroy_image, false, NODE_FLAG_PRERESOLVE));
