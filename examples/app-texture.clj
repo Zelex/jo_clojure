@@ -6,7 +6,6 @@
     :window_title "Basic App"
     :init_cb (fn [] 
         (reset! img (sg/file-image "kodim01.png"))
-        (println @img)
     )
     :frame_cb (fn [] 
         (sgl/viewport 0 0 640 480 false)
