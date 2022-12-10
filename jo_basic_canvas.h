@@ -54,7 +54,7 @@ static node_idx_t native_canvas_load_file(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
     jo_string filename = get_node_string(*it++);
 
-    warnf("Note: load image file: %s\n", filename.c_str());
+    //warnf("Note: load image file: %s\n", filename.c_str());
 
     int width, height, channels;
     unsigned char *data = stbi_load(filename.c_str(), &width, &height, &channels, 0);

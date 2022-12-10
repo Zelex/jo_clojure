@@ -993,20 +993,41 @@ static node_idx_t native_sg_canvas_image(env_ptr_t env, list_ptr_t args) {
     sg_image_desc desc = {0};
     desc.width = canvas->width;
     desc.height = canvas->height;
-    int channels = canvas->channels;
-    desc.pixel_format = channels == 4 ? SG_PIXELFORMAT_RGBA8
-                      : channels == 2 ? SG_PIXELFORMAT_RG8
-                      : SG_PIXELFORMAT_R8;
-    unsigned char *data = (unsigned char *)malloc(desc.width * desc.height * channels);
+    desc.num_mipmaps = 1;
+    int in_ch = canvas->channels;
+    int out_ch;
+    if(in_ch == 1) {
+        desc.pixel_format = SG_PIXELFORMAT_R8;
+        out_ch = 1;
+    } else if(in_ch == 2) {
+        desc.pixel_format = SG_PIXELFORMAT_RG8;
+        out_ch = 2;
+    } else if(in_ch == 3) {
+        desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+        out_ch = 4;
+    } else if(in_ch == 4) {
+        desc.pixel_format = SG_PIXELFORMAT_RGBA8;
+        out_ch = 4;
+    } else {
+        return NIL_NODE;
+    }
+    int data_size = desc.width * desc.height * out_ch;
+    unsigned char *data = (unsigned char *)malloc(data_size);
     for(int y = 0; y < desc.height; y++) {
         for(int x = 0; x < desc.width; x++) {
-            for(int c = 0; c < channels; c++) {
-                data[(y*desc.width+x)*channels+c] = canvas->pixels->get(x*channels+c, y);
+            int c = 0;
+            for(; c < in_ch; c++) {
+                data[(y*desc.width+x)*out_ch+c] = canvas->pixels->get(x*in_ch+c, y);
+            }
+            for(; c < out_ch; c++) {
+                data[(y*desc.width+x)*out_ch+c] = 255;
             }
         }
     }
     desc.data.subimage[0][0].ptr = data;
+    desc.data.subimage[0][0].size = data_size;
     sg_image img = sg_make_image(&desc);
+    free(data);
     return new_node_int(img.id);
 }
 
@@ -1021,18 +1042,32 @@ static node_idx_t native_sg_update_canvas_image(env_ptr_t env, list_ptr_t args) 
     list_t::iterator it(args);
     sg_image img = {(unsigned)get_node_int(*it++)};
     jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
-    int channels = canvas->channels;
-    unsigned char *data = (unsigned char *)malloc(canvas->width * canvas->height * channels);
+    int width = canvas->width;
+    int in_ch = canvas->channels;
+    int out_ch;
+    if(in_ch == 1) out_ch = 1;
+    else if(in_ch == 2) out_ch = 2;
+    else if(in_ch == 3) out_ch = 4;
+    else if(in_ch == 4) out_ch = 4;
+    else return NIL_NODE;
+    int data_size = width * canvas->height * out_ch;
+    unsigned char *data = (unsigned char *)malloc(data_size);
     for(int y = 0; y < canvas->height; y++) {
-        for(int x = 0; x < canvas->width; x++) {
-            for(int c = 0; c < channels; c++) {
-                data[(y*canvas->width+x)*channels+c] = canvas->pixels->get(x*channels+c, y);
+        for(int x = 0; x < width; x++) {
+            int c = 0;
+            for(; c < in_ch; c++) {
+                data[(y*width+x)*out_ch+c] = canvas->pixels->get(x*in_ch+c, y);
+            }
+            for(; c < out_ch; c++) {
+                data[(y*width+x)*out_ch+c] = 255;
             }
         }
     }
     sg_image_data idata = {0};
     idata.subimage[0][0].ptr = data;
+    idata.subimage[0][0].size = data_size;
     sg_update_image(img, &idata);
+    free(data);
     return NIL_NODE;
 }
 
