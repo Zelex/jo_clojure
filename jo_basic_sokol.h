@@ -993,6 +993,13 @@ static node_idx_t native_sokol_canvas_image(env_ptr_t env, list_ptr_t args) {
     return new_node_int(img.id);
 }
 
+static node_idx_t native_sokol_destroy_image(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    sg_image img = {(unsigned)get_node_int(*it++)};
+    sg_destroy_image(img);
+    return NIL_NODE;
+}
+
 void jo_basic_sokol_init(env_ptr_t env) {
 	env->set("sokol/run", new_node_native_function("sokol/run", &native_sokol_run, false, NODE_FLAG_PRERESOLVE));
 
@@ -1026,6 +1033,7 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sokol/get-num-dropped-files", new_node_native_function("sokol/get-num-dropped-files", &native_sokol_get_num_dropped_files, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/get-dropped-file-path", new_node_native_function("sokol/get-dropped-file-path", &native_sokol_get_dropped_file_path, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/canvas-image", new_node_native_function("sokol/canvas-image", &native_sokol_canvas_image, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/destroy-image", new_node_native_function("sokol/destroy-image", &native_sokol_destroy_image, false, NODE_FLAG_PRERESOLVE));
 
     /* render state functions */
     env->set("sgl/defaults", new_node_native_function("sgl/defaults", &native_sgl_defaults, false, NODE_FLAG_PRERESOLVE));
