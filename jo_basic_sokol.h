@@ -970,6 +970,28 @@ static node_idx_t native_sgl_end(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
+static node_idx_t native_sokol_canvas_image(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    sg_image_desc desc = {0};
+    desc.width = canvas->width;
+    desc.height = canvas->height;
+    int channels = canvas->channels;
+    desc.pixel_format = channels == 4 ? SG_PIXELFORMAT_RGBA8
+                      : channels == 2 ? SG_PIXELFORMAT_RG8
+                      : SG_PIXELFORMAT_R8;
+    unsigned char *data = (unsigned char *)malloc(desc.width * desc.height * channels);
+    for(int y = 0; y < desc.height; y++) {
+        for(int x = 0; x < desc.width; x++) {
+            for(int c = 0; c < channels; c++) {
+                data[(y*desc.width+x)*channels+c] = canvas->pixels->get(x*channels+c, y);
+            }
+        }
+    }
+    desc.data.subimage[0][0].ptr = data;
+    sg_image img = sg_make_image(&desc);
+    return new_node_int(img.id);
+}
 
 void jo_basic_sokol_init(env_ptr_t env) {
 	env->set("sokol/run", new_node_native_function("sokol/run", &native_sokol_run, false, NODE_FLAG_PRERESOLVE));
@@ -1003,6 +1025,7 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sokol/set-window-title", new_node_native_function("sokol/set-window-title", &native_sokol_set_window_title, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/get-num-dropped-files", new_node_native_function("sokol/get-num-dropped-files", &native_sokol_get_num_dropped_files, false, NODE_FLAG_PRERESOLVE));
     env->set("sokol/get-dropped-file-path", new_node_native_function("sokol/get-dropped-file-path", &native_sokol_get_dropped_file_path, false, NODE_FLAG_PRERESOLVE));
+    env->set("sokol/canvas-image", new_node_native_function("sokol/canvas-image", &native_sokol_canvas_image, false, NODE_FLAG_PRERESOLVE));
 
     /* render state functions */
     env->set("sgl/defaults", new_node_native_function("sgl/defaults", &native_sgl_defaults, false, NODE_FLAG_PRERESOLVE));
