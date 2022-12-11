@@ -51,9 +51,9 @@
                 (when (= v 1)
                     ; draw an O as a circle
                     (sgl/begin-line-strip)
-                    (doseq [i (range 32)]
+                    (doseq [i (range 33)]
                         (let [a (* 2.0 3.14159265358979323846 (/ i 32.0))]
-                            (sgl/v2f-c3b (+ -1 0.33 (* x 0.66) (* 0.33 (Math/sin a))) (+ -1 0.33 (* y 0.66) (* 0.33 (Math/cos a))) 0 0 255)
+                            (sgl/v2f-c3b (+ -1 0.33 (* x 0.66) (* 0.3 (Math/sin a))) (+ -1 0.33 (* y 0.66) (* 0.3 (Math/cos a))) 0 0 255)
                         )
                     )
                     (sgl/end)
