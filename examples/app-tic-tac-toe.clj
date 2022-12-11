@@ -1,5 +1,27 @@
 (def field (atom [0 0 0 0 0 0 0 0 0]))
 
+; did 1 or 2 win?
+(defn did-win [player] 
+    (let [win (fn [a b c] 
+        (let [v (get @field a)]
+            (and (= v player)
+                (= v (get @field b))
+                (= v (get @field c))
+            )
+        )
+    )]
+        (or (win 0 1 2)
+            (win 3 4 5)
+            (win 6 7 8)
+            (win 0 3 6)
+            (win 1 4 7)
+            (win 2 5 8)
+            (win 0 4 8)
+            (win 2 4 6)
+        )
+    )
+)
+
 (def sokol-desc {
     :width 640
     :height 480
@@ -47,7 +69,14 @@
                 )
             )
         )
-
+        (when (did-win 1)
+            (println "Player 1 wins!")
+            (reset! field [0 0 0 0 0 0 0 0 0])
+        )
+        (when (did-win 2)
+            (println "Player 2 wins!")
+            (reset! field [0 0 0 0 0 0 0 0 0])
+        )
     )
     :cleanup_cb (fn [] 
     )
