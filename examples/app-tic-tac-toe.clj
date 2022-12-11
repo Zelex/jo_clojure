@@ -53,19 +53,31 @@
     )
     :event_cb (fn [event] 
         (let [
-            type (get event :type)
-            mouse_x (get event :mouse_x)
-            mouse_y (get event :mouse_y)
+            t (get event :type)
+            mouse_x (float (get event :mouse_x))
+            mouse_y (float (get event :mouse_y))
             mouse_button (get event :mouse_button)
             ]
-            (when (= type sokol/SAPP_EVENTTYPE_MOUSE_DOWN)
+            (when (= t sokol/SAPP_EVENTTYPE_MOUSE_DOWN)
                 (when (= mouse_button sokol/SAPP_MOUSEBUTTON_LEFT)
-                    (let [x (int (/ (+ 1 mouse_x) 0.66))
-                          y (int (/ (+ 1 mouse_y) 0.66))]
+                    (let [x (int (/ mouse_x 640 0.33))
+                          y (- 2 (int (/ mouse_y 480 0.33)))]
                         (when (and (>= x 0) (< x 3) (>= y 0) (< y 3))
                             (let [i (+ (* y 3) x)]
                                 (when (= (get @field i) 0)
                                     (swap! field assoc i 1)
+                                )
+                            )
+                        )
+                    )
+                )
+                (when (= mouse_button sokol/SAPP_MOUSEBUTTON_RIGHT)
+                    (let [x (int (/ mouse_x 640 0.33))
+                          y (- 2 (int (/ mouse_y 480 0.33)))]
+                        (when (and (>= x 0) (< x 3) (>= y 0) (< y 3))
+                            (let [i (+ (* y 3) x)]
+                                (when (= (get @field i) 0)
+                                    (swap! field assoc i 2)
                                 )
                             )
                         )
