@@ -19,8 +19,9 @@
     :frame_cb (fn [] 
         (sgl/viewport 0 0 640 480 false)
         (sgl/defaults)
-        (sgl/begin-lines)
+
         ; draw the grid
+        (sgl/begin-lines)
         (sgl/v2f  0.33  -1)
         (sgl/v2f  0.33   1)
         (sgl/v2f  -0.33 -1)
