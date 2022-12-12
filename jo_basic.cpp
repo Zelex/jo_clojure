@@ -6193,6 +6193,7 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 #include "jo_basic_math.h"
 #include "jo_basic_string.h"
 #include "jo_basic_system.h"
+#include "jo_basic_http.h"
 #include "jo_basic_io.h"
 #include "jo_basic_lazy.h"
 #include "jo_basic_async.h"
@@ -6563,6 +6564,7 @@ int main(int argc, char **argv) {
 	jo_basic_async_init(env);
 	jo_basic_math_init(env);
 	jo_basic_string_init(env);
+	jo_basic_http_init(env);
 	jo_basic_io_init(env);
 	jo_basic_system_init(env);
 	jo_basic_gif_init(env);
