@@ -165,10 +165,10 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
             event_map->assoc_inplace(new_node_string("key_repeat"), new_node_int(ev->key_repeat), node_sym_eq);
             event_map->assoc_inplace(new_node_string("modifiers"), new_node_int(ev->modifiers), node_sym_eq);
             switch(ev->mouse_button) {
-                case SAPP_MOUSEBUTTON_INVALID: event_map->assoc_implace(new_node_string("mouse_button"), new_node_keyword("invalid"), node_sym_eq); break;
-                case SAPP_MOUSEBUTTON_LEFT: event_map->assoc_implace(new_node_string("mouse_button"), new_node_keyword("left"), node_sym_eq); break;
-                case SAPP_MOUSEBUTTON_RIGHT: event_map->assoc_implace(new_node_string("mouse_button"), new_node_keyword("right"), node_sym_eq); break;
-                case SAPP_MOUSEBUTTON_MIDDLE: event_map->assoc_implace(new_node_string("mouse_button"), new_node_keyword("middle"), node_sym_eq); break;
+                case SAPP_MOUSEBUTTON_INVALID: event_map->assoc_inplace(new_node_string("mouse_button"), new_node_keyword("invalid"), node_sym_eq); break;
+                case SAPP_MOUSEBUTTON_LEFT: event_map->assoc_inplace(new_node_string("mouse_button"), new_node_keyword("left"), node_sym_eq); break;
+                case SAPP_MOUSEBUTTON_RIGHT: event_map->assoc_inplace(new_node_string("mouse_button"), new_node_keyword("right"), node_sym_eq); break;
+                case SAPP_MOUSEBUTTON_MIDDLE: event_map->assoc_inplace(new_node_string("mouse_button"), new_node_keyword("middle"), node_sym_eq); break;
                 default: event_map->assoc_inplace(new_node_string("mouse_button"), new_node_int(ev->mouse_button), node_sym_eq); break;
             }
             event_map->assoc_inplace(new_node_string("mouse_x"), new_node_float(ev->mouse_x), node_sym_eq);
