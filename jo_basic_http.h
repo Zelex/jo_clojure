@@ -53,7 +53,7 @@ static jo_string url_decode(jo_string url) {
 }
 
 static jo_string url_encode(const void *data, size_t len) {
-    const char *str = (const char *)data;
+    const unsigned char *str = (const unsigned char *)data;
     jo_string result;
     for (int i = 0; i < len; i++) {
         if (str[i] >= '0' && str[i] <= '9') result += str[i];
