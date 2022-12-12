@@ -663,54 +663,63 @@ struct jo_object {
 
 struct jo_string {
     char *str;
+    size_t size;
     
-    jo_string() { str = jo_strdup(""); }
-    jo_string(const char *ss) { str = jo_strdup(ss); }
-    jo_string(char c) { str = jo_strdup(" "); str[0] = c; }
-    jo_string(const jo_string *other) { str = jo_strdup(other->str); }
-    jo_string(const jo_string &other) { str = jo_strdup(other.str); }
+    jo_string() { str = jo_strdup(""); size = 1; }
+    jo_string(const char *ss) { str = jo_strdup(ss); size = strlen(ss) + 1; }
+    jo_string(char c) { str = jo_strdup(" "); str[0] = c; size = 2; }
+    jo_string(const jo_string *other) { str = jo_strdup(other->str); size = other->size; }
+    jo_string(const jo_string &other) { str = jo_strdup(other.str); size = other.size; }
     jo_string(jo_string &&other) {
         str = other.str;
+        size = other.size;
         other.str = NULL;
+        other.size = 0;
     }
-    jo_string(const char *a, size_t size) {
-        str = (char*)malloc(size+1);
-        jo_memcpy(str, a, size);
-        str[size] = 0;
+    jo_string(const char *a, size_t s) {
+        size = s+1;
+        str = (char*)malloc(size);
+        jo_memcpy(str, a, s);
+        str[s] = 0;
     }
     jo_string(const char *a, const char *b) {
-        ptrdiff_t size = b - a;
-        str = (char*)malloc(size+1);
-        jo_memcpy(str, a, size);
-        str[size] = 0;
+        ptrdiff_t s = b - a;
+        size = s + 1;
+        str = (char*)malloc(size);
+        jo_memcpy(str, a, s);
+        str[s] = 0;
     }
 
     ~jo_string() {
         free(str);
         str = 0;
+        size = 0;
     }
 
     const char *c_str() const { return str; };
-    int compare(const jo_string &other) { return strcmp(str, other.str); }
-    size_t size() const { return strlen(str); }
-    size_t length() const { return strlen(str); }
+    int compare(const jo_string &other) { return memcmp(str, other.str, jo_min(size, other.size)); }
+    size_t length() const { return size-1; }
 
     jo_string &operator=(const char *s) {
-        char *tmp = jo_strdup(s);
+        size = strlen(s) + 1;
+        char *tmp = (char*)malloc(size);
+        jo_memcpy(tmp, s, size);
         free(str);
         str = tmp;
         return *this;
     }
 
     jo_string &operator=(const jo_string &s) {
-        char *tmp = jo_strdup(s.str);
+        char *tmp = (char*)malloc(s.size);
+        size = s.size;
+        jo_memcpy(tmp, s.str, size);
         free(str);
         str = tmp;
         return *this;
     }
 
     jo_string &operator+=(const char *s) {
-        size_t l0 = strlen(str);
+        size_t l0 = size-1;
         size_t l1 = strlen(s);
         char *new_str = (char*)realloc(str, l0 + l1 + 1);
         if(!new_str) {
@@ -718,14 +727,29 @@ struct jo_string {
             return *this;
         }
         str = new_str;
+        size = l0 + l1 + 1;
         jo_memcpy(str+l0, s, l1);
         str[l0+l1] = 0;
         return *this;
     }
-    jo_string &operator+=(const jo_string &s) { *this += s.c_str(); return *this; }
+
+    jo_string &operator+=(const jo_string &s) { 
+        size_t l0 = size-1;
+        size_t l1 = s.size-1;
+        char *new_str = (char*)realloc(str, l0 + l1 + 1);
+        if(!new_str) {
+            // malloc failed!
+            return *this;
+        }
+        str = new_str;
+        size = l0 + l1 + 1;
+        jo_memcpy(str+l0, s.str, l1);
+        str[l0+l1] = 0;
+        return *this;
+    }
 
     jo_string &operator+=(char c) {
-        size_t l0 = strlen(str);
+        size_t l0 = size-1;
         char *new_str = (char*)realloc(str, l0 + 2);
         if(!new_str) {
             // malloc failed!
@@ -734,36 +758,47 @@ struct jo_string {
         str = new_str;
         str[l0] = c;
         str[l0+1] = 0;
+        size = l0 + 2;
         return *this;
     }
 
     size_t find_last_of(char c) const {
-        char *tmp = strrchr(str, c);
-        if(!tmp) return jo_npos;
-        return (size_t)(tmp - str);
+        for(long long i = size - 2; i >= 0; --i) {
+            if(str[i] == c) return i;
+        }
+        return jo_npos;
     }
 
     size_t find_last_of(const char *s) const {
-        const char *tmp = jo_strrstr(str, s);
-        if(!tmp) return jo_npos;
-        return (size_t)(tmp - str);
+        size_t l = strlen(s);
+        if(l == 1) return find_last_of(s[0]);
+        for(long long i = size - l - 2; i >= 0; --i) {
+            size_t j = 0;
+            for(; j < l; ++j) {
+                if(str[i+j] != s[j]) break;
+            }
+            if(j == l) return i;
+        }
+        return jo_npos;
     }
 
     jo_string &erase(size_t n) {
         str[n] = 0;
+        size = n+1;
         return *this;
     }
 
     jo_string &erase(size_t n, size_t m) {
-        size_t l = strlen(str);
+        size_t l = size-1;
         if(n >= l) return *this;
         if(m > l) m = l;
         jo_memmove(str+n, str+m, l-m+1);
+        size = l - m + n + 1;
         return *this;
     }
 
     jo_string &insert(size_t n, const char *s) {
-        size_t l0 = strlen(str);
+        size_t l0 = size-1;
         size_t l1 = strlen(s);
         if(n > l0) n = l0;
         char *new_str = (char*)malloc(l0 + l1 + 1);
@@ -776,14 +811,15 @@ struct jo_string {
         jo_memcpy(new_str+n+l1, str+n, l0-n+1);
         free(str);
         str = new_str;
+        size = l0 + l1 + 1;
         return *this;
     }
 
     jo_string substr(size_t pos = 0, size_t len = jo_npos) const {
         if(len == jo_npos) {
-            len = size() - pos;
+            len = length() - pos;
         }
-        if(pos >= size()) return jo_string();
+        if(pos >= length()) return jo_string();
         return jo_string(str + pos, len);
     }
 
@@ -822,14 +858,14 @@ struct jo_string {
     int compare(const char *s) const { return strcmp(str, s); }
 
     jo_string &lower() {
-        for(size_t i = 0; i < size(); i++) {
+        for(size_t i = 0; i < length(); i++) {
             str[i] = (char)jo_tolower(str[i]);
         }
         return *this;
     }
 
     jo_string &upper() {
-        for(size_t i = 0; i < size(); i++) {
+        for(size_t i = 0; i < length(); i++) {
             str[i] = (char)jo_toupper(str[i]);
         }
         return *this;
@@ -837,11 +873,11 @@ struct jo_string {
 
     jo_string &reverse() {
         char *tmp = str;
-        char *end = str + size();
+        char *end = str + length();
         while(tmp < end) {
             char c = *tmp;
-            *tmp = *(end-1);
-            *(end-1) = c;
+            *tmp = *end;
+            *end = c;
             tmp++;
             end--;
         }
@@ -850,7 +886,7 @@ struct jo_string {
 
     // True if s empty or contains only whitespace.
     bool empty() const {
-        for(size_t i = 0; i < size(); i++) {
+        for(size_t i = 0; i < length(); i++) {
             if(!jo_isspace(str[i])) return false;
         }
         return true;
@@ -858,9 +894,9 @@ struct jo_string {
 
     // Converts first character of the string to upper-case, all other characters to lower-case.
     jo_string &capitalize() {
-        if(size() == 0) return *this;
+        if(length() == 0) return *this;
         str[0] = (char)jo_toupper(str[0]);
-        for(size_t i = 1; i < size(); i++) {
+        for(size_t i = 1; i < length(); i++) {
             str[i] = (char)jo_tolower(str[i]);
         }
         return *this;
@@ -868,14 +904,14 @@ struct jo_string {
 
     bool ends_with(const char *s) const {
         size_t l1 = strlen(s);
-        size_t l2 = size();
+        size_t l2 = length();
         if(l1 > l2) return false;
         return strcmp(str+l2-l1, s) == 0;
     }
 
     bool starts_with(const char *s) const {
         size_t l1 = strlen(s);
-        size_t l2 = size();
+        size_t l2 = length();
         if(l1 > l2) return false;
         return strncmp(str, s, l1) == 0;
     }
@@ -885,7 +921,7 @@ struct jo_string {
     }
 
     int index_of(char c) const {
-        for(size_t i = 0; i < size(); i++) {
+        for(size_t i = 0; i < length(); i++) {
             if(str[i] == c) return (int)i;
         }
         return -1;
@@ -898,7 +934,7 @@ struct jo_string {
     }
 
     int last_index_of(char c) const {
-        for(int i = (int)size()-1; i >= 0; i--) {
+        for(int i = (int)length()-1; i >= 0; i--) {
             if(str[i] == c) return i;
         }
         return -1;
@@ -912,14 +948,14 @@ struct jo_string {
 
     jo_string &trim() {
         size_t start = 0;
-        while(start < size() && jo_isspace(str[start])) {
+        while(start < length() && jo_isspace(str[start])) {
             start++;
         }
-        size_t end = size()-1;
+        size_t end = length()-1;
         while(end > start && jo_isspace(str[end])) {
             end--;
         }
-        if(start > 0 || end < size()-1) {
+        if(start > 0 || end < length()-1) {
             char *tmp = (char*)malloc(end-start+2);
             if(!tmp) {
                 // malloc failed!
@@ -935,17 +971,17 @@ struct jo_string {
 
     jo_string &ltrim() {
         size_t start = 0;
-        while(start < size() && jo_isspace(str[start])) {
+        while(start < length() && jo_isspace(str[start])) {
             start++;
         }
         if(start > 0) {
-            char *tmp = (char*)malloc(size()-start+1);
+            char *tmp = (char*)malloc(length()-start+1);
             if(!tmp) {
                 // malloc failed!
                 return *this;
             }
-            jo_memcpy(tmp, str+start, size()-start);
-            tmp[size()-start] = 0;
+            jo_memcpy(tmp, str+start, length()-start);
+            tmp[length()-start] = 0;
             free(str);
             str = tmp;
         }
@@ -953,11 +989,11 @@ struct jo_string {
     }
 
     jo_string &rtrim() {
-        size_t end = size()-1;
+        size_t end = length()-1;
         while(end > 0 && jo_isspace(str[end])) {
             end--;
         }
-        if(end < size()-1) {
+        if(end < length()-1) {
             char *tmp = (char*)malloc(end+2);
             if(!tmp) {
                 // malloc failed!
@@ -972,11 +1008,11 @@ struct jo_string {
     }
 
     jo_string &chomp() {
-        if(size() == 0) return *this;
-        if(str[size()-1] == '\n') {
-            str[size()-1] = 0;
-            if(size() > 0 && str[size()-1] == '\r') {
-                str[size()-1] = 0;
+        if(length() == 0) return *this;
+        if(str[length()-1] == '\n') {
+            str[length()-1] = 0;
+            if(length() > 0 && str[length()-1] == '\r') {
+                str[length()-1] = 0;
             }
         }
         return *this;
@@ -984,7 +1020,7 @@ struct jo_string {
 
     jo_string &replace(const char *s, const char *r) {
         size_t pos = 0;
-        while(pos < size()) {
+        while(pos < length()) {
             size_t pos2 = find(s, pos);
             if(pos2 == jo_npos) {
                 break;
@@ -1007,7 +1043,7 @@ struct jo_string {
     }
 
     jo_string &take(size_t n) {
-        size_t l = size();
+        size_t l = length();
         if(n > l) {
             n = l;
         }
@@ -1024,7 +1060,7 @@ struct jo_string {
     }
 
     jo_string &drop(size_t n) {
-        size_t l = size();
+        size_t l = length();
         if(n > l) {
             n = l;
         }
@@ -1072,7 +1108,7 @@ struct jo_string {
     }
 
     iterator end() const {
-        return iterator(str+size());
+        return iterator(str+length());
     }
 };
 

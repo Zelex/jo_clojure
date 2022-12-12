@@ -705,7 +705,7 @@ struct node_t {
 			return seq_first_t(lit.val, true);
 		}
 		if(is_string()) {
-			if(!t_string.size()) return seq_first_t(NIL_NODE, false);
+			if(!t_string.length()) return seq_first_t(NIL_NODE, false);
 			return seq_first_t(new_node_int(t_string.c_str()[0], NODE_FLAG_CHAR), true);
 		}
 		return seq_first_t(NIL_NODE, false);
@@ -733,7 +733,7 @@ struct node_t {
 			return seq_second_t(lit.val, true);
 		}
 		if(is_string()) {
-			if(t_string.size() < 2) return seq_second_t(NIL_NODE, false);
+			if(t_string.length() < 2) return seq_second_t(NIL_NODE, false);
 			return seq_second_t(new_node_int(t_string.c_str()[1], NODE_FLAG_CHAR), true);
 		}
 		return seq_second_t(NIL_NODE, false);
@@ -763,7 +763,7 @@ struct node_t {
 			return seq_rest_t(new_node_lazy_list(t_env, lit.next_fn()), true);
 		}
 		if(is_string()) {
-			if(!t_string.size()) return seq_rest_t(NIL_NODE, false);
+			if(!t_string.length()) return seq_rest_t(NIL_NODE, false);
 			return seq_rest_t(new_node_string(t_string.substr(1)), true);
 		}
 		return seq_rest_t(NIL_NODE, false);
@@ -794,8 +794,8 @@ struct node_t {
 			if(lit.done()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
 			return seq_first_rest_t(lit.val, new_node_lazy_list(t_env, lit.next_fn()), true);
 		}
-		if(is_string() && t_string.size()) {
-			 if(!t_string.size()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
+		if(is_string() && t_string.length()) {
+			 if(!t_string.length()) return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
 			 return seq_first_rest_t(INT_0_NODE + t_string.c_str()[0], new_node_string(t_string.substr(1)), true);
 		}
 		return seq_first_rest_t(NIL_NODE, NIL_NODE, false);
@@ -810,7 +810,7 @@ struct node_t {
 			lazy_list_iterator_t lit(this);
 			return lit.done();
 		}
-		if(is_string() && t_string.size()) return false;
+		if(is_string() && t_string.length()) return false;
 		return true;
 	}
 
@@ -838,7 +838,7 @@ struct node_t {
 			return seq_take_t(new_node_list(lit.all(n)), true);
 		}
 		if(is_string()) {
-			if(!t_string.size()) return seq_take_t(NIL_NODE, false);
+			if(!t_string.length()) return seq_take_t(NIL_NODE, false);
 			return seq_take_t(new_node_string(t_string.substr(0, n)), true);
 		}
 		return seq_take_t(NIL_NODE, false);
@@ -853,7 +853,7 @@ struct node_t {
 			lazy_list_iterator_t lit(this);
 			return new_node_list(lit.all(n));
 		}
-		if(is_string() && t_string.size()) return new_node_string(t_string.substr(n));
+		if(is_string() && t_string.length()) return new_node_string(t_string.substr(n));
 		return NIL_NODE;
 	}
 
@@ -866,7 +866,7 @@ struct node_t {
 			lazy_list_iterator_t lit(this);
 			return lit.all()->size();
 		}
-		if(is_string() && t_string.size()) return t_string.size();
+		if(is_string() && t_string.length()) return t_string.length();
 		return NIL_NODE;
 	}
 
@@ -1642,7 +1642,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 	}
 
 	const char *tok_ptr = tok.str.c_str();
-	const char *tok_ptr_end = tok_ptr + tok.str.size();
+	const char *tok_ptr_end = tok_ptr + tok.str.length();
 	int c = tok_ptr[0];
 	int c2 = tok_ptr[1];
 
@@ -1699,7 +1699,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 			}
 		}
 		// 0 octal
-		else if(c == '0' && tok.str.size() > 1) {
+		else if(c == '0' && tok.str.length() > 1) {
 			tok_ptr += 1;
 			// parse octal from tok_ptr
 			while(is_alnum(*tok_ptr)) {
@@ -3629,7 +3629,7 @@ static node_idx_t native_pop(env_ptr_t env, list_ptr_t args) {
 	}
 	if(list->is_string()) {
 		jo_string list_str = list->as_string();
-		if(list_str.size() == 0) return NIL_NODE;
+		if(list_str.length() == 0) return NIL_NODE;
 		return new_node_string(list_str.substr(1));
 	}
 	if(list->is_lazy_list()) {
@@ -3648,7 +3648,7 @@ static node_idx_t native_peek(env_ptr_t env, list_ptr_t args) {
 	if(list->is_vector()) return list->as_vector()->first_value();
 	if(list->is_string()) {
 		jo_string s = list->as_string();
-		if(s.size() == 0) return NIL_NODE;
+		if(s.length() == 0) return NIL_NODE;
 		return new_node_int(s.c_str()[0]);
 	}
 	if(list->is_lazy_list()) {
@@ -3708,8 +3708,8 @@ static node_idx_t native_last(env_ptr_t env, list_ptr_t args) {
 	node_t *node = get_node(node_idx);
 	if(node->is_string()) {
 		jo_string &str = node->t_string;
-		if(str.size() < 1) return NIL_NODE;
-		return new_node_int(node->t_string.c_str()[str.size() - 1]);
+		if(str.length() < 1) return NIL_NODE;
+		return new_node_int(node->t_string.c_str()[str.length() - 1]);
 	}
 	if(node->is_list()) return node->t_list->last_value();
 	if(node->is_vector()) return node->as_vector()->last_value();
@@ -3739,8 +3739,8 @@ static node_idx_t native_nth(env_ptr_t env, list_ptr_t args) {
 	long long n = get_node(n_idx)->as_int();
 	if(list->is_string()) {
 		jo_string &str = list->t_string;
-		if(n < 0) n = str.size() + n;
-		if(n < 0 || n >= str.size()) return NIL_NODE;
+		if(n < 0) n = str.length() + n;
+		if(n < 0 || n >= str.length()) return NIL_NODE;
 		return new_node_int(str.c_str()[n]);
 	}
 	if(list->is_list()) {
@@ -3807,8 +3807,8 @@ static node_idx_t native_rand_nth(env_ptr_t env, list_ptr_t args) {
 	node_t *list = get_node(list_idx);
 	if(list->is_string()) {
 		jo_string &str = list->t_string;
-		if(str.size() == 0) return NIL_NODE;
-		return new_node_int(str.c_str()[jo_pcg32(&jo_rnd_state) % str.size()]);
+		if(str.length() == 0) return NIL_NODE;
+		return new_node_int(str.c_str()[jo_pcg32(&jo_rnd_state) % str.length()]);
 	}
 	if(list->is_list()) {
 		size_t size = list->as_list()->size();
@@ -4522,8 +4522,8 @@ static node_idx_t native_nthrest(env_ptr_t env, list_ptr_t args) {
 	if(n <= 0) return coll_idx;
 	if(coll_node->is_string()) {
 		jo_string &str = coll_node->t_string;
-		if(n < 0) n = str.size() + n;
-		if(n < 0 || n >= str.size()) return new_node_string("");
+		if(n < 0) n = str.length() + n;
+		if(n < 0 || n >= str.length()) return new_node_string("");
 		return new_node_string(str.substr(n));
 	}
 	if(coll_node->is_list()) return new_node_list(coll_node->t_list->drop(n));
@@ -4549,8 +4549,8 @@ static node_idx_t native_nthnext(env_ptr_t env, list_ptr_t args) {
 	if(n <= 0) return NIL_NODE;
 	if(coll_node->is_string()) {
 		jo_string &str = coll_node->t_string;
-		if(n < 0) n = str.size() + n;
-		if(n < 0 || n >= str.size()) return new_node_string("");
+		if(n < 0) n = str.length() + n;
+		if(n < 0 || n >= str.length()) return new_node_string("");
 		return new_node_string(str.substr(n));
 	}
 	if(coll_node->is_list()) {
@@ -5091,8 +5091,8 @@ static node_idx_t native_split_at(env_ptr_t env, list_ptr_t args) {
 		vec->push_back_inplace(new_node_list(coll->drop(n)));
 	} else if(coll_type == NODE_STRING) {
 		jo_string coll = get_node_string(coll_idx);
-		if(n > coll.size()) {
-			n = coll.size();
+		if(n > coll.length()) {
+			n = coll.length();
 		}
 		jo_string coll2 = coll;
 		vec->push_back_inplace(new_node_string(coll.take(n)));
@@ -5442,9 +5442,9 @@ static node_idx_t native_load_string(env_ptr_t env, list_ptr_t args) {
 	jo_string s = get_node_string(args->first_value());
 
 	parse_state_t parse_state;
-	//parse_state.fp = jo_fmemopen((void*)s.c_str(), s.size(), "r");
+	//parse_state.fp = jo_fmemopen((void*)s.c_str(), s.length(), "r");
 	parse_state.buf = s.c_str();
-	parse_state.buf_end = s.c_str() + s.size();
+	parse_state.buf_end = s.c_str() + s.length();
 
 	// parse the base list
 	list_ptr_t main_list = new_list();
@@ -5757,7 +5757,7 @@ static node_idx_t native_read_string(env_ptr_t env, list_ptr_t args) {
 
 	parse_state_t parse_state;
 	parse_state.buf = s.c_str();
-	parse_state.buf_end = s.c_str() + s.size();
+	parse_state.buf_end = s.c_str() + s.length();
 
 	return eval_node_list(env, list_va(parse_next(env, &parse_state, 0)));
 }

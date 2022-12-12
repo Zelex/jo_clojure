@@ -97,8 +97,8 @@ static node_idx_t native_mysql_escape(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
     jo_basic_mysql_ptr_t mysql = get_node(*it++)->t_object.cast<jo_basic_mysql_t>();
     jo_string str = get_node_string(*it++);
-    char *escaped = new char[str.size() * 2 + 1];
-    mysql_real_escape_string(mysql->conn, escaped, str.c_str(), str.size());
+    char *escaped = new char[str.length() * 2 + 1];
+    mysql_real_escape_string(mysql->conn, escaped, str.c_str(), str.length());
     node_idx_t node = new_node_string(escaped);
     delete[] escaped;
     return node;

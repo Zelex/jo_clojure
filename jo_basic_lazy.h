@@ -802,7 +802,7 @@ static node_idx_t native_interleave_next(env_ptr_t env, list_ptr_t args) {
 					return NIL_NODE;
 				}
 			} else if(ntype == NODE_STRING) {
-				if(n->t_string.size() == 0) {
+				if(n->t_string.length() == 0) {
 					return NIL_NODE;
 				}
 			} else {
@@ -1173,9 +1173,9 @@ static node_idx_t native_drop(env_ptr_t env, list_ptr_t args) {
 	if(list->is_string()) {
 		jo_string &str = list->t_string;
 		if(n < 0) {
-			n = str.size() + n;
+			n = str.length() + n;
 		}
-		if(n < 0 || n >= str.size()) {
+		if(n < 0 || n >= str.length()) {
 			return new_node_string("");
 		}
 		return new_node_string(str.substr(n));
