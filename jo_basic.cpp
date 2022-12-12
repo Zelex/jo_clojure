@@ -1387,6 +1387,7 @@ struct parse_state_t {
 		return c;
 	}
 	void ungetc(int c) {
+		if(c == EOF) return;
 		if(c == '\n') {
 			line_num--;
 		};
@@ -1399,6 +1400,13 @@ static jo_token_t get_token(parse_state_t *state) {
 	// skip leading whitepsace and comma
 	do {
 		int c = state->getc();
+		if(c == EOF) {
+			jo_token_t tok;
+			tok.line = state->line_num;
+			tok.type = TOK_EOF;
+			debugf("token: EOF\n");
+			return tok;
+		}
 		if(!is_whitespace(c) && c != ',') {
 			state->ungetc(c);
 			break;
@@ -5759,7 +5767,9 @@ static node_idx_t native_read_string(env_ptr_t env, list_ptr_t args) {
 	parse_state.buf = s.c_str();
 	parse_state.buf_end = s.c_str() + s.length();
 
-	return eval_node_list(env, list_va(parse_next(env, &parse_state, 0)));
+	node_idx_t result = parse_next(env, &parse_state, 0);
+	if(result == INV_NODE) return NIL_NODE;
+	return eval_node_list(env, list_va(result));
 }
 
 static node_idx_t native_replace(env_ptr_t env, list_ptr_t args) {

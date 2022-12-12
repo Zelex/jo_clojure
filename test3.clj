@@ -1,1 +1,1 @@
-(when-first [a []] :x)
+(read-string " ")
