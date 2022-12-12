@@ -3,14 +3,9 @@
 ; did 1 or 2 win?
 (defn did-win [player] 
     (let [win (fn [a b c] (= player (get @field a) (get @field b) (get @field c)))]
-        (or (win 0 1 2)
-            (win 3 4 5)
-            (win 6 7 8)
-            (win 0 3 6)
-            (win 1 4 7)
-            (win 2 5 8)
-            (win 0 4 8)
-            (win 2 4 6)
+        (or (win 0 1 2) (win 3 4 5) (win 6 7 8)
+            (win 0 3 6) (win 1 4 7) (win 2 5 8)
+            (win 0 4 8) (win 2 4 6)
         )
     )
 )
