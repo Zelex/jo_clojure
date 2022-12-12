@@ -4,7 +4,7 @@
 
 if [ "$(uname)" == "Darwin" ]; then
     c++ -std=c++17 -x objective-c++ \
-     -I/opt/homebrew/opt/mysql-client/include \
+     -Iext -I/opt/homebrew/opt/mysql-client/include \
      jo_basic.cpp \
      imgui/imgui.cpp imgui/imgui_widgets.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_demo.cpp \
      -O2 -fno-exceptions -lpthread -lobjc \
@@ -15,6 +15,7 @@ if [ "$(uname)" == "Darwin" ]; then
 elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     c++ -std=c++17 \
      -DNO_SOKOL \
+     -Iext \
      jo_basic.cpp \
      imgui/imgui.cpp imgui/imgui_widgets.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_demo.cpp \
      -O2 -fno-exceptions -lpthread -lobjc \
