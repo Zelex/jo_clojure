@@ -75,8 +75,8 @@
             mouse_y (float (get event :mouse_y))
             mouse_button (get event :mouse_button)
             ]
-            (when (= t sokol/SAPP_EVENTTYPE_MOUSE_DOWN)
-                (when (= mouse_button sokol/SAPP_MOUSEBUTTON_LEFT)
+            (when (= t :mouse-down)
+                (when (= mouse_button :left)
                     (let [x (int (/ mouse_x 640 0.33))
                           y (- 2 (int (/ mouse_y 480 0.33)))]
                         (when (and (>= x 0) (< x 3) (>= y 0) (< y 3))
@@ -88,7 +88,7 @@
                         )
                     )
                 )
-                (when (= mouse_button sokol/SAPP_MOUSEBUTTON_RIGHT)
+                (when (= mouse_button :right)
                     (let [x (int (/ mouse_x 640 0.33))
                           y (- 2 (int (/ mouse_y 480 0.33)))]
                         (when (and (>= x 0) (< x 3) (>= y 0) (< y 3))

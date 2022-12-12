@@ -132,13 +132,45 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         node_idx_t event_cb_idx = get_map_idx(desc_map, "event_cb", NIL_NODE);
         if(event_cb_idx != NIL_NODE) {
             hash_map_ptr_t event_map = new_hash_map();
+            switch(ev->type) {
+                case SAPP_EVENTTYPE_INVALID: event_map->assoc_implace(new_node_string("type"), new_node_keyword("invalid"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_KEY_DOWN: event_map->assoc_implace(new_node_string("type"), new_node_keyword("key-down"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_KEY_UP: event_map->assoc_implace(new_node_string("type"), new_node_keyword("key-up"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_CHAR: event_map->assoc_implace(new_node_string("type"), new_node_keyword("char"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_MOUSE_DOWN: event_map->assoc_implace(new_node_string("type"), new_node_keyword("mouse-down"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_MOUSE_UP: event_map->assoc_implace(new_node_string("type"), new_node_keyword("mouse-up"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_MOUSE_SCROLL: event_map->assoc_implace(new_node_string("type"), new_node_keyword("mouse-scroll"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_MOUSE_MOVE: event_map->assoc_implace(new_node_string("type"), new_node_keyword("mouse-move"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_MOUSE_ENTER: event_map->assoc_implace(new_node_string("type"), new_node_keyword("mouse-enter"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_MOUSE_LEAVE: event_map->assoc_implace(new_node_string("type"), new_node_keyword("mouse-leave"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_TOUCHES_BEGAN: event_map->assoc_implace(new_node_string("type"), new_node_keyword("touches-began"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_TOUCHES_MOVED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("touches-moved"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_TOUCHES_ENDED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("touches-ended"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_TOUCHES_CANCELLED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("touches-cancelled"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_RESIZED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("resized"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_ICONIFIED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("iconified"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_RESTORED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("restored"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_FOCUSED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("focused"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_UNFOCUSED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("unfocused"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_SUSPENDED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("suspended"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_RESUMED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("resumed"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_QUIT_REQUESTED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("quit-requested"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_CLIPBOARD_PASTED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("clipboard-pasted"), node_sym_eq); break;
+                case SAPP_EVENTTYPE_FILES_DROPPED: event_map->assoc_implace(new_node_string("type"), new_node_keyword("files-dropped"), node_sym_eq); break;
+                default: event_map->assoc_inplace(new_node_string("type"), new_node_int(ev->type), node_sym_eq); break;
+            }
             event_map->assoc_inplace(new_node_string("frame_count"), new_node_int(ev->frame_count), node_sym_eq);
-            event_map->assoc_inplace(new_node_string("type"), new_node_int(ev->type), node_sym_eq);
             event_map->assoc_inplace(new_node_string("key_code"), new_node_int(ev->key_code), node_sym_eq);
             event_map->assoc_inplace(new_node_string("char_code"), new_node_int(ev->char_code), node_sym_eq);
             event_map->assoc_inplace(new_node_string("key_repeat"), new_node_int(ev->key_repeat), node_sym_eq);
             event_map->assoc_inplace(new_node_string("modifiers"), new_node_int(ev->modifiers), node_sym_eq);
-            event_map->assoc_inplace(new_node_string("mouse_button"), new_node_int(ev->mouse_button), node_sym_eq);
+            switch(ev->mouse_button) {
+                case SAPP_MOUSEBUTTON_INVALID: event_map->assoc_implace(new_node_string("mouse_button"), new_node_keyword("invalid"), node_sym_eq); break;
+                case SAPP_MOUSEBUTTON_LEFT: event_map->assoc_implace(new_node_string("mouse_button"), new_node_keyword("left"), node_sym_eq); break;
+                case SAPP_MOUSEBUTTON_RIGHT: event_map->assoc_implace(new_node_string("mouse_button"), new_node_keyword("right"), node_sym_eq); break;
+                case SAPP_MOUSEBUTTON_MIDDLE: event_map->assoc_implace(new_node_string("mouse_button"), new_node_keyword("middle"), node_sym_eq); break;
+                default: event_map->assoc_inplace(new_node_string("mouse_button"), new_node_int(ev->mouse_button), node_sym_eq); break;
+            }
             event_map->assoc_inplace(new_node_string("mouse_x"), new_node_float(ev->mouse_x), node_sym_eq);
             event_map->assoc_inplace(new_node_string("mouse_y"), new_node_float(ev->mouse_y), node_sym_eq);
             event_map->assoc_inplace(new_node_string("mouse_dx"), new_node_float(ev->mouse_dx), node_sym_eq);
@@ -1141,40 +1173,10 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sokol/SAPP_MODIFIER_RMB", new_node_int(SAPP_MODIFIER_RMB));
     env->set("sokol/SAPP_MODIFIER_MMB", new_node_int(SAPP_MODIFIER_MMB));
 
-    env->set("sokol/SAPP_MOUSEBUTTON_LEFT", new_node_int(SAPP_MOUSEBUTTON_LEFT));
-    env->set("sokol/SAPP_MOUSEBUTTON_RIGHT", new_node_int(SAPP_MOUSEBUTTON_RIGHT));
-    env->set("sokol/SAPP_MOUSEBUTTON_MIDDLE", new_node_int(SAPP_MOUSEBUTTON_MIDDLE));
-    env->set("sokol/SAPP_MOUSEBUTTON_INVALID", new_node_int(SAPP_MOUSEBUTTON_INVALID));
-
     env->set("sokol/SAPP_ANDROIDTOOLTYPE_UNKNOWN", new_node_int(SAPP_ANDROIDTOOLTYPE_UNKNOWN));
     env->set("sokol/SAPP_ANDROIDTOOLTYPE_FINGER", new_node_int(SAPP_ANDROIDTOOLTYPE_FINGER));
     env->set("sokol/SAPP_ANDROIDTOOLTYPE_STYLUS", new_node_int(SAPP_ANDROIDTOOLTYPE_STYLUS));
     env->set("sokol/SAPP_ANDROIDTOOLTYPE_MOUSE", new_node_int(SAPP_ANDROIDTOOLTYPE_MOUSE));
-
-    env->set("sokol/SAPP_EVENTTYPE_INVALID", new_node_int(SAPP_EVENTTYPE_INVALID));
-    env->set("sokol/SAPP_EVENTTYPE_KEY_DOWN", new_node_int(SAPP_EVENTTYPE_KEY_DOWN));
-    env->set("sokol/SAPP_EVENTTYPE_KEY_UP", new_node_int(SAPP_EVENTTYPE_KEY_UP));
-    env->set("sokol/SAPP_EVENTTYPE_CHAR", new_node_int(SAPP_EVENTTYPE_CHAR));
-    env->set("sokol/SAPP_EVENTTYPE_MOUSE_DOWN", new_node_int(SAPP_EVENTTYPE_MOUSE_DOWN));
-    env->set("sokol/SAPP_EVENTTYPE_MOUSE_UP", new_node_int(SAPP_EVENTTYPE_MOUSE_UP));
-    env->set("sokol/SAPP_EVENTTYPE_MOUSE_SCROLL", new_node_int(SAPP_EVENTTYPE_MOUSE_SCROLL));
-    env->set("sokol/SAPP_EVENTTYPE_MOUSE_MOVE", new_node_int(SAPP_EVENTTYPE_MOUSE_MOVE));
-    env->set("sokol/SAPP_EVENTTYPE_MOUSE_ENTER", new_node_int(SAPP_EVENTTYPE_MOUSE_ENTER));
-    env->set("sokol/SAPP_EVENTTYPE_MOUSE_LEAVE", new_node_int(SAPP_EVENTTYPE_MOUSE_LEAVE));
-    env->set("sokol/SAPP_EVENTTYPE_TOUCHES_BEGAN", new_node_int(SAPP_EVENTTYPE_TOUCHES_BEGAN));
-    env->set("sokol/SAPP_EVENTTYPE_TOUCHES_MOVED", new_node_int(SAPP_EVENTTYPE_TOUCHES_MOVED));
-    env->set("sokol/SAPP_EVENTTYPE_TOUCHES_ENDED", new_node_int(SAPP_EVENTTYPE_TOUCHES_ENDED));
-    env->set("sokol/SAPP_EVENTTYPE_TOUCHES_CANCELLED", new_node_int(SAPP_EVENTTYPE_TOUCHES_CANCELLED));
-    env->set("sokol/SAPP_EVENTTYPE_RESIZED", new_node_int(SAPP_EVENTTYPE_RESIZED));
-    env->set("sokol/SAPP_EVENTTYPE_ICONIFIED", new_node_int(SAPP_EVENTTYPE_ICONIFIED));
-    env->set("sokol/SAPP_EVENTTYPE_RESTORED", new_node_int(SAPP_EVENTTYPE_RESTORED));
-    env->set("sokol/SAPP_EVENTTYPE_FOCUSED", new_node_int(SAPP_EVENTTYPE_FOCUSED));
-    env->set("sokol/SAPP_EVENTTYPE_UNFOCUSED", new_node_int(SAPP_EVENTTYPE_UNFOCUSED));
-    env->set("sokol/SAPP_EVENTTYPE_SUSPENDED", new_node_int(SAPP_EVENTTYPE_SUSPENDED));
-    env->set("sokol/SAPP_EVENTTYPE_RESUMED", new_node_int(SAPP_EVENTTYPE_RESUMED));
-    env->set("sokol/SAPP_EVENTTYPE_QUIT_REQUESTED", new_node_int(SAPP_EVENTTYPE_QUIT_REQUESTED));
-    env->set("sokol/SAPP_EVENTTYPE_CLIPBOARD_PASTED", new_node_int(SAPP_EVENTTYPE_CLIPBOARD_PASTED));
-    env->set("sokol/SAPP_EVENTTYPE_FILES_DROPPED", new_node_int(SAPP_EVENTTYPE_FILES_DROPPED));
     
     env->set("sokol/SAPP_KEYCODE_INVALID", new_node_int(SAPP_KEYCODE_INVALID));
     env->set("sokol/SAPP_KEYCODE_SPACE", new_node_int(SAPP_KEYCODE_SPACE));
@@ -1297,9 +1299,6 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sokol/SAPP_KEYCODE_RIGHT_ALT", new_node_int(SAPP_KEYCODE_RIGHT_ALT));
     env->set("sokol/SAPP_KEYCODE_RIGHT_SUPER", new_node_int(SAPP_KEYCODE_RIGHT_SUPER));
     env->set("sokol/SAPP_KEYCODE_MENU", new_node_int(SAPP_KEYCODE_MENU));
-
-
-
     
     // sokol_gfx.h
     env->set("sg/image", new_node_native_function("sg/image", &native_sg_image, false, NODE_FLAG_PRERESOLVE));
