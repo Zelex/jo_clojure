@@ -2,14 +2,7 @@
 
 ; did 1 or 2 win?
 (defn did-win [player] 
-    (let [win (fn [a b c] 
-        (let [v (get @field a)]
-            (and (= v player)
-                (= v (get @field b))
-                (= v (get @field c))
-            )
-        )
-    )]
+    (let [win (fn [a b c] (= player (get @field a) (get @field b) (get @field c)))]
         (or (win 0 1 2)
             (win 3 4 5)
             (win 6 7 8)
