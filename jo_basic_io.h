@@ -35,17 +35,18 @@ static node_idx_t native_io_file_seq(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
-// this API is OK
 static node_idx_t native_io_slurp(env_ptr_t env, list_ptr_t args) {
-	// TODO: HTTP/HTTPS!
     jo_string path = get_node_string(args->first_value());
+    jo_string url_server = http_url_server(path);
+    if(!url_server.empty()) {
+        return http_get(path);
+    }
     char *c = (char*)jo_slurp_file(path.c_str());
     node_idx_t ret = new_node_string(c?c:"");
     free(c);
     return ret;
 }
 
-// this API is OK
 static node_idx_t native_io_spit(env_ptr_t env, list_ptr_t args) {
 	// TODO: HTTP/HTTPS!
     jo_string path = get_node_string(args->first_value());
