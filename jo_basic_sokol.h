@@ -308,7 +308,13 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
                     touch_map->assoc_inplace(new_node_string("identifier"), new_node_int(ev->touches[i].identifier), node_sym_eq);
                     touch_map->assoc_inplace(new_node_string("pos_x"), new_node_float(ev->touches[i].pos_x), node_sym_eq);
                     touch_map->assoc_inplace(new_node_string("pos_y"), new_node_float(ev->touches[i].pos_y), node_sym_eq);
-                    touch_map->assoc_inplace(new_node_string("android_tooltype"), new_node_int(ev->touches[i].android_tooltype), node_sym_eq);
+                    switch(ev->touches[i].android_tooltype) {
+                        case SAPP_ANDROIDTOOLTYPE_UNKNOWN: touch_map->assoc_inplace(new_node_string("android_tooltype"), new_node_keyword("unknown"), node_sym_eq); break;
+                        case SAPP_ANDROIDTOOLTYPE_FINGER: touch_map->assoc_inplace(new_node_string("android_tooltype"), new_node_keyword("finger"), node_sym_eq); break;
+                        case SAPP_ANDROIDTOOLTYPE_STYLUS: touch_map->assoc_inplace(new_node_string("android_tooltype"), new_node_keyword("stylus"), node_sym_eq); break;
+                        case SAPP_ANDROIDTOOLTYPE_MOUSE: touch_map->assoc_inplace(new_node_string("android_tooltype"), new_node_keyword("mouse"), node_sym_eq); break;
+                        default: touch_map->assoc_inplace(new_node_string("android_tooltype"), new_node_int(ev->touches[i].android_tooltype), node_sym_eq); break;
+                    }
                     touch_map->assoc_inplace(new_node_string("changed"), new_node_int(ev->touches[i].changed), node_sym_eq);
                     touches->push_back_inplace(new_node_hash_map(touch_map));
                 }
@@ -1295,11 +1301,6 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sokol/SAPP_MODIFIER_LMB", new_node_int(SAPP_MODIFIER_LMB));
     env->set("sokol/SAPP_MODIFIER_RMB", new_node_int(SAPP_MODIFIER_RMB));
     env->set("sokol/SAPP_MODIFIER_MMB", new_node_int(SAPP_MODIFIER_MMB));
-
-    env->set("sokol/SAPP_ANDROIDTOOLTYPE_UNKNOWN", new_node_int(SAPP_ANDROIDTOOLTYPE_UNKNOWN));
-    env->set("sokol/SAPP_ANDROIDTOOLTYPE_FINGER", new_node_int(SAPP_ANDROIDTOOLTYPE_FINGER));
-    env->set("sokol/SAPP_ANDROIDTOOLTYPE_STYLUS", new_node_int(SAPP_ANDROIDTOOLTYPE_STYLUS));
-    env->set("sokol/SAPP_ANDROIDTOOLTYPE_MOUSE", new_node_int(SAPP_ANDROIDTOOLTYPE_MOUSE));
     
     // sokol_gfx.h
     env->set("sg/image", new_node_native_function("sg/image", &native_sg_image, false, NODE_FLAG_PRERESOLVE));
