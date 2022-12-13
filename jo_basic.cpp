@@ -3467,6 +3467,61 @@ static node_idx_t native_dotimes(env_ptr_t env, list_ptr_t args) {
 	return ret;
 }
 
+static node_idx_t doseq(env_ptr_t env, vector_t::iterator it, list_t::iterator eval_it) {
+	if(!it) {
+		node_idx_t ret = NIL_NODE;
+		for(auto it3 = eval_it; it3; it3++) { 
+			ret = eval_node(env, *it3);
+		}
+		return ret;
+	}
+	node_idx_t key = *it++;
+	node_idx_t value = *it++;
+	if(key == K_LET_NODE) {
+		node_t *value_node = get_node(value);
+		if(!value_node->is_vector()) {
+			warnf("doseq: let needs vector for binding\n");
+			return NIL_NODE;
+		}
+		vector_ptr_t L = value_node->as_vector();
+		if(L->size() % 2 != 0) {
+			warnf("doseq: let needs even number of elements in vector\n");
+			return NIL_NODE;
+		}
+		for(vector_t::iterator Lit = L->begin(); Lit; Lit++) {
+			node_idx_t name = *Lit++;
+			node_idx_t value = *Lit++;
+			node_let(env, name, value);
+		}
+		return doseq(env, it, eval_it);
+	}
+	if(key == K_WHILE_NODE) {
+		node_idx_t cond = eval_node(env, value);
+		if(get_node(cond)->as_bool()) {
+			return doseq(env, it, eval_it);
+		}
+		return INV_NODE; // done here...
+	}
+	if(key == K_WHEN_NODE) {
+		node_idx_t cond = eval_node(env, value);
+		if(get_node(cond)->as_bool()) {
+			return doseq(env, it, eval_it);
+		}
+		return NIL_NODE;
+	}
+	// loop over sequence, assigning to key
+	value = eval_node(env, value);
+	node_idx_t ret = NIL_NODE;
+	seq_iterate(value, [env, it, eval_it, key, &ret](node_idx_t value) {
+		node_let(env, key, value);
+		node_idx_t ret2 = doseq(env, it, eval_it);
+		if(ret2 == INV_NODE) return false;
+		ret = ret2;
+		return true;
+	});
+	return ret;
+}
+
 /*
 (defn Example []
    (doseq [n (0 1 2)]
@@ -3483,21 +3538,19 @@ static node_idx_t native_doseq(env_ptr_t env, list_ptr_t args) {
 		return NIL_NODE;
 	}
 	node_t *binding = get_node(binding_idx);
-	vector_ptr_t binding_list = binding->as_vector();
-	if (binding_list->size() != 2) {
+	if(!binding->is_vector()) {
+		warnf("doseq: needs vector for binding\n");
 		return NIL_NODE;
 	}
-	node_idx_t name_idx = binding_list->first_value();
-	node_idx_t value_idx = eval_node(env, binding_list->nth(1));
-	node_t *value = get_node(value_idx);
-	node_idx_t ret = NIL_NODE;
-	env_ptr_t env2 = new_env(env);
-	for(seq_iterator_t it2(value_idx); it2; it2.next()) {
-		env2->set_temp(name_idx, it2.val);
-		for(auto it3 = it; it3; it3++) { 
-			ret = eval_node(env2, *it3);
-		}
+	vector_ptr_t binding_list = binding->as_vector();
+	if (binding_list->size() % 2 != 0) {
+		warnf("doseq: needs even number of forms in binding vector:\n");
+		return NIL_NODE;
 	}
+	env_ptr_t env2 = new_env(env);
+	vector_t::iterator it2 = binding_list->begin();
+	node_idx_t ret = doseq(env2, it2, it);
+	if(ret == INV_NODE) return NIL_NODE;
 	return ret;
 }
 
