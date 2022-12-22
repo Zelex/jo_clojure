@@ -1,10 +1,6 @@
 #pragma once
 
 #ifdef _WIN32
-#define USE_WINSOCK
-#endif
-
-#ifdef USE_WINSOCK
 
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
@@ -29,7 +25,7 @@
 #include <sys/ioctl.h>
 #endif
 
-#ifdef USE_WINSOCK
+#ifdef _WIN32
 typedef signed long long sockfile_t;
 #else
 typedef int sockfile_t;
@@ -164,17 +160,6 @@ static node_idx_t native_socket_listen(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_socket_accept(env_ptr_t env, list_ptr_t args) {
     int fd = get_node_int(args->first_value());
-    int wait_for = get_node_int(args->second_value());
-
-    fd_set rfds, wfds, efds;
-    FD_ZERO(&efds); FD_SET(fd, &efds);
-    FD_ZERO(&wfds); 
-    FD_ZERO(&rfds); FD_SET(fd, &rfds);
-    struct timeval tv = {0, wait_for};
-    if (select(fd+1, &rfds, &wfds, &efds, &tv) <= 0 || FD_ISSET(fd, &efds) || FD_ISSET(fd, &rfds) == 0 ) {
-        // Nothing connecting
-        return NIL_NODE;
-    }    
 
     struct sockaddr_in sock;
     socklen_t socklen = sizeof(sock);
@@ -202,21 +187,19 @@ static node_idx_t native_socket_can_read_q(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_socket_live_q(env_ptr_t env, list_ptr_t args) {
     int fd = get_node_int(args->first_value());
+
     fd_set myset, exceptset;
+    FD_ZERO( &myset );     FD_SET( fd, &myset );
+    FD_ZERO( &exceptset ); FD_SET( fd, &exceptset );
+
     struct timeval tv = { 0, 0 };
-    int res;
 
-    FD_ZERO( &myset );
-    FD_SET( fd, &myset );
-    FD_ZERO( &exceptset );
-    FD_SET( fd, &exceptset );
-
-    res = select( fd + 1, NULL, &myset, &exceptset, &tv );
+    int res = select( fd + 1, NULL, &myset, &exceptset, &tv );
     if(res < 0) {
         return FALSE_NODE;
     }
 
-#ifndef USE_WINSOCK
+#ifndef _WIN32
     int valopt;
     socklen_t l = sizeof(valopt);
     if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (char *)&valopt, &l) >= 0) {
@@ -230,7 +213,7 @@ static node_idx_t native_socket_live_q(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_socket_disconnect(env_ptr_t env, list_ptr_t args) {
     int fd = get_node_int(args->first_value());
-#ifdef USE_WINSOCK
+#ifdef _WIN32
 	shutdown(fd, SD_BOTH);
 	closesocket(fd);
 #else
@@ -252,7 +235,7 @@ static node_idx_t native_socket_recv(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_socket_send(env_ptr_t env, list_ptr_t args) {
     int fd = get_node_int(args->first_value());
     jo_string tmp = get_node_string(args->second_value());
-#ifdef USE_WINSOCK
+#ifdef _WIN32
     int written = ::send(fd, tmp.c_str(), tmp.size, 0);
 #else
     int written = ::send(fd, tmp.c_str(), tmp.size, MSG_NOSIGNAL);
