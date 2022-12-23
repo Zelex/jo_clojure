@@ -6263,7 +6263,7 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 #include "jo_basic_gif.h"
 #include "jo_basic_b64.h"
 #include "jo_basic_canvas.h"
-#include "jo_basic_socket.h"
+#include "jo_basic_net.h"
 #ifndef NO_SOKOL
 #include "jo_basic_sokol.h"
 #endif
@@ -6634,7 +6634,7 @@ int main(int argc, char **argv) {
 	jo_basic_gif_init(env);
 	jo_basic_b64_init(env);
 	jo_basic_canvas_init(env);
-	jo_basic_socket_init(env);
+	jo_basic_net_init(env);
 #ifndef NO_SOKOL
 	jo_basic_sokol_init(env);
 #endif
