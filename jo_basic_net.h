@@ -37,11 +37,11 @@ static bool parse_sockaddr(const char *addr_str, int port, struct sockaddr_in &s
     char *p = strchr(justAddr, ':');
     if(p) {
         *p = 0;
-        if(port == -1) {
+        if(port <= 0) {
             port = atol(p+1);
         }
     }
-    if(port == -1) {
+    if(port <= 0) {
         port = 0;
     }
     sock.sin_port = htons( (unsigned short)port );
@@ -84,14 +84,14 @@ static node_idx_t native_net_connect(env_ptr_t enve, list_ptr_t args) {
 
     struct sockaddr_in sock;
     if (!parse_sockaddr(addr_str.c_str(), port, sock)) {
-        return FALSE_NODE;
+        return NIL_NODE;
     }
 
     if (connect(fd, (struct sockaddr *)&sock, sizeof(sock)) == -1) {
-        return FALSE_NODE;
+        return NIL_NODE;
     }
 
-    return TRUE_NODE;
+    return new_node_int(fd);
 }
 
 static node_idx_t native_net_bind(env_ptr_t enve, list_ptr_t args) {
@@ -102,14 +102,14 @@ static node_idx_t native_net_bind(env_ptr_t enve, list_ptr_t args) {
 
     struct sockaddr_in sock;
     if (!parse_sockaddr(addr_str.c_str(), port, sock)) {
-        return FALSE_NODE;
+        return NIL_NODE;
     }
 
     if(bind(fd, (struct sockaddr*)&sock, sizeof(sock))) {
-        return FALSE_NODE;
+        return NIL_NODE;
     }
 
-    return TRUE_NODE;
+    return new_node_int(fd);
 }
 
 static node_idx_t native_net_no_delay(env_ptr_t env, list_ptr_t args) {
@@ -152,7 +152,7 @@ static node_idx_t native_net_reuse_port(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_net_listen(env_ptr_t env, list_ptr_t args) {
     int fd = get_node_int(args->first_value());
     int backlog = get_node_int(args->second_value());
-	return listen(fd, backlog) ? FALSE_NODE : TRUE_NODE;
+	return listen(fd, backlog) ? NIL_NODE : new_node_int(fd);
 }
 
 static node_idx_t native_net_accept(env_ptr_t env, list_ptr_t args) {
@@ -160,7 +160,7 @@ static node_idx_t native_net_accept(env_ptr_t env, list_ptr_t args) {
 
     struct sockaddr_in sock;
     socklen_t socklen = sizeof(sock);
-	sockfile_t cfd = accept(fd, (struct sockaddr *)&sock, &socklen);
+	sockfile_t cfd = ::accept(fd, (struct sockaddr *)&sock, &socklen);
     if(cfd == -1) {
         // Connection error
         return NIL_NODE;
