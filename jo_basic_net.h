@@ -73,6 +73,9 @@ static node_idx_t native_net_socket(env_ptr_t env, list_ptr_t args) {
     if (fd == -1) {
         return NIL_NODE;
     }
+    // Always set these.... 
+    sock_opt(fd, SO_REUSEADDR, true);
+    sock_opt(fd, SO_REUSEPORT, true);
     return new_node_int(fd);
 }
 
@@ -136,16 +139,16 @@ static node_idx_t native_net_no_blocking(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_net_reuse_addr(env_ptr_t env, list_ptr_t args) {
     int fd = get_node_int(args->first_value());
     bool enable = get_node_bool(args->second_value());
-    return sock_opt(fd, SO_REUSEADDR, enable) ? TRUE_NODE : FALSE_NODE;
+    return sock_opt(fd, SO_REUSEADDR, enable) ? new_node_int(fd) : NIL_NODE;
 }
 
 static node_idx_t native_net_reuse_port(env_ptr_t env, list_ptr_t args) {
-#ifdef SO_REUSEPORT
     int fd = get_node_int(args->first_value());
     bool enable = get_node_bool(args->second_value());
-    return sock_opt(fd, SO_REUSEPORT, enable) ? TRUE_NODE : FALSE_NODE;
+#ifdef SO_REUSEPORT
+    return sock_opt(fd, SO_REUSEPORT, enable) ? new_node_int(fd) : NIL_NODE;
 #else
-    return TRUE_NODE;
+    return new_node_int(fd);
 #endif
 }
 
@@ -208,7 +211,7 @@ static node_idx_t native_net_live_q(env_ptr_t env, list_ptr_t args) {
     return TRUE_NODE;
 }
 
-static node_idx_t native_net_disconnect(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_net_close(env_ptr_t env, list_ptr_t args) {
     int fd = get_node_int(args->first_value());
 #ifdef _WIN32
 	shutdown(fd, SD_BOTH);
@@ -225,7 +228,10 @@ static node_idx_t native_net_recv(env_ptr_t env, list_ptr_t args) {
     tmp_size = tmp_size <= 0 ? 8192 : tmp_size;
     char *tmp = (char*)jo_alloca(tmp_size+1);
     int count = recv(fd, (char*)tmp, tmp_size, 0);
-    tmp[count] = 0; // make sure its zero terminated
+    if(count <= 0) {
+        return NIL_NODE;
+    }
+    tmp[count] = 0;
     return new_node_string(tmp);
 }
 
@@ -244,7 +250,7 @@ void jo_basic_net_init(env_ptr_t env) {
 	env->set("net/socket", new_node_native_function("net/socket", &native_net_socket, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/bind", new_node_native_function("net/bind", &native_net_bind, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/connect", new_node_native_function("net/connect", &native_net_connect, false, NODE_FLAG_PRERESOLVE));
-	env->set("net/disconnect", new_node_native_function("net/disconnect", &native_net_disconnect, false, NODE_FLAG_PRERESOLVE));
+	env->set("net/close", new_node_native_function("net/close", &native_net_close, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/listen", new_node_native_function("net/listen", &native_net_listen, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/accept", new_node_native_function("net/accept", &native_net_accept, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/live?", new_node_native_function("net/live?", &native_net_live_q, false, NODE_FLAG_PRERESOLVE));
