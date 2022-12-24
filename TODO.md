@@ -1,3 +1,5 @@
+* I need to add a src directory... getting a bit busy in the main directory.
+
 * lazy read-dir-all and the like
 * REPL (not sure I would ever use this?)
 * agents are not fully spec conformant. Need to fix this. (don't remember in what way unfortunately...)
