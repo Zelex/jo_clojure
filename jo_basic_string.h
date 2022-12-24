@@ -127,7 +127,7 @@ void jo_basic_string_init(env_ptr_t env) {
 	env->set("String/replace-first", new_node_native_function("String/replace-first", &native_string_replace_first, false, NODE_FLAG_PRERESOLVE));
 	env->set("split-lines", new_node_native_function("split-lines", &native_split_lines, false, NODE_FLAG_PRERESOLVE));
 	env->set("join", new_node_native_function("join", &native_join, false, NODE_FLAG_PRERESOLVE));
-	env->set("blank?", new_node_native_function("blank", &native_is_blank, false, NODE_FLAG_PRERESOLVE));
+	env->set("blank?", new_node_native_function("blank?", &native_is_blank, false, NODE_FLAG_PRERESOLVE));
 	env->set("capitalize", new_node_native_function("capitalize", &native_capitalize, false, NODE_FLAG_PRERESOLVE));
 	env->set("ends-with?", new_node_native_function("ends-with?", &native_ends_with, false, NODE_FLAG_PRERESOLVE));
 	env->set("starts-with?", new_node_native_function("starts-with?", &native_starts_with, false, NODE_FLAG_PRERESOLVE));

@@ -817,9 +817,9 @@ struct jo_string {
 
     jo_string substr(size_t pos = 0, size_t len = jo_npos) const {
         if(len == jo_npos) {
-            len = length() - pos;
+            len = size - 1 - pos;
         }
-        if(pos >= length()) return jo_string();
+        if(pos >= size - 1) return jo_string();
         return jo_string(str + pos, len);
     }
 
@@ -858,14 +858,14 @@ struct jo_string {
     int compare(const char *s) const { return strcmp(str, s); }
 
     jo_string &lower() {
-        for(size_t i = 0; i < length(); i++) {
+        for(size_t i = 0; i < size-1; i++) {
             str[i] = (char)jo_tolower(str[i]);
         }
         return *this;
     }
 
     jo_string &upper() {
-        for(size_t i = 0; i < length(); i++) {
+        for(size_t i = 0; i < size-1; i++) {
             str[i] = (char)jo_toupper(str[i]);
         }
         return *this;
@@ -886,7 +886,7 @@ struct jo_string {
 
     // True if s empty or contains only whitespace.
     bool empty() const {
-        for(size_t i = 0; i < length(); i++) {
+        for(size_t i = 0; i < size-1; i++) {
             if(!jo_isspace(str[i])) return false;
         }
         return true;
@@ -894,9 +894,9 @@ struct jo_string {
 
     // Converts first character of the string to upper-case, all other characters to lower-case.
     jo_string &capitalize() {
-        if(length() == 0) return *this;
+        if(size-1 == 0) return *this;
         str[0] = (char)jo_toupper(str[0]);
-        for(size_t i = 1; i < length(); i++) {
+        for(size_t i = 1; i < size-1; i++) {
             str[i] = (char)jo_tolower(str[i]);
         }
         return *this;
@@ -904,14 +904,14 @@ struct jo_string {
 
     bool ends_with(const char *s) const {
         size_t l1 = strlen(s);
-        size_t l2 = length();
+        size_t l2 = size-1;
         if(l1 > l2) return false;
         return strcmp(str+l2-l1, s) == 0;
     }
 
     bool starts_with(const char *s) const {
         size_t l1 = strlen(s);
-        size_t l2 = length();
+        size_t l2 = size-1;
         if(l1 > l2) return false;
         return strncmp(str, s, l1) == 0;
     }
@@ -921,7 +921,7 @@ struct jo_string {
     }
 
     int index_of(char c) const {
-        for(size_t i = 0; i < length(); i++) {
+        for(size_t i = 0; i < size-1; i++) {
             if(str[i] == c) return (int)i;
         }
         return -1;
@@ -934,7 +934,7 @@ struct jo_string {
     }
 
     int last_index_of(char c) const {
-        for(int i = (int)length()-1; i >= 0; i--) {
+        for(int i = (int)size-1; i >= 0; i--) {
             if(str[i] == c) return i;
         }
         return -1;
@@ -948,14 +948,14 @@ struct jo_string {
 
     jo_string &trim() {
         size_t start = 0;
-        while(start < length() && jo_isspace(str[start])) {
+        while(start < size-1 && jo_isspace(str[start])) {
             start++;
         }
-        size_t end = length()-1;
+        size_t end = size-1;
         while(end > start && jo_isspace(str[end])) {
             end--;
         }
-        if(start > 0 || end < length()-1) {
+        if(start > 0 || end < size-1) {
             char *tmp = (char*)malloc(end-start+2);
             if(!tmp) {
                 // malloc failed!
@@ -965,35 +965,37 @@ struct jo_string {
             tmp[end-start+1] = 0;
             free(str);
             str = tmp;
+            size = end-start+2;
         }
         return *this;
     }
 
     jo_string &ltrim() {
         size_t start = 0;
-        while(start < length() && jo_isspace(str[start])) {
+        while(start < size-1 && jo_isspace(str[start])) {
             start++;
         }
         if(start > 0) {
-            char *tmp = (char*)malloc(length()-start+1);
+            char *tmp = (char*)malloc(size-1-start+1);
             if(!tmp) {
                 // malloc failed!
                 return *this;
             }
-            jo_memcpy(tmp, str+start, length()-start);
-            tmp[length()-start] = 0;
+            jo_memcpy(tmp, str+start, size-1-start);
+            tmp[size-1-start] = 0;
             free(str);
             str = tmp;
+            size = size-1-start+1;
         }
         return *this;
     }
 
     jo_string &rtrim() {
-        size_t end = length()-1;
+        size_t end = size-2;
         while(end > 0 && jo_isspace(str[end])) {
             end--;
         }
-        if(end < length()-1) {
+        if(end < size-2) {
             char *tmp = (char*)malloc(end+2);
             if(!tmp) {
                 // malloc failed!
@@ -1003,16 +1005,19 @@ struct jo_string {
             tmp[end+1] = 0;
             free(str);
             str = tmp;
+            size = end+2;
         }
         return *this;
     }
 
     jo_string &chomp() {
-        if(length() == 0) return *this;
-        if(str[length()-1] == '\n') {
-            str[length()-1] = 0;
-            if(length() > 0 && str[length()-1] == '\r') {
-                str[length()-1] = 0;
+        if(size-1 == 0) return *this;
+        if(str[size-2] == '\n') {
+            str[size-2] = 0;
+            size = size-2;
+            if(size-1 > 0 && str[size-2] == '\r') {
+                str[size-2] = 0;
+                size = size-2;
             }
         }
         return *this;
@@ -1020,7 +1025,7 @@ struct jo_string {
 
     jo_string &replace(const char *s, const char *r) {
         size_t pos = 0;
-        while(pos < length()) {
+        while(pos < size-1) {
             size_t pos2 = find(s, pos);
             if(pos2 == jo_npos) {
                 break;
@@ -1043,7 +1048,7 @@ struct jo_string {
     }
 
     jo_string &take(size_t n) {
-        size_t l = length();
+        size_t l = size-1;
         if(n > l) {
             n = l;
         }
@@ -1056,11 +1061,12 @@ struct jo_string {
         tmp[n] = 0;
         free(str);
         str = tmp;
+        size = n+1;
         return *this;
     }
 
     jo_string &drop(size_t n) {
-        size_t l = length();
+        size_t l = size-1;
         if(n > l) {
             n = l;
         }
@@ -1073,6 +1079,7 @@ struct jo_string {
         tmp[l-n] = 0;
         free(str);
         str = tmp;
+        size = l-n+1;
         return *this;
     }
 

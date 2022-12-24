@@ -235,6 +235,20 @@ static node_idx_t native_net_recv(env_ptr_t env, list_ptr_t args) {
     return new_node_string(tmp);
 }
 
+static node_idx_t native_net_recv_line(env_ptr_t env, list_ptr_t args) {
+    int fd = get_node_int(args->first_value());
+    jo_string res = "";
+    char tmp[2] = {0};
+    do {
+        int count = recv(fd, tmp, 1, 0);
+        if(count <= 0) {
+            break;
+        }
+        res += tmp;
+    } while(tmp[0] != '\n');
+    return new_node_string(res);
+}
+
 static node_idx_t native_net_send(env_ptr_t env, list_ptr_t args) {
     int fd = get_node_int(args->first_value());
     jo_string tmp = get_node_string(args->second_value());
@@ -260,6 +274,7 @@ void jo_basic_net_init(env_ptr_t env) {
 	env->set("net/reuse-port", new_node_native_function("net/reuse-port", &native_net_reuse_port, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/can-read?", new_node_native_function("net/can-read?", &native_net_can_read_q, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/recv", new_node_native_function("net/recv", &native_net_recv, false, NODE_FLAG_PRERESOLVE));
+	env->set("net/recv-line", new_node_native_function("net/recv-line", &native_net_recv_line, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/send", new_node_native_function("net/send", &native_net_send, false, NODE_FLAG_PRERESOLVE));
 
 }
