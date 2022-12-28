@@ -96,17 +96,6 @@ static node_idx_t native_sokol_run(env_ptr_t env, list_ptr_t args) {
         frame_desc.dpi_scale = sapp_dpi_scale();
         simgui_new_frame(&frame_desc);
 
-        /*
-        ImVec2 window_pos = ImVec2(10, 10);
-        ImVec2 window_pos_pivot = ImVec2(0, 0);
-        ImGui::SetNextWindowPos(window_pos, ImGuiCond_Once, window_pos_pivot);
-        ImVec2 window_size = ImVec2(400, 100);
-        ImGui::SetNextWindowSize(window_size, ImGuiCond_Once);
-        ImGui::Begin("Hello Dear ImGui!", 0, ImGuiWindowFlags_None);
-        ImGui::ColorEdit3("Background", &sokol_state.pass_action.colors[0].value.r, ImGuiColorEditFlags_None);
-        ImGui::End();
-        //*/
-
         node_idx_t frame_cb_idx = get_map_idx(desc_map, "frame_cb", NIL_NODE);
         if(frame_cb_idx != NIL_NODE) {
             eval_node(env, new_node_list(list_va(frame_cb_idx)));
@@ -1260,6 +1249,8 @@ static node_idx_t native_sg_file_image(env_ptr_t env, list_ptr_t args) {
     return new_node_int(img.id);
 }
 
+#include "jo_basic_imgui.h"
+
 void jo_basic_sokol_init(env_ptr_t env) {
 	env->set("sokol/run", new_node_native_function("sokol/run", &native_sokol_run, false, NODE_FLAG_PRERESOLVE));
 
@@ -1384,6 +1375,8 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sgl/v3f-t2f-c4b", new_node_native_function("sgl/v3f-t2f-c4b", &native_sgl_v3f_t2f_c4b, false, NODE_FLAG_PRERESOLVE));
     env->set("sgl/v3f-t2f-c1i", new_node_native_function("sgl/v3f-t2f-c1i", &native_sgl_v3f_t2f_c1i, false, NODE_FLAG_PRERESOLVE));
     env->set("sgl/end", new_node_native_function("sgl/end", &native_sgl_end, false, NODE_FLAG_PRERESOLVE));
+
+    jo_basic_imgui_init(env);
 }
 
 

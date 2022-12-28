@@ -2224,7 +2224,6 @@ static node_idx_t eval_node_list(env_ptr_t env, list_ptr_t list) {
 	return res;
 }
 
-
 static vector_ptr_t vector_va(node_idx_t a) {
 	vector_ptr_t vec = new_vector();
 	vec->push_back_inplace(a);
