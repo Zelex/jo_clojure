@@ -3,6 +3,7 @@
 #include "jo_stdcpp.h"
 
 
+#ifndef NO_NFD
 #if defined _WIN32
 #include "nfd/nfd_win.cpp"
 #elif defined __APPLE__
@@ -11,6 +12,7 @@
 #include "nfd/nfd_gtk.c"
 #else
 #define NO_NFD
+#endif
 #endif
 
 #ifndef NO_NFD
