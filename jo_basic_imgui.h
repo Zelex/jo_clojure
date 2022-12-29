@@ -164,6 +164,20 @@ static node_idx_t native_imgui_input_text(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
+static node_idx_t native_imgui_button(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_string label = get_node_string(eval_node(env, *it++));
+    float width = get_node_float(eval_node(env, *it++));
+    float height = get_node_float(eval_node(env, *it++));
+    node_idx_t ret = NIL_NODE;
+    if(ImGui::Button(label.c_str(), ImVec2(width, height))) {
+        while(it) {
+            ret = eval_node(env, *it++);
+        }
+    }
+    return ret;
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
@@ -173,5 +187,6 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/set-next-window-size", new_node_native_function("imgui/set-next-window-size", &native_imgui_set_next_window_size, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/begin", new_node_native_function("imgui/begin", &native_imgui_begin, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/input-text", new_node_native_function("imgui/input-text", &native_imgui_input_text, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/button", new_node_native_function("imgui/button", &native_imgui_button, true, NODE_FLAG_PRERESOLVE));
 }
 
