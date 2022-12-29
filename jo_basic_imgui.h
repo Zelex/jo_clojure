@@ -122,6 +122,48 @@ static node_idx_t native_imgui_begin(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
+static node_idx_t native_imgui_input_text(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_string label = get_node_string(*it++);
+    node_idx_t buf = *it++;
+    if(get_node_type(buf) != NODE_ATOM) {
+        warnf("imgui/input-text: buf must be an atom\n");
+        return NIL_NODE;
+    }
+    int flags = 0;
+    for(; it; ++it) {
+        jo_string str = get_node_string(*it);
+        if(str == "none")                   flags |= ImGuiInputTextFlags_None;
+        else if(str == "chars-decimal")     flags |= ImGuiInputTextFlags_CharsDecimal;
+        else if(str == "chars-hexadecimal") flags |= ImGuiInputTextFlags_CharsHexadecimal;
+        else if(str == "chars-uppercase")   flags |= ImGuiInputTextFlags_CharsUppercase;
+        else if(str == "chars-no-blank")    flags |= ImGuiInputTextFlags_CharsNoBlank;
+        else if(str == "auto-select-all")   flags |= ImGuiInputTextFlags_AutoSelectAll;
+        else if(str == "enter-returns-true")flags |= ImGuiInputTextFlags_EnterReturnsTrue;
+        else if(str == "callback-completion")  flags |= ImGuiInputTextFlags_CallbackCompletion;
+        else if(str == "callback-history")  flags |= ImGuiInputTextFlags_CallbackHistory;
+        else if(str == "callback-always")   flags |= ImGuiInputTextFlags_CallbackAlways;
+        else if(str == "callback-char-filter")  flags |= ImGuiInputTextFlags_CallbackCharFilter;
+        else if(str == "allow-tab-input")   flags |= ImGuiInputTextFlags_AllowTabInput;
+        else if(str == "ctrl-enter-for-new-line")  flags |= ImGuiInputTextFlags_CtrlEnterForNewLine;
+        else if(str == "no-horizontal-scroll")  flags |= ImGuiInputTextFlags_NoHorizontalScroll;
+        else if(str == "always-overwrite")  flags |= ImGuiInputTextFlags_AlwaysOverwrite;
+        else if(str == "readonly")          flags |= ImGuiInputTextFlags_ReadOnly;
+        else if(str == "password")          flags |= ImGuiInputTextFlags_Password;
+        else if(str == "no-undo-redo")      flags |= ImGuiInputTextFlags_NoUndoRedo;
+        else if(str == "chars-scientific")  flags |= ImGuiInputTextFlags_CharsScientific;
+        else if(str == "callback-resize")   flags |= ImGuiInputTextFlags_CallbackResize;
+        else if(str == "callback-edit")     flags |= ImGuiInputTextFlags_CallbackEdit;
+    }
+    jo_string str = get_node_string(node_deref(env, buf));
+    char *buf2 = (char*)alloca(256);
+    memcpy(buf2, str.c_str(), str.size);
+    if(ImGui::InputText(label.c_str(), buf2, 256, flags)) {
+        node_reset(env, buf, new_node_string(buf2));
+    }
+    return NIL_NODE;
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
@@ -130,5 +172,6 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/set-next-window-pos", new_node_native_function("imgui/set-next-window-pos", &native_imgui_set_next_window_pos, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-next-window-size", new_node_native_function("imgui/set-next-window-size", &native_imgui_set_next_window_size, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/begin", new_node_native_function("imgui/begin", &native_imgui_begin, true, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/input-text", new_node_native_function("imgui/input-text", &native_imgui_input_text, false, NODE_FLAG_PRERESOLVE));
 }
 
