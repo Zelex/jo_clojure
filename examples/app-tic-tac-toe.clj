@@ -90,8 +90,8 @@
             ]
             (when (= t :mouse-down)
                 (when (= mouse-button :left)
-                    (let [x (int (/ mouse_x 640 0.33))
-                          y (- 2 (int (/ mouse_y 480 0.33)))]
+                    (let [x (int (/ mouse_x @WIDTH 0.33))
+                          y (- 2 (int (/ mouse_y @HEIGHT 0.33)))]
                         (when (and (>= x 0) (< x 3) (>= y 0) (< y 3))
                             (let [i (+ (* y 3) x)]
                                 (when (= (get @field i) 0)
@@ -102,8 +102,8 @@
                     )
                 )
                 (when (= mouse-button :right)
-                    (let [x (int (/ mouse_x 640 0.33))
-                          y (- 2 (int (/ mouse_y 480 0.33)))]
+                    (let [x (int (/ mouse_x @WIDTH 0.33))
+                          y (- 2 (int (/ mouse_y @HEIGHT 0.33)))]
                         (when (and (>= x 0) (< x 3) (>= y 0) (< y 3))
                             (let [i (+ (* y 3) x)]
                                 (when (= (get @field i) 0)
