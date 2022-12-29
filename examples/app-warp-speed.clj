@@ -1,3 +1,6 @@
+(def WIDTH (atom 640))
+(def HEIGHT (atom 480))
+
 (def stars (atom []))
 
 (defn add-star! []
@@ -27,13 +30,13 @@
 (doseq [_ (range 500)] (add-star!))
 
 (def sokol-desc {
-    :width 640
-    :height 480
+    :width @WIDTH
+    :height @HEIGHT
     :window_title "Basic Warp Speed App"
     :init_cb (fn [] 
     )
     :frame_cb (fn [] 
-        (sgl/viewport 0 0 640 480 false)
+        (sgl/viewport 0 0 @WIDTH @HEIGHT false)
         (sgl/defaults)
         (draw-stars)
         (move-stars)
@@ -42,6 +45,15 @@
     :cleanup_cb (fn [] 
     )
     :event_cb (fn [event] 
+        (case (:type event)
+            :key-down (case (:key event)
+                :escape (sokol/quit)
+            )
+            :resized (do
+                (reset! WIDTH (:window-width event))
+                (reset! HEIGHT (:window-height event))
+            )
+        )
     )
     :fail_cb (fn [msg] 
         (println "Error/Sokol:" msg)

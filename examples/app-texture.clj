@@ -1,14 +1,16 @@
 (def img (atom nil))
+(def WIDTH (atom 640))
+(def HEIGHT (atom 480))
 
 (def sokol-desc {
-    :width 640
-    :height 480
+    :width @WIDTH
+    :height @HEIGHT
     :window_title "Basic App"
     :init_cb (fn [] 
         (reset! img (sg/file-image "kodim01.png"))
     )
     :frame_cb (fn [] 
-        (sgl/viewport 0 0 640 480 false)
+        (sgl/viewport 0 0 @WIDTH @HEIGHT false)
         (sgl/defaults)
 
         (sgl/enable-texture)
@@ -23,6 +25,15 @@
     :cleanup_cb (fn [] 
     )
     :event_cb (fn [event] 
+        (case (:type event)
+            :key-down (case (:key event)
+                :escape (sokol/quit)
+            )
+            :resized (do
+                (reset! WIDTH (:window-width event))
+                (reset! HEIGHT (:window-height event))
+            )
+        )
     )
     :fail_cb (fn [msg] 
         (println "Error/Sokol:" msg)

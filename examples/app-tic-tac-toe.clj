@@ -1,3 +1,6 @@
+(def WIDTH (atom 640))
+(def HEIGHT (atom 480))
+
 (def field (atom [0 0 0 0 0 0 0 0 0]))
 
 ; did 1 or 2 win?
@@ -11,13 +14,13 @@
 )
 
 (def sokol-desc {
-    :width 640
-    :height 480
+    :width @WIDTH
+    :height @HEIGHT
     :window_title "Basic Tic-Tac-Toe App"
     :init_cb (fn [] 
     )
     :frame_cb (fn [] 
-        (sgl/viewport 0 0 640 480 false)
+        (sgl/viewport 0 0 @WIDTH @HEIGHT false)
         (sgl/defaults)
 
         ; draw the grid
@@ -70,14 +73,23 @@
     :cleanup_cb (fn [] 
     )
     :event_cb (fn [event] 
+        (case (:type event)
+            :key-down (case (:key event)
+                :escape (sokol/quit)
+            )
+            :resized (do
+                (reset! WIDTH (:window-width event))
+                (reset! HEIGHT (:window-height event))
+            )
+        )
         (let [
             t (get event :type)
-            mouse_x (float (get event :mouse_x))
-            mouse_y (float (get event :mouse_y))
-            mouse_button (get event :mouse_button)
+            mouse_x (float (:mouse-x event))
+            mouse_y (float (:mouse-y event))
+            mouse-button (:mouse-button event)
             ]
             (when (= t :mouse-down)
-                (when (= mouse_button :left)
+                (when (= mouse-button :left)
                     (let [x (int (/ mouse_x 640 0.33))
                           y (- 2 (int (/ mouse_y 480 0.33)))]
                         (when (and (>= x 0) (< x 3) (>= y 0) (< y 3))
@@ -89,7 +101,7 @@
                         )
                     )
                 )
-                (when (= mouse_button :right)
+                (when (= mouse-button :right)
                     (let [x (int (/ mouse_x 640 0.33))
                           y (- 2 (int (/ mouse_y 480 0.33)))]
                         (when (and (>= x 0) (< x 3) (>= y 0) (< y 3))
