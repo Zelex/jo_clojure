@@ -178,6 +178,15 @@ static node_idx_t native_imgui_button(env_ptr_t env, list_ptr_t args) {
     return ret;
 }
 
+static node_idx_t native_imgui_image(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    long long tex_id = get_node_int(*it++);
+    float width = get_node_float(*it++);
+    float height = get_node_float(*it++);
+    ImGui::Image((void*)tex_id, ImVec2(width, height));
+    return NIL_NODE;
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
@@ -188,5 +197,6 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/begin", new_node_native_function("imgui/begin", &native_imgui_begin, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/input-text", new_node_native_function("imgui/input-text", &native_imgui_input_text, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/button", new_node_native_function("imgui/button", &native_imgui_button, true, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/image", new_node_native_function("imgui/image", &native_imgui_image, false, NODE_FLAG_PRERESOLVE));
 }
 
