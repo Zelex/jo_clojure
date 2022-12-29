@@ -66,6 +66,62 @@ static node_idx_t native_imgui_set_next_window_size(env_ptr_t env, list_ptr_t ar
     return NIL_NODE;
 }
 
+static node_idx_t native_imgui_begin(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_string name = get_node_string(eval_node(env, *it++));
+    node_idx_t p_open = eval_node(env, *it++);
+    if(get_node_type(p_open) != NODE_ATOM) {
+        warnf("imgui/begin: p_open must be an atom\n");
+        return NIL_NODE;
+    }
+    node_idx_t flags_idx = *it++;
+    int flags = 0;
+    seq_iterate(flags_idx, [&flags](node_idx_t flag) {
+        jo_string str = get_node_string(flag);
+        if(str == "none")                   flags |= ImGuiWindowFlags_None;
+        else if(str == "no-title-bar")      flags |= ImGuiWindowFlags_NoTitleBar;
+        else if(str == "no-resize")         flags |= ImGuiWindowFlags_NoResize;
+        else if(str == "no-move")           flags |= ImGuiWindowFlags_NoMove;
+        else if(str == "no-scrollbar")      flags |= ImGuiWindowFlags_NoScrollbar;
+        else if(str == "no-scroll-with-mouse")  flags |= ImGuiWindowFlags_NoScrollWithMouse;
+        else if(str == "no-collapse")       flags |= ImGuiWindowFlags_NoCollapse;
+        else if(str == "always-auto-resize")flags |= ImGuiWindowFlags_AlwaysAutoResize;
+        else if(str == "no-background")     flags |= ImGuiWindowFlags_NoBackground;
+        else if(str == "no-saved-settings") flags |= ImGuiWindowFlags_NoSavedSettings;
+        else if(str == "no-mouse-inputs")   flags |= ImGuiWindowFlags_NoMouseInputs;
+        else if(str == "menu-bar")          flags |= ImGuiWindowFlags_MenuBar;
+        else if(str == "horizontal-scrollbar")  flags |= ImGuiWindowFlags_HorizontalScrollbar;
+        else if(str == "no-focus-on-appearing")  flags |= ImGuiWindowFlags_NoFocusOnAppearing;
+        else if(str == "no-bring-to-front-on-focus")  flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+        else if(str == "always-vertical-scrollbar")  flags |= ImGuiWindowFlags_AlwaysVerticalScrollbar;
+        else if(str == "always-horizontal-scrollbar")  flags |= ImGuiWindowFlags_AlwaysHorizontalScrollbar;
+        else if(str == "always-use-window-padding")  flags |= ImGuiWindowFlags_AlwaysUseWindowPadding;
+        else if(str == "no-nav-inputs")     flags |= ImGuiWindowFlags_NoNavInputs;
+        else if(str == "no-nav-focus")      flags |= ImGuiWindowFlags_NoNavFocus;
+        else if(str == "unsaved-document")  flags |= ImGuiWindowFlags_UnsavedDocument;
+        else if(str == "no-nav")            flags |= ImGuiWindowFlags_NoNav;
+        else if(str == "no-decorations")    flags |= ImGuiWindowFlags_NoDecoration;
+        else if(str == "no-inputs")         flags |= ImGuiWindowFlags_NoInputs;
+        return true;
+    });
+    
+    bool was_open = get_node_bool(node_deref(env, p_open));
+    bool open = was_open;
+    if(ImGui::Begin(name.c_str(), &open, flags)) {
+        if(open != was_open) {
+            node_reset(env, p_open, new_node_bool(open));
+        }
+        node_idx_t ret = NIL_NODE;
+        for(; it; ++it) {
+            ret = eval_node(env, *it);
+        }
+        ImGui::End();
+        return ret;
+    }
+    ImGui::End();
+    return NIL_NODE;
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
@@ -73,5 +129,6 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/menu-item", new_node_native_function("imgui/menu-item", &native_imgui_menu_item, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-next-window-pos", new_node_native_function("imgui/set-next-window-pos", &native_imgui_set_next_window_pos, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-next-window-size", new_node_native_function("imgui/set-next-window-size", &native_imgui_set_next_window_size, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/begin", new_node_native_function("imgui/begin", &native_imgui_begin, true, NODE_FLAG_PRERESOLVE));
 }
 
