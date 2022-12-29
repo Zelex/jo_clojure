@@ -1164,7 +1164,7 @@
 (fn-test)
 
 ;(println "All done!")
-;(while (not (System/kbhit)) (System/sleep 0.1))
+;(while (not (sys/kbhit)) (Thread/sleep 100))
 ;(doall (range 1 6))
 
 

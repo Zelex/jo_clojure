@@ -8,17 +8,17 @@
 (def compiler 'clang)
 (def linker 'clang)
 
-(def job-start-time (atom (Time/now)))
+(def job-start-time (atom (time/now)))
 
 (defn compile-file-internal [[file T]]
     ;(println 'Compiling file T)
-    ;(System/exec compiler "-c" file "-o" (System/tmpnam))
+    ;(sys/exec compiler "-c" file "-o" (sys/tmpnam))
     (Thread/sleep T)
     ;(print ".")
     { :file file, 
       :job-time T, 
       :retry-num (Thread/tx-retries),
-      :retry-time (- (Time/now) (Thread/tx-start-time))})
+      :retry-time (- (time/now) (Thread/tx-start-time))})
 
 
 (defn compile-result-success [_] true)
@@ -142,7 +142,7 @@
     (reset! compile-files-done [])
     (Thread/atom-retries-reset)
     (Thread/stm-retries-reset)
-    (reset! job-start-time (Time/now)))
+    (reset! job-start-time (time/now)))
 
 (def files (doall-vec (for [idx (range 1000)] [idx 1])))
 ;(def files (doall-vec (for [idx (range 1000)] [idx (rand 0.1 2)])))

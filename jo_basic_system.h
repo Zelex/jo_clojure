@@ -153,21 +153,112 @@ static node_idx_t native_system_delete_file(env_ptr_t env, list_ptr_t args) {
 	return new_node_bool(remove(get_node_string(args->first_value()).c_str()) == 0);
 }
 
+#ifndef NO_NFD
+static node_idx_t native_system_open_dialog(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	jo_string filter_list = get_node_string(eval_node(env, *it++));
+	jo_string default_path = get_node_string(eval_node(env, *it++));
+	node_idx_t status_idx = *it++;
+	if(get_node_type(status_idx) != NODE_SYMBOL) {
+		warnf("open-dialog: status name must be a symbol");
+		return NIL_NODE;
+	}
+	node_idx_t result_idx = *it++;
+	if(get_node_type(result_idx) != NODE_SYMBOL) {
+		warnf("open-dialog: result name must be a symbol");
+		return NIL_NODE;
+	}
+	nfdchar_t *out_path = NULL;
+    nfdresult_t result = NFD_OpenDialog( filter_list.c_str(), default_path.c_str(), &out_path );
+	env_ptr_t env2 = new_env(env);
+	switch(result) {
+		case NFD_OKAY: env2->set_temp(status_idx, new_node_keyword("ok")); break;
+		case NFD_CANCEL: env2->set_temp(status_idx, new_node_keyword("cancel")); break;
+		case NFD_ERROR: env2->set_temp(status_idx, new_node_keyword("error")); break;
+	}
+	env2->set_temp(result_idx, new_node_string(out_path));
+	node_idx_t res = NIL_NODE;
+	for(; it; ++it) {
+		res = eval_node(env2, *it);
+	}
+	return res;
+}
+
+static node_idx_t native_system_save_dialog(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	jo_string filter_list = get_node_string(eval_node(env, *it++));
+	jo_string default_path = get_node_string(eval_node(env, *it++));
+	node_idx_t status_idx = *it++;
+	if(get_node_type(status_idx) != NODE_SYMBOL) {
+		warnf("save-dialog: status name must be a symbol");
+		return NIL_NODE;
+	}
+	node_idx_t result_idx = *it++;
+	if(get_node_type(result_idx) != NODE_SYMBOL) {
+		warnf("save-dialog: result name must be a symbol");
+		return NIL_NODE;
+	}
+	nfdchar_t *out_path = NULL;
+    nfdresult_t result = NFD_SaveDialog( filter_list.c_str(), default_path.c_str(), &out_path );
+	env_ptr_t env2 = new_env(env);
+	switch(result) {
+		case NFD_OKAY: env2->set_temp(status_idx, new_node_keyword("ok")); break;
+		case NFD_CANCEL: env2->set_temp(status_idx, new_node_keyword("cancel")); break;
+		case NFD_ERROR: env2->set_temp(status_idx, new_node_keyword("error")); break;
+	}
+	env2->set_temp(result_idx, new_node_string(out_path));
+	node_idx_t res = NIL_NODE;
+	for(; it; ++it) {
+		res = eval_node(env2, *it);
+	}
+	return res;
+}
+
+static node_idx_t native_system_pick_folder(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	jo_string default_path = get_node_string(eval_node(env, *it++));
+	node_idx_t status_idx = *it++;
+	if(get_node_type(status_idx) != NODE_SYMBOL) {
+		warnf("pick-folder: status name must be a symbol");
+		return NIL_NODE;
+	}
+	node_idx_t result_idx = *it++;
+	if(get_node_type(result_idx) != NODE_SYMBOL) {
+		warnf("pick-folder: result name must be a symbol");
+		return NIL_NODE;
+	}
+	nfdchar_t *out_path = NULL;
+    nfdresult_t result = NFD_PickFolder( default_path.c_str(), &out_path );
+	env_ptr_t env2 = new_env(env);
+	switch(result) {
+		case NFD_OKAY: env2->set_temp(status_idx, new_node_keyword("ok")); break;
+		case NFD_CANCEL: env2->set_temp(status_idx, new_node_keyword("cancel")); break;
+		case NFD_ERROR: env2->set_temp(status_idx, new_node_keyword("error")); break;
+	}
+	env2->set_temp(result_idx, new_node_string(out_path));
+	node_idx_t res = NIL_NODE;
+	for(; it; ++it) {
+		res = eval_node(env2, *it);
+	}
+	return res;
+}
+#endif
+
 void jo_basic_system_init(env_ptr_t env) {
-	env->set("System/setenv", new_node_native_function("System/setenv", &native_system_setenv, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/getenv", new_node_native_function("System/getenv", &native_system_getenv, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/exec-output", new_node_native_function("System/exec-output", &native_system_exec_output, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/exec", new_node_native_function("System/exec", &native_system_exec, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/getcwd", new_node_native_function("System/getcwd", &native_system_getcwd, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/chdir", new_node_native_function("System/chdir", &native_system_chdir, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/kbhit", new_node_native_function("System/kbhit", &native_system_kbhit, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/getch", new_node_native_function("System/getch", &native_system_getch, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/date", new_node_native_function("System/date", &native_system_date, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/currentTimeMillis", new_node_native_function("System/currentTimeMillis", &native_system_currentTimeMillis, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/tmpnam", new_node_native_function("System/tmpnam", &native_system_tmpnam, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/move-file", new_node_native_function("System/move-file", &native_system_move_file, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/copy-file", new_node_native_function("System/copy-file", &native_system_copy_file, false, NODE_FLAG_PRERESOLVE));
-	env->set("System/delete-file", new_node_native_function("System/delete-file", &native_system_delete_file, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/setenv", new_node_native_function("sys/setenv", &native_system_setenv, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/getenv", new_node_native_function("sys/getenv", &native_system_getenv, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/exec-output", new_node_native_function("sys/exec-output", &native_system_exec_output, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/exec", new_node_native_function("sys/exec", &native_system_exec, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/getcwd", new_node_native_function("sys/getcwd", &native_system_getcwd, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/chdir", new_node_native_function("sys/chdir", &native_system_chdir, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/kbhit", new_node_native_function("sys/kbhit", &native_system_kbhit, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/getch", new_node_native_function("sys/getch", &native_system_getch, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/date", new_node_native_function("sys/date", &native_system_date, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/currentTimeMillis", new_node_native_function("sys/currentTimeMillis", &native_system_currentTimeMillis, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/tmpnam", new_node_native_function("sys/tmpnam", &native_system_tmpnam, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/move-file", new_node_native_function("sys/move-file", &native_system_move_file, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/copy-file", new_node_native_function("sys/copy-file", &native_system_copy_file, false, NODE_FLAG_PRERESOLVE));
+	env->set("sys/delete-file", new_node_native_function("sys/delete-file", &native_system_delete_file, false, NODE_FLAG_PRERESOLVE));
 	env->set("read-line", new_node_native_function("read-line", &native_system_read_line, false, NODE_FLAG_PRERESOLVE));
 	env->set("-d", new_node_native_function("-d", &native_system_dir_exists, false, NODE_FLAG_PRERESOLVE));
 	env->set("-e", new_node_native_function("-e", &native_system_file_exists, false, NODE_FLAG_PRERESOLVE));
@@ -176,5 +267,11 @@ void jo_basic_system_init(env_ptr_t env) {
 	env->set("-w", new_node_native_function("-w", &native_system_file_writable, false, NODE_FLAG_PRERESOLVE));
 	env->set("-x", new_node_native_function("-x", &native_system_file_executable, false, NODE_FLAG_PRERESOLVE));
 	env->set("-z", new_node_native_function("-z", &native_system_file_empty, false, NODE_FLAG_PRERESOLVE));
-	env->set("Time/now", new_node_native_function("Time/now", &native_time_now, false, NODE_FLAG_PRERESOLVE));
+	env->set("time/now", new_node_native_function("time/now", &native_time_now, false, NODE_FLAG_PRERESOLVE));
+	
+#ifndef NO_NFD
+	env->set("sys/open-dialog", new_node_native_function("sys/open-dialog", &native_system_open_dialog, true, NODE_FLAG_PRERESOLVE));
+	env->set("sys/save-dialog", new_node_native_function("sys/save-dialog", &native_system_save_dialog, true, NODE_FLAG_PRERESOLVE));
+	env->set("sys/pick-folder", new_node_native_function("sys/pick-folder", &native_system_pick_folder, true, NODE_FLAG_PRERESOLVE));
+#endif
 }
