@@ -2,15 +2,20 @@
 
 #include "jo_stdcpp.h"
 
-#include "nfd/nfd.h"
-#include "nfd/nfd_common.c"
 
 #if defined _WIN32
 #include "nfd/nfd_win.cpp"
 #elif defined __APPLE__
 #include "nfd/nfd_cocoa.m"
-#else
+#elif defined __linux__
 #include "nfd/nfd_gtk.c"
+#else
+#define NO_NFD
+#endif
+
+#ifndef NO_NFD
+#include "nfd/nfd.h"
+#include "nfd/nfd_common.c"
 #endif
 
 // execute a shell command
