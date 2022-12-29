@@ -1,1 +1,1 @@
-cl /O2 /Zi /Iext /DNO_MYSQL jo_basic.cpp ext/nfd/nfd_win.cpp ext/nfd/nfd_common.c imgui/imgui.cpp imgui/imgui_widgets.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_demo.cpp /EHsc- /D_CRT_SECURE_NO_WARNINGS
+cl /O2 /Zi /Iext /DNO_MYSQL jo_basic.cpp imgui/imgui.cpp imgui/imgui_widgets.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_demo.cpp /EHsc- /D_CRT_SECURE_NO_WARNINGS

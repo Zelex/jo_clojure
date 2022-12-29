@@ -14,7 +14,6 @@ if [ "$(uname)" == "Darwin" ]; then
      -Iext -I/opt/homebrew/opt/mysql-client/include \
      jo_basic.cpp \
      imgui/imgui.cpp imgui/imgui_widgets.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_demo.cpp \
-     ext/nfd/nfd_cocoa.m ext/nfd/nfd_common.c \
      $opt -fexceptions -lpthread -lobjc \
      -framework Cocoa -framework QuartzCore -framework OpenGL -framework Metal -framework MetalKit \
      -L/opt/homebrew/opt/mysql-client/lib \
@@ -26,7 +25,6 @@ elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
      -Iext \
      jo_basic.cpp \
      imgui/imgui.cpp imgui/imgui_widgets.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_demo.cpp \
-     ext/nfd/nfd_gtk.c ext/nfd/nfd_common.c \
      $opt -fexceptions -lpthread \
      -lmysqlclient \
      -o basic

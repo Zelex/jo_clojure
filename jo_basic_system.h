@@ -3,6 +3,15 @@
 #include "jo_stdcpp.h"
 
 #include "nfd/nfd.h"
+#include "nfd/nfd_common.c"
+
+#if defined _WIN32
+#include "nfd/nfd_win.cpp"
+#elif defined __APPLE__
+#include "nfd/nfd_cocoa.m"
+#else
+#include "nfd/nfd_gtk.c"
+#endif
 
 // execute a shell command
 static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
