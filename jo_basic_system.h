@@ -2,6 +2,8 @@
 
 #include "jo_stdcpp.h"
 
+#include "nfd/nfd.h"
+
 // execute a shell command
 static node_idx_t native_system_exec(env_ptr_t env, list_ptr_t args) {
 	jo_string str;
