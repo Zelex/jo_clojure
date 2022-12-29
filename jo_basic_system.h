@@ -168,7 +168,7 @@ static node_idx_t native_system_open_dialog(env_ptr_t env, list_ptr_t args) {
 		warnf("open-dialog: result name must be a symbol");
 		return NIL_NODE;
 	}
-	nfdchar_t *out_path = NULL;
+	nfdchar_t *out_path = jo_strdup("");
     nfdresult_t result = NFD_OpenDialog( filter_list.c_str(), default_path.c_str(), &out_path );
 	env_ptr_t env2 = new_env(env);
 	switch(result) {
@@ -177,6 +177,7 @@ static node_idx_t native_system_open_dialog(env_ptr_t env, list_ptr_t args) {
 		case NFD_ERROR: env2->set_temp(status_idx, new_node_keyword("error")); break;
 	}
 	env2->set_temp(result_idx, new_node_string(out_path));
+	free(out_path);
 	node_idx_t res = NIL_NODE;
 	for(; it; ++it) {
 		res = eval_node(env2, *it);
@@ -198,7 +199,7 @@ static node_idx_t native_system_save_dialog(env_ptr_t env, list_ptr_t args) {
 		warnf("save-dialog: result name must be a symbol");
 		return NIL_NODE;
 	}
-	nfdchar_t *out_path = NULL;
+	nfdchar_t *out_path = jo_strdup("");
     nfdresult_t result = NFD_SaveDialog( filter_list.c_str(), default_path.c_str(), &out_path );
 	env_ptr_t env2 = new_env(env);
 	switch(result) {
@@ -207,6 +208,7 @@ static node_idx_t native_system_save_dialog(env_ptr_t env, list_ptr_t args) {
 		case NFD_ERROR: env2->set_temp(status_idx, new_node_keyword("error")); break;
 	}
 	env2->set_temp(result_idx, new_node_string(out_path));
+	free(out_path);
 	node_idx_t res = NIL_NODE;
 	for(; it; ++it) {
 		res = eval_node(env2, *it);
@@ -227,7 +229,7 @@ static node_idx_t native_system_pick_folder(env_ptr_t env, list_ptr_t args) {
 		warnf("pick-folder: result name must be a symbol");
 		return NIL_NODE;
 	}
-	nfdchar_t *out_path = NULL;
+	nfdchar_t *out_path = jo_strdup("");
     nfdresult_t result = NFD_PickFolder( default_path.c_str(), &out_path );
 	env_ptr_t env2 = new_env(env);
 	switch(result) {
@@ -236,6 +238,7 @@ static node_idx_t native_system_pick_folder(env_ptr_t env, list_ptr_t args) {
 		case NFD_ERROR: env2->set_temp(status_idx, new_node_keyword("error")); break;
 	}
 	env2->set_temp(result_idx, new_node_string(out_path));
+	free(out_path);
 	node_idx_t res = NIL_NODE;
 	for(; it; ++it) {
 		res = eval_node(env2, *it);
