@@ -190,7 +190,7 @@ static node_idx_t native_imgui_image(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_imgui_text(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
     jo_string text = get_node_string(eval_node(env, *it++));
-    ImGui::Text("%s", text.c_str());
+    ImGui::TextUnformatted(text.c_str());
     return NIL_NODE;
 }
 
