@@ -194,6 +194,66 @@ static node_idx_t native_imgui_text(env_ptr_t env, list_ptr_t args) {
     return NIL_NODE;
 }
 
+static node_idx_t native_imgui_is_window_appearing(env_ptr_t env, list_ptr_t args) {
+    return new_node_bool(ImGui::IsWindowAppearing());
+}
+
+static node_idx_t native_imgui_is_window_collapsed(env_ptr_t env, list_ptr_t args) {
+    return new_node_bool(ImGui::IsWindowCollapsed());
+}
+
+static node_idx_t native_imgui_is_window_focused(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    int flags = 0;
+    for(; it; ++it) {
+        jo_string str = get_node_string(*it);
+        if(str == "none")                   flags |= ImGuiFocusedFlags_None;
+        else if(str == "child-windows")     flags |= ImGuiFocusedFlags_ChildWindows;
+        else if(str == "root-window")       flags |= ImGuiFocusedFlags_RootWindow;
+        else if(str == "any-window")        flags |= ImGuiFocusedFlags_AnyWindow;
+        else if(str == "no-popup-heirarchy")  flags |= ImGuiFocusedFlags_NoPopupHierarchy;
+    }
+    return new_node_bool(ImGui::IsWindowFocused(flags));
+}
+
+static node_idx_t native_imgui_is_window_hovered(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    int flags = 0;
+    for(; it; ++it) {
+        jo_string str = get_node_string(*it);
+        if(str == "none")                   flags |= ImGuiHoveredFlags_None;
+        else if(str == "child-windows")     flags |= ImGuiHoveredFlags_ChildWindows;
+        else if(str == "root-window")       flags |= ImGuiHoveredFlags_RootWindow;
+        else if(str == "any-window")        flags |= ImGuiHoveredFlags_AnyWindow;
+        else if(str == "no-popup-heirarchy")  flags |= ImGuiHoveredFlags_NoPopupHierarchy;
+        else if(str == "allow-when-blocked-by-popup")  flags |= ImGuiHoveredFlags_AllowWhenBlockedByPopup;
+        else if(str == "allow-when-blocked-by-active-item")  flags |= ImGuiHoveredFlags_AllowWhenBlockedByActiveItem;
+        else if(str == "allow-when-overlapped")  flags |= ImGuiHoveredFlags_AllowWhenOverlapped;
+        else if(str == "allow-when-disabled")  flags |= ImGuiHoveredFlags_AllowWhenDisabled;
+        else if(str == "no-nav-override")   flags |= ImGuiHoveredFlags_NoNavOverride;
+        else if(str == "rect-only")         flags |= ImGuiHoveredFlags_RectOnly;
+    }
+    return new_node_bool(ImGui::IsWindowHovered(flags));
+}
+
+static node_idx_t native_imgui_window_pos(env_ptr_t env, list_ptr_t args) {
+    ImVec2 pos = ImGui::GetWindowPos();
+    return new_node_vector(vector_va(new_node_float(pos.x), new_node_float(pos.y)));
+}
+
+static node_idx_t native_imgui_window_size(env_ptr_t env, list_ptr_t args) {
+    ImVec2 size = ImGui::GetWindowSize();
+    return new_node_vector(vector_va(new_node_float(size.x), new_node_float(size.y)));
+}
+
+static node_idx_t native_imgui_window_width(env_ptr_t env, list_ptr_t args) {
+    return new_node_float(ImGui::GetWindowWidth());
+}
+
+static node_idx_t native_imgui_window_height(env_ptr_t env, list_ptr_t args) {
+    return new_node_float(ImGui::GetWindowHeight());
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
@@ -206,5 +266,13 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/button", new_node_native_function("imgui/button", &native_imgui_button, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/image", new_node_native_function("imgui/image", &native_imgui_image, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/text", new_node_native_function("imgui/text", &native_imgui_text, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/window-appearing?", new_node_native_function("imgui/window-appearing?", &native_imgui_is_window_appearing, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/window-collapsed?", new_node_native_function("imgui/window-collapsed?", &native_imgui_is_window_collapsed, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/window-focused?", new_node_native_function("imgui/window-focused?", &native_imgui_is_window_focused, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/window-hovered?", new_node_native_function("imgui/window-hovered?", &native_imgui_is_window_hovered, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/window-pos", new_node_native_function("imgui/window-pos", &native_imgui_window_pos, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/window-size", new_node_native_function("imgui/window-size", &native_imgui_window_size, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/window-width", new_node_native_function("imgui/window-width", &native_imgui_window_width, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/window-height", new_node_native_function("imgui/window-height", &native_imgui_window_height, false, NODE_FLAG_PRERESOLVE));
 }
 
