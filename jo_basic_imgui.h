@@ -1,5 +1,33 @@
 #pragma once
 
+static int GetImGuiCond(node_idx_t node) {
+    if(get_node_type(node) != NODE_VECTOR) {
+        return 0;
+    }
+    vector_ptr_t vec = get_node_vector(node);
+    int flags = 0;
+	for(vector_t::iterator it = vec->begin(); it; it++) {
+        jo_string str = get_node_string(*it);
+        if(str == "none")            flags |= ImGuiCond_None;
+        else if(str == "always")     flags |= ImGuiCond_Always;
+        else if(str == "once")       flags |= ImGuiCond_Once;
+        else if(str == "first-use-ever")  flags |= ImGuiCond_FirstUseEver;
+        else if(str == "appearing")  flags |= ImGuiCond_Appearing;
+    }
+    return flags;
+}
+
+static ImVec2 GetImVec2(node_idx_t node) {
+    if(get_node_type(node) != NODE_VECTOR) {
+        return ImVec2(0, 0);
+    }
+    vector_ptr_t vec = get_node_vector(node);
+    if(vec->size() < 2) {
+        return ImVec2(0, 0);
+    }
+    return ImVec2(get_node_float(vec->nth(0)), get_node_float(vec->nth(1)));
+}
+
 static node_idx_t native_imgui_main_menu_bar(env_ptr_t env, list_ptr_t args) {
     if(ImGui::BeginMainMenuBar()) {
         node_idx_t ret = eval_node_list(env, args);
@@ -31,38 +59,6 @@ static node_idx_t native_imgui_menu_item(env_ptr_t env, list_ptr_t args) {
     if(ImGui::MenuItem(get_node_string(args->first_value()).c_str())) {
         return eval_node_list(env, args->pop_front());
     }
-    return NIL_NODE;
-}
-
-static node_idx_t native_imgui_set_next_window_pos(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it(args);
-    ImVec2 pos = ImVec2(get_node_float(*it++), get_node_float(*it++));
-    int flags = 0;
-    for(; it; ++it) {
-        jo_string str = get_node_string(*it);
-        if(str == "none")            flags |= ImGuiCond_None;
-        else if(str == "always")     flags |= ImGuiCond_Always;
-        else if(str == "once")       flags |= ImGuiCond_Once;
-        else if(str == "first-use-ever")  flags |= ImGuiCond_FirstUseEver;
-        else if(str == "appearing")  flags |= ImGuiCond_Appearing;
-    }
-    ImGui::SetNextWindowPos(pos, flags);
-    return NIL_NODE;
-}
-
-static node_idx_t native_imgui_set_next_window_size(env_ptr_t env, list_ptr_t args) {
-    list_t::iterator it(args);
-    ImVec2 pos = ImVec2(get_node_float(*it++), get_node_float(*it++));
-    int flags = 0;
-    for(; it; ++it) {
-        jo_string str = get_node_string(*it);
-        if(str == "none")            flags |= ImGuiCond_None;
-        else if(str == "always")     flags |= ImGuiCond_Always;
-        else if(str == "once")       flags |= ImGuiCond_Once;
-        else if(str == "first-use-ever")  flags |= ImGuiCond_FirstUseEver;
-        else if(str == "appearing")  flags |= ImGuiCond_Appearing;
-    }
-    ImGui::SetNextWindowSize(pos, flags);
     return NIL_NODE;
 }
 
@@ -254,13 +250,36 @@ static node_idx_t native_imgui_window_height(env_ptr_t env, list_ptr_t args) {
     return new_node_float(ImGui::GetWindowHeight());
 }
 
+static node_idx_t native_imgui_set_next_window_pos(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    ImVec2 pos = GetImVec2(*it++);
+    int flags = GetImGuiCond(*it++);
+    ImVec2 pivot = GetImVec2(*it++);
+    ImGui::SetNextWindowPos(pos, flags, pivot);
+    return NIL_NODE;
+}
+
+static node_idx_t native_imgui_set_next_window_size(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    ImVec2 pos = GetImVec2(*it++);
+    int flags = GetImGuiCond(*it++);
+    ImGui::SetNextWindowSize(pos, flags);
+    return NIL_NODE;
+}
+
+static node_idx_t native_imgui_set_next_window_size_constraints(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    ImVec2 size_min = GetImVec2(*it++);
+    ImVec2 size_max = GetImVec2(*it++);
+    ImGui::SetNextWindowSizeConstraints(size_min, size_max);
+    return NIL_NODE;
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu", new_node_native_function("imgui/menu", &native_imgui_menu, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-item", new_node_native_function("imgui/menu-item", &native_imgui_menu_item, true, NODE_FLAG_PRERESOLVE));
-	env->set("imgui/set-next-window-pos", new_node_native_function("imgui/set-next-window-pos", &native_imgui_set_next_window_pos, false, NODE_FLAG_PRERESOLVE));
-	env->set("imgui/set-next-window-size", new_node_native_function("imgui/set-next-window-size", &native_imgui_set_next_window_size, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/begin", new_node_native_function("imgui/begin", &native_imgui_begin, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/input-text", new_node_native_function("imgui/input-text", &native_imgui_input_text, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/button", new_node_native_function("imgui/button", &native_imgui_button, true, NODE_FLAG_PRERESOLVE));
@@ -274,5 +293,8 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/window-size", new_node_native_function("imgui/window-size", &native_imgui_window_size, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/window-width", new_node_native_function("imgui/window-width", &native_imgui_window_width, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/window-height", new_node_native_function("imgui/window-height", &native_imgui_window_height, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/set-next-window-pos", new_node_native_function("imgui/set-next-window-pos", &native_imgui_set_next_window_pos, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/set-next-window-size", new_node_native_function("imgui/set-next-window-size", &native_imgui_set_next_window_size, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/set-next-window-size-constraints", new_node_native_function("imgui/set-next-window-size-constraints", &native_imgui_set_next_window_size_constraints, false, NODE_FLAG_PRERESOLVE));
 }
 
