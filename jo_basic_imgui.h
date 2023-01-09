@@ -275,6 +275,13 @@ static node_idx_t native_imgui_set_next_window_size_constraints(env_ptr_t env, l
     return NIL_NODE;
 }
 
+static node_idx_t native_imgui_set_next_window_content_size(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    ImVec2 pos = GetImVec2(*it++);
+    ImGui::SetNextWindowContentSize(pos);
+    return NIL_NODE;
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
@@ -296,5 +303,6 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/set-next-window-pos", new_node_native_function("imgui/set-next-window-pos", &native_imgui_set_next_window_pos, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-next-window-size", new_node_native_function("imgui/set-next-window-size", &native_imgui_set_next_window_size, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-next-window-size-constraints", new_node_native_function("imgui/set-next-window-size-constraints", &native_imgui_set_next_window_size_constraints, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/set-next-window-content-size", new_node_native_function("imgui/set-next-window-content-size", &native_imgui_set_next_window_content_size, false, NODE_FLAG_PRERESOLVE));
 }
 
