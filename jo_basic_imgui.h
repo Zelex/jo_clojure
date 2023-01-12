@@ -300,6 +300,40 @@ static node_idx_t native_imgui_set_next_window_bgalpha(env_ptr_t env, list_ptr_t
     return NIL_NODE;
 }
 
+static node_idx_t native_imgui_set_window_pos(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_string name = get_node_string(*it++);
+    ImVec2 v = GetImVec2(*it++);
+    int flags = GetImGuiCond(*it++);
+    ImGui::SetWindowPos(name.c_str(), v, flags);
+    return NIL_NODE;
+}
+
+static node_idx_t native_imgui_set_window_size(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_string name = get_node_string(*it++);
+    ImVec2 v = GetImVec2(*it++);
+    int flags = GetImGuiCond(*it++);
+    ImGui::SetWindowSize(name.c_str(), v, flags);
+    return NIL_NODE;
+}
+
+static node_idx_t native_imgui_set_window_collapsed(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_string name = get_node_string(*it++);
+    bool collapsed = get_node_bool(*it++);
+    int flags = GetImGuiCond(*it++);
+    ImGui::SetWindowCollapsed(name.c_str(), collapsed, flags);
+    return NIL_NODE;
+}
+
+static node_idx_t native_imgui_set_window_focus(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    jo_string name = get_node_string(*it++);
+    ImGui::SetWindowFocus(name.c_str());
+    return NIL_NODE;
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
@@ -325,5 +359,9 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/set-next-window-collapsed", new_node_native_function("imgui/set-next-window-collapsed", &native_imgui_set_next_window_collapsed, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-next-window-focus", new_node_native_function("imgui/set-next-window-focus", &native_imgui_set_next_window_focus, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-next-window-bgalpha", new_node_native_function("imgui/set-next-window-bgalpha", &native_imgui_set_next_window_bgalpha, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/set-window-pos", new_node_native_function("imgui/set-window-pos", &native_imgui_set_window_pos, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/set-window-size", new_node_native_function("imgui/set-window-size", &native_imgui_set_window_size, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/set-window-collapsed", new_node_native_function("imgui/set-window-collapsed", &native_imgui_set_window_collapsed, false, NODE_FLAG_PRERESOLVE));
+	env->set("imgui/set-window-focus", new_node_native_function("imgui/set-window-focus", &native_imgui_set_window_focus, false, NODE_FLAG_PRERESOLVE));
 }
 
