@@ -334,6 +334,26 @@ static node_idx_t native_imgui_set_window_focus(env_ptr_t env, list_ptr_t args) 
     return NIL_NODE;
 }
 
+static node_idx_t native_imgui_get_content_region_avail(env_ptr_t env, list_ptr_t args) {
+    ImVec2 size = ImGui::GetContentRegionAvail();
+    return new_node_vector(vector_va(new_node_float(size.x), new_node_float(size.y)));
+}
+
+static node_idx_t native_imgui_get_content_region_max(env_ptr_t env, list_ptr_t args) {
+    ImVec2 size = ImGui::GetContentRegionMax();
+    return new_node_vector(vector_va(new_node_float(size.x), new_node_float(size.y)));
+}
+
+static node_idx_t native_imgui_get_window_content_region_min(env_ptr_t env, list_ptr_t args) {
+    ImVec2 size = ImGui::GetWindowContentRegionMin();
+    return new_node_vector(vector_va(new_node_float(size.x), new_node_float(size.y)));
+}
+
+static node_idx_t native_imgui_get_window_content_region_max(env_ptr_t env, list_ptr_t args) {
+    ImVec2 size = ImGui::GetWindowContentRegionMax();
+    return new_node_vector(vector_va(new_node_float(size.x), new_node_float(size.y)));
+}
+
 void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
@@ -363,5 +383,9 @@ void jo_basic_imgui_init(env_ptr_t env) {
 	env->set("imgui/set-window-size", new_node_native_function("imgui/set-window-size", &native_imgui_set_window_size, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-window-collapsed", new_node_native_function("imgui/set-window-collapsed", &native_imgui_set_window_collapsed, false, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/set-window-focus", new_node_native_function("imgui/set-window-focus", &native_imgui_set_window_focus, false, NODE_FLAG_PRERESOLVE));
+    env->set("imgui/get-content-region-avail", new_node_native_function("imgui/get-content-region-avail", &native_imgui_get_content_region_avail, false, NODE_FLAG_PRERESOLVE));
+    env->set("imgui/get-content-region-max", new_node_native_function("imgui/get-content-region-max", &native_imgui_get_content_region_max, false, NODE_FLAG_PRERESOLVE));
+    env->set("imgui/get-window-content-region-min", new_node_native_function("imgui/get-window-content-region-min", &native_imgui_get_window_content_region_min, false, NODE_FLAG_PRERESOLVE));
+    env->set("imgui/get-window-content-region-max", new_node_native_function("imgui/get-window-content-region-max", &native_imgui_get_window_content_region_max, false, NODE_FLAG_PRERESOLVE));
 }
 
