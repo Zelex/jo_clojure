@@ -1,10 +1,11 @@
 (def left-file (nth *command-line-args* 2))
 (def right-file (nth *command-line-args* 3))
 
+(def exposure (atom 4))
 
 (def left-image (canvas/load-file left-file))
 (def right-image (canvas/load-file right-file))
-(def diff-image (canvas/diff left-image right-image))
+(def diff-image (atom (canvas/diff left-image right-image @exposure)))
 
 (def WIDTH (atom (canvas/width left-image)))
 (def HEIGHT (atom (canvas/height left-image)))
@@ -13,8 +14,13 @@
 (def right-image-sg (atom nil))
 (def diff-image-sg (atom nil))
 
+(def mouse-left (atom false))
+(def mouse-middle (atom false))
+(def mouse-right (atom false))
+
 (def at-x (atom 0))
 (def at-y (atom 0))
+
 
 (def sokol-desc {
     :width @WIDTH
@@ -23,7 +29,7 @@
     :init_cb (fn [] 
         (reset! left-image-sg (sg/canvas-image left-image))
         (reset! right-image-sg (sg/canvas-image right-image))
-        (reset! diff-image-sg (sg/canvas-image diff-image))
+        (reset! diff-image-sg (sg/canvas-image @diff-image))
     )
     :frame_cb (fn [] 
         (sgl/viewport 0 0 @WIDTH @HEIGHT false)
@@ -60,15 +66,41 @@
     :event_cb (fn [event] 
         (case (:type event)
             :key-down (case (:key event)
+                :left-bracket (do 
+                    (reset! exposure (Math/clip (- @exposure 1) 1 10))
+                    (reset! diff-image (canvas/diff left-image right-image @exposure))
+                    (reset! diff-image-sg (sg/canvas-image @diff-image))
+                )
+                :right-bracket (do 
+                    (reset! exposure (Math/clip (+ @exposure 1) 1 10))
+                    (reset! diff-image (canvas/diff left-image right-image @exposure))
+                    (reset! diff-image-sg (sg/canvas-image @diff-image))
+                )
                 :escape (sokol/quit)
             )
             :resized (do
                 (reset! WIDTH (:window-width event))
                 (reset! HEIGHT (:window-height event))
             )
+            :mouse-down (do
+                (case (:mouse-button event)
+                    :left (reset! mouse-left true)
+                    :middle (reset! mouse-middle true)
+                    :right (reset! mouse-right true)
+                )
+            )
+            :mouse-up (do
+                (case (:mouse-button event)
+                    :left (reset! mouse-left false)
+                    :middle (reset! mouse-middle false)
+                    :right (reset! mouse-right false)
+                )
+            )
             :mouse-move (do
-                (reset! at-x (Math/clip (/ (float (:mouse-x event)) (float @WIDTH)) 0 0.66))
-                (reset! at-y (Math/clip (/ (float (:mouse-y event)) (float @HEIGHT)) 0 0.66))
+                (when @mouse-left
+                    (reset! at-x (Math/clip (/ (+ (* @at-x @WIDTH) (:mouse-dx event)) @WIDTH) 0 0.66))
+                    (reset! at-y (Math/clip (/ (+ (* @at-y @HEIGHT) (:mouse-dy event)) @HEIGHT) 0 0.66))
+                )
             )
         )
     )

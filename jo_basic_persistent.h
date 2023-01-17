@@ -1879,9 +1879,42 @@ struct jo_persistent_matrix : jo_object {
         prev->elements[(y & 7) * 8 + (x & 7)] = value;
     }
 
+    void set_block(size_t x, size_t y, T block[8*8]) {
+        if(x >= width || y >= height) {
+            return;
+        }
+
+        int shift = 3 * (depth + 1);
+
+        head = new_node(head);
+
+        node_shared_ptr cur = NULL;
+        node_shared_ptr prev = head;
+        for (int level = shift; level > 0; level -= 3) {
+            size_t xx = (x >> level) & 7;
+            size_t yy = (y >> level) & 7;
+            size_t i = yy * 8 + xx;
+
+            // copy nodes as we traverse
+            cur = new_node(prev->children[i]);
+            prev->children[i] = cur;
+            prev = cur;
+        }
+
+        for(int i = 0; i < 8*8; ++i) {
+            prev->elements[i] = block[i];
+        }
+    }
+
     shared_ptr set_new(size_t x, size_t y, T &value) const {
         shared_ptr copy = clone();
         copy->set(x, y, value);
+        return copy;
+    }
+
+    shared_ptr set_new_block(size_t x, size_t y, T block[8*8]) const {
+        shared_ptr copy = clone();
+        copy->set_block(x, y, block);
         return copy;
     }
 
@@ -1904,6 +1937,36 @@ struct jo_persistent_matrix : jo_object {
             }
         }
         return cur->elements[(y & 7) * 8 + (x & 7)];
+    }
+
+    void get_block(size_t x, size_t y, T block[8*8]) const {
+        if(x >= width || y >= height) {
+            for(int i = 0; i < 8*8; ++i) {
+                block[i] = T();
+            }
+            return;
+        }
+        int shift = 3 * (depth + 1);
+
+        node_shared_ptr cur = head;
+
+        for (int level = shift; level > 0; level -= 3) {
+            size_t xx = (x >> level) & 7;
+            size_t yy = (y >> level) & 7;
+            size_t i = yy * 8 + xx;
+
+            cur = cur->children[i];
+            if (!cur) {
+                for(int i = 0; i < 8*8; ++i) {
+                    block[i] = T();
+                }
+                return;
+            }
+        }
+
+        for (int i = 0; i < 8*8; ++i) {
+            block[i] = cur->elements[i];
+        }
     }
 
     void clear() { head = nullptr; }

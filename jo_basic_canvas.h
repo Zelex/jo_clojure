@@ -171,20 +171,22 @@ static node_idx_t native_canvas_diff(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
     jo_basic_canvas_ptr_t left_canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
     jo_basic_canvas_ptr_t right_canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    float exposure = get_node_float(*it++);
 
     int width = jo_min(left_canvas->width, right_canvas->width);
     int height = jo_min(left_canvas->height, right_canvas->height);
     int channels = left_canvas->channels;
 
     jo_basic_canvas_ptr_t canvas_new = new_canvas(width, height, channels);
-    for(int y = 0; y < height; y++) {
-        for(int x = 0; x < width; x++) {
-            for(int c = 0; c < channels; c++) {
-                int a = left_canvas->pixels->get(x*channels+c, y);
-                int b = right_canvas->pixels->get(x*channels+c, y);
-                int d = abs(a-b);
-                canvas_new->pixels->set(x*channels+c, y, d);
+    for(int y = 0; y < height; y+=8) {
+        for(int x = 0; x < width*channels; x+=8) {
+            double blk_a[8*8], blk_b[8*8], blk_d[8*8];
+            left_canvas->pixels->get_block(x, y, blk_a);
+            right_canvas->pixels->get_block(x, y, blk_b);
+            for(int i = 0; i < 8*8; i++) {
+                blk_d[i] = jo_min(abs(blk_a[i]-blk_b[i]) * exposure, 255);
             }
+            canvas_new->pixels->set_block(x, y, blk_d);
         }
     }
     return new_node_canvas(canvas_new);
