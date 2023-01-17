@@ -98,8 +98,8 @@
             )
             :mouse-move (do
                 (when @mouse-left
-                    (reset! at-x (Math/clip (/ (+ (* @at-x @WIDTH) (:mouse-dx event)) @WIDTH) 0 0.66))
-                    (reset! at-y (Math/clip (/ (+ (* @at-y @HEIGHT) (:mouse-dy event)) @HEIGHT) 0 0.66))
+                    (reset! at-x (Math/clip (/ (- (* @at-x @WIDTH) (:mouse-dx event)) @WIDTH) 0 0.66))
+                    (reset! at-y (Math/clip (/ (- (* @at-y @HEIGHT) (:mouse-dy event)) @HEIGHT) 0 0.66))
                 )
             )
         )
