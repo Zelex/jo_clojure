@@ -64,11 +64,15 @@ static node_idx_t native_canvas_load_file(env_ptr_t env, list_ptr_t args) {
     }
 
     jo_basic_canvas_ptr_t canvas = new_canvas(width, height, channels);
-    for(int y = 0; y < height; y++) {
-        for(int x = 0; x < width; x++) {
-            for(int c = 0; c < channels; c++) {
-                canvas->pixels->set(x*channels+c, y, data[(y*width+x)*channels+c]);
+    for(int y = 0; y < height; y+=8) {
+        for(int x = 0; x < width*channels; x+=8) {
+            double block[8*8];
+            for(int dy = 0; dy < 8; dy++) {
+                for(int dx = 0; dx < 8; dx++) {
+                    block[dy*8+dx] = data[jo_min(y+dy,height)*width*channels + jo_min(x+dx, width*channels)];
+                }
             }
+            canvas->pixels->set_block(x, y, block);
         }
     }
     stbi_image_free(data);
