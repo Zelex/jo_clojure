@@ -167,6 +167,29 @@ static node_idx_t native_canvas_channels(env_ptr_t env, list_ptr_t args) {
     return new_node_int(canvas->channels);
 }
 
+static node_idx_t native_canvas_diff(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+    jo_basic_canvas_ptr_t left_canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    jo_basic_canvas_ptr_t right_canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+
+    int width = jo_min(left_canvas->width, right_canvas->width);
+    int height = jo_min(left_canvas->height, right_canvas->height);
+    int channels = left_canvas->channels;
+
+    jo_basic_canvas_ptr_t canvas_new = new_canvas(width, height, channels);
+    for(int y = 0; y < height; y++) {
+        for(int x = 0; x < width; x++) {
+            for(int c = 0; c < channels; c++) {
+                int a = left_canvas->pixels->get(x*channels+c, y);
+                int b = right_canvas->pixels->get(x*channels+c, y);
+                int d = abs(a-b);
+                canvas_new->pixels->set(x*channels+c, y, d);
+            }
+        }
+    }
+    return new_node_canvas(canvas_new);
+}
+
 void jo_basic_canvas_init(env_ptr_t env) {
 	env->set("canvas", new_node_native_function("canvas", &native_canvas, false, NODE_FLAG_PRERESOLVE));
 	env->set("canvas/load-file", new_node_native_function("canvas/load-file", &native_canvas_load_file, false, NODE_FLAG_PRERESOLVE));
@@ -175,6 +198,7 @@ void jo_basic_canvas_init(env_ptr_t env) {
 	env->set("canvas/width", new_node_native_function("canvas/width", &native_canvas_width, false, NODE_FLAG_PRERESOLVE));
 	env->set("canvas/height", new_node_native_function("canvas/height", &native_canvas_height, false, NODE_FLAG_PRERESOLVE));
 	env->set("canvas/channels", new_node_native_function("canvas/channels", &native_canvas_channels, false, NODE_FLAG_PRERESOLVE));
+	env->set("canvas/diff", new_node_native_function("canvas/diff", &native_canvas_diff, false, NODE_FLAG_PRERESOLVE));
 }
 
 
