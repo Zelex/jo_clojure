@@ -1188,9 +1188,12 @@ static node_idx_t native_sg_canvas_image(env_ptr_t env, list_ptr_t args) {
             }
         }
     }
-    desc.data.subimage[0][0].ptr = data;
-    desc.data.subimage[0][0].size = data_size;
+    desc.usage = SG_USAGE_DYNAMIC;
     sg_image img = sg_make_image(&desc);
+    sg_image_data idata = {0};
+    idata.subimage[0][0].ptr = data;
+    idata.subimage[0][0].size = data_size;
+    sg_update_image(img, &idata);
     free(data);
     return new_node_int(img.id);
 }
@@ -1206,6 +1209,7 @@ static node_idx_t native_sg_update_canvas_image(env_ptr_t env, list_ptr_t args) 
     list_t::iterator it(args);
     sg_image img = {(unsigned)get_node_int(*it++)};
     jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    int height = canvas->height;
     int width = canvas->width;
     int in_ch = canvas->channels;
     int out_ch;
@@ -1214,16 +1218,30 @@ static node_idx_t native_sg_update_canvas_image(env_ptr_t env, list_ptr_t args) 
     else if(in_ch == 3) out_ch = 4;
     else if(in_ch == 4) out_ch = 4;
     else return NIL_NODE;
-    int data_size = width * canvas->height * out_ch;
+    int data_size = width * height * out_ch;
     unsigned char *data = (unsigned char *)malloc(data_size);
-    for(int y = 0; y < canvas->height; y++) {
-        for(int x = 0; x < width; x++) {
-            int c = 0;
-            for(; c < in_ch; c++) {
-                data[(y*width+x)*out_ch+c] = canvas->pixels->get(x*in_ch+c, y);
+    for(int y = 0; y < height; y+=8) {
+        for(int x = 0; x < width*in_ch; x+=8) {
+            double block[8*8];
+            canvas->pixels->get_block(x, y, block);
+
+            for(int i = 0; i < 8; ++i) {
+                for(int j = 0; j < 8; ++j) {
+                    int xx = x+j;
+                    int yy = y+i;
+                    if(xx >= width*in_ch || yy >= height) continue;
+                    int c = xx % in_ch;
+                    data[yy*width*out_ch+xx/in_ch*out_ch+c] = block[i*8+j];
+                }
             }
-            for(; c < out_ch; c++) {
-                data[(y*width+x)*out_ch+c] = 255;
+        }
+    }
+    if(out_ch > in_ch) {
+        for(int y = 0; y < height; ++y) {
+            for(int x = 0; x < width; ++x) {
+                for(int c = in_ch; c < out_ch; ++c) {
+                    data[y*width*out_ch+x*out_ch+c] = 255;
+                }
             }
         }
     }

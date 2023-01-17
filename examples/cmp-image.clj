@@ -69,12 +69,12 @@
                 :left-bracket (do 
                     (reset! exposure (Math/clip (- @exposure 1) 1 10))
                     (reset! diff-image (canvas/diff left-image right-image @exposure))
-                    (reset! diff-image-sg (sg/canvas-image @diff-image))
+                    (sg/update-canvas-image @diff-image-sg @diff-image)
                 )
                 :right-bracket (do 
                     (reset! exposure (Math/clip (+ @exposure 1) 1 10))
                     (reset! diff-image (canvas/diff left-image right-image @exposure))
-                    (reset! diff-image-sg (sg/canvas-image @diff-image))
+                    (sg/update-canvas-image @diff-image-sg @diff-image)
                 )
                 :escape (sokol/quit)
             )
