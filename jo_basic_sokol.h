@@ -1163,14 +1163,28 @@ static node_idx_t native_sg_canvas_image(env_ptr_t env, list_ptr_t args) {
     }
     int data_size = desc.width * desc.height * out_ch;
     unsigned char *data = (unsigned char *)malloc(data_size);
-    for(int y = 0; y < desc.height; y++) {
-        for(int x = 0; x < desc.width; x++) {
-            int c = 0;
-            for(; c < in_ch; c++) {
-                data[(y*desc.width+x)*out_ch+c] = canvas->pixels->get(x*in_ch+c, y);
+    for(int y = 0; y < desc.height; y+=8) {
+        for(int x = 0; x < desc.width*in_ch; x+=8) {
+            double block[8*8];
+            canvas->pixels->get_block(x, y, block);
+
+            for(int i = 0; i < 8; ++i) {
+                for(int j = 0; j < 8; ++j) {
+                    int xx = x+j;
+                    int yy = y+i;
+                    if(xx >= desc.width*in_ch || yy >= desc.height) continue;
+                    int c = xx % in_ch;
+                    data[yy*desc.width*out_ch+xx/in_ch*out_ch+c] = block[i*8+j];
+                }
             }
-            for(; c < out_ch; c++) {
-                data[(y*desc.width+x)*out_ch+c] = 255;
+        }
+    }
+    if(out_ch > in_ch) {
+        for(int y = 0; y < desc.height; ++y) {
+            for(int x = 0; x < desc.width; ++x) {
+                for(int c = in_ch; c < out_ch; ++c) {
+                    data[y*desc.width*out_ch+x*out_ch+c] = 255;
+                }
             }
         }
     }
