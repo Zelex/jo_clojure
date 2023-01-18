@@ -195,6 +195,12 @@ static node_idx_t native_canvas_diff(env_ptr_t env, list_ptr_t args) {
     int width = jo_min(left_canvas->width, right_canvas->width);
     int height = jo_min(left_canvas->height, right_canvas->height);
     int channels = left_canvas->channels;
+    int rchannels = right_canvas->channels;
+
+    if(rchannels != channels) {
+        warnf("canvas diff: channel mismatch (%d != %d)", channels, rchannels);
+        return NIL_NODE;
+    }
 
     jo_basic_canvas_ptr_t canvas_new = new_canvas(width, height, channels);
     for(int y = 0; y < height; y+=8) {

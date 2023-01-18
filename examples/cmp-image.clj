@@ -1,3 +1,4 @@
+#!/usr/local/bin/basic 
 (def left-file (nth *command-line-args* 2))
 (def right-file (nth *command-line-args* 3))
 
