@@ -3,7 +3,7 @@
 (def right-file (nth *command-line-args* 3))
 
 (def exposure (atom 4))
-(def zoom (atom 1))
+(def zoom (atom 1.0))
 
 (def left-image (canvas/load-file left-file))
 (def right-image (canvas/load-file right-file))
@@ -39,47 +39,54 @@
 
         (sgl/enable-texture)
 
-        (sgl/texture @left-image-sg)
-        (sgl/begin-quads)
-        (sgl/v2f-t2f-c3b -1,1      @at-x,0              255,255,255)
-        (sgl/v2f-t2f-c3b -0.33,1   (+ @at-x 0.33),0     255,255,255)
-        (sgl/v2f-t2f-c3b -0.33,-1  (+ @at-x 0.33),1     255,255,255)
-        (sgl/v2f-t2f-c3b -1,-1     @at-x,1              255,255,255)
-        (sgl/end)
+        (let [
+                x @at-x
+                y @at-y
+                u0 (/ x @zoom)
+                u1 (/ (+ x 0.33) @zoom)
+                v0 (/ y @zoom)
+                v1 (/ (+ y 1) @zoom)
+            ]
+            (sgl/texture @left-image-sg)
+            (sgl/begin-quads)
+            (sgl/v2f-t2f-c3b -1,1      u0,v0  255,255,255)
+            (sgl/v2f-t2f-c3b -0.33,1   u1,v0  255,255,255)
+            (sgl/v2f-t2f-c3b -0.33,-1  u1,v1  255,255,255)
+            (sgl/v2f-t2f-c3b -1,-1     u0,v1  255,255,255)
+            (sgl/end)
 
-        (sgl/texture @diff-image-sg)
-        (sgl/begin-quads)
-        (sgl/v2f-t2f-c3b -0.33,1   @at-x,0              255,255,255)
-        (sgl/v2f-t2f-c3b 0.33,1    (+ @at-x 0.33),0     255,255,255)
-        (sgl/v2f-t2f-c3b 0.33,-1   (+ @at-x 0.33),1     255,255,255)
-        (sgl/v2f-t2f-c3b -0.33,-1  @at-x,1              255,255,255)
-        (sgl/end)
+            (sgl/texture @diff-image-sg)
+            (sgl/begin-quads)
+            (sgl/v2f-t2f-c3b -0.33,1   u0,v0  255,255,255)
+            (sgl/v2f-t2f-c3b 0.33,1    u1,v0  255,255,255)
+            (sgl/v2f-t2f-c3b 0.33,-1   u1,v1  255,255,255)
+            (sgl/v2f-t2f-c3b -0.33,-1  u0,v1  255,255,255)
+            (sgl/end)
 
-        (sgl/texture @right-image-sg)
-        (sgl/begin-quads)
-        (sgl/v2f-t2f-c3b 0.33,1   @at-x,0               255,255,255)
-        (sgl/v2f-t2f-c3b 1,1      (+ @at-x 0.33),0      255,255,255)
-        (sgl/v2f-t2f-c3b 1,-1     (+ @at-x 0.33),1      255,255,255)
-        (sgl/v2f-t2f-c3b 0.33,-1  @at-x,1               255,255,255)
-        (sgl/end)
+            (sgl/texture @right-image-sg)
+            (sgl/begin-quads)
+            (sgl/v2f-t2f-c3b 0.33,1   u0,v0  255,255,255)
+            (sgl/v2f-t2f-c3b 1,1      u1,v0  255,255,255)
+            (sgl/v2f-t2f-c3b 1,-1     u1,v1  255,255,255)
+            (sgl/v2f-t2f-c3b 0.33,-1  u0,v1  255,255,255)
+            (sgl/end)
+        )
     )
     :cleanup_cb (fn [] 
     )
     :event_cb (fn [event] 
         (case (:type event)
             :key-down (case (:key event)
-                ;:minus (do
-                    ;(reset! zoom (Math/clip (- @zoom 0.1) 0.1 1))
-                    ;(reset! WIDTH (Math/round (* (canvas/width left-image) @zoom)))
-                    ;(reset! HEIGHT (Math/round (* (canvas/height left-image) @zoom)))
-                    ;(sokol/set-window-size @WIDTH @HEIGHT)
-                ;)
-                ;:equal (do
-                    ;(reset! zoom (Math/clip (+ @zoom 0.1) 0.1 1))
-                    ;(reset! WIDTH (Math/round (* (canvas/width left-image) @zoom)))
-                    ;(reset! HEIGHT (Math/round (* (canvas/height left-image) @zoom)))
-                    ;(sokol/set-window-size @WIDTH @HEIGHT)
-                ;)
+                :minus (do
+                    (reset! zoom (Math/clip (- @zoom 0.1) 1 10))
+                    (reset! at-x (Math/clip @at-x 0 (- @zoom 0.33)))
+                    (reset! at-y (Math/clip @at-y 0 (- @zoom 1)))
+                )
+                :equal (do
+                    (reset! zoom (Math/clip (+ @zoom 0.1) 1 10))
+                    (reset! at-x (Math/clip @at-x 0 (- @zoom 0.33)))
+                    (reset! at-y (Math/clip @at-y 0 (- @zoom 1)))
+                )
                 :left-bracket (do 
                     (reset! exposure (Math/clip (- @exposure 1) 1 10))
                     (reset! diff-image (canvas/diff left-image right-image @exposure))
@@ -116,8 +123,8 @@
             )
             :mouse-move (do
                 (when @mouse-left
-                    (reset! at-x (Math/clip (/ (- (* @at-x @WIDTH) (:mouse-dx event)) @WIDTH) 0 0.66))
-                    (reset! at-y (Math/clip (/ (- (* @at-y @HEIGHT) (:mouse-dy event)) @HEIGHT) 0 0.66))
+                    (reset! at-x (Math/clip (/ (- (* @at-x @WIDTH) (:mouse-dx event)) @WIDTH) 0 (- @zoom 0.33)))
+                    (reset! at-y (Math/clip (/ (- (* @at-y @HEIGHT) (:mouse-dy event)) @HEIGHT) 0 (- @zoom 1)))
                 )
             )
         )
