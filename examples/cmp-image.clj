@@ -2,6 +2,7 @@
 (def right-file (nth *command-line-args* 3))
 
 (def exposure (atom 4))
+(def zoom (atom 1))
 
 (def left-image (canvas/load-file left-file))
 (def right-image (canvas/load-file right-file))
@@ -66,15 +67,31 @@
     :event_cb (fn [event] 
         (case (:type event)
             :key-down (case (:key event)
+                ;:minus (do
+                    ;(reset! zoom (Math/clip (- @zoom 0.1) 0.1 1))
+                    ;(reset! WIDTH (Math/round (* (canvas/width left-image) @zoom)))
+                    ;(reset! HEIGHT (Math/round (* (canvas/height left-image) @zoom)))
+                    ;(sokol/set-window-size @WIDTH @HEIGHT)
+                ;)
+                ;:equal (do
+                    ;(reset! zoom (Math/clip (+ @zoom 0.1) 0.1 1))
+                    ;(reset! WIDTH (Math/round (* (canvas/width left-image) @zoom)))
+                    ;(reset! HEIGHT (Math/round (* (canvas/height left-image) @zoom)))
+                    ;(sokol/set-window-size @WIDTH @HEIGHT)
+                ;)
                 :left-bracket (do 
                     (reset! exposure (Math/clip (- @exposure 1) 1 10))
                     (reset! diff-image (canvas/diff left-image right-image @exposure))
-                    (sg/update-canvas-image @diff-image-sg @diff-image)
+                    (sg/destroy-image @diff-image-sg)
+                    (reset! diff-image-sg (sg/canvas-image @diff-image))
+                    ;(sg/update-canvas-image @diff-image-sg @diff-image)
                 )
                 :right-bracket (do 
                     (reset! exposure (Math/clip (+ @exposure 1) 1 10))
                     (reset! diff-image (canvas/diff left-image right-image @exposure))
-                    (sg/update-canvas-image @diff-image-sg @diff-image)
+                    (sg/destroy-image @diff-image-sg)
+                    (reset! diff-image-sg (sg/canvas-image @diff-image))
+                    ;(sg/update-canvas-image @diff-image-sg @diff-image)
                 )
                 :escape (sokol/quit)
             )
