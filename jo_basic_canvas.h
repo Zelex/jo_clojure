@@ -198,7 +198,7 @@ static node_idx_t native_canvas_diff(env_ptr_t env, list_ptr_t args) {
     int rchannels = right_canvas->channels;
 
     if(rchannels != channels) {
-        warnf("canvas diff: channel mismatch (%d != %d)", channels, rchannels);
+        warnf("canvas diff: channel mismatch (%d != %d)\n", channels, rchannels);
         return NIL_NODE;
     }
 
