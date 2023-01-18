@@ -173,7 +173,13 @@ static node_idx_t native_canvas_channels(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_canvas_diff(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
+    if(get_node_type(*it) != NODE_CANVAS) {
+        return NIL_NODE;
+    }
     jo_basic_canvas_ptr_t left_canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    if(get_node_type(*it) != NODE_CANVAS) {
+        return NIL_NODE;
+    }
     jo_basic_canvas_ptr_t right_canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
     float exposure = get_node_float(*it++);
 

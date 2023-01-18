@@ -1139,6 +1139,9 @@ static node_idx_t native_sg_image(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_sg_canvas_image(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
+    if(get_node_type(*it) != NODE_CANVAS) {
+        return NIL_NODE;
+    }
     jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
     sg_image_desc desc = {0};
     desc.width = canvas->width;
@@ -1208,6 +1211,9 @@ static node_idx_t native_sg_destroy_image(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_sg_update_canvas_image(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
     sg_image img = {(unsigned)get_node_int(*it++)};
+    if(get_node_type(*it) != NODE_CANVAS) {
+        return NIL_NODE;
+    }
     jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
     int height = canvas->height;
     int width = canvas->width;

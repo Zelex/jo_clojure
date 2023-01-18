@@ -126,4 +126,8 @@
     )
 })
 
-(sokol/run sokol-desc)
+(if (or (nil? left-file) (nil? right-file))
+    (println "Usage: cmp-image.clj left-image right-image")
+    (sokol/run sokol-desc)
+)
+
