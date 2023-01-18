@@ -27,7 +27,7 @@
 (def sokol-desc {
     :width @WIDTH
     :height @HEIGHT
-    :window_title "Basic App"
+    :window_title "Image Difference"
     :init_cb (fn [] 
         (reset! left-image-sg (sg/canvas-image left-image))
         (reset! right-image-sg (sg/canvas-image right-image))
