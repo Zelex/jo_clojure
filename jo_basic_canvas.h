@@ -155,18 +155,27 @@ static node_idx_t native_canvas_resize(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_canvas_width(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
+    if(get_node_type(*it) != NODE_CANVAS) {
+        return NIL_NODE;
+    }
     jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
     return new_node_int(canvas->width);
 }
 
 static node_idx_t native_canvas_height(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
+    if(get_node_type(*it) != NODE_CANVAS) {
+        return NIL_NODE;
+    }
     jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
     return new_node_int(canvas->height);
 }
 
 static node_idx_t native_canvas_channels(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
+    if(get_node_type(*it) != NODE_CANVAS) {
+        return NIL_NODE;
+    }
     jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
     return new_node_int(canvas->channels);
 }
