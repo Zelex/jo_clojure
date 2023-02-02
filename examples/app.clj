@@ -10,11 +10,11 @@
     :frame_cb (fn [] 
         (sgl/viewport 0 0 @WIDTH @HEIGHT false)
         (sgl/defaults)
-        (sgl/begin-triangles)
-        (sgl/v2f-c3b  0.0  0.5 255 0 0)
-        (sgl/v2f-c3b -0.5 -0.5 0 255 0)
-        (sgl/v2f-c3b  0.5 -0.5 0 0 255)
-        (sgl/end)
+        (sgl/triangles
+            (sgl/v2f-c3b  0.0  0.5 255 0 0)
+            (sgl/v2f-c3b -0.5 -0.5 0 255 0)
+            (sgl/v2f-c3b  0.5 -0.5 0 0 255)
+        )
     )
     :cleanup_cb (fn [] 
     )

@@ -797,34 +797,46 @@ static node_idx_t native_sgl_point_size(env_ptr_t env, list_ptr_t args) {
 }
 
 /* define primitives, each begin/end is one draw command */
-static node_idx_t native_sgl_begin_points(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_sgl_points(env_ptr_t env, list_ptr_t args) {
     sgl_begin_points();
-    return NIL_NODE;
+    node_idx_t ret = eval_node_list(env, args);
+    sgl_end();
+    return ret;
 }
 
-static node_idx_t native_sgl_begin_lines(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_sgl_lines(env_ptr_t env, list_ptr_t args) {
     sgl_begin_lines();
-    return NIL_NODE;
+    node_idx_t ret = eval_node_list(env, args);
+    sgl_end();
+    return ret;
 }
 
-static node_idx_t native_sgl_begin_line_strip(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_sgl_line_strip(env_ptr_t env, list_ptr_t args) {
     sgl_begin_line_strip();
-    return NIL_NODE;
+    node_idx_t ret = eval_node_list(env, args);
+    sgl_end();
+    return ret;
 }
 
-static node_idx_t native_sgl_begin_triangles(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_sgl_triangles(env_ptr_t env, list_ptr_t args) {
     sgl_begin_triangles();
-    return NIL_NODE;
+    node_idx_t ret = eval_node_list(env, args);
+    sgl_end();
+    return ret;
 }
 
-static node_idx_t native_sgl_begin_triangle_strip(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_sgl_triangle_strip(env_ptr_t env, list_ptr_t args) {
     sgl_begin_triangle_strip();
-    return NIL_NODE;
+    node_idx_t ret = eval_node_list(env, args);
+    sgl_end();
+    return ret;
 }
 
-static node_idx_t native_sgl_begin_quads(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_sgl_quads(env_ptr_t env, list_ptr_t args) {
     sgl_begin_quads();
-    return NIL_NODE;
+    node_idx_t ret = eval_node_list(env, args);
+    sgl_end();
+    return ret;
 }
 
 static node_idx_t native_sgl_v2f(env_ptr_t env, list_ptr_t args) {
@@ -1382,12 +1394,12 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sgl/point-size", new_node_native_function("sgl/point-size", &native_sgl_point_size, false, NODE_FLAG_PRERESOLVE));
 
     /* define primitives, each begin/end is one draw command */
-    env->set("sgl/begin-points", new_node_native_function("sgl/begin-points", &native_sgl_begin_points, false, NODE_FLAG_PRERESOLVE));
-    env->set("sgl/begin-lines", new_node_native_function("sgl/begin-lines", &native_sgl_begin_lines, false, NODE_FLAG_PRERESOLVE));
-    env->set("sgl/begin-line-strip", new_node_native_function("sgl/begin-line-strip", &native_sgl_begin_line_strip, false, NODE_FLAG_PRERESOLVE));
-    env->set("sgl/begin-triangles", new_node_native_function("sgl/begin-triangles", &native_sgl_begin_triangles, false, NODE_FLAG_PRERESOLVE));
-    env->set("sgl/begin-triangle-strip", new_node_native_function("sgl/begin-triangle-strip", &native_sgl_begin_triangle_strip, false, NODE_FLAG_PRERESOLVE));
-    env->set("sgl/begin-quads", new_node_native_function("sgl/begin-quads", &native_sgl_begin_quads, false, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/points", new_node_native_function("sgl/points", &native_sgl_points, true, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/lines", new_node_native_function("sgl/lines", &native_sgl_lines, true, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/line-strip", new_node_native_function("sgl/line-strip", &native_sgl_line_strip, true, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/triangles", new_node_native_function("sgl/triangles", &native_sgl_triangles, true, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/triangle-strip", new_node_native_function("sgl/triangle-strip", &native_sgl_triangle_strip, true, NODE_FLAG_PRERESOLVE));
+    env->set("sgl/quads", new_node_native_function("sgl/quads", &native_sgl_quads, true, NODE_FLAG_PRERESOLVE));
     env->set("sgl/v2f", new_node_native_function("sgl/v2f", &native_sgl_v2f, false, NODE_FLAG_PRERESOLVE));
     env->set("sgl/v3f", new_node_native_function("sgl/v3f", &native_sgl_v3f, false, NODE_FLAG_PRERESOLVE));
     env->set("sgl/v2f-t2f", new_node_native_function("sgl/v2f-t2f", &native_sgl_v2f_t2f, false, NODE_FLAG_PRERESOLVE));
@@ -1412,7 +1424,6 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sgl/v3f-t2f-c4f", new_node_native_function("sgl/v3f-t2f-c4f", &native_sgl_v3f_t2f_c4f, false, NODE_FLAG_PRERESOLVE));
     env->set("sgl/v3f-t2f-c4b", new_node_native_function("sgl/v3f-t2f-c4b", &native_sgl_v3f_t2f_c4b, false, NODE_FLAG_PRERESOLVE));
     env->set("sgl/v3f-t2f-c1i", new_node_native_function("sgl/v3f-t2f-c1i", &native_sgl_v3f_t2f_c1i, false, NODE_FLAG_PRERESOLVE));
-    env->set("sgl/end", new_node_native_function("sgl/end", &native_sgl_end, false, NODE_FLAG_PRERESOLVE));
 
     jo_basic_imgui_init(env);
 }

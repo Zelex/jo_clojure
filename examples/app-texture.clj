@@ -16,11 +16,11 @@
         (sgl/enable-texture)
         (sgl/texture @img)
 
-        (sgl/begin-triangles)
-        (sgl/v2f-t2f-c3b  0.0,0.5  0.5,1,  255,0,0)
-        (sgl/v2f-t2f-c3b -0.5,-0.5 0,0     0,255,0)
-        (sgl/v2f-t2f-c3b  0.5,-0.5 1,0     0,0,255)
-        (sgl/end)
+        (sgl/triangles
+            (sgl/v2f-t2f-c3b  0.0,0.5  0.5,1,  255,0,0)
+            (sgl/v2f-t2f-c3b -0.5,-0.5 0,0     0,255,0)
+            (sgl/v2f-t2f-c3b  0.5,-0.5 1,0     0,0,255)
+        )
     )
     :cleanup_cb (fn [] 
     )

@@ -24,16 +24,16 @@
         (sgl/defaults)
 
         ; draw the grid
-        (sgl/begin-lines)
-        (sgl/v2f  0.33  -1)
-        (sgl/v2f  0.33   1)
-        (sgl/v2f  -0.33 -1)
-        (sgl/v2f  -0.33  1)
-        (sgl/v2f  -1     0.33)
-        (sgl/v2f   1     0.33)
-        (sgl/v2f  -1    -0.33)
-        (sgl/v2f   1    -0.33)
-        (sgl/end)
+        (sgl/lines
+            (sgl/v2f  0.33  -1)
+            (sgl/v2f  0.33   1)
+            (sgl/v2f  -0.33 -1)
+            (sgl/v2f  -0.33  1)
+            (sgl/v2f  -1     0.33)
+            (sgl/v2f   1     0.33)
+            (sgl/v2f  -1    -0.33)
+            (sgl/v2f   1    -0.33)
+        )
         
         ; draw the Xs and Os
         (doseq [i (range 9)]
@@ -42,22 +42,22 @@
                   v (get @field i)]
                 (when (= v 1)
                     ; draw an O as a circle
-                    (sgl/begin-line-strip)
-                    (doseq [i (range 33)]
-                        (let [a (* 2.0 3.14159265358979323846 (/ i 32.0))]
-                            (sgl/v2f-c3b (+ -1 0.33 (* x 0.66) (* 0.3 (Math/sin a))) (+ -1 0.33 (* y 0.66) (* 0.3 (Math/cos a))) 0 0 255)
+                    (sgl/line-strip
+                        (doseq [i (range 33)]
+                            (let [a (* 2.0 3.14159265358979323846 (/ i 32.0))]
+                                (sgl/v2f-c3b (+ -1 0.33 (* x 0.66) (* 0.3 (Math/sin a))) (+ -1 0.33 (* y 0.66) (* 0.3 (Math/cos a))) 0 0 255)
+                            )
                         )
                     )
-                    (sgl/end)
                 )
                 (when (= v 2)
                     ; draw an X as a cross
-                    (sgl/begin-lines)
-                    (sgl/v2f-c3b  (+ -1 0.33 -0.33 (* x 0.66)) (+ -1 0.33 -0.33 (* y 0.66)) 0 0 255)
-                    (sgl/v2f-c3b  (+ -1 0.33  0.33 (* x 0.66)) (+ -1 0.33  0.33 (* y 0.66)) 0 0 255)
-                    (sgl/v2f-c3b  (+ -1 0.33 -0.33 (* x 0.66)) (+ -1 0.33  0.33 (* y 0.66)) 0 0 255)
-                    (sgl/v2f-c3b  (+ -1 0.33  0.33 (* x 0.66)) (+ -1 0.33 -0.33 (* y 0.66)) 0 0 255)
-                    (sgl/end)
+                    (sgl/lines
+                        (sgl/v2f-c3b  (+ -1 0.33 -0.33 (* x 0.66)) (+ -1 0.33 -0.33 (* y 0.66)) 0 0 255)
+                        (sgl/v2f-c3b  (+ -1 0.33  0.33 (* x 0.66)) (+ -1 0.33  0.33 (* y 0.66)) 0 0 255)
+                        (sgl/v2f-c3b  (+ -1 0.33 -0.33 (* x 0.66)) (+ -1 0.33  0.33 (* y 0.66)) 0 0 255)
+                        (sgl/v2f-c3b  (+ -1 0.33  0.33 (* x 0.66)) (+ -1 0.33 -0.33 (* y 0.66)) 0 0 255)
+                    )
                 )
             )
         )

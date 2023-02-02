@@ -7,10 +7,9 @@
     (swap! stars conj [(rand -1 1) (rand -1 1) (rand 0.01 1.5)]))
 
 (defn draw-stars []
-    (sgl/begin-points)
-    (doseq [[x y z] @stars]
-        (sgl/v2f-c3b (/ x z) (/ y z) 255 255 255))
-    (sgl/end))
+    (sgl/points
+        (doseq [[x y z] @stars]
+            (sgl/v2f-c3b (/ x z) (/ y z) 255 255 255))))
 
 (defn move-stars [] 
     (swap! stars (fn [stars]
