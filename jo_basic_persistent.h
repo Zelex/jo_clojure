@@ -27,7 +27,7 @@ struct jo_alloc_t_type {
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
         ++h.ref_count;
 #else
-        h.ref_count.fetch_add(1, std::memory_order_relaxed);
+        h.ref_count.fetch_add(1, std::memory_order_release);
 #endif
     }
 
