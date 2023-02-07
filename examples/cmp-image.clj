@@ -40,8 +40,8 @@
         (sgl/enable-texture)
 
         (let [
-                x @at-x
-                y @at-y
+                x (Math/clip @at-x 0 (- @zoom 0.33))
+                y (Math/clip @at-y 0 (- @zoom 1))
                 u0 (/ x @zoom)
                 u1 (/ (+ x 0.33) @zoom)
                 v0 (/ y @zoom)
@@ -77,6 +77,10 @@
     :event_cb (fn [event] 
         (case (:type event)
             :key-down (case (:key event)
+                :right (reset! at-x (Math/clip (+ @at-x 0.05) 0 (- @zoom 0.33)))
+                :left (reset! at-x (Math/clip (- @at-x 0.05) 0 (- @zoom 0.33)))
+                :down (reset! at-x (Math/clip (+ @at-y 0.05) 0 (- @zoom 0.33)))
+                :up (reset! at-x (Math/clip (- @at-y 0.05) 0 (- @zoom 0.33)))
                 :minus (do
                     (reset! zoom (Math/clip (- @zoom 0.1) 1 10))
                     (reset! at-x (Math/clip @at-x 0 (- @zoom 0.33)))
