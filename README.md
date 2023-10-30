@@ -1,4 +1,4 @@
-# BASIC
+# JO Clojure
 
 Author Jon Olick. @JonOlick on twitter. 
 
