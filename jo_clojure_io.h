@@ -343,7 +343,7 @@ static node_idx_t native_io_write_array(env_ptr_t env, list_ptr_t args) {
     if(n->type != NODE_FILE || !n->t_file) {
         return NIL_NODE;
     }
-    jo_basic_array_ptr_t A = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+    jo_clojure_array_ptr_t A = get_node(*it++)->t_object.cast<jo_clojure_array_t>();
     A->write(n->t_file);
     return NIL_NODE;
 }
@@ -629,7 +629,7 @@ static node_idx_t native_io_file_to_array(env_ptr_t env, list_ptr_t args) {
 }   
 
 
-void jo_basic_io_init(env_ptr_t env) {
+void jo_clojure_io_init(env_ptr_t env) {
     env->set("file-seq", new_node_native_function("file-seq", &native_io_file_seq, false, NODE_FLAG_PRERESOLVE));
     env->set("line-seq", new_node_native_function("line-seq", &native_io_line_seq, false, NODE_FLAG_PRERESOLVE));
     env->set("line-seq-next", new_node_native_function("line-seq-next", &native_io_line_seq_next, true, NODE_FLAG_PRERESOLVE));

@@ -81,7 +81,7 @@ static node_idx_t native_b64_decode_to_array(env_ptr_t env, list_ptr_t args) {
 	size_t out_len = len * 3 / 4; // assume properly formed base64 here... ? 
 	unsigned char *out = new unsigned char[out_len];
 	base64_decode(src_string.c_str(), out, len);
-	jo_basic_array_ptr_t array = new_array(out_len, 1, TYPE_BYTE);
+	jo_clojure_array_ptr_t array = new_array(out_len, 1, TYPE_BYTE);
 	for(size_t i = 0; i < out_len; i++) {
 		array->poke_byte(i, out[i]);
 	}
@@ -91,7 +91,7 @@ static node_idx_t native_b64_decode_to_array(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_b64_encode_from_array(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
-	jo_basic_array_ptr_t array = get_node(*it++)->t_object.cast<jo_basic_array_t>();
+	jo_clojure_array_ptr_t array = get_node(*it++)->t_object.cast<jo_clojure_array_t>();
 	jo_string out_file = get_node(*it++)->as_string();
 	size_t len = array->length();
 	size_t out_len = len * 4 / 3; // assume properly formed base64 here... ? 
@@ -107,7 +107,7 @@ static node_idx_t native_b64_encode_from_array(env_ptr_t env, list_ptr_t args) {
 	return new_node_int(out_len);
 }
 
-void jo_basic_b64_init(env_ptr_t env) {
+void jo_clojure_b64_init(env_ptr_t env) {
 	env->set("b64/decode-to-file", new_node_native_function("b64/decode-to-file", &native_b64_decode_to_file, false, NODE_FLAG_PRERESOLVE));
 	env->set("b64/decode-to-array", new_node_native_function("b64/decode-to-array", &native_b64_decode_to_array, false, NODE_FLAG_PRERESOLVE));
 	env->set("b64/encode-from-array", new_node_native_function("b64/encode-from-array", &native_b64_encode_from_array, false, NODE_FLAG_PRERESOLVE));

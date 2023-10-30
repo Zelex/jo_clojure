@@ -113,7 +113,7 @@ static node_idx_t native_split(env_ptr_t env, list_ptr_t args) {
 }
 
 
-void jo_basic_string_init(env_ptr_t env) {
+void jo_clojure_string_init(env_ptr_t env) {
 	env->set("str", new_node_native_function("str", &native_str, false, NODE_FLAG_PRERESOLVE));
 	env->set("subs", new_node_native_function("subs", &native_subs, false, NODE_FLAG_PRERESOLVE));
 	env->set("compare", new_node_native_function("compare", &native_compare, false, NODE_FLAG_PRERESOLVE));

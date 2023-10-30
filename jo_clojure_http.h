@@ -87,7 +87,7 @@ static node_idx_t native_http_get(env_ptr_t env, list_ptr_t args) {
     return http_get(url);
 }
 
-void jo_basic_http_init(env_ptr_t env) {
+void jo_clojure_http_init(env_ptr_t env) {
 	env->set("url/encode", new_node_native_function("url/encode", &native_url_encode, false, NODE_FLAG_PRERESOLVE));
 	env->set("url/decode", new_node_native_function("url/decode", &native_url_decode, false, NODE_FLAG_PRERESOLVE));
  

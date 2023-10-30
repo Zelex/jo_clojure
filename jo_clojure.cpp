@@ -25,7 +25,7 @@ static thread_local size_t thread_id = thread_uid.fetch_add(1, std::memory_order
 #include "debugbreak.h"
 #include "pdqsort.h"
 #include "jo_stdcpp.h"
-#include "jo_basic_persistent.h"
+#include "jo_clojure_persistent.h"
 
 //#define debugf printf
 #ifndef debugf
@@ -6251,23 +6251,23 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(env, expr_list);
 }
 
-#include "jo_basic_array.h"
-#include "jo_basic_math.h"
-#include "jo_basic_string.h"
-#include "jo_basic_system.h"
-#include "jo_basic_http.h"
-#include "jo_basic_io.h"
-#include "jo_basic_lazy.h"
-#include "jo_basic_async.h"
-#include "jo_basic_gif.h"
-#include "jo_basic_b64.h"
-#include "jo_basic_canvas.h"
-#include "jo_basic_net.h"
+#include "jo_clojure_array.h"
+#include "jo_clojure_math.h"
+#include "jo_clojure_string.h"
+#include "jo_clojure_system.h"
+#include "jo_clojure_http.h"
+#include "jo_clojure_io.h"
+#include "jo_clojure_lazy.h"
+#include "jo_clojure_async.h"
+#include "jo_clojure_gif.h"
+#include "jo_clojure_b64.h"
+#include "jo_clojure_canvas.h"
+#include "jo_clojure_net.h"
 #ifndef NO_SOKOL
-#include "jo_basic_sokol.h"
+#include "jo_clojure_sokol.h"
 #endif
 #ifndef NO_MYSQL
-#include "jo_basic_mysql.h"
+#include "jo_clojure_mysql.h"
 #endif
 
 
@@ -6304,7 +6304,7 @@ int main(int argc, char **argv) {
 	tm_int32 telemetry_memory_size = 128 * 1024 * 1024;
 	char* telemetry_memory = (char*)malloc(telemetry_memory_size);
 	tmInitialize(telemetry_memory_size, telemetry_memory);
-	tm_error err = tmOpen(0, "jo_basic", __DATE__ " " __TIME__, "localhost", TMCT_TCP, 4719, TMOF_INIT_NETWORKING, 100);
+	tm_error err = tmOpen(0, "jo_clojure", __DATE__ " " __TIME__, "localhost", TMCT_TCP, 4719, TMOF_INIT_NETWORKING, 100);
 	tmThreadName(0,0,"main");
 	tmProfileThread(0,0,0);
 #endif
@@ -6622,23 +6622,23 @@ int main(int argc, char **argv) {
 	
 	env->set("include", new_node_native_function("include", &native_include, false, NODE_FLAG_PRERESOLVE));
 
-	jo_basic_array_init(env);
-	jo_basic_lazy_init(env);
-	jo_basic_async_init(env);
-	jo_basic_math_init(env);
-	jo_basic_string_init(env);
-	jo_basic_http_init(env);
-	jo_basic_io_init(env);
-	jo_basic_system_init(env);
-	jo_basic_gif_init(env);
-	jo_basic_b64_init(env);
-	jo_basic_canvas_init(env);
-	jo_basic_net_init(env);
+	jo_clojure_array_init(env);
+	jo_clojure_lazy_init(env);
+	jo_clojure_async_init(env);
+	jo_clojure_math_init(env);
+	jo_clojure_string_init(env);
+	jo_clojure_http_init(env);
+	jo_clojure_io_init(env);
+	jo_clojure_system_init(env);
+	jo_clojure_gif_init(env);
+	jo_clojure_b64_init(env);
+	jo_clojure_canvas_init(env);
+	jo_clojure_net_init(env);
 #ifndef NO_SOKOL
-	jo_basic_sokol_init(env);
+	jo_clojure_sokol_init(env);
 #endif
 #ifndef NO_MYSQL
-	jo_basic_mysql_init(env);
+	jo_clojure_mysql_init(env);
 #endif
 
 	// setup *command-line-args*

@@ -1839,7 +1839,7 @@ static node_idx_t native_long_q(env_ptr_t env, list_ptr_t args) {
     return v >= LLONG_MIN && v <= LLONG_MAX ? TRUE_NODE : FALSE_NODE;
 }
 
-void jo_basic_math_init(env_ptr_t env) {
+void jo_clojure_math_init(env_ptr_t env) {
 	env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
 	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
     env->set("byte", new_node_native_function("byte", &native_byte, false, NODE_FLAG_PRERESOLVE));

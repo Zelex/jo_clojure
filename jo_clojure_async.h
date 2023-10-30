@@ -1,7 +1,7 @@
 #pragma once
 
 // simple wrapper so we can blop it into the t_object generic container
-struct jo_basic_agent_t : jo_object {
+struct jo_clojure_agent_t : jo_object {
 	node_idx_t state = K_DEFAULT_NODE;
 	node_idx_t exception = NIL_NODE;
 	node_idx_t validate = NIL_NODE;
@@ -10,13 +10,13 @@ struct jo_basic_agent_t : jo_object {
 	node_idx_t msg_queue = new_node_atom(EMPTY_QUEUE_NODE);
 };
 
-typedef jo_alloc_t<jo_basic_agent_t> jo_basic_agent_alloc_t;
-jo_basic_agent_alloc_t jo_basic_agent_alloc;
-typedef jo_shared_ptr_t<jo_basic_agent_t> jo_basic_agent_ptr_t;
+typedef jo_alloc_t<jo_clojure_agent_t> jo_clojure_agent_alloc_t;
+jo_clojure_agent_alloc_t jo_clojure_agent_alloc;
+typedef jo_shared_ptr_t<jo_clojure_agent_t> jo_clojure_agent_ptr_t;
 template<typename...A>
-jo_basic_agent_ptr_t new_agent(A...args) { return jo_basic_agent_ptr_t(jo_basic_agent_alloc.emplace(args...)); }
+jo_clojure_agent_ptr_t new_agent(A...args) { return jo_clojure_agent_ptr_t(jo_clojure_agent_alloc.emplace(args...)); }
 
-static node_idx_t new_node_agent(jo_basic_agent_ptr_t agent, int flags=0) { return new_node_object(NODE_AGENT, agent.cast<jo_object>(), flags); }
+static node_idx_t new_node_agent(jo_clojure_agent_ptr_t agent, int flags=0) { return new_node_object(NODE_AGENT, agent.cast<jo_object>(), flags); }
 
 typedef std::function<node_idx_t()> jo_task_t;
 typedef jo_shared_ptr<jo_task_t> jo_task_ptr_t;
@@ -1054,7 +1054,7 @@ static node_idx_t native_tap(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_agent(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t state = *it++;
-	jo_basic_agent_ptr_t a = new_agent();
+	jo_clojure_agent_ptr_t a = new_agent();
 	a->msg_queue = new_node_atom(EMPTY_SET_NODE);
 	node_idx_t agent_idx = new_node_agent(a);
 	node_t *agent = get_node(agent_idx);
@@ -1072,7 +1072,7 @@ static node_idx_t native_agent(env_ptr_t env, list_ptr_t args) {
 
 static node_idx_t native_agent_error(env_ptr_t env, list_ptr_t args) {
 	node_idx_t agent_idx = args->first_value();
-	jo_basic_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_basic_agent_t>();
+	jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
 	return agent->exception;
 }
 
@@ -1088,7 +1088,7 @@ static node_idx_t native_agent_error(env_ptr_t env, list_ptr_t args) {
 // the agent is not failed.
 static node_idx_t native_restart_agent(env_ptr_t env, list_ptr_t args) {
 	node_idx_t agent_idx = args->first_value();
-	jo_basic_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_basic_agent_t>();
+	jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
 	// If its not in a fail state, throw exception
 	if(agent->state != K_FAIL_NODE) {
 		return new_node_exception("restart-agent: agent is not failed");
@@ -1106,7 +1106,7 @@ static node_idx_t native_restart_agent(env_ptr_t env, list_ptr_t args) {
 static jo_task_ptr_t native_send_internal(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t agent_idx = *it++;
-	jo_basic_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_basic_agent_t>();
+	jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
 	if(agent->state == K_FAIL_NODE) {
 		return jo_task_ptr_t();
 	}
@@ -1115,7 +1115,7 @@ static jo_task_ptr_t native_send_internal(env_ptr_t env, list_ptr_t args) {
 	node_idx_t f_idx = new_node(NODE_FUTURE, 0);
 	node_reset(env, f_idx, INV_NODE);
 	jo_task_ptr_t task = new jo_task_t([env,f_idx,agent_idx,action_fn,rest]() -> node_idx_t {
-		jo_basic_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_basic_agent_t>();
+		jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
 		node_idx_t nv = node_swap(env, agent_idx, action_fn, rest, agent->validate);
 		// Did it pass the validator?
 		if(get_node_type(nv) == NODE_EXCEPTION) {
@@ -1171,7 +1171,7 @@ static node_idx_t native_await(env_ptr_t env, list_ptr_t args) {
 		node_idx_t agent_idx = *it;
 		node_t *agent_node = get_node(agent_idx);
 		if(agent_node->type != NODE_AGENT) continue;
-		jo_basic_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_basic_agent_t>();
+		jo_clojure_agent_ptr_t agent = get_node(agent_idx)->t_object.cast<jo_clojure_agent_t>();
 		node_idx_t set = node_deref(env, agent->msg_queue);
 		seq_iterate(set, [&](node_idx_t idx) {
 			node_deref(env, idx);
@@ -1182,7 +1182,7 @@ static node_idx_t native_await(env_ptr_t env, list_ptr_t args) {
 }
 
 
-void jo_basic_async_init(env_ptr_t env) {
+void jo_clojure_async_init(env_ptr_t env) {
 	// atoms
     env->set("atom", new_node_native_function("atom", &native_atom, false, NODE_FLAG_PRERESOLVE));
     env->set("deref", new_node_native_function("deref", &native_deref, true, NODE_FLAG_PRERESOLVE));

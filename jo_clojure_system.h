@@ -247,7 +247,7 @@ static node_idx_t native_system_pick_folder(env_ptr_t env, list_ptr_t args) {
 }
 #endif
 
-void jo_basic_system_init(env_ptr_t env) {
+void jo_clojure_system_init(env_ptr_t env) {
 	env->set("sys/setenv", new_node_native_function("sys/setenv", &native_system_setenv, false, NODE_FLAG_PRERESOLVE));
 	env->set("sys/getenv", new_node_native_function("sys/getenv", &native_system_getenv, false, NODE_FLAG_PRERESOLVE));
 	env->set("sys/exec-output", new_node_native_function("sys/exec-output", &native_system_exec_output, false, NODE_FLAG_PRERESOLVE));

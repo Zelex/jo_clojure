@@ -1622,7 +1622,7 @@ static node_idx_t native_rseq_next(env_ptr_t env, list_ptr_t args) {
 	return new_node_list(list_va(reti, env->get("rseq-next"), rev_idx, new_node_int(sz - 1)));
 }
 
-void jo_basic_lazy_init(env_ptr_t env) {
+void jo_clojure_lazy_init(env_ptr_t env) {
 	env->set("range", new_node_native_function("range", &native_range, false, NODE_FLAG_PRERESOLVE));
 	env->set("range-next", new_node_native_function("range-next", &native_range_next, true, NODE_FLAG_PRERESOLVE));
 	env->set("repeat", new_node_native_function("repeat", &native_repeat, true, NODE_FLAG_PRERESOLVE));

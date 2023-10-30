@@ -260,7 +260,7 @@ static node_idx_t native_net_send(env_ptr_t env, list_ptr_t args) {
     return new_node_int(written);
 }
 
-void jo_basic_net_init(env_ptr_t env) {
+void jo_clojure_net_init(env_ptr_t env) {
 	env->set("net/socket", new_node_native_function("net/socket", &native_net_socket, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/bind", new_node_native_function("net/bind", &native_net_bind, false, NODE_FLAG_PRERESOLVE));
 	env->set("net/connect", new_node_native_function("net/connect", &native_net_connect, false, NODE_FLAG_PRERESOLVE));

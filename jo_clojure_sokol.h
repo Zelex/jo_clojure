@@ -1154,7 +1154,7 @@ static node_idx_t native_sg_canvas_image(env_ptr_t env, list_ptr_t args) {
     if(get_node_type(*it) != NODE_CANVAS) {
         return NIL_NODE;
     }
-    jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    jo_clojure_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_clojure_canvas_t>();
     sg_image_desc desc = {0};
     desc.width = canvas->width;
     desc.height = canvas->height;
@@ -1226,7 +1226,7 @@ static node_idx_t native_sg_update_canvas_image(env_ptr_t env, list_ptr_t args) 
     if(get_node_type(*it) != NODE_CANVAS) {
         return NIL_NODE;
     }
-    jo_basic_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_basic_canvas_t>();
+    jo_clojure_canvas_ptr_t canvas = get_node(*it++)->t_object.cast<jo_clojure_canvas_t>();
     int height = canvas->height;
     int width = canvas->width;
     int in_ch = canvas->channels;
@@ -1299,9 +1299,9 @@ static node_idx_t native_sg_file_image(env_ptr_t env, list_ptr_t args) {
     return new_node_int(img.id);
 }
 
-#include "jo_basic_imgui.h"
+#include "jo_clojure_imgui.h"
 
-void jo_basic_sokol_init(env_ptr_t env) {
+void jo_clojure_sokol_init(env_ptr_t env) {
 	env->set("sokol/run", new_node_native_function("sokol/run", &native_sokol_run, false, NODE_FLAG_PRERESOLVE));
 
     env->set("sokol/valid?", new_node_native_function("sokol/valid?", &native_sokol_valid_q, false, NODE_FLAG_PRERESOLVE));
@@ -1425,7 +1425,7 @@ void jo_basic_sokol_init(env_ptr_t env) {
     env->set("sgl/v3f-t2f-c4b", new_node_native_function("sgl/v3f-t2f-c4b", &native_sgl_v3f_t2f_c4b, false, NODE_FLAG_PRERESOLVE));
     env->set("sgl/v3f-t2f-c1i", new_node_native_function("sgl/v3f-t2f-c1i", &native_sgl_v3f_t2f_c1i, false, NODE_FLAG_PRERESOLVE));
 
-    jo_basic_imgui_init(env);
+    jo_clojure_imgui_init(env);
 }
 
 

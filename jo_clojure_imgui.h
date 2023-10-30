@@ -354,7 +354,7 @@ static node_idx_t native_imgui_get_window_content_region_max(env_ptr_t env, list
     return new_node_vector(vector_va(new_node_float(size.x), new_node_float(size.y)));
 }
 
-void jo_basic_imgui_init(env_ptr_t env) {
+void jo_clojure_imgui_init(env_ptr_t env) {
 	env->set("imgui/main-menu-bar", new_node_native_function("imgui/main-menu-bar", &native_imgui_main_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu-bar", new_node_native_function("imgui/menu-bar", &native_imgui_menu_bar, true, NODE_FLAG_PRERESOLVE));
 	env->set("imgui/menu", new_node_native_function("imgui/menu", &native_imgui_menu, true, NODE_FLAG_PRERESOLVE));
