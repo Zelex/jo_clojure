@@ -2,7 +2,7 @@
 
 Author Jon Olick. @JonOlick on twitter. 
 
-A Fast, Embeddable Clojure-like language implementation in C/C++. 
+A Fast, (soon to be) Embeddable Clojure-like language implementation in C/C++. 
 
 The near-term goal is to re-make clojure in an embedable form. 
 
