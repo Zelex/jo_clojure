@@ -8,6 +8,10 @@ The near-term goal is to re-make clojure in an embedable form.
 
 The long-term goal is to add types/functions for machine learning, tensors, etc... 
 
+# Usage:
+* For the REPL: jclj
+* For running a script: jclj <file>
+
 # Currently:
 * Native implementation of almost entire core lib. See TODO.md
 * Parses code into native structures (AST), then executes. Essentially interpreted - though does some clever things here and there. 
