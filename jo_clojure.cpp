@@ -6657,11 +6657,17 @@ int main(int argc, char **argv) {
 		native_include(env, list_va(new_node_string(argv[1])));
 	} else {
 		// REPL
+		node_idx_t r2, r3;
 		while(!feof(stdin)) {
 			printf("> ");
 			char line[4096];
 			scanf("%[^\n]%*c", line);
-			native_load_string(env, list_va(new_node_string(line)));
+			node_idx_t r = native_load_string(env, list_va(new_node_string(line)));
+			r3 = r2;
+			r2 = r;
+			native_def(env, list_va(new_node_symbol("*1"), r));
+			native_def(env, list_va(new_node_symbol("*2"), r2));
+			native_def(env, list_va(new_node_symbol("*3"), r3));
 		}
 		printf("\n");
 	}
