@@ -6341,10 +6341,12 @@ int main(int argc, char **argv) {
 	}
 #endif
 
+	/*
 	if(argc <= 1) {
-		fprintf(stderr, "usage: %s <file>\n", argv[0]);
+		fprintf(stderr, "usage:\n\tTo run a file: %s <file>\n\tTo run the REPL:%s\n", argv[0], argv[0] );
 		return 1;
 	}
+	*/
 
 	srand(0);
 	jo_rnd_state = jo_pcg32_init(0);
@@ -6650,7 +6652,20 @@ int main(int argc, char **argv) {
 		env->set("*command-line-args*", new_node_list(args));
 	}
 	
-	native_include(env, list_va(new_node_string(argv[1])));
+	if(argc > 1) {
+		// Run a file
+		native_include(env, list_va(new_node_string(argv[1])));
+	} else {
+		// REPL
+		while(!feof(stdin)) {
+			printf("> ");
+			char line[4096];
+			scanf("%[^\n]%*c", line);
+			native_load_string(env, list_va(new_node_string(line)));
+		}
+		printf("\n");
+	}
+
 
 	debugf("nodes.size() = %zu\n", nodes.size());
 	for(int i = 0; i < num_free_sectors; ++i) {
