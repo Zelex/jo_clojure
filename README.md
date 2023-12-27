@@ -10,7 +10,7 @@ The long-term goal is to add types/functions for machine learning, tensors, etc.
 
 # Usage:
 * For the REPL: jclj
-* For running a script: jclj <file>
+* For running a script: jclj file.clj
 
 # Currently:
 * Native implementation of almost entire core lib. See TODO.md
