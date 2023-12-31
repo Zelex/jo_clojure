@@ -3347,7 +3347,7 @@ static node_idx_t native_defn(env_ptr_t env, list_ptr_t args) {
 	}
 
 	env->set(sym_node_idx, native_fn(env, args->rest(i)));
-	return NIL_NODE;
+	return sym_node_idx;
 }
 
 // (defmacro name doc-string? attr-map? [params*] body)
