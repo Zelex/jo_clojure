@@ -27,7 +27,7 @@ static thread_local size_t thread_id = thread_uid.fetch_add(1, std::memory_order
 #include "jo_stdcpp.h"
 #include "jo_clojure_persistent.h"
 
-#define debugf printf
+//#define debugf printf
 #ifndef debugf
 #define debugf sizeof
 #endif
