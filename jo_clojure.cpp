@@ -1755,11 +1755,13 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "%7") return PCT7_NODE;
 		if(tok.str == "%8") return PCT8_NODE;
 		node_idx_t ret = new_node_symbol(tok.str.c_str(), NODE_FLAG_FOREVER);
+		/* // NOTE: This is broken... don't re-enable. 
 		node_idx_t node = env->get(ret);
 		if(node != INV_NODE && get_node_flags(node) & NODE_FLAG_PRERESOLVE) {
 			debugf("pre-resolve symbol: %s\n", tok.str.c_str());
 			return node;
 		}
+		*/
 		return ret;
 	} 
 
@@ -2948,20 +2950,12 @@ static node_idx_t native_println_str(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_print(env_ptr_t env, list_ptr_t args) {
 	node_idx_t s_idx = native_print_str(env, args);
 	printf("%s", get_node(s_idx)->as_string(2).c_str());
-	// update *1, *2, *3
-	env->set_temp(STAR_3_NODE, env->get(STAR_2_NODE));
-	env->set_temp(STAR_2_NODE, env->get(STAR_1_NODE));
-	env->set_temp(STAR_1_NODE, s_idx);
 	return NIL_NODE;
 }
 
 static node_idx_t native_println(env_ptr_t env, list_ptr_t args) {
 	node_idx_t s_idx = native_print_str(env, args);
 	printf("%s\n", get_node(s_idx)->as_string(2).c_str());
-	// update *1, *2, *3
-	env->set_temp(STAR_3_NODE, env->get(STAR_2_NODE));
-	env->set_temp(STAR_2_NODE, env->get(STAR_1_NODE));
-	env->set_temp(STAR_1_NODE, s_idx);
 	return NIL_NODE;	
 }
 
@@ -3243,7 +3237,7 @@ static node_idx_t native_def(env_ptr_t env, list_ptr_t args) {
 	}
 
 	env->set(sym_node_idx, eval_node(env, init));
-	return NIL_NODE;
+	return sym_node_idx;
 }
 
 // (defonce name expr)
@@ -6663,11 +6657,12 @@ int main(int argc, char **argv) {
 			char line[4096];
 			scanf("%[^\n]%*c", line);
 			node_idx_t r = native_load_string(env, list_va(new_node_string(line)));
+			native_println(env, list_va(r));
 			r3 = r2;
 			r2 = r;
-			native_def(env, list_va(new_node_symbol("*1"), r));
-			native_def(env, list_va(new_node_symbol("*2"), r2));
-			native_def(env, list_va(new_node_symbol("*3"), r3));
+			native_def(env, list_va(STAR_1_NODE, r));
+			native_def(env, list_va(STAR_2_NODE, r2));
+			native_def(env, list_va(STAR_3_NODE, r3));
 		}
 		printf("\n");
 	}

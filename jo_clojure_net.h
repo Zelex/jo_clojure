@@ -75,7 +75,9 @@ static node_idx_t native_net_socket(env_ptr_t env, list_ptr_t args) {
     }
     // Always set these.... 
     sock_opt(fd, SO_REUSEADDR, true);
+#ifdef SO_REUSEPORT
     sock_opt(fd, SO_REUSEPORT, true);
+#endif
     return new_node_int(fd);
 }
 
