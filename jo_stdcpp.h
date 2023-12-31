@@ -1083,6 +1083,14 @@ struct jo_string {
         return *this;
     }
 
+    int count(char c) const {
+        int ret = 0;
+        for(size_t i = 0; i < size-1; i++) {
+            if(str[i] == c) ret++;
+        }
+        return ret;
+    }
+
     // iterator
     class iterator {
     public:

@@ -27,7 +27,7 @@ static thread_local size_t thread_id = thread_uid.fetch_add(1, std::memory_order
 #include "jo_stdcpp.h"
 #include "jo_clojure_persistent.h"
 
-//#define debugf printf
+#define debugf printf
 #ifndef debugf
 #define debugf sizeof
 #endif
@@ -6646,17 +6646,25 @@ int main(int argc, char **argv) {
 		env->set("*command-line-args*", new_node_list(args));
 	}
 	
-	if(argc > 1) {
+	if(argc == 2) {
 		// Run a file
 		native_include(env, list_va(new_node_string(argv[1])));
-	} else {
+	} else if(argc == 1) {
 		// REPL
 		node_idx_t r2, r3;
 		while(!feof(stdin)) {
 			printf("> ");
+			int lists = 0;
+			jo_string cmd = "";
 			char line[4096];
 			scanf("%[^\n]%*c", line);
-			node_idx_t r = native_load_string(env, list_va(new_node_string(line)));
+			cmd += line;
+			while(cmd.count('(') > cmd.count(')')) {
+				printf("  ");
+				scanf("%[^\n]%*c", line);
+				cmd += line;
+			}
+			node_idx_t r = native_load_string(env, list_va(new_node_string(cmd)));
 			native_println(env, list_va(r));
 			r3 = r2;
 			r2 = r;
