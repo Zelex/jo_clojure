@@ -6646,7 +6646,7 @@ int main(int argc, char **argv) {
 		env->set("*command-line-args*", new_node_list(args));
 	}
 	
-	if(argc == 2) {
+	if(argc >= 2) {
 		// Run a file
 		native_include(env, list_va(new_node_string(argv[1])));
 	} else if(argc == 1) {
