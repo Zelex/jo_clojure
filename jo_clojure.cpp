@@ -6659,10 +6659,12 @@ int main(int argc, char **argv) {
 			char line[4096];
 			scanf("%[^\n]%*c", line);
 			cmd += line;
+			cmd += " ";
 			while(cmd.count('(') > cmd.count(')')) {
 				printf("  ");
 				scanf("%[^\n]%*c", line);
 				cmd += line;
+				cmd += " ";
 			}
 			node_idx_t r = native_load_string(env, list_va(new_node_string(cmd)));
 			native_println(env, list_va(r));
