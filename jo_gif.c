@@ -4,6 +4,7 @@
  * 	Supports only 4 component input, alpha is currently ignored. (RGBX)
  *
  * Latest revisions:
+ * 	1.10 (2024-05-20) compression speed / size improvements. C code cleanup.
  * 	1.00 (2015-11-03) initial release
  *
  * Basic usage:
