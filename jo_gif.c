@@ -9,9 +9,9 @@
  * Basic usage:
  *	char *frame = new char[128*128*4]; // 4 component. RGBX format, where X is unused 
  *	jo_gif_t gif = jo_gif_start("foo.gif", 128, 128, 0, 32); 
- *	jo_gif_frame(&gif, frame, 4, false); // frame 1
- *	jo_gif_frame(&gif, frame, 4, false); // frame 2
- *	jo_gif_frame(&gif, frame, 4, false); // frame 3, ...
+ *	jo_gif_frame(&gif, frame, 4, 0); // frame 1
+ *	jo_gif_frame(&gif, frame, 4, 0); // frame 2
+ *	jo_gif_frame(&gif, frame, 4, 0); // frame 3, ...
  *	jo_gif_end(&gif);
  * */
 
@@ -30,6 +30,8 @@ typedef struct {
 	short width, height, repeat;
 	int numColors, palSize;
 	int frame;
+	unsigned char *cur_buf;
+	unsigned char *prev_buf;
 } jo_gif_t;
 
 // width/height	| the same for every frame
@@ -40,8 +42,8 @@ extern jo_gif_t jo_gif_start(const char *filename, short width, short height, sh
 // gif			| the state (returned from jo_gif_start)
 // rgba         | the pixels
 // delayCsec    | amount of time in between frames (in centiseconds)
-// localPalette | true if you want a unique palette generated for this frame (does not effect future frames)
-extern void jo_gif_frame(jo_gif_t *gif, unsigned char *rgba, short delayCsec, bool localPalette);
+// localPalette | non-zero if you want a unique palette generated for this frame (does not effect future frames)
+extern void jo_gif_frame(jo_gif_t *gif, unsigned char *rgba, short delayCsec, char localPalette);
 
 // gif          | the state (returned from jo_gif_start)
 extern void jo_gif_end(jo_gif_t *gif);
@@ -229,8 +231,8 @@ static void jo_gif_lzw_encode(unsigned char *in, int len, FILE *fp) {
 
 	// Note: 30k stack space for dictionary =|
 	const int hashSize = 5003;
-	short codetab[hashSize];
-	int hashTbl[hashSize];
+	short codetab[5003];
+	int hashTbl[5003];
 	memset(hashTbl, 0xFF, sizeof(hashTbl));
 
 	jo_gif_lzw_write(&state, 0x100);
@@ -283,13 +285,13 @@ CONTINUE:
 static int jo_gif_clamp(int a, int b, int c) { return a < b ? b : a > c ? c : a; }
 
 jo_gif_t jo_gif_start(const char *filename, short width, short height, short repeat, int numColors) {
-	numColors = numColors > 255 ? 255 : numColors < 2 ? 2 : numColors;
-	jo_gif_t gif = {};
+	numColors = numColors > 256 ? 256 : numColors < 2 ? 2 : numColors;
+	jo_gif_t gif = {0};
 	gif.width = width;
 	gif.height = height;
 	gif.repeat = repeat;
 	gif.numColors = numColors;
-	gif.palSize = log2(numColors);
+	gif.palSize = ceil(log2(numColors))-1;
 
 	gif.fp = fopen(filename, "wb");
 	if(!gif.fp) {
@@ -297,19 +299,21 @@ jo_gif_t jo_gif_start(const char *filename, short width, short height, short rep
 		return gif;
 	}
 
+	int size = width * height;
+	gif.cur_buf = (unsigned char *)malloc(size);
+	gif.prev_buf = numColors != 256 ? (unsigned char *)malloc(size) : 0;
+
 	fwrite("GIF89a", 6, 1, gif.fp);
 	// Logical Screen Descriptor
 	fwrite(&gif.width, 2, 1, gif.fp);
 	fwrite(&gif.height, 2, 1, gif.fp);
 	putc(0xF0 | gif.palSize, gif.fp);
-	fwrite("\x00\x00", 2, 1, gif.fp); // bg color index (unused), aspect ratio
+	fwrite("\x00\x00", 2, 1, gif.fp); // bg color index, aspect ratio
 	return gif;
 }
 
-void jo_gif_frame(jo_gif_t *gif, unsigned char * rgba, short delayCsec, bool localPalette) {
-	if(!gif->fp) {
-		return;
-	}
+void jo_gif_frame(jo_gif_t *gif, unsigned char * rgba, short delayCsec, char localPalette) {
+	if(!gif->fp) return;
 	short width = gif->width;
 	short height = gif->height;
 	int size = width * height;
@@ -317,29 +321,59 @@ void jo_gif_frame(jo_gif_t *gif, unsigned char * rgba, short delayCsec, bool loc
 	unsigned char localPalTbl[0x300];
 	unsigned char *palette = gif->frame == 0 || !localPalette ? gif->palette : localPalTbl;
 	if(gif->frame == 0 || localPalette) {
-		jo_gif_quantize(rgba, size*4, 1, palette, gif->numColors);		
+		jo_gif_quantize(rgba, size*4, 1, palette + 3 * (gif->numColors != 256), gif->numColors);		
 	}
 
-	unsigned char *indexedPixels = (unsigned char *)malloc(size);
+	int no_greenscreen = (gif->numColors == 256 || gif->frame == 0 || localPalette);
+
 	{
+		int num_last = 4, last_value[4] = {-1,-1,-1,-1}, last_best[4] = {-1,-1,-1,-1};
 		unsigned char *ditheredPixels = (unsigned char*)malloc(size*4);
 		memcpy(ditheredPixels, rgba, size*4);
 		for(int k = 0; k < size*4; k+=4) {
-			int rgb[3] = { ditheredPixels[k+0], ditheredPixels[k+1], ditheredPixels[k+2] };
 			int bestd = 0x7FFFFFFF, best = -1;
-			// TODO: exhaustive search. do something better.
-			for(int i = 0; i < gif->numColors; ++i) {
-				int bb = palette[i*3+0]-rgb[0];
-				int gg = palette[i*3+1]-rgb[1];
-				int rr = palette[i*3+2]-rgb[2];
-				int d = bb*bb + gg*gg + rr*rr;
-				if(d < bestd) {
-					bestd = d;
-					best = i;
+
+			// First check the last value cache
+			int value = ((ditheredPixels[k+0]) | (ditheredPixels[k+1] << 8) | (ditheredPixels[k+2] << 16));
+			for(int i = 0; i < num_last; ++i) {
+				if(last_value[i] == value) {
+					best = last_best[i];
+					// move to front
+					for(int j = i; j > 0; --j) {
+						last_value[j] = last_value[j-1];
+						last_best[j] = last_best[j-1];
+					}
+					last_value[0] = value;
+					last_best[0] = best;
+					break;
 				}
 			}
-			indexedPixels[k/4] = best;
-			int diff[3] = { ditheredPixels[k+0] - palette[indexedPixels[k/4]*3+0], ditheredPixels[k+1] - palette[indexedPixels[k/4]*3+1], ditheredPixels[k+2] - palette[indexedPixels[k/4]*3+2] };
+			if(best == -1) {
+				// TODO: exhaustive search. do something better.
+				int rgb[3] = { ditheredPixels[k+0], ditheredPixels[k+1], ditheredPixels[k+2] };
+				for(int i = 0; i < gif->numColors; ++i) {
+					int bb = palette[i*3+0]-rgb[0];
+					int gg = palette[i*3+1]-rgb[1];
+					int rr = palette[i*3+2]-rgb[2];
+					int d = bb*bb + gg*gg + rr*rr;
+					if(d < bestd) {
+						bestd = d;
+						best = i;
+						if(!bestd) break;
+					}
+				}
+				// move to front
+				for(int j = num_last-1; j > 0; --j) {
+					last_value[j] = last_value[j-1];
+					last_best[j] = last_best[j-1];
+				}
+				last_value[0] = value;
+				last_best[0] = best;
+			}
+			
+			gif->cur_buf[k/4] = best;
+
+			int diff[3] = { ditheredPixels[k+0] - palette[gif->cur_buf[k/4]*3+0], ditheredPixels[k+1] - palette[gif->cur_buf[k/4]*3+1], ditheredPixels[k+2] - palette[gif->cur_buf[k/4]*3+2] };
 			// Floyd-Steinberg Error Diffusion
 			// TODO: Use something better -- http://caca.zoy.org/study/part3.html
 			if(k+4 < size*4) { 
@@ -367,8 +401,13 @@ void jo_gif_frame(jo_gif_t *gif, unsigned char * rgba, short delayCsec, bool loc
 			putc(0, gif->fp); // block terminator
 		}
 	}
+	// Calculate delta-frame
+	if(!no_greenscreen) for(int i = 0; i < size; i++) {
+		if(gif->cur_buf[i] == gif->prev_buf[i]) gif->cur_buf[i] = 0;
+		else gif->prev_buf[i] = gif->cur_buf[i];
+	}
 	// Graphic Control Extension
-	fwrite("\x21\xf9\x04\x00", 4, 1, gif->fp);
+	fwrite(no_greenscreen ? "\x21\xf9\x04\x00" : "\x21\xf9\x04\x05", 4, 1, gif->fp);
 	fwrite(&delayCsec, 2, 1, gif->fp); // delayCsec x 1/100 sec
 	fwrite("\x00\x00", 2, 1, gif->fp); // transparent color index (first byte), currently unused
 	// Image Descriptor
@@ -382,18 +421,17 @@ void jo_gif_frame(jo_gif_t *gif, unsigned char * rgba, short delayCsec, bool loc
 		fwrite(palette, 3*(1<<(gif->palSize+1)), 1, gif->fp);
 	}
 	putc(8, gif->fp); // block terminator
-	jo_gif_lzw_encode(indexedPixels, size, gif->fp);
+	jo_gif_lzw_encode(gif->cur_buf, size, gif->fp);
 	putc(0, gif->fp); // block terminator
 	++gif->frame;
-	free(indexedPixels);
 }
 
 void jo_gif_end(jo_gif_t *gif) {
-	if(!gif->fp) {
-		return;
-	}
+	if(!gif->fp) return;
 	putc(0x3b, gif->fp); // gif trailer
 	fclose(gif->fp);
+	free(gif->cur_buf);
+	free(gif->prev_buf);
 	memset(gif, 0, sizeof(*gif));
 }
 #endif
