@@ -1,6 +1,6 @@
 #pragma once
 
-#include "jo_gif.cpp"
+#include "jo_gif.c"
 
 // simple wrapper so we can blop it into the t_object generic container
 struct jo_clojure_gif_t : jo_object {
