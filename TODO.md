@@ -149,8 +149,6 @@
 * persistent!
 * pop!
 * pop-thread-bindings
-* pr
-* pr-str
 * prefer-method
 * prefers
 * primitives-classnames
@@ -160,8 +158,6 @@
 * print-simple
 * printf
 * PrintWriter-on
-* prn
-* prn-str
 * proxy
 * proxy-call-with-super
 * proxy-mappings

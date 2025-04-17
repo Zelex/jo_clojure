@@ -2966,6 +2966,45 @@ static node_idx_t native_println(env_ptr_t env, list_ptr_t args) {
 	return NIL_NODE;	
 }
 
+static node_idx_t native_pr(env_ptr_t env, list_ptr_t args) {
+	for(list_t::iterator i(args); i;) {
+		node_idx_t n = *i;
+		printf("%s", get_node(n)->as_string(3).c_str());
+		++i;
+		if(i) {
+			printf(" ");
+		}
+	}
+	return NIL_NODE;
+}
+
+static node_idx_t native_prn(env_ptr_t env, list_ptr_t args) {
+	native_pr(env, args);
+	printf("\n");
+	return NIL_NODE;
+}
+
+static node_idx_t native_pr_str(env_ptr_t env, list_ptr_t args) {
+	jo_string s;
+	for(list_t::iterator i(args); i;) {
+		node_idx_t n = *i;
+		s += get_node(n)->as_string(3);
+		++i;
+		if(i) {
+			s += " ";
+		}
+	}
+	return new_node_string(s);
+}
+
+static node_idx_t native_prn_str(env_ptr_t env, list_ptr_t args) {
+	jo_string s;
+	node_idx_t pr_str_result = native_pr_str(env, args);
+	s = get_node(pr_str_result)->as_string();
+	s += "\n";
+	return new_node_string(s);
+}
+
 static node_idx_t native_do(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(env, args);
 }
@@ -6432,6 +6471,10 @@ int main(int argc, char **argv) {
 	env->set("println", new_node_native_function("println", &native_println, false, NODE_FLAG_PRERESOLVE));
 	env->set("print-str", new_node_native_function("print-str", &native_print_str, false, NODE_FLAG_PRERESOLVE));
 	env->set("println-str", new_node_native_function("println-str", &native_println_str, false, NODE_FLAG_PRERESOLVE));
+	env->set("pr", new_node_native_function("pr", &native_pr, false, NODE_FLAG_PRERESOLVE));
+	env->set("prn", new_node_native_function("prn", &native_prn, false, NODE_FLAG_PRERESOLVE));
+	env->set("pr-str", new_node_native_function("pr-str", &native_pr_str, false, NODE_FLAG_PRERESOLVE));
+	env->set("prn-str", new_node_native_function("prn-str", &native_prn_str, false, NODE_FLAG_PRERESOLVE));
 	env->set("=", new_node_native_function("=", &native_eq, false, NODE_FLAG_PRERESOLVE));
 	env->set("==", new_node_native_function("==", &native_eq, false, NODE_FLAG_PRERESOLVE));
 	env->set("not=", new_node_native_function("not=", &native_neq, false, NODE_FLAG_PRERESOLVE));

@@ -10,3 +10,32 @@
 (defn arity-test [n] (+ n n))
 (println (arity-test 1))
 (println (arity-test 1 1))
+
+;; Tests for pr, prn, pr-str, and prn-str functions
+
+;; Testing basic string printing differences between print and pr
+(println "--- Testing print vs pr with strings ---")
+(print "Hello") (print " ") (println "World") ; prints without quotes
+(pr "Hello") (pr " ") (prn "World")           ; prints with quotes
+
+;; Testing pr with different data types
+(println "--- Testing pr with different data types ---")
+(pr "a string" 42 true false nil [1 2 3] {:a 1 :b 2} #{1 2 3}) (println)
+
+;; Testing pr-str and prn-str return values
+(println "--- Testing pr-str and prn-str ---")
+(def str-result (pr-str "test" 123 [4 5 6]))
+(println "pr-str result:") (println str-result)
+(println "Type of result:" (type str-result))
+
+;; Testing prn-str (includes newline)
+(def strn-result (prn-str {:x 10 :y 20} [1 2 3]))
+(println "prn-str result:") (print strn-result)
+(println "Type of result:" (type strn-result))
+
+;; Practical example - creating readable representation of data
+(println "--- Practical example ---")
+(def data {:name "Alice" :age 30 :skills ["Clojure" "Java"]})
+(def data-str (pr-str data))
+(println "Data as string:" data-str)
+(println "Data can be read back:" (= data (read-string data-str)))
