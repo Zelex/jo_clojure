@@ -410,7 +410,7 @@ void jo_gif_frame(jo_gif_t *gif, unsigned char * rgba, short delayCsec, char loc
 	// Graphic Control Extension
 	fwrite(no_greenscreen ? "\x21\xf9\x04\x00" : "\x21\xf9\x04\x05", 4, 1, gif->fp);
 	fwrite(&delayCsec, 2, 1, gif->fp); // delayCsec x 1/100 sec
-	fwrite("\x00\x00", 2, 1, gif->fp); // transparent color index (first byte), currently unused
+	fwrite("\x00\x00", 2, 1, gif->fp); // transparent color index (first byte)
 	// Image Descriptor
 	fwrite("\x2c\x00\x00\x00\x00", 5, 1, gif->fp); // header, x,y
 	fwrite(&width, 2, 1, gif->fp);

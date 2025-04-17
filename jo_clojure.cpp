@@ -2070,6 +2070,13 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				for (; i && i2; i++, i2++) {
 					node_let(fn_env, *i, is_macro ? *i2 : eval_node(env, *i2));
 				}
+				
+				// Check for extra arguments - Clojure ArityException behavior
+				if (i2) {
+					warnf("ArityException: Wrong number of args (%zu) passed to: %s\n", 
+						args1->size(), sym_node->t_string.c_str());
+					return NIL_NODE;
+				}
 			}
 
 			// Evaluate all statements in the body list
@@ -3315,6 +3322,8 @@ static node_idx_t native_fn_macro(env_ptr_t env, list_ptr_t args, bool macro) {
 					return eval_list(env, args->push_front(*i));
 				}
 			}
+			// No matching arity found, report an error
+			warnf("ArityException: Wrong number of args (%lld) passed\n", num_args);
 			return NIL_NODE;
 		}, macro);
 	}
@@ -3395,8 +3404,8 @@ static node_idx_t native_is_zero(env_ptr_t env, list_ptr_t args) {
 
 // This statement takes a set of test/expression pairs. 
 // It evaluates each test one at a time. 
-// If a test returns logical true, ‘cond’ evaluates and returns the value of the corresponding expression 
-// and doesn't evaluate any of the other tests or expressions. ‘cond’ returns nil.
+// If a test returns logical true, 'cond' evaluates and returns the value of the corresponding expression 
+// and doesn't evaluate any of the other tests or expressions. 'cond' returns nil.
 static node_idx_t native_cond(env_ptr_t env, list_ptr_t args) {
 	for(list_t::iterator it(args); it; ) {
 		node_idx_t test = eval_node(env, *it++), expr = *it++;
@@ -3408,9 +3417,9 @@ static node_idx_t native_cond(env_ptr_t env, list_ptr_t args) {
 }
 
 /*
-The expression to be evaluated is placed in the ‘case’ statement. 
+The expression to be evaluated is placed in the 'case' statement. 
 This generally will evaluate to a value, which is used in the subsequent statements.
-Each value is evaluated against that which is passed by the ‘case’ expression. 
+Each value is evaluated against that which is passed by the 'case' expression. 
 Depending on which value holds true, subsequent statement will be executed.
 There is also a default statement which gets executed if none of the prior values evaluate to be true.
 Example:
@@ -3521,7 +3530,7 @@ static node_idx_t doseq(env_ptr_t env, vector_t::iterator it, list_t::iterator e
    (println n)))
 (Example)
 
-The ‘doseq’ statement is similar to the ‘for each’ statement which is found in many other programming languages. 
+The 'doseq' statement is similar to the 'for each' statement which is found in many other programming languages. 
 The doseq statement is basically used to iterate over a sequence.
 */
 static node_idx_t native_doseq(env_ptr_t env, list_ptr_t args) {

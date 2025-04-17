@@ -118,7 +118,7 @@ static nfdresult_t AllocPathSet( GSList *fileList, nfdpathset_t *pathSet )
     pathSet->count = (size_t)g_slist_length( fileList );
     assert( pathSet->count > 0 );
 
-    pathSet->indices = NFDi_Malloc( sizeof(size_t)*pathSet->count );
+    pathSet->indices = (size_t*)NFDi_Malloc( sizeof(size_t)*pathSet->count );
     if ( !pathSet->indices )
     {
         return NFD_ERROR;
@@ -131,7 +131,7 @@ static nfdresult_t AllocPathSet( GSList *fileList, nfdpathset_t *pathSet )
         bufSize += strlen( (const gchar*)node->data ) + 1;
     }
 
-    pathSet->buf = NFDi_Malloc( sizeof(nfdchar_t) * bufSize );
+    pathSet->buf = (nfdchar_t*)NFDi_Malloc( sizeof(nfdchar_t) * bufSize );
 
     /* fill buf */
     p_buf = pathSet->buf;
@@ -200,7 +200,7 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
 
         {
             size_t len = strlen(filename);
-            *outPath = NFDi_Malloc( len + 1 );
+            *outPath = (nfdchar_t*)NFDi_Malloc( len + 1 );
             memcpy( *outPath, filename, len + 1 );
             if ( !*outPath )
             {
@@ -304,7 +304,7 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
         
         {
             size_t len = strlen(filename);
-            *outPath = NFDi_Malloc( len + 1 );
+            *outPath = (nfdchar_t*)NFDi_Malloc( len + 1 );
             memcpy( *outPath, filename, len + 1 );
             if ( !*outPath )
             {
@@ -357,7 +357,7 @@ nfdresult_t NFD_PickFolder(const nfdchar_t *defaultPath,
         
         {
             size_t len = strlen(filename);
-            *outPath = NFDi_Malloc( len + 1 );
+            *outPath = (nfdchar_t*)NFDi_Malloc( len + 1 );
             memcpy( *outPath, filename, len + 1 );
             if ( !*outPath )
             {

@@ -6,3 +6,7 @@
 (hash-map :key1 1, :key1 2)
 (assoc a :a 3)
 (get a :a)
+
+(defn arity-test [n] (+ n n))
+(println (arity-test 1))
+(println (arity-test 1 1))
