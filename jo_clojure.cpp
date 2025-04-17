@@ -3049,6 +3049,85 @@ static node_idx_t native_prn_str(env_ptr_t env, list_ptr_t args) {
 	return new_node_string(s);
 }
 
+static node_idx_t native_printf(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    if (!it) {
+        warnf("printf requires at least a format string argument\n");
+        return NIL_NODE;
+    }
+    
+    // Get format string
+    node_t* format_node = get_node(*it);
+    if (format_node->type != NODE_STRING) {
+        warnf("printf first argument must be a string\n");
+        return NIL_NODE;
+    }
+    
+    jo_string format_str = format_node->t_string;
+    ++it;
+    
+    // Collect all arguments into a vector
+    std::vector<node_idx_t> arg_values;
+    for (; it; ++it) {
+        arg_values.push_back(*it);
+    }
+    
+    // Process format string
+    size_t pos = 0;
+    size_t arg_index = 0;
+    
+    while (pos < format_str.length()) {
+        if (format_str[pos] == '%' && pos + 1 < format_str.length()) {
+            if (format_str[pos + 1] == '%') {
+                // Escaped % character
+                printf("%%");
+                pos += 2;
+            } else {
+                // The next character is the format specifier (simplified approach)
+                char format_char = format_str[pos + 1];
+                
+                if (arg_index >= arg_values.size()) {
+                    warnf("printf: not enough arguments for format string\n");
+                    return NIL_NODE;
+                }
+                
+                node_idx_t arg = arg_values[arg_index++];
+                
+                switch (format_char) {
+                    case 'd':
+                    case 'i':
+                        printf("%lld", get_node_int(arg));
+                        break;
+                    case 'f':
+                    case 'g':
+                        printf("%g", get_node_float(arg));
+                        break;
+                    case 's':
+                        {
+                            node_t* str_node = get_node(arg);
+                            if (str_node->type == NODE_STRING) {
+                                printf("%s", str_node->t_string.c_str());
+                            } else {
+                                printf("%s", get_node_string(arg).c_str());
+                            }
+                        }
+                        break;
+                    default:
+                        // Just add the argument's string representation
+                        printf("%s", get_node_string(arg).c_str());
+                        break;
+                }
+                pos += 2; // Move past the % and the format specifier
+            }
+        } else {
+            // Regular character - print directly
+            printf("%c", format_str[pos++]);
+        }
+    }
+    
+    fflush(stdout);
+    return NIL_NODE;
+}
 static node_idx_t native_do(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(env, args);
 }
@@ -6038,7 +6117,6 @@ static node_idx_t native_set_q(env_ptr_t env, list_ptr_t args) {
 // Returns the first logical true value of (pred x) for any x in coll,
 // else nil.  One common idiom is to use a set as pred, for example
 // this will return :fred if :fred is in the sequence, otherwise nil:
-// (some #{:fred} coll)
 static node_idx_t native_some(env_ptr_t env, list_ptr_t args) {
 	node_idx_t pred_idx = args->first_value();
 	node_idx_t coll_idx = args->second_value();
@@ -6541,6 +6619,7 @@ int main(int argc, char **argv) {
 	env->set("prn", new_node_native_function("prn", &native_prn, false, NODE_FLAG_PRERESOLVE));
 	env->set("pr-str", new_node_native_function("pr-str", &native_pr_str, false, NODE_FLAG_PRERESOLVE));
 	env->set("prn-str", new_node_native_function("prn-str", &native_prn_str, false, NODE_FLAG_PRERESOLVE));
+	env->set("printf", new_node_native_function("printf", &native_printf, false, NODE_FLAG_PRERESOLVE));
 	env->set("=", new_node_native_function("=", &native_eq, false, NODE_FLAG_PRERESOLVE));
 	env->set("==", new_node_native_function("==", &native_eq, false, NODE_FLAG_PRERESOLVE));
 	env->set("not=", new_node_native_function("not=", &native_neq, false, NODE_FLAG_PRERESOLVE));

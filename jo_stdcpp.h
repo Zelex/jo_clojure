@@ -762,6 +762,9 @@ struct jo_string {
         return *this;
     }
 
+    char &operator[](size_t n) { return str[n]; }
+    const char &operator[](size_t n) const { return str[n]; }
+
     size_t find_last_of(char c) const {
         for(long long i = size - 2; i >= 0; --i) {
             if(str[i] == c) return i;
