@@ -39,3 +39,11 @@
 (def data-str (pr-str data))
 (println "Data as string:" data-str)
 (println "Data can be read back:" (= data (read-string data-str)))
+
+(defn my-function [a b & rest]
+  (println "Fixed args:" a b)
+  (println "Rest args:" rest))
+
+;; Can be called with 2 or more arguments:
+(my-function 1 2)
+(my-function 1 2 3 4 5)

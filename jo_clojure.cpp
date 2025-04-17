@@ -98,6 +98,7 @@ enum {
 	K_ALL_NODE,
 	K_BY_NODE,
 	K_AUTO_DEREF_NODE,
+	AMP_NODE,  // & symbol for varargs
 	START_USER_NODES,
 
 	// node types
@@ -147,6 +148,7 @@ enum {
 	NODE_FLAG_FOREVER	   = 1<<7, // never release this node
 	NODE_FLAG_GARBAGE	   = 1<<8, // this node is garbage
 	NODE_FLAG_CHAR		   = 1<<9, // char	
+	NODE_FLAG_VARARGS      = 1<<10, // function has varargs
 };
 
 struct node_t;
@@ -554,6 +556,7 @@ struct node_t {
 	struct {
 		vector_ptr_t args;
 		list_ptr_t body;
+		size_t fixed_args_count; // For varargs functions, number of arguments before &
 	} t_func;
 	// var, delay, lazy_fn, reduced
 	node_idx_t t_extra;
@@ -1754,6 +1757,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		if(tok.str == "%6") return PCT6_NODE;
 		if(tok.str == "%7") return PCT7_NODE;
 		if(tok.str == "%8") return PCT8_NODE;
+		if(tok.str == "&") return AMP_NODE;
 		node_idx_t ret = new_node_symbol(tok.str.c_str(), NODE_FLAG_FOREVER);
 		/* // NOTE: This is broken... don't re-enable. 
 		node_idx_t node = env->get(ret);
@@ -2067,12 +2071,31 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				int is_macro = (sym_flags|list_flags) & NODE_FLAG_MACRO;
 				vector_t::iterator i = proto_args->begin();
 				list_t::iterator i2(args1);
-				for (; i && i2; i++, i2++) {
+				bool has_varargs = (sym_node->flags & NODE_FLAG_VARARGS) != 0;
+				size_t fixed_args_count = sym_node->t_func.fixed_args_count;
+				
+				// Bind fixed parameters
+				size_t param_index = 0;
+				for (; i && i2 && param_index < fixed_args_count; i++, i2++, param_index++) {
 					node_let(fn_env, *i, is_macro ? *i2 : eval_node(env, *i2));
 				}
 				
-				// Check for extra arguments - Clojure ArityException behavior
-				if (i2) {
+				// Handle varargs if present
+				if (has_varargs) {
+					// Skip the & symbol in parameter list
+					i++;
+					if (i) {
+						// Collect all remaining arguments into a list
+						list_ptr_t rest_args = new_list();
+						for (; i2; i2++) {
+							rest_args->push_back_inplace(is_macro ? *i2 : eval_node(env, *i2));
+						}
+						// Bind the rest parameter
+						node_let(fn_env, *i, new_node_list(rest_args));
+					}
+				}
+				// Check for arity errors
+				else if (i2) {
 					warnf("ArityException: Wrong number of args (%zu) passed to: %s\n", 
 						args1->size(), sym_node->t_string.c_str());
 					return NIL_NODE;
@@ -2089,9 +2112,30 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 			while(last_node->type == NODE_RECUR) {
 				auto proto_it = proto_args->begin();
 				list_t::iterator recur_it(last_node->t_list);
-				for(; proto_it && recur_it; ) {
-					node_let(fn_env, *proto_it++, *recur_it++);
+				bool has_varargs = (sym_node->flags & NODE_FLAG_VARARGS) != 0;
+				size_t fixed_args_count = sym_node->t_func.fixed_args_count;
+				
+				// Bind fixed parameters for recur
+				size_t param_index = 0;
+				for(; proto_it && recur_it && param_index < fixed_args_count; proto_it++, recur_it++, param_index++) {
+					node_let(fn_env, *proto_it, *recur_it);
 				}
+				
+				// Handle varargs if present
+				if (has_varargs) {
+					// Skip the & symbol
+					proto_it++;
+					if(proto_it) {
+						// Collect remaining recur arguments into a list
+						list_ptr_t rest_args = new_list();
+						for(; recur_it; recur_it++) {
+							rest_args->push_front_inplace(*recur_it);
+						}
+						// Bind rest parameter
+						node_let(fn_env, *proto_it, new_node_list(rest_args->reverse()));
+					}
+				}
+				
 				for(list_t::iterator i(proto_body); i; i++) {
 					last = eval_node(fn_env, *i);
 				}
@@ -3313,6 +3357,21 @@ static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, node_idx_t 
 		ret->flags |= flags;
 		ret->t_func.args = get_node(*i)->as_vector();
 		ret->t_func.body = args->rest();
+		
+		// Check for varargs and compute fixed arguments count
+		vector_ptr_t func_args = ret->t_func.args;
+		ret->t_func.fixed_args_count = func_args->size();
+		
+		// Look for & symbol in the arguments list
+		for (size_t j = 0; j < func_args->size(); j++) {
+			if (func_args->nth(j) == AMP_NODE) {
+				// Set the varargs flag and update fixed_args_count
+				ret->flags |= NODE_FLAG_VARARGS;
+				ret->t_func.fixed_args_count = j;
+				break;
+			}
+		}
+		
 		if(private_fn_name == NIL_NODE) {
 			ret->t_string = "<anonymous>";
 			ret->t_env = env;
@@ -3357,12 +3416,20 @@ static node_idx_t native_fn_macro(env_ptr_t env, list_ptr_t args, bool macro) {
 				if(fn->type != NODE_FUNC) {
 					continue;
 				}
-				if(fn->t_func.args->size() == num_args) {
+				// Check for exact match or matching varargs pattern
+				vector_ptr_t fn_args = fn->t_func.args;
+				size_t fixed_args_count = fn->t_func.fixed_args_count;
+				bool has_varargs = (fn->flags & NODE_FLAG_VARARGS) != 0;
+				
+				if((has_varargs && num_args >= fixed_args_count) || 
+				   (!has_varargs && fn_args->size() == num_args)) {
 					return eval_list(env, args->push_front(*i));
 				}
 			}
 			// No matching arity found, report an error
-			warnf("ArityException: Wrong number of args (%lld) passed\n", num_args);
+			const char* fn_name = private_fn_name != NIL_NODE ? 
+				get_node(private_fn_name)->t_string.c_str() : "<anonymous>";
+			warnf("ArityException: Wrong number of args (%lld) passed to: %s\n", num_args, fn_name);
 			return NIL_NODE;
 		}, macro);
 	}
@@ -4915,11 +4982,11 @@ static node_idx_t native_cond_thread(env_ptr_t env, list_ptr_t args) {
 				form_args->push_front_inplace(form_idx, value_idx);
 				value_idx = eval_list(env, form_args);
 			} else if(form_type == NODE_LIST) {
-				list_ptr_t form_args = get_node(form_idx)->t_list;
-				node_idx_t sym = form_args->first_value();
-				form_args = form_args->pop_front();
-				form_args->push_front_inplace(sym, value_idx);
-				value_idx = eval_list(env, form_args);
+				list_ptr_t form_list = get_node(form_idx)->t_list;
+				node_idx_t sym = form_list->first_value();
+				form_list = form_list->pop_front();
+				form_list->push_front_inplace(sym, value_idx);
+				value_idx = eval_list(env, form_list);
 			} else {
 				warnf("(cond->) requires a symbol or list");
 				return NIL_NODE;
@@ -5042,7 +5109,6 @@ static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
 	warnf("(contains?) requires a collection\n");
 	return NIL_NODE;
 }
-
 // (counted? coll)
 // Returns true if coll implements count in constant time
 static node_idx_t native_is_counted(env_ptr_t env, list_ptr_t args) {
@@ -5167,7 +5233,6 @@ static node_idx_t native_fnil(env_ptr_t env, list_ptr_t args) {
 		return eval_list(env, new_args);
 	}, false);
 }
-
 // (split-at n coll)
 // Returns a vector of [(take n coll) (drop n coll)]
 static node_idx_t native_split_at(env_ptr_t env, list_ptr_t args) {
@@ -6455,6 +6520,7 @@ int main(int argc, char **argv) {
 		new_node_keyword("__ALL__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__BY__", NODE_FLAG_PRERESOLVE);
 		new_node_keyword("__AUTO_DEREF__", NODE_FLAG_PRERESOLVE);
+		new_node_keyword("&", NODE_FLAG_PRERESOLVE); // AMP_NODE
 	}
 
 	env->set("nil", NIL_NODE);
@@ -6745,4 +6811,6 @@ int main(int argc, char **argv) {
 
 	return 0;
 }
+
+
 

@@ -18,7 +18,7 @@ if [ "$(uname)" == "Darwin" ]; then
      -framework Cocoa -framework QuartzCore -framework OpenGL -framework Metal -framework MetalKit \
      -L/opt/homebrew/opt/mysql-client/lib \
      -lmysqlclient \
-     -o jclj
+     -o jo_clojure
 elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     c++ -std=c++17 \
      -DNO_SOKOL \
@@ -28,5 +28,5 @@ elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
      imgui/imgui.cpp imgui/imgui_widgets.cpp imgui/imgui_draw.cpp imgui/imgui_tables.cpp imgui/imgui_demo.cpp \
      $opt -fexceptions -lpthread \
      -lmysqlclient -lgtk-3 -lgdk-3 -lpangocairo-1.0 -lpango-1.0 -latk-1.0 -lcairo-gobject -lcairo -lgio-2.0 -lgobject-2.0 -lglib-2.0 \
-     -o jclj
+     -o jo_clojure
 fi
