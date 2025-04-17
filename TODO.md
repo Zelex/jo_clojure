@@ -156,7 +156,6 @@
 * print-dup
 * print-method
 * print-simple
-* printf
 * PrintWriter-on
 * proxy
 * proxy-call-with-super
