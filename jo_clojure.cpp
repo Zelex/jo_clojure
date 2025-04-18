@@ -136,6 +136,7 @@ enum {
 #ifndef NO_MYSQL
 	NODE_MYSQL,
 #endif
+	NODE_RECORD,
 
 	// node flags
 	NODE_FLAG_MACRO        = 1<<0,
@@ -207,6 +208,7 @@ static node_idx_t new_node_matrix(matrix_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_queue(queue_ptr_t nodes, int flags = 0);
 static node_idx_t new_node_lazy_list(env_ptr_t env, node_idx_t lazy_fn, int flags = 0);
 static node_idx_t new_node_var(const jo_string &name, node_idx_t value, int flags = 0);
+static node_idx_t new_node_keyword(const jo_string &s, int flags=0);
 
 static node_idx_t node_add(node_idx_t n1i, node_idx_t n2i);
 static node_idx_t node_mul(node_idx_t n1i, node_idx_t n2i);
@@ -684,6 +686,7 @@ struct node_t {
 	inline bool is_atom() const { return type == NODE_ATOM; }
 	inline bool is_future() const { return type == NODE_FUTURE; }
 	inline bool is_promise() const { return type == NODE_PROMISE; }
+	inline bool is_record() const { return type == NODE_RECORD; }
 
 	inline bool is_seq() const { return is_list() || is_lazy_list() || is_hash_map() || is_hash_set() || is_vector() || is_string(); }
 	inline bool can_eval() const { return is_symbol() || is_keyword() || is_list() || is_vector() || is_hash_map() || is_hash_set() || is_func() || is_native_func(); }
@@ -1016,6 +1019,49 @@ struct node_t {
 				s += '}';
 				return s;
 			}
+		case NODE_RECORD:
+			{
+				jo_string s;
+				hash_map_ptr_t map = as_hash_map();
+
+				// Try to get the record type name
+				jo_string record_name = "Record";
+				auto type_it = map->find(new_node_keyword("type"), node_eq);
+				if (type_it.third) {
+					record_name = get_node(type_it.second)->t_string;
+				}
+
+				s = "#" + record_name + "{";
+				
+				// Print the fields
+				int count = 0;
+				for(auto it = map->begin(); it;) {
+					// Skip printing the type field if we already used it
+					if (it->first && get_node_type(it->first) == NODE_KEYWORD && 
+						get_node(it->first)->t_string == "type") {
+						++it;
+						continue;
+					}
+					
+					if (count++ > 0) {
+						s += ", ";
+					}
+					
+					// Always print field names with colon prefix for consistency in records
+					if (get_node_type(it->first) == NODE_KEYWORD || 
+						get_node_type(it->first) == NODE_SYMBOL) {
+						s += ":" + get_node(it->first)->t_string;
+					} else {
+						s += get_node(it->first)->as_string(3);
+					}
+					s += " ";
+					s += get_node(it->second)->as_string(3);
+					++it;
+				}
+				
+				s += '}';
+				return s;
+			}
 		case NODE_HASH_SET:
 			{
 				jo_string s;
@@ -1090,6 +1136,7 @@ struct node_t {
 		case NODE_DIR:     return "dir";	
 		case NODE_FUTURE:  return "future";
 		case NODE_PROMISE: return "promise";
+		case NODE_RECORD:  return "record";
 		}
 		return "unknown";		
 	}
@@ -1311,7 +1358,7 @@ static node_idx_t new_node_exception(const jo_string &s, int flags) {
 	return new_node(std::move(n));
 }
 
-static node_idx_t new_node_keyword(const jo_string &s, int flags=0) {
+static node_idx_t new_node_keyword(const jo_string &s, int flags) {
 	node_t n;
 	n.type = NODE_KEYWORD;
 	n.t_string = s;
@@ -2146,7 +2193,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				sym_node->t_extra = last;
 			}
 			return last;
-		} else if(sym_type == NODE_HASH_MAP) {
+		} else if(sym_type == NODE_HASH_MAP || sym_type == NODE_RECORD) {
 			if(it) {
 				// lookup the key in the map
 				node_idx_t n2i = eval_node(env, *it++);
@@ -2173,7 +2220,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 				// lookup the key in the map
 				node_idx_t n2i = eval_node(env, *it++);
 				node_idx_t n3i = it ? eval_node(env, *it++) : NIL_NODE;
-				if(get_node_type(n2i) == NODE_HASH_MAP) {
+				if(get_node_type(n2i) == NODE_HASH_MAP || get_node_type(n2i) == NODE_RECORD) {
 					auto it2 = get_node(n2i)->as_hash_map()->find(sym_idx, node_eq);
 					if(it2.third) {
 						return it2.second;
@@ -2631,6 +2678,27 @@ static bool node_eq(node_idx_t n1i, node_idx_t n2i) {
 			auto elem = n2->as_hash_map()->find(i1->first, node_eq);
 			if(!elem.third) return false;
 			if(!node_eq(i1->second, elem.second)) return false;
+		}
+		return true;
+	} else if(n1->type == NODE_RECORD && n2->type == NODE_RECORD) {
+		// For records, check if they are of the same record type first
+		hash_map_ptr_t m1 = n1->as_hash_map();
+		hash_map_ptr_t m2 = n2->as_hash_map();
+		auto type1_it = m1->find(new_node_keyword("type"), node_eq);
+		auto type2_it = m2->find(new_node_keyword("type"), node_eq);
+		
+		// If both have a :type field, they need to match for the records to be equal
+		if (type1_it.third && type2_it.third) {
+			if (!node_eq(type1_it.second, type2_it.second)) {
+				return false;
+			}
+		}
+		
+		// Then compare all fields
+		for(auto it = m1->begin(); it; it++) {
+			auto elem = m2->find(it->first, node_eq);
+			if(!elem.third) return false;
+			if(!node_eq(it->second, elem.second)) return false;
 		}
 		return true;
 	} else if(n1->is_seq() && n2->is_seq()) {
@@ -3566,7 +3634,6 @@ static node_idx_t native_defonce(env_ptr_t env, list_ptr_t args) {
 	}
 	return native_def(env, args);
 }
-
 // (declare & names)
 // defs the supplied var names with no bindings, useful for making forward declarations.
 static node_idx_t native_declare(env_ptr_t env, list_ptr_t args) {
@@ -3832,14 +3899,14 @@ static node_idx_t doseq(env_ptr_t env, vector_t::iterator it, list_t::iterator e
 	}
 	if(key == K_WHILE_NODE) {
 		node_idx_t cond = eval_node(env, value);
-		if(get_node(cond)->as_bool()) {
+		if(get_node_bool(cond)) {
 			return doseq(env, it, eval_it);
 		}
 		return INV_NODE; // done here...
 	}
 	if(key == K_WHEN_NODE) {
 		node_idx_t cond = eval_node(env, value);
-		if(get_node(cond)->as_bool()) {
+		if(get_node_bool(cond)) {
 			return doseq(env, it, eval_it);
 		}
 		return NIL_NODE;
@@ -4365,7 +4432,6 @@ static node_idx_t native_ensure_reduced(env_ptr_t env, list_ptr_t args) {
 	get_node(ret_idx)->t_extra = fvi;
 	return ret_idx;
 }
-
 static node_idx_t native_is_reduced(env_ptr_t env, list_ptr_t args) { return get_node_type(args->first_value()) == NODE_REDUCED ? TRUE_NODE : FALSE_NODE; }
 
 // (reduce f coll)
@@ -4485,6 +4551,17 @@ static node_idx_t native_eval(env_ptr_t env, list_ptr_t args) {
 static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 	node_idx_t to = args->first_value();
 	node_idx_t from = args->second_value();
+	
+	// Special case for converting a record to a map
+	if ((to == EMPTY_MAP_NODE || get_node_type(to) == NODE_HASH_MAP) && 
+	    get_node_type(from) == NODE_RECORD) {
+		hash_map_ptr_t record_map = get_node(from)->as_hash_map();
+		if (record_map->empty()) {
+			return EMPTY_MAP_NODE;
+		}
+		return new_node_hash_map(record_map);
+	}
+	
 	if(get_node_type(to) == NODE_LIST) {
 		list_ptr_t ret = new_list(*get_node(to)->t_list);
 		seq_iterate(from, [&ret](node_idx_t item) { ret->push_back_inplace(item); return true; });
@@ -4498,7 +4575,7 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 	if(get_node_type(to) == NODE_HASH_MAP) {
 		hash_map_ptr_t ret = new_hash_map(*get_node(to)->as_hash_map());
 		seq_iterate(from, [&ret](node_idx_t item) { 
-			if(get_node_type(item) == NODE_HASH_MAP) {
+			if(get_node_type(item) == NODE_HASH_MAP || get_node_type(item) == NODE_RECORD) {
 				ret = ret->conj(get_node(item)->as_hash_map().ptr, node_eq);
 			}
 			return true;
@@ -4558,12 +4635,19 @@ static node_idx_t native_assoc(env_ptr_t env, list_ptr_t args) {
 		return new_node_hash_map(map);
 	}
 	node_t *map_node = get_node(map_idx);
-	if(map_node->is_hash_map()) {
+	if(map_node->is_hash_map() || map_node->is_record()) {
 		hash_map_ptr_t map = map_node->as_hash_map();
 		while(it) {
 			node_idx_t key_idx = *it++;
 			node_idx_t val_idx = *it++;
 			map = map->assoc(key_idx, val_idx, node_eq);
+		}
+		
+		// Preserve the node type (map or record)
+		if(map_node->is_record()) {
+			node_idx_t new_record = new_node_hash_map(map);
+			get_node(new_record)->type = NODE_RECORD;
+			return new_record;
 		}
 		return new_node_hash_map(map);
 	} 
@@ -4606,10 +4690,17 @@ static node_idx_t native_dissoc(env_ptr_t env, list_ptr_t args) {
 	list_t::iterator it(args);
 	node_idx_t map_idx = *it++;
 	node_t *map_node = get_node(map_idx);
-	if(map_node->is_hash_map()) {
+	if(map_node->is_hash_map() || map_node->is_record()) {
 		hash_map_ptr_t map = map_node->as_hash_map();
 		for(; it; it++) {
 			map = map->dissoc(*it, node_eq);
+		}
+		
+		// Preserve the node type (map or record)
+		if(map_node->is_record()) {
+			node_idx_t new_record = new_node_hash_map(map);
+			get_node(new_record)->type = NODE_RECORD;
+			return new_record;
 		}
 		return new_node_hash_map(map);
 	} 
@@ -4643,7 +4734,7 @@ static node_idx_t native_get(env_ptr_t env, list_ptr_t args) {
 	node_t *map_node = get_node(map_idx);
 	node_t *key_node = get_node(key_idx);
 	node_t *not_found_node = get_node(not_found_idx);
-	if(map_node->is_hash_map()) {
+	if(map_node->is_hash_map() || map_node->is_record()) {
 		auto entry = map_node->as_hash_map()->find(key_idx, node_eq);
 		if(entry.third) {
 			return entry.second;
@@ -4704,9 +4795,19 @@ static node_idx_t native_update(env_ptr_t env, list_ptr_t args) {
 	node_idx_t map_idx = *it++;
 	node_idx_t key_idx = *it++;
 	node_idx_t f_idx = *it++;
-	list_ptr_t rest = args->rest(it);
-	node_idx_t val_idx = eval_va(env, f_idx, native_get(env, list_va(map_idx, key_idx)));
-	return native_assoc(env, rest->push_front(map_idx, key_idx, val_idx));
+	
+	// Get the existing value - will be NIL if key doesn't exist
+	node_idx_t existing_val = native_get(env, list_va(map_idx, key_idx));
+	
+	// Call the function with existing value as its first arg, followed by any additional args
+	list_ptr_t f_args = new_list()->push_front(existing_val);
+	while (it) {
+		f_args->push_back_inplace(*it++);
+	}
+	node_idx_t val_idx = eval_list(env, new_list()->push_front(f_idx)->conj(*f_args));
+	
+	// Use native_assoc to ensure record type is preserved
+	return native_assoc(env, list_va(map_idx, key_idx, val_idx));
 }
 
 // (update-in m ks f & args)
@@ -5309,7 +5410,7 @@ static node_idx_t native_condp(env_ptr_t env, list_ptr_t args) {
 // vectors and Java arrays, this tests if the numeric key is within the
 // range of indexes. 'contains?' operates constant or logarithmic time;
 // it will not perform a linear search for a value.  See also 'some'.
-static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
+static node_idx_t native_contains(env_ptr_t env, list_ptr_t args) {
 	if(args->size() != 2) {
 		warnf("(contains?) requires 2 arguments\n");
 		return NIL_NODE;
@@ -5326,7 +5427,7 @@ static node_idx_t native_is_contains(env_ptr_t env, list_ptr_t args) {
 		vector_ptr_t coll = get_node_vector(coll_idx);
 		long long key = get_node_int(key_idx);
 		return key >= 0 && key < coll->size() ? TRUE_NODE : FALSE_NODE;
-	} else if(coll_type == NODE_HASH_MAP) {
+	} else if(coll_type == NODE_HASH_MAP || coll_type == NODE_RECORD) {
 		hash_map_ptr_t coll = get_node_map(coll_idx);
 		return coll->contains(key_idx, node_eq) ? TRUE_NODE : FALSE_NODE;
 	} else if(coll_type == NODE_HASH_SET) {
@@ -5376,6 +5477,7 @@ static node_idx_t native_empty(env_ptr_t env, list_ptr_t args) {
 		case NODE_HASH_MAP: return EMPTY_MAP_NODE;
 		case NODE_HASH_SET: return EMPTY_SET_NODE;
 		case NODE_LAZY_LIST: return EMPTY_LIST_NODE;
+		case NODE_RECORD: return EMPTY_MAP_NODE;
 		default: return NIL_NODE;
 	}
 }
@@ -5392,8 +5494,7 @@ static node_idx_t native_not_empty(env_ptr_t env, list_ptr_t args) {
 
 
 // (every-pred p)(every-pred p1 p2)(every-pred p1 p2 p3)(every-pred p1 p2 p3 & ps)
-// Takes a set of predicates and returns a function f that returns true if all of its
-// composing predicates return a logical true value against all of its arguments, else it returns
+// Takes a set of predicates and returns a function f that returns true if all of its composing predicates return a logical true value against all of its arguments, else it returns
 // false. Note that f is short-circuiting in that it will stop execution on the first
 // argument that triggers a logical false result against the original predicates.
 static node_idx_t native_every_pred(env_ptr_t env, list_ptr_t args) {
@@ -6022,15 +6123,17 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 	node_idx_t map_first_idx = *it++;
 	node_t *map_first_node = get_node(map_first_idx);
 	hash_map_ptr_t r;
-	if(map_first_node->type != NODE_HASH_MAP) {
+	bool is_record = false;
+	if(map_first_node->type != NODE_HASH_MAP && map_first_node->type != NODE_RECORD) {
 		r = new_hash_map();
 	} else {
 		r = map_first_node->as_hash_map();
+		is_record = map_first_node->type == NODE_RECORD;
 	}
 	for(; it; it++) {
 		node_idx_t map_idx = *it;
 		node_t *map_node = get_node(map_idx);
-		if(map_node->type != NODE_HASH_MAP) {
+		if(map_node->type != NODE_HASH_MAP && map_node->type != NODE_RECORD) {
 			continue;
 		}
 		hash_map_ptr_t map = map_node->as_hash_map();
@@ -6041,7 +6144,11 @@ static node_idx_t native_merge(env_ptr_t env, list_ptr_t args) {
 	if(r->size() == 0) {
 		return NIL_NODE;
 	}
-	return new_node_hash_map(r);
+	node_idx_t result = new_node_hash_map(r);
+	if(is_record) {
+		get_node(result)->type = NODE_RECORD;
+	}
+	return result;
 }
 
 // (merge-with f & maps)
@@ -6055,15 +6162,17 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 	node_idx_t map_first_idx = *it++;
 	node_t *map_first_node = get_node(map_first_idx);
 	hash_map_ptr_t r;
-	if(map_first_node->type != NODE_HASH_MAP) {
+	bool is_record = false;
+	if(map_first_node->type != NODE_HASH_MAP && map_first_node->type != NODE_RECORD) {
 		r = new_hash_map();
 	} else {
 		r = map_first_node->as_hash_map();
+		is_record = map_first_node->type == NODE_RECORD;
 	}
 	for(; it; it++) {
 		node_idx_t map_idx = *it;
 		node_t *map_node = get_node(map_idx);
-		if(map_node->type != NODE_HASH_MAP) {
+		if(map_node->type != NODE_HASH_MAP && map_node->type != NODE_RECORD) {
 			continue;
 		}
 		hash_map_ptr_t map = map_node->as_hash_map();
@@ -6079,7 +6188,11 @@ static node_idx_t native_merge_with(env_ptr_t env, list_ptr_t args) {
 	if(r->size() == 0) {
 		return NIL_NODE;
 	}
-	return new_node_hash_map(r);
+	node_idx_t result = new_node_hash_map(r);
+	if(is_record) {
+		get_node(result)->type = NODE_RECORD;
+	}
+	return result;
 }
 
 // (namespace x)
@@ -6222,7 +6335,8 @@ static node_idx_t native_select_keys(env_ptr_t env, list_ptr_t args) {
 	node_t *map_node = get_node(map_idx);
 	node_idx_t keyseq = args->second_value();
 	hash_map_ptr_t r = new_hash_map();
-	if(map_node->type == NODE_HASH_MAP) {
+	
+	if(map_node->is_hash_map() || map_node->is_record()) {
 		hash_map_ptr_t map = map_node->as_hash_map();
 		seq_iterate(keyseq, [&](node_idx_t key) {
 			auto it = map->find(key, node_eq);
@@ -6231,7 +6345,21 @@ static node_idx_t native_select_keys(env_ptr_t env, list_ptr_t args) {
 			}
 			return true;
 		});
-	} else if(map_node->type == NODE_VECTOR) {
+		
+		// If it's a record, preserve the type of the original record
+		if(map_node->is_record()) {
+			// Add the type field from the original record
+			auto type_it = map->find(new_node_keyword("type"), node_eq);
+			if(type_it.third) {
+				r->assoc_inplace(type_it.first, type_it.second, node_eq);
+			}
+			
+			// Create a new record with same type
+			node_idx_t new_record = new_node_hash_map(r);
+			get_node(new_record)->type = NODE_RECORD;
+			return new_record;
+		}
+	} else if(map_node->is_vector()) {
 		vector_ptr_t vec = map_node->as_vector();
 		seq_iterate(keyseq, [&](node_idx_t key) {
 			auto idx = get_node_int(key);
@@ -6602,7 +6730,7 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 #ifndef NO_MYSQL
 #include "jo_clojure_mysql.h"
 #endif
-
+#include "jo_clojure_record.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib,"AdvApi32.lib")
@@ -6886,7 +7014,7 @@ int main(int argc, char **argv) {
 	env->set("array-map", new_node_native_function("array-map", &native_array_map, false, NODE_FLAG_PRERESOLVE));
 	env->set("butlast", new_node_native_function("butlast", &native_butlast, false, NODE_FLAG_PRERESOLVE));
 	env->set("complement", new_node_native_function("complement", &native_complement, false, NODE_FLAG_PRERESOLVE));
-	env->set("contains?", new_node_native_function("contains?", &native_is_contains, false, NODE_FLAG_PRERESOLVE));
+	env->set("contains?", new_node_native_function("contains?", &native_contains, false, NODE_FLAG_PRERESOLVE));
 	env->set("counted?", new_node_native_function("counted?", &native_is_counted, false, NODE_FLAG_PRERESOLVE));
 	env->set("distinct?", new_node_native_function("distinct?", &native_is_distinct, false, NODE_FLAG_PRERESOLVE));
 	env->set("empty", new_node_native_function("empty", &native_empty, false, NODE_FLAG_PRERESOLVE));
@@ -6976,6 +7104,7 @@ int main(int argc, char **argv) {
 	jo_clojure_http_init(env);
 	jo_clojure_io_init(env);
 	jo_clojure_system_init(env);
+	jo_clojure_record_init(env);
 	jo_clojure_gif_init(env);
 	jo_clojure_b64_init(env);
 	jo_clojure_canvas_init(env);
@@ -7043,6 +7172,8 @@ int main(int argc, char **argv) {
 
 	return 0;
 }
+
+
 
 
 

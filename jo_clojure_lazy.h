@@ -1509,13 +1509,39 @@ static node_idx_t native_mapcat_next(env_ptr_t env, list_ptr_t args) {
 // (keys map)
 // Returns a sequence of the map's keys, in the same order as (seq map).
 static node_idx_t native_keys(env_ptr_t env, list_ptr_t args) {
-	return native_map(env, list_va(env->get("key"), args->first_value()));
+	node_idx_t map_idx = args->first_value();
+	node_t *map_node = get_node(map_idx);
+	
+	if(map_node->is_hash_map() || map_node->is_record()) {
+		hash_map_ptr_t map = map_node->as_hash_map();
+		vector_ptr_t keys = new_vector();
+		for(auto it = map->begin(); it; it++) {
+			keys->push_back_inplace(it->first);
+		}
+		return new_node_vector(keys);
+	}
+	
+	// Fall back to map function for other types
+	return native_map(env, list_va(env->get("key"), map_idx));
 }
 
 // (vals map)
 // Returns a sequence of the map's values, in the same order as (seq map).
 static node_idx_t native_vals(env_ptr_t env, list_ptr_t args) {
-	return native_map(env, list_va(env->get("val"), args->first_value()));
+	node_idx_t map_idx = args->first_value();
+	node_t *map_node = get_node(map_idx);
+	
+	if(map_node->is_hash_map() || map_node->is_record()) {
+		hash_map_ptr_t map = map_node->as_hash_map();
+		vector_ptr_t vals = new_vector();
+		for(auto it = map->begin(); it; it++) {
+			vals->push_back_inplace(it->second);
+		}
+		return new_node_vector(vals);
+	}
+	
+	// Fall back to map function for other types
+	return native_map(env, list_va(env->get("val"), map_idx));
 }
 
 // (reductions f coll)(reductions f init coll)

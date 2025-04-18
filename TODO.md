@@ -61,7 +61,6 @@
 * defmulti
 * defn-
 * defprotocol
-* defrecord
 * deftype
 * denominator
 * derive
@@ -175,7 +174,6 @@
 * read+string
 * reader-conditional
 * reader-conditional?
-* record?
 * ref
 * ref-history-count
 * ref-max-history
