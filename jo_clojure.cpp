@@ -3289,6 +3289,75 @@ static node_idx_t native_struct(env_ptr_t env, list_ptr_t args) {
 	return eval_list(env, call_list);
 }
 
+// (struct-map struct-name & key-value-pairs)
+// Creates an instance of the specified struct with field values specified as key-value pairs
+static node_idx_t native_struct_map(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t struct_name = eval_node(env, *it++);
+	
+	// If the argument is a symbol, look up the factory function
+	if (get_node_type(struct_name) == NODE_SYMBOL) {
+		struct_name = env->get(struct_name);
+		if (struct_name == INV_NODE) {
+			return new_node_exception("Struct not found: " + get_node_string(args->front()));
+		}
+	}
+	
+	// The factory should be a function
+	if (get_node_type(struct_name) != NODE_NATIVE_FUNC && get_node_type(struct_name) != NODE_FUNC) {
+		return new_node_exception("Not a struct factory: " + get_node_string(args->front()));
+	}
+	
+	// Get the struct definition to find out the field order
+	jo_string def_name = get_node_string(args->front()) + "-struct-def";
+	node_idx_t struct_def_node = env->get(new_node_symbol(def_name));
+	
+	if (struct_def_node == INV_NODE || get_node_type(struct_def_node) != NODE_HASH_MAP) {
+		return new_node_exception("Struct definition not found: " + get_node_string(args->front()));
+	}
+	
+	hash_map_ptr_t struct_def = get_node_map(struct_def_node);
+	node_idx_t fields_node = struct_def->get(new_node_keyword("fields"), node_eq);
+	
+	if (fields_node == INV_NODE || get_node_type(fields_node) != NODE_VECTOR) {
+		return new_node_exception("Invalid struct definition");
+	}
+	
+	vector_ptr_t fields = get_node_vector(fields_node);
+	
+	// Create a hash map from key-value pairs
+	hash_map_ptr_t values_map = new_hash_map();
+	
+	while (it) {
+		node_idx_t key = eval_node(env, *it++);
+		if (!it) {
+			return new_node_exception("struct-map: odd number of key-value pairs");
+		}
+		node_idx_t value = eval_node(env, *it++);
+		values_map->assoc_inplace(key, value, node_eq);
+	}
+	
+	// Extract values in the correct order
+	list_ptr_t values_list = new_list();
+	
+	for (size_t i = 0; i < fields->size(); i++) {
+		node_idx_t field = fields->nth(i);
+		node_idx_t value = values_map->get(field, node_eq);
+		values_list->push_back_inplace(value != INV_NODE ? value : NIL_NODE);
+	}
+	
+	// Create struct instance using the struct factory function
+	list_ptr_t call_list = new_list();
+	call_list->push_back_inplace(struct_name);
+	
+	for (list_t::iterator val_it(values_list); val_it; ++val_it) {
+		call_list->push_back_inplace(*val_it);
+	}
+	
+	// Use eval_list to evaluate the function call
+	return eval_list(env, call_list);
+}
+
 // (accessor struct-basis key)
 // Returns an accessor function that extracts the specified field from a struct
 static node_idx_t native_accessor(env_ptr_t env, list_ptr_t args) {
@@ -7086,6 +7155,7 @@ int main(int argc, char **argv) {
 	env->set("defstruct", new_node_native_function("defstruct", &native_defstruct, true, NODE_FLAG_PRERESOLVE));
 	env->set("struct", new_node_native_function("struct", &native_struct, false, NODE_FLAG_PRERESOLVE));
 	env->set("accessor", new_node_native_function("accessor", &native_accessor, false, NODE_FLAG_PRERESOLVE));
+	env->set("struct-map", new_node_native_function("struct-map", &native_struct_map, false, NODE_FLAG_PRERESOLVE));
 
 	// persistent queue data structure
 	env->set("jo/queue", new_node_native_function("jo/queue", &native_queue, false, NODE_FLAG_PRERESOLVE));

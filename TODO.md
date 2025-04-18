@@ -212,7 +212,6 @@
 * sorted?
 * special-symbol?
 * StackTraceElement->vec
-* struct-map
 * subseq
 * supers
 * tagged-literal
