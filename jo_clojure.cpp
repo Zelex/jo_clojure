@@ -6576,6 +6576,7 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 #include "jo_clojure_b64.h"
 #include "jo_clojure_canvas.h"
 #include "jo_clojure_net.h"
+#include "jo_clojure_protocol.h"
 #ifndef NO_SOKOL
 #include "jo_clojure_sokol.h"
 #endif
@@ -6964,6 +6965,7 @@ int main(int argc, char **argv) {
 #ifndef NO_MYSQL
 	jo_clojure_mysql_init(env);
 #endif
+	jo_clojure_protocol_init(env);
 
 	// setup *command-line-args*
 	{

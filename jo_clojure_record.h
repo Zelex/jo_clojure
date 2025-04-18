@@ -28,6 +28,19 @@ static node_idx_t map_to_record(node_idx_t map_idx, const jo_string& record_name
     return record_node;
 }
 
+// Helper function to add a field to a record map with both symbol and keyword keys
+static void add_field_to_record(hash_map_ptr_t record_map, node_idx_t field_sym, node_idx_t value) {
+    // Add field with symbol key (original)
+    record_map->assoc_inplace(field_sym, value, node_eq);
+    
+    // Add field with keyword key as well for better compatibility
+    if (get_node_type(field_sym) == NODE_SYMBOL) {
+        jo_string field_name = get_node_string(field_sym);
+        node_idx_t field_kw = new_node_keyword(field_name);
+        record_map->assoc_inplace(field_kw, value, node_eq);
+    }
+}
+
 // (defrecord Name [field1 field2 ...])
 // Defines a new record type with a constructor function and field accessors
 static node_idx_t native_defrecord(env_ptr_t env, list_ptr_t args) {
@@ -72,12 +85,13 @@ static node_idx_t native_defrecord(env_ptr_t env, list_ptr_t args) {
             
             // Add each field with corresponding value
             for (size_t i = 0; i < fields->size() && i < args->size(); i++) {
-                record_map->assoc_inplace(fields->nth(i), args->nth(i), node_eq);
+                // Use helper to add both symbol and keyword keys
+                add_field_to_record(record_map, fields->nth(i), args->nth(i));
             }
             
             // For any remaining fields, use nil
             for (size_t i = args->size(); i < fields->size(); i++) {
-                record_map->assoc_inplace(fields->nth(i), NIL_NODE, node_eq);
+                add_field_to_record(record_map, fields->nth(i), NIL_NODE);
             }
             
             // Return the record as a map but mark it with NODE_RECORD type
@@ -109,7 +123,9 @@ static node_idx_t native_defrecord(env_ptr_t env, list_ptr_t args) {
                 if (!args_it) break;
                 node_idx_t field = fields->nth(i);
                 node_idx_t value = *args_it++;
-                record_map->assoc_inplace(field, value, node_eq);
+                
+                // Use helper to add both symbol and keyword keys
+                add_field_to_record(record_map, field, value);
             }
             
             // Create the record node
@@ -139,13 +155,27 @@ static node_idx_t native_defrecord(env_ptr_t env, list_ptr_t args) {
             hash_map_ptr_t input_map = get_node_map(map_arg);
             for (auto it = input_map->begin(); it; it++) {
                 record_map->assoc_inplace(it->first, it->second, node_eq);
+                
+                // If this is a field (symbol), also add the keyword version
+                if (get_node_type(it->first) == NODE_SYMBOL) {
+                    jo_string field_name = get_node_string(it->first);
+                    node_idx_t field_kw = new_node_keyword(field_name);
+                    record_map->assoc_inplace(field_kw, it->second, node_eq);
+                }
+                // If this is a keyword, also add the symbol version
+                else if (get_node_type(it->first) == NODE_KEYWORD) {
+                    jo_string field_name = get_node_string(it->first);
+                    node_idx_t field_sym = new_node_symbol(field_name);
+                    record_map->assoc_inplace(field_sym, it->second, node_eq);
+                }
             }
             
             // Set any missing fields to nil
             for (size_t i = 0; i < fields->size(); i++) {
                 node_idx_t field = fields->nth(i);
                 if (!record_map->contains(field, node_eq)) {
-                    record_map->assoc_inplace(field, NIL_NODE, node_eq);
+                    // Use helper to add both symbol and keyword keys
+                    add_field_to_record(record_map, field, NIL_NODE);
                 }
             }
             
@@ -169,12 +199,13 @@ static node_idx_t native_defrecord(env_ptr_t env, list_ptr_t args) {
             
             // Add each field with corresponding value
             for (size_t i = 0; i < fields->size() && i < args->size(); i++) {
-                record_map->assoc_inplace(fields->nth(i), args->nth(i), node_eq);
+                // Use helper to add both symbol and keyword keys
+                add_field_to_record(record_map, fields->nth(i), args->nth(i));
             }
             
             // For any remaining fields, use nil
             for (size_t i = args->size(); i < fields->size(); i++) {
-                record_map->assoc_inplace(fields->nth(i), NIL_NODE, node_eq);
+                add_field_to_record(record_map, fields->nth(i), NIL_NODE);
             }
             
             // Return the record as a map but mark it with NODE_RECORD type
