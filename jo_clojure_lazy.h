@@ -499,7 +499,7 @@ static node_idx_t native_filter(env_ptr_t env, list_ptr_t args) {
 		}
 		return new_node_vector(ret);
 	}
-	if(get_node_type(coll_idx) == NODE_HASH_MAP) {
+	if(get_node_type(coll_idx) == NODE_HASH_MAP || get_node_type(coll_idx) == NODE_RECORD) {
 		// don't do it lazily if not given lazy inputs... thats dumb
 		hash_map_ptr_t list_list = get_node(coll_idx)->as_hash_map();
 		hash_map_ptr_t ret = new_hash_map();

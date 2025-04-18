@@ -2280,7 +2280,7 @@ static node_idx_t eval_node(env_ptr_t env, node_idx_t root) {
 			}
 		}
 		return new_node_vector(vec, NODE_FLAG_LITERAL);
-	} else if(type == NODE_HASH_MAP) {
+	} else if(type == NODE_HASH_MAP || type == NODE_RECORD) {
 		if(flags & NODE_FLAG_LITERAL) { return root; }
 		// resolve all symbols in the map
 		hash_map_ptr_t map = node->as_hash_map();
@@ -2399,7 +2399,7 @@ static void print_node(node_idx_t node, int depth, bool same_line) {
 			printf(" ");
 		}
 		printf("]");
-	} else if(type == NODE_HASH_MAP) {
+	} else if(type == NODE_HASH_MAP || type == NODE_RECORD) {
 		hash_map_ptr_t map = get_node(node)->as_hash_map();
 		if(map->size() == 0) {
 			printf("{}");
@@ -2498,7 +2498,7 @@ struct seq_iterator_t {
 			if(!done()) {
 				val = *vit;
 			}
-		} else if(type == NODE_HASH_MAP) {
+		} else if(type == NODE_HASH_MAP || type == NODE_RECORD) {
 			mit = get_node(node_idx)->as_hash_map()->begin();
 			if(!done()) {
 				val = mit->second;
@@ -2524,7 +2524,7 @@ struct seq_iterator_t {
 			return !it;
 		} else if(type == NODE_VECTOR) {
 			return !vit;
-		} else if(type == NODE_HASH_MAP) {
+		} else if(type == NODE_HASH_MAP || type == NODE_RECORD) {
 			return !mit;
 		} else if(type == NODE_HASH_SET) {
 			return !hsit;
@@ -2544,7 +2544,7 @@ struct seq_iterator_t {
 		} else if(type == NODE_VECTOR) {
 			*vit++;
 			val = vit ? *vit : INV_NODE;
-		} else if(type == NODE_HASH_MAP) {
+		} else if(type == NODE_HASH_MAP || type == NODE_RECORD) {
 			mit++;
 			val = mit ? mit->second : INV_NODE;
 		} else if(type == NODE_HASH_SET) {
@@ -2603,7 +2603,7 @@ static inline bool seq_iterate(node_idx_t seq, F f) {
 			if(!f(*i)) break;
 		}
 		return true;
-	} else if(n->type == NODE_HASH_MAP) {
+	} else if(n->type == NODE_HASH_MAP || n->type == NODE_RECORD) {
 		for(hash_map_t::iterator i = n->as_hash_map()->begin(); i; i++) {
 			if(!f(new_node_vector(vector_va(i->first, i->second)))) break;
 		}
@@ -4553,8 +4553,7 @@ static node_idx_t native_into(env_ptr_t env, list_ptr_t args) {
 	node_idx_t from = args->second_value();
 	
 	// Special case for converting a record to a map
-	if ((to == EMPTY_MAP_NODE || get_node_type(to) == NODE_HASH_MAP) && 
-	    get_node_type(from) == NODE_RECORD) {
+	if ((to == EMPTY_MAP_NODE || get_node_type(to) == NODE_HASH_MAP) && get_node_type(from) == NODE_RECORD) {
 		hash_map_ptr_t record_map = get_node(from)->as_hash_map();
 		if (record_map->empty()) {
 			return EMPTY_MAP_NODE;
@@ -4881,7 +4880,7 @@ static node_idx_t native_shuffle(env_ptr_t env, list_ptr_t args) {
 	int type = get_node_type(coll_idx);
 	if(type == NODE_LIST)     return new_node_list(get_node(coll_idx)->t_list->shuffle());
 	if(type == NODE_VECTOR)   return new_node_vector(get_node(coll_idx)->as_vector()->shuffle());
-	if(type == NODE_HASH_MAP) return coll_idx;
+	if(type == NODE_HASH_MAP || type == NODE_RECORD) return coll_idx;
 	if(type == NODE_HASH_SET) return coll_idx;
 	return NIL_NODE;
 }
@@ -5444,7 +5443,7 @@ static node_idx_t native_is_counted(env_ptr_t env, list_ptr_t args) {
 	int coll_type = get_node_type(coll_idx);
 	if(coll_type == NODE_LIST) return TRUE_NODE;
 	if(coll_type == NODE_VECTOR) return TRUE_NODE;
-	if(coll_type == NODE_HASH_MAP) return TRUE_NODE;
+	if(coll_type == NODE_HASH_MAP || coll_type == NODE_RECORD) return TRUE_NODE;
 	if(coll_type == NODE_HASH_SET) return TRUE_NODE;
 	return FALSE_NODE;
 }
