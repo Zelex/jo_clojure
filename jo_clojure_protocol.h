@@ -5,6 +5,49 @@
 // Protocol implementation will be based on hash maps stored in regular nodes
 // rather than using a dedicated NODE_PROTOCOL type
 
+// Helper function to get the type keyword for a node
+static node_idx_t get_type_keyword(node_idx_t node_idx) {
+    int node_type = get_node_type(node_idx);
+    switch (node_type) {
+        case NODE_NIL:      return new_node_keyword("nil");
+        case NODE_BOOL:     return new_node_keyword("boolean");
+        case NODE_INT:      return new_node_keyword("integer");
+        case NODE_FLOAT:    return new_node_keyword("float");
+        case NODE_STRING:   return new_node_keyword("string");
+        case NODE_SYMBOL:   return new_node_keyword("symbol");
+        case NODE_KEYWORD:  return new_node_keyword("keyword");
+        case NODE_LIST:     return new_node_keyword("list");
+        case NODE_LAZY_LIST:return new_node_keyword("lazy-seq");
+        case NODE_VECTOR:   return new_node_keyword("vector");
+        case NODE_HASH_MAP: return new_node_keyword("map");
+        case NODE_HASH_SET: return new_node_keyword("set");
+        case NODE_RECORD: {
+            // For records, try to get the type name from the record
+            hash_map_ptr_t record_map = get_node_map(node_idx);
+            
+            // First option: check for explicit :type key
+            auto type_it = record_map->find(new_node_keyword("type"), node_eq);
+            if (type_it.third) {
+                return type_it.second;
+            }
+            
+            // Second option: defrecord case - type is in the name map entry with key __type
+            // For defrecord, we need to look at type as symbol, not keyword
+            auto meta_it = record_map->find(new_node_symbol("__type"), node_eq);
+            if (meta_it.third) {
+                node_idx_t type_kw = new_node_keyword(get_node_string(meta_it.second));
+                return type_kw;
+            }
+            
+            // Fallback
+            return new_node_keyword("record");
+        }
+        default:
+            return new_node_keyword(get_node_type_string(node_idx));
+    }
+}
+
+
 // Check if a node is a protocol
 static inline bool is_protocol(node_idx_t idx) {
     if (get_node_type(idx) != NODE_HASH_MAP) {
@@ -142,37 +185,10 @@ static node_idx_t native_defprotocol(env_ptr_t env, list_ptr_t args) {
                 
                 // Get the target object and determine its type
                 node_idx_t target = args->first_value();
-                node_idx_t type_kw;
-                
-                // Convert node type to a keyword that represents the type
-                int target_type = get_node_type(target);
-                switch (target_type) {
-                    case NODE_NIL:      type_kw = new_node_keyword("nil"); break;
-                    case NODE_BOOL:     type_kw = new_node_keyword("boolean"); break;
-                    case NODE_INT:      type_kw = new_node_keyword("integer"); break;
-                    case NODE_FLOAT:    type_kw = new_node_keyword("float"); break;
-                    case NODE_STRING:   type_kw = new_node_keyword("string"); break;
-                    case NODE_SYMBOL:   type_kw = new_node_keyword("symbol"); break;
-                    case NODE_KEYWORD:  type_kw = new_node_keyword("keyword"); break;
-                    case NODE_LIST:     type_kw = new_node_keyword("list"); break;
-                    case NODE_LAZY_LIST:type_kw = new_node_keyword("lazy-seq"); break;
-                    case NODE_VECTOR:   type_kw = new_node_keyword("vector"); break;
-                    case NODE_HASH_MAP: type_kw = new_node_keyword("map"); break;
-                    case NODE_HASH_SET: type_kw = new_node_keyword("set"); break;
-                    case NODE_RECORD: {
-                        // For records, try to get the type name from the record
-                        hash_map_ptr_t record_map = get_node_map(target);
-                        auto type_it = record_map->find(new_node_keyword("type"), node_eq);
-                        if (type_it.third) {
-                            type_kw = type_it.second;
-                        } else {
-                            type_kw = new_node_keyword("record");
-                        }
-                        break;
-                    }
-                    default:
-                        type_kw = new_node_keyword(get_node_type_string(target));
-                }
+                int target_type = get_node_type(target); // Keep target_type for later check
+
+                // Use get_type_keyword helper function
+                node_idx_t type_kw = get_type_keyword(target);
                 
                 // Look up the implementation for this type
                 hash_map_ptr_t proto_map = get_node_map(proto_node);
@@ -186,9 +202,14 @@ static node_idx_t native_defprotocol(env_ptr_t env, list_ptr_t args) {
                 hash_map_ptr_t impls_map = get_node_map(impls_it.second);
                 auto type_it = impls_map->find(type_kw, node_eq);
                 if (!type_it.third) {
+                    // Find protocol name for error message (assuming it exists)
+                    node_idx_t proto_name_node = NIL_NODE;
+                    auto name_it = proto_map->find(new_node_keyword("name"), node_eq);
+                    if (name_it.third) proto_name_node = name_it.second;
+
                     warnf("No implementation of protocol %s for type %s", 
-                          get_node_string(proto_map->find(new_node_keyword("name"), node_eq).second).c_str(),
-                          get_node_string(type_kw).c_str());
+                          (proto_name_node != NIL_NODE) ? get_node_string(proto_name_node).c_str() : "<unknown>",
+                          get_node_string(type_kw).c_str()); // Use only two %s specifiers
                     return NIL_NODE;
                 }
                 
@@ -318,37 +339,6 @@ static node_idx_t native_defprotocol(env_ptr_t env, list_ptr_t args) {
     }
     
     return proto_name;
-}
-
-// Helper function to get the type keyword for a node
-static node_idx_t get_type_keyword(node_idx_t node_idx) {
-    int node_type = get_node_type(node_idx);
-    switch (node_type) {
-        case NODE_NIL:      return new_node_keyword("nil");
-        case NODE_BOOL:     return new_node_keyword("boolean");
-        case NODE_INT:      return new_node_keyword("integer");
-        case NODE_FLOAT:    return new_node_keyword("float");
-        case NODE_STRING:   return new_node_keyword("string");
-        case NODE_SYMBOL:   return new_node_keyword("symbol");
-        case NODE_KEYWORD:  return new_node_keyword("keyword");
-        case NODE_LIST:     return new_node_keyword("list");
-        case NODE_LAZY_LIST:return new_node_keyword("lazy-seq");
-        case NODE_VECTOR:   return new_node_keyword("vector");
-        case NODE_HASH_MAP: return new_node_keyword("map");
-        case NODE_HASH_SET: return new_node_keyword("set");
-        case NODE_RECORD: {
-            // For records, try to get the type name from the record
-            hash_map_ptr_t record_map = get_node_map(node_idx);
-            auto type_it = record_map->find(new_node_keyword("type"), node_eq);
-            if (type_it.third) {
-                return type_it.second;
-            } else {
-                return new_node_keyword("record");
-            }
-        }
-        default:
-            return new_node_keyword(get_node_type_string(node_idx));
-    }
 }
 
 // Extend a protocol with implementations for one or more types

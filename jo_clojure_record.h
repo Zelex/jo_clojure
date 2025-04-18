@@ -297,6 +297,42 @@ static node_idx_t native_defrecord(env_ptr_t env, list_ptr_t args) {
             }, false));
     }
     
+    // *** BEGIN: Process inline protocol implementations ***
+    node_idx_t record_type_symbol = name_node; // Use the symbol like 'Person'
+
+    while (it) {
+        // Expect a protocol name (symbol)
+        if (!it || get_node_type(*it) != NODE_SYMBOL) {
+            // This might just be the end, or an error
+            if (it) warnf("defrecord: expected protocol name symbol after fields");
+            break; 
+        }
+        node_idx_t proto_name_sym = *it++;
+        node_idx_t proto_node = env->get(proto_name_sym);
+
+        if (!is_protocol(proto_node)) {
+            warnf("defrecord: %s is not a protocol", get_node_string(proto_name_sym).c_str());
+            // Skip potential method implementations for this non-protocol
+            while (it && get_node_type(*it) == NODE_LIST) { it++; }
+            continue; 
+        }
+
+        // Collect method implementations for this protocol
+        list_ptr_t extend_args = new_list();
+        extend_args = extend_args->push_back(proto_node);
+        extend_args = extend_args->push_back(record_type_symbol); // Use the record type symbol
+
+        while (it && get_node_type(*it) == NODE_LIST) {
+            extend_args = extend_args->push_back(*it++);
+        }
+
+        // Call extend-protocol to register the implementations
+        if (extend_args->size() > 2) { // Only call if methods were provided
+            native_extend_protocol(env, extend_args);
+        }
+    }
+    // *** END: Process inline protocol implementations ***
+
     // Return the record name
     return name_node;
 }

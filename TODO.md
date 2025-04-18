@@ -60,7 +60,6 @@
 * defmethod
 * defmulti
 * defn-
-* defprotocol
 * deftype
 * denominator
 * derive
@@ -80,8 +79,6 @@
 * ex-info
 * ex-message
 * extend
-* extend-protocol
-* extend-type
 * extenders
 * extends?
 * finally
