@@ -15,7 +15,6 @@
 * *print-namespace-maps* 
 * *print-readably*
 * *unchecked-math*
-* accessor
 * add-watch
 * agent-error
 * alias
@@ -63,7 +62,6 @@
 * defn-
 * defprotocol
 * defrecord
-* defstruct
 * deftype
 * denominator
 * derive
@@ -216,7 +214,6 @@
 * sorted?
 * special-symbol?
 * StackTraceElement->vec
-* struct
 * struct-map
 * subseq
 * supers

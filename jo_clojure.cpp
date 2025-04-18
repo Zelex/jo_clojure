@@ -3128,8 +3128,156 @@ static node_idx_t native_printf(env_ptr_t env, list_ptr_t args) {
     fflush(stdout);
     return NIL_NODE;
 }
+
 static node_idx_t native_do(env_ptr_t env, list_ptr_t args) {
 	return eval_node_list(env, args);
+}
+
+// (defstruct name & keys)
+// Defines a structure with the specified keys. 
+// Returns a factory function that creates new instances with the given values.
+static node_idx_t native_defstruct(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t struct_name = *it++;
+	
+	// Collect the field keys into a vector
+	vector_ptr_t fields = new_vector();
+	while (it) {
+		node_idx_t field = *it++;
+		fields->push_back_inplace(field);
+	}
+	
+	// Create a structure definition
+	hash_map_ptr_t struct_def = new_hash_map();
+	struct_def->assoc_inplace(new_node_keyword("fields"), new_node_vector(fields), node_eq);
+	
+	// Create and store the structure factory function
+	node_idx_t factory_fn = new_node_native_function(
+		get_node_string(struct_name).c_str(), 
+		[fields](env_ptr_t env, list_ptr_t args) -> node_idx_t {
+			hash_map_ptr_t instance = new_hash_map();
+			
+			// Add fields from the struct definition with values from args
+			size_t i = 0;
+			list_t::iterator val_it(args);
+			for (auto it = fields->begin(); it && val_it; it++, val_it++) {
+				instance->assoc_inplace(*it, eval_node(env, *val_it), node_eq);
+				i++;
+			}
+			
+			// Fill remaining fields with nil
+			for (; i < fields->size(); i++) {
+				instance->assoc_inplace(fields->nth(i), NIL_NODE, node_eq);
+			}
+			
+			return new_node_hash_map(instance);
+		},
+		false
+	);
+	
+	// Store the factory function with the struct name
+	env->set(struct_name, factory_fn);
+	
+	// Store the struct definition in a metadata map associated with the function
+	env->set(new_node_symbol(get_node_string(struct_name) + "-struct-def"), new_node_hash_map(struct_def));
+	
+	return struct_name;
+}
+
+// (struct struct-name & field-values)
+// Creates an instance of the specified struct with the given field values
+static node_idx_t native_struct(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t struct_factory = eval_node(env, *it++);
+	
+	// If the argument is a symbol, look up the factory function
+	if (get_node_type(struct_factory) == NODE_SYMBOL) {
+		struct_factory = env->get(struct_factory);
+		if (struct_factory == INV_NODE) {
+			return new_node_exception("Struct not found: " + get_node_string(args->front()));
+		}
+	}
+	
+	// The factory should be a function
+	if (get_node_type(struct_factory) != NODE_NATIVE_FUNC && get_node_type(struct_factory) != NODE_FUNC) {
+		return new_node_exception("Not a struct factory: " + get_node_string(args->front()));
+	}
+	
+	// Create the list of remaining arguments for the factory function
+	list_ptr_t factory_args = new_list();
+	while (it) {
+		factory_args->push_back_inplace(eval_node(env, *it++));
+	}
+	
+	// Create a new list with the factory function as the first element
+	// followed by the evaluated arguments
+	list_ptr_t call_list = new_list();
+	call_list->push_back_inplace(struct_factory);
+	for (list_t::iterator arg_it(factory_args); arg_it; ++arg_it) {
+		call_list->push_back_inplace(*arg_it);
+	}
+	
+	// Use eval_list to evaluate the function call
+	return eval_list(env, call_list);
+}
+
+// (accessor struct-basis key)
+// Returns an accessor function that extracts the specified field from a struct
+static node_idx_t native_accessor(env_ptr_t env, list_ptr_t args) {
+	list_t::iterator it(args);
+	node_idx_t struct_name = *it++;
+	node_idx_t key = eval_node(env, *it++);
+	
+	// Get the struct definition - we use the symbol directly without evaluating it
+	jo_string def_name = get_node_string(struct_name) + "-struct-def";
+	
+	node_idx_t struct_def_node = env->get(new_node_symbol(def_name));
+	
+	if (struct_def_node == INV_NODE || get_node_type(struct_def_node) != NODE_HASH_MAP) {
+		return new_node_exception("Struct definition not found: " + get_node_string(struct_name));
+	}
+	
+	// Print the map contents for debugging
+	hash_map_ptr_t struct_def = get_node_map(struct_def_node);
+	
+	// Get the fields directly using the keyword
+	node_idx_t fields_keyword = new_node_keyword("fields");
+	node_idx_t fields_node = struct_def->get(fields_keyword, node_eq);
+	
+	if (fields_node == INV_NODE || get_node_type(fields_node) != NODE_VECTOR) {
+		return new_node_exception("Invalid struct definition");
+	}
+	
+	// Find the position of the key in the fields
+	vector_ptr_t fields = get_node_vector(fields_node);
+	
+	int position = -1;
+	for (size_t i = 0; i < fields->size(); i++) {
+		if (node_eq(fields->nth(i), key)) {
+			position = i;
+			break;
+		}
+	}
+	
+	if (position == -1) {
+		return new_node_exception("Key not found in struct: " + get_node_string(key));
+	}
+	
+	// Create and return an accessor function for this key/position
+	return new_node_native_function(
+		("accessor-" + get_node_string(key)).c_str(),
+		[key, position](env_ptr_t env, list_ptr_t args) -> node_idx_t {
+			node_idx_t struct_instance = eval_node(env, args->first_value());
+			
+			if (get_node_type(struct_instance) != NODE_HASH_MAP) {
+				return new_node_exception("Not a struct instance");
+			}
+			
+			hash_map_ptr_t instance = get_node_map(struct_instance);
+			return instance->get(key, node_eq);
+		},
+		false
+	);
 }
 
 // (doall coll)
@@ -5039,7 +5187,7 @@ static node_idx_t native_complement(env_ptr_t env, list_ptr_t args) {
 // (cond-> 1         ; we start with 1
 //    true inc       ; the condition is true so (inc 1) => 2
 //    false (* 42)   ; the condition is false so the operation is skipped
-//    (= 2 2) (* 3)) ; (= 2 2) is true so (* 2 3) => 6 
+//    (= 2 2) (* 3)) ;; (= 2 2) is true so (* 2 3) => 6 
 //;;=> 6
 //;; notice that the threaded value gets used in 
 //;; only the form and not the test part of the clause.
@@ -6807,12 +6955,17 @@ int main(int argc, char **argv) {
 	env->set("force", new_node_native_function("force", &native_force, false, NODE_FLAG_PRERESOLVE));
 	env->set("take-random", new_node_native_function("take-random", &native_take_random, false, NODE_FLAG_PRERESOLVE));
 
+	// struct functions
+	env->set("defstruct", new_node_native_function("defstruct", &native_defstruct, true, NODE_FLAG_PRERESOLVE));
+	env->set("struct", new_node_native_function("struct", &native_struct, false, NODE_FLAG_PRERESOLVE));
+	env->set("accessor", new_node_native_function("accessor", &native_accessor, false, NODE_FLAG_PRERESOLVE));
+
 	// persistent queue data structure
 	env->set("jo/queue", new_node_native_function("jo/queue", &native_queue, false, NODE_FLAG_PRERESOLVE));
 	env->set("jo/queue-push", new_node_native_function("jo/queue-push", &native_queue_push, false, NODE_FLAG_PRERESOLVE));
 	env->set("jo/queue-peek", new_node_native_function("jo/queue-peek", &native_queue_peek, false, NODE_FLAG_PRERESOLVE));
 	env->set("jo/queue-pop", new_node_native_function("jo/queue-pop", &native_queue_pop, false, NODE_FLAG_PRERESOLVE));
-	
+
 	env->set("include", new_node_native_function("include", &native_include, false, NODE_FLAG_PRERESOLVE));
 
 	jo_clojure_array_init(env);
