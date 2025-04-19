@@ -2046,6 +2046,7 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 
 // eval a list of nodes
 static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
+	debugf("eval_list: evaluating list: %s\n", get_node(new_node_list(list))->as_string().c_str()); // DEBUG
 	list_t::iterator it(list);
 	if(!it) {
 		return EMPTY_LIST_NODE;
@@ -2244,6 +2245,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 	}
 
 	// eval the list
+	debugf("eval_list: Fallback case entered for list: %s\n", get_node(new_node_list(list))->as_string().c_str()); // DEBUG
 	list_ptr_t ret = new_list();
 	for(list_t::iterator it(list); it; it++) {
 		ret->push_back_inplace(eval_node(env, *it));

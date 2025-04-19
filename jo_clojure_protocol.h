@@ -225,115 +225,19 @@ static node_idx_t native_defprotocol(env_ptr_t env, list_ptr_t args) {
                 
                 node_idx_t method_impl = method_it.second;
                 
-                // Important fix: Make a special node for a record passed to a protocol method
-                // that has the same behaviors as a record but preserves proper field access
-                node_idx_t protocol_arg = target;
-                
-                if (target_type == NODE_RECORD) {
-                    // Create a wrapper that will handle field access correctly 
-                    // When we need to get a field from a record, we have to use the correct
-                    // key type (symbol, not keyword)
-                    
-                    // Create a new environment with a special "get" function for this record
-                    env_ptr_t protocol_env = new_env(env);
-                    
-                    // Add a special handling for this specific record instance
-                    protocol_env->set("protocol-record-wrapper", new_node_native_function(
-                        "protocol-record-wrapper", 
-                        [target](env_ptr_t env, list_ptr_t args) -> node_idx_t {
-                            list_t::iterator it(args);
-                            if (!it) return NIL_NODE;
-                            
-                            node_idx_t action = *it++;
-                            
-                            // For "get" action, get field from the record correctly
-                            if (get_node_type(action) == NODE_SYMBOL && 
-                                get_node_string(action) == "get") {
-                                
-                                if (!it) return NIL_NODE;
-                                node_idx_t map_idx = *it++;  
-                                if (!it) return NIL_NODE;
-                                node_idx_t key_idx = *it++;
-                                
-                                // Only handle the target record we care about
-                                if (map_idx == target) {
-                                    node_idx_t not_found_idx = it ? *it : NIL_NODE;
-                                    
-                                    // Try multiple key types to access the record field
-                                    hash_map_ptr_t record_map = get_node_map(target);
-                                    
-                                    // Try the key as is
-                                    auto entry = record_map->find(key_idx, node_eq);
-                                    if (entry.third) {
-                                        return entry.second;
-                                    }
-                                    
-                                    // Try with symbol if key is keyword
-                                    if (get_node_type(key_idx) == NODE_KEYWORD) {
-                                        node_idx_t sym_key = new_node_symbol(get_node_string(key_idx));
-                                        entry = record_map->find(sym_key, node_eq);
-                                        if (entry.third) {
-                                            return entry.second;
-                                        }
-                                    }
-                                    
-                                    // Try with keyword if key is symbol
-                                    if (get_node_type(key_idx) == NODE_SYMBOL) {
-                                        node_idx_t kw_key = new_node_keyword(get_node_string(key_idx));
-                                        entry = record_map->find(kw_key, node_eq);
-                                        if (entry.third) {
-                                            return entry.second;
-                                        }
-                                    }
-                                    
-                                    // Try with string key
-                                    if (get_node_type(key_idx) == NODE_SYMBOL || 
-                                        get_node_type(key_idx) == NODE_KEYWORD) {
-                                        node_idx_t str_key = new_node_string(get_node_string(key_idx));
-                                        entry = record_map->find(str_key, node_eq);
-                                        if (entry.third) {
-                                            return entry.second;
-                                        }
-                                    }
-                                    
-                                    return not_found_idx;
-                                }
-                            }
-                            
-                            // Default, pass through to normal implementation
-                            return eval_list(env, args);
-                        }, 
-                        false
-                    ));
-                    
-                    // Call the method implementation with the original record
-                    list_ptr_t call_args = new_list();
-                    call_args = call_args->push_back(method_impl);
-                    call_args = call_args->push_back(target);
-                    
-                    // Add any additional arguments
-                    list_t::iterator args_it(args);
-                    args_it++; // Skip the target/this argument
-                    while (args_it) {
-                        call_args = call_args->push_back(*args_it++);
-                    }
-                    
-                    // Evaluate in the special environment
-                    return eval_list(protocol_env, call_args);
-                }
-                
-                // For non-record types, use the normal approach
+                // Construct the call arguments: (method-implementation target arg1 arg2 ...)
                 list_ptr_t call_args = new_list();
                 call_args = call_args->push_back(method_impl);
-                call_args = call_args->push_back(target);
+                call_args = call_args->push_back(target); // Pass the original target
                 
-                // Add any additional arguments
+                // Add any additional arguments from the original call
                 list_t::iterator args_it(args);
-                args_it++; // Skip the target/this argument
+                args_it++; // Skip the target/this argument in the original call
                 while (args_it) {
                     call_args = call_args->push_back(*args_it++);
                 }
                 
+                // Evaluate the implementation call in the current environment
                 return eval_list(env, call_args);
             }, false));
     }
@@ -475,17 +379,19 @@ static node_idx_t native_extend_protocol(env_ptr_t env, list_ptr_t args) {
             list_ptr_t fn_args = new_list();
             fn_args = fn_args->push_back(arg_vector);
             
-            // Fix: Wrap the method body in a do block to ensure only the final value is returned
+            // Force wrapping the method body in a (do ...) block
+            // even if it's already a list, to ensure proper sequential evaluation.
+            list_ptr_t body_list = new_list();
+            body_list = body_list->push_back(env->get("do")); // Use env->get("do") for safety
             if (get_node_type(method_body) == NODE_LIST) {
-                // Already a list, keep as is
+                // If body is already a list like ((expr1) (expr2)), prepend do
+                body_list = body_list->conj(*get_node_list(method_body));
             } else {
-                // Single expression, wrap it in a list with 'do'
-                list_ptr_t body_list = new_list();
-                body_list = body_list->push_back(new_node_symbol("do"));
+                // If body is a single expression, add it after do
                 body_list = body_list->push_back(method_body);
-                method_body = new_node_list(body_list);
             }
-            
+            method_body = new_node_list(body_list);
+
             fn_args = fn_args->push_back(method_body);
             node_idx_t fn = native_fn(env, fn_args);
             

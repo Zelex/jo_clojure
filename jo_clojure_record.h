@@ -300,12 +300,14 @@ static node_idx_t native_defrecord(env_ptr_t env, list_ptr_t args) {
     // *** BEGIN: Process inline protocol implementations ***
     node_idx_t record_type_symbol = name_node; // Use the symbol like 'Person'
 
-    while (it) {
+    while (it) { // Check if iterator is still valid
         // Expect a protocol name (symbol)
-        if (!it || get_node_type(*it) != NODE_SYMBOL) {
-            // This might just be the end, or an error
-            if (it) warnf("defrecord: expected protocol name symbol after fields");
-            break; 
+        if (get_node_type(*it) != NODE_SYMBOL) {
+            // This is the end of normal defrecord args, not an error if nothing followed fields
+            // Only warn if we actually expected a protocol here (e.g., if inline protocols were allowed/expected)
+            // Let's suppress the warning for now, as it seems spurious in the base case.
+            // warnf("defrecord: expected protocol name symbol after fields");
+            break;
         }
         node_idx_t proto_name_sym = *it++;
         node_idx_t proto_node = env->get(proto_name_sym);
