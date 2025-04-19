@@ -310,7 +310,8 @@ static node_idx_t native_defrecord(env_ptr_t env, list_ptr_t args) {
         node_idx_t proto_name_sym = *it++;
         node_idx_t proto_node = env->get(proto_name_sym);
 
-        if (!is_protocol(proto_node)) {
+        // Check if the lookup failed OR if it's not a protocol
+        if (proto_node == INV_NODE || !is_protocol(proto_node)) { 
             warnf("defrecord: %s is not a protocol", get_node_string(proto_name_sym).c_str());
             // Skip potential method implementations for this non-protocol
             while (it && get_node_type(*it) == NODE_LIST) { it++; }
