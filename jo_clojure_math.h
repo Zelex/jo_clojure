@@ -1762,6 +1762,103 @@ static node_idx_t native_math_matrix_transpose(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(V);
 }
 
+// Matrix trace - sum of diagonal elements
+static node_idx_t native_math_matrix_trace(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_trace: argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    matrix_ptr_t A_mat = A->as_matrix();
+    double trace = 0.0;
+    int min_dim = A_mat->width < A_mat->height ? A_mat->width : A_mat->height;
+    
+    for (int i = 0; i < min_dim; i++) {
+        trace += get_node_float(A_mat->get(i, i));
+    }
+    
+    return new_node_float(trace);
+}
+
+// Create identity matrix of size n x n
+static node_idx_t native_math_matrix_identity(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    int n = get_node_int(*it++);
+    
+    if (n <= 0) {
+        warnf("matrix_identity: size must be positive\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t res = new_matrix(n, n);
+    
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i == j) {
+                res->set(i, j, ONE_NODE);
+            } else {
+                res->set(i, j, ZERO_NODE);
+            }
+        }
+    }
+    
+    return new_node_matrix(res);
+}
+
+// Create matrix of zeros with rows x cols dimensions
+static node_idx_t native_math_matrix_zeros(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    int rows = get_node_int(*it++);
+    int cols = rows;
+    
+    if (it) {
+        cols = get_node_int(*it++);
+    }
+    
+    if (rows <= 0 || cols <= 0) {
+        warnf("matrix_zeros: dimensions must be positive\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t res = new_matrix(cols, rows);
+    
+    for (int i = 0; i < cols; i++) {
+        for (int j = 0; j < rows; j++) {
+            res->set(i, j, ZERO_NODE);
+        }
+    }
+    
+    return new_node_matrix(res);
+}
+
+// Create matrix of ones with rows x cols dimensions
+static node_idx_t native_math_matrix_ones(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    int rows = get_node_int(*it++);
+    int cols = rows;
+    
+    if (it) {
+        cols = get_node_int(*it++);
+    }
+    
+    if (rows <= 0 || cols <= 0) {
+        warnf("matrix_ones: dimensions must be positive\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t res = new_matrix(cols, rows);
+    
+    for (int i = 0; i < cols; i++) {
+        for (int j = 0; j < rows; j++) {
+            res->set(i, j, ONE_NODE);
+        }
+    }
+    
+    return new_node_matrix(res);
+}
+
 static node_idx_t native_boolean(env_ptr_t env, list_ptr_t args) { 
     return get_node_bool(args->first_value()) ? TRUE_NODE : FALSE_NODE; 
 }
@@ -1837,6 +1934,110 @@ static node_idx_t native_long_q(env_ptr_t env, list_ptr_t args) {
     }
     long long v = get_node_int(idx);
     return v >= LLONG_MIN && v <= LLONG_MAX ? TRUE_NODE : FALSE_NODE;
+}
+
+static node_idx_t native_math_matrix_add(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_idx_t B_idx = *it++;
+    node_t *A = get_node(A_idx);
+    node_t *B = get_node(B_idx);
+    if (!A->is_matrix() || !B->is_matrix()) {
+        warnf("matrix_add: arguments must be matrices\n");
+        return NIL_NODE;
+    }
+    matrix_ptr_t A_mat = A->as_matrix();
+    matrix_ptr_t B_mat = B->as_matrix();
+    if (A_mat->width != B_mat->width || A_mat->height != B_mat->height) {
+        warnf("matrix_add: matrices have different dimensions\n");
+        return NIL_NODE;
+    }
+    matrix_ptr_t res = new_matrix(A_mat->width, A_mat->height);
+    for (size_t j = 0; j < A_mat->height; j++) {
+        for (size_t i = 0; i < A_mat->width; i++) {
+            res->set(i, j, new_node_float(get_node_float(A_mat->get(i, j)) + get_node_float(B_mat->get(i, j))));
+        }
+    }
+    return new_node_matrix(res);
+}
+
+// Scale matrix by scalar
+static node_idx_t native_math_matrix_scale(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_idx_t scalar_idx = *it++;
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_scale: first argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    double scalar = get_node_float(scalar_idx);
+    
+    matrix_ptr_t A_mat = A->as_matrix();
+    matrix_ptr_t res = new_matrix(A_mat->width, A_mat->height);
+    
+    for (size_t j = 0; j < A_mat->height; j++) {
+        for (size_t i = 0; i < A_mat->width; i++) {
+            res->set(i, j, new_node_float(get_node_float(A_mat->get(i, j)) * scalar));
+        }
+    }
+    return new_node_matrix(res);
+}
+
+// Get a row from a matrix
+static node_idx_t native_math_matrix_get_row(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    int row = get_node_int(*it++);
+    
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_get_row: first argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t A_mat = A->as_matrix();
+    
+    if (row < 0 || row >= A_mat->height) {
+        warnf("matrix_get_row: row index out of bounds\n");
+        return NIL_NODE;
+    }
+    
+    vector_ptr_t res = new_vector();
+    
+    for (int i = 0; i < A_mat->width; i++) {
+        res->push_back_inplace(A_mat->get(i, row));
+    }
+    
+    return new_node_vector(res);
+}
+
+// Get a column from a matrix
+static node_idx_t native_math_matrix_get_col(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    int col = get_node_int(*it++);
+    
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_get_col: first argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t A_mat = A->as_matrix();
+    
+    if (col < 0 || col >= A_mat->width) {
+        warnf("matrix_get_col: column index out of bounds\n");
+        return NIL_NODE;
+    }
+    
+    vector_ptr_t res = new_vector();
+    
+    for (int i = 0; i < A_mat->height; i++) {
+        res->push_back_inplace(A_mat->get(col, i));
+    }
+    
+    return new_node_vector(res);
 }
 
 void jo_clojure_math_init(env_ptr_t env) {
@@ -1954,6 +2155,14 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/qr", new_node_native_function("matrix/qr", &native_math_matrix_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/solve-qr", new_node_native_function("matrix/solve-qr", &native_math_matrix_solve_qr, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/transpose", new_node_native_function("matrix/transpose", &native_math_matrix_transpose, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/trace", new_node_native_function("matrix/trace", &native_math_matrix_trace, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/identity", new_node_native_function("matrix/identity", &native_math_matrix_identity, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/zeros", new_node_native_function("matrix/zeros", &native_math_matrix_zeros, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/ones", new_node_native_function("matrix/ones", &native_math_matrix_ones, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/add", new_node_native_function("matrix/add", &native_math_matrix_add, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/scale", new_node_native_function("matrix/scale", &native_math_matrix_scale, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/get-row", new_node_native_function("matrix/get-row", &native_math_matrix_get_row, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/get-col", new_node_native_function("matrix/get-col", &native_math_matrix_get_col, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
     env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
@@ -1967,10 +2176,7 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("Math/NaN", new_node_float(NAN, NODE_FLAG_PRERESOLVE));
     env->set("Math/Infinity", new_node_float(INFINITY, NODE_FLAG_PRERESOLVE));
     env->set("Math/NegativeInfinity", new_node_float(-INFINITY, NODE_FLAG_PRERESOLVE));
-    // new_node_var("Math/isNaN", new_node_native_function(&native_math_isnan, false, NODE_FLAG_PRERESOLVE)));
-    // new_node_var("Math/isFinite", new_node_native_function(&native_math_isfinite, false, NODE_FLAG_PRERESOLVE)));
-    // new_node_var("Math/isInteger", new_node_native_function(&native_math_isinteger, false, NODE_FLAG_PRERESOLVE)));
-    // new_node_var("Math/isSafeInteger", new_node_native_function(&native_math_issafeinteger, false, NODE_FLAG_PRERESOLVE)));
+    
 
     // These are the same in this clojure...
     env->set("unchecked-add", new_node_native_function("unchecked-add", &native_add, false, NODE_FLAG_PRERESOLVE));
