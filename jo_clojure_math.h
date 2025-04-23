@@ -2040,6 +2040,432 @@ static node_idx_t native_math_matrix_get_col(env_ptr_t env, list_ptr_t args) {
     return new_node_vector(res);
 }
 
+// Helper function to compute determinant recursively for larger matrices
+static double compute_determinant_recursive(matrix_ptr_t mat, int n) {
+    // Base cases
+    if (n == 1) {
+        return get_node_float(mat->get(0, 0));
+    }
+    
+    if (n == 2) {
+        return get_node_float(mat->get(0, 0)) * get_node_float(mat->get(1, 1)) - 
+               get_node_float(mat->get(0, 1)) * get_node_float(mat->get(1, 0));
+    }
+    
+    if (n == 3) {
+        return get_node_float(mat->get(0, 0)) * (get_node_float(mat->get(1, 1)) * get_node_float(mat->get(2, 2)) - 
+                                               get_node_float(mat->get(1, 2)) * get_node_float(mat->get(2, 1))) -
+               get_node_float(mat->get(0, 1)) * (get_node_float(mat->get(1, 0)) * get_node_float(mat->get(2, 2)) - 
+                                               get_node_float(mat->get(1, 2)) * get_node_float(mat->get(2, 0))) +
+               get_node_float(mat->get(0, 2)) * (get_node_float(mat->get(1, 0)) * get_node_float(mat->get(2, 1)) - 
+                                               get_node_float(mat->get(1, 1)) * get_node_float(mat->get(2, 0)));
+    }
+    
+    // For larger matrices, use cofactor expansion along the first row
+    double det = 0.0;
+    
+    // Create a submatrix for cofactor calculation
+    matrix_ptr_t submatrix = new_matrix(n-1, n-1);
+    
+    for (int j = 0; j < n; j++) {
+        // Fill the submatrix by removing the first row and column j
+        for (int row = 1; row < n; row++) {
+            int sub_col = 0;
+            for (int col = 0; col < n; col++) {
+                if (col != j) {
+                    submatrix->set(sub_col, row-1, mat->get(col, row));
+                    sub_col++;
+                }
+            }
+        }
+        
+        // Calculate cofactor
+        double cofactor = compute_determinant_recursive(submatrix, n-1);
+        
+        // Add to determinant (alternating signs)
+        int sign = (j % 2 == 0) ? 1 : -1;
+        det += sign * get_node_float(mat->get(j, 0)) * cofactor;
+    }
+    
+    return det;
+}
+
+// Helper function to compute 4x4 determinant directly using cofactor expansion
+static double compute_4x4_determinant(matrix_ptr_t mat) {
+    // For easier reference, extract all 16 values
+    double a = get_node_float(mat->get(0, 0));
+    double b = get_node_float(mat->get(1, 0));
+    double c = get_node_float(mat->get(2, 0));
+    double d = get_node_float(mat->get(3, 0));
+    
+    double e = get_node_float(mat->get(0, 1));
+    double f = get_node_float(mat->get(1, 1));
+    double g = get_node_float(mat->get(2, 1));
+    double h = get_node_float(mat->get(3, 1));
+    
+    double i = get_node_float(mat->get(0, 2));
+    double j = get_node_float(mat->get(1, 2));
+    double k = get_node_float(mat->get(2, 2));
+    double l = get_node_float(mat->get(3, 2));
+    
+    double m = get_node_float(mat->get(0, 3));
+    double n = get_node_float(mat->get(1, 3));
+    double o = get_node_float(mat->get(2, 3));
+    double p = get_node_float(mat->get(3, 3));
+    
+    // Calculate determinants of all 3x3 submatrices for the cofactor expansion
+    double det1 = f * (k * p - l * o) - g * (j * p - l * n) + h * (j * o - k * n);
+    double det2 = e * (k * p - l * o) - g * (i * p - l * m) + h * (i * o - k * m);
+    double det3 = e * (j * p - l * n) - f * (i * p - l * m) + h * (i * n - j * m);
+    double det4 = e * (j * o - k * n) - f * (i * o - k * m) + g * (i * n - j * m);
+    
+    // Combine with cofactors to get the final determinant
+    return a * det1 - b * det2 + c * det3 - d * det4;
+}
+
+// Determinant of a matrix (any size)
+static node_idx_t native_math_matrix_det(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_det: argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t A_mat = A->as_matrix();
+    
+    if (A_mat->width != A_mat->height) {
+        warnf("matrix_det: matrix must be square\n");
+        return NIL_NODE;
+    }
+    
+    int n = A_mat->width;
+    
+    // Handle special case for empty matrix
+    if (n == 0) {
+        return ONE_NODE;  // Determinant of empty matrix is 1 by convention
+    }
+    
+    // For small matrices (1x1, 2x2, 3x3, 4x4), compute directly for efficiency
+    if (n == 1) {
+        return new_node_float(get_node_float(A_mat->get(0, 0)));
+    } else if (n == 2) {
+        double det = get_node_float(A_mat->get(0, 0)) * get_node_float(A_mat->get(1, 1)) - 
+                     get_node_float(A_mat->get(0, 1)) * get_node_float(A_mat->get(1, 0));
+        return new_node_float(det);
+    } else if (n == 3) {
+        double det = get_node_float(A_mat->get(0, 0)) * (get_node_float(A_mat->get(1, 1)) * get_node_float(A_mat->get(2, 2)) - 
+                                                       get_node_float(A_mat->get(1, 2)) * get_node_float(A_mat->get(2, 1))) -
+                     get_node_float(A_mat->get(0, 1)) * (get_node_float(A_mat->get(1, 0)) * get_node_float(A_mat->get(2, 2)) - 
+                                                       get_node_float(A_mat->get(1, 2)) * get_node_float(A_mat->get(2, 0))) +
+                     get_node_float(A_mat->get(0, 2)) * (get_node_float(A_mat->get(1, 0)) * get_node_float(A_mat->get(2, 1)) - 
+                                                       get_node_float(A_mat->get(1, 1)) * get_node_float(A_mat->get(2, 0)));
+        return new_node_float(det);
+    } else if (n == 4) {
+        // Use the specialized 4x4 determinant function
+        double det = compute_4x4_determinant(A_mat);
+        return new_node_float(det);
+    } else {
+        // For larger matrices, use recursive cofactor expansion
+        double det = compute_determinant_recursive(A_mat, n);
+        return new_node_float(det);
+    }
+}
+
+// Hadamard product (element-wise multiplication)
+static node_idx_t native_math_matrix_hadamard(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_idx_t B_idx = *it++;
+    node_t *A = get_node(A_idx);
+    node_t *B = get_node(B_idx);
+    if (!A->is_matrix() || !B->is_matrix()) {
+        warnf("matrix_hadamard: arguments must be matrices\n");
+        return NIL_NODE;
+    }
+    matrix_ptr_t A_mat = A->as_matrix();
+    matrix_ptr_t B_mat = B->as_matrix();
+    if (A_mat->width != B_mat->width || A_mat->height != B_mat->height) {
+        warnf("matrix_hadamard: matrices have different dimensions\n");
+        return NIL_NODE;
+    }
+    matrix_ptr_t res = new_matrix(A_mat->width, A_mat->height);
+    for (size_t j = 0; j < A_mat->height; j++) {
+        for (size_t i = 0; i < A_mat->width; i++) {
+            res->set(i, j, new_node_float(get_node_float(A_mat->get(i, j)) * get_node_float(B_mat->get(i, j))));
+        }
+    }
+    return new_node_matrix(res);
+}
+
+// Frobenius norm of matrix (sqrt of sum of squares of all elements)
+static node_idx_t native_math_matrix_norm_frobenius(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_norm_frobenius: argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t A_mat = A->as_matrix();
+    double sum = 0.0;
+    
+    for (int j = 0; j < A_mat->height; j++) {
+        for (int i = 0; i < A_mat->width; i++) {
+            double val = get_node_float(A_mat->get(i, j));
+            sum += val * val;
+        }
+    }
+    
+    return new_node_float(jo_math_sqrt(sum));
+}
+
+// Create a 2D rotation matrix given an angle in radians
+static node_idx_t native_math_matrix_rotation_2d(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    double angle = get_node_float(*it++);
+    
+    double cos_angle = cos(angle);
+    double sin_angle = sin(angle);
+    
+    matrix_ptr_t res = new_matrix(2, 2);
+    
+    res->set(0, 0, new_node_float(cos_angle));
+    res->set(0, 1, new_node_float(-sin_angle));
+    res->set(1, 0, new_node_float(sin_angle));
+    res->set(1, 1, new_node_float(cos_angle));
+    
+    return new_node_matrix(res);
+}
+
+// Reshape a matrix to new dimensions
+static node_idx_t native_math_matrix_reshape(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    int new_rows = get_node_int(*it++);
+    int new_cols = get_node_int(*it++);
+    
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_reshape: first argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t A_mat = A->as_matrix();
+    
+    // Check if the total number of elements is preserved
+    if (A_mat->width * A_mat->height != new_rows * new_cols) {
+        warnf("matrix_reshape: new dimensions must preserve the total number of elements\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t res = new_matrix(new_cols, new_rows);
+    
+    int old_idx = 0;
+    for (int j = 0; j < A_mat->height; j++) {
+        for (int i = 0; i < A_mat->width; i++) {
+            int new_row = old_idx / new_cols;
+            int new_col = old_idx % new_cols;
+            res->set(new_col, new_row, A_mat->get(i, j));
+            old_idx++;
+        }
+    }
+    
+    return new_node_matrix(res);
+}
+
+// Raise a square matrix to an integer power
+static node_idx_t native_math_matrix_power(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    int power = get_node_int(*it++);
+    
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_power: first argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t A_mat = A->as_matrix();
+    
+    // Check if matrix is square
+    if (A_mat->width != A_mat->height) {
+        warnf("matrix_power: matrix must be square\n");
+        return NIL_NODE;
+    }
+    
+    int n = A_mat->width;
+    
+    // Handle special cases
+    if (power == 0) {
+        // Return identity matrix
+        matrix_ptr_t res = new_matrix(n, n);
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (i == j) {
+                    res->set(i, j, ONE_NODE);
+                } else {
+                    res->set(i, j, ZERO_NODE);
+                }
+            }
+        }
+        return new_node_matrix(res);
+    }
+    
+    if (power == 1) {
+        // Return the matrix itself
+        return new_node_matrix(A_mat->clone());
+    }
+    
+    if (power < 0) {
+        warnf("matrix_power: negative powers not implemented (requires matrix inverse)\n");
+        return NIL_NODE;
+    }
+    
+    // For powers > 1, compute using repeated multiplication
+    // Start with the identity matrix
+    matrix_ptr_t result = new_matrix(n, n);
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i == j) {
+                result->set(i, j, ONE_NODE);
+            } else {
+                result->set(i, j, ZERO_NODE);
+            }
+        }
+    }
+    
+    matrix_ptr_t base = A_mat->clone();
+    
+    // Binary exponentiation for efficiency
+    while (power > 0) {
+        if (power & 1) {
+            // Multiply result by base
+            matrix_ptr_t temp = new_matrix(n, n);
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    double sum = 0.0;
+                    for (int k = 0; k < n; k++) {
+                        sum += get_node_float(result->get(k, j)) * get_node_float(base->get(i, k));
+                    }
+                    temp->set(i, j, new_node_float(sum));
+                }
+            }
+            result = temp;
+        }
+        
+        // Square the base
+        matrix_ptr_t temp = new_matrix(n, n);
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                double sum = 0.0;
+                for (int k = 0; k < n; k++) {
+                    sum += get_node_float(base->get(k, j)) * get_node_float(base->get(i, k));
+                }
+                temp->set(i, j, new_node_float(sum));
+            }
+        }
+        base = temp;
+        
+        power >>= 1;
+    }
+    
+    return new_node_matrix(result);
+}
+
+// Create a 3D perspective projection matrix
+static node_idx_t native_math_matrix_perspective(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    double fov = get_node_float(*it++);        // Field of view in radians
+    double aspect = get_node_float(*it++);     // Aspect ratio (width/height)
+    double near = get_node_float(*it++);       // Near clipping plane
+    double far = get_node_float(*it++);        // Far clipping plane
+    
+    if (near <= 0 || far <= 0 || near >= far) {
+        warnf("matrix_perspective: near and far must be positive and near < far\n");
+        return NIL_NODE;
+    }
+    
+    double tanHalfFov = tan(fov / 2);
+    double f = 1.0 / tanHalfFov;
+    
+    matrix_ptr_t res = new_matrix(4, 4);
+    
+    // First row
+    res->set(0, 0, new_node_float(f / aspect));
+    res->set(1, 0, ZERO_NODE);
+    res->set(2, 0, ZERO_NODE);
+    res->set(3, 0, ZERO_NODE);
+    
+    // Second row
+    res->set(0, 1, ZERO_NODE);
+    res->set(1, 1, new_node_float(f));
+    res->set(2, 1, ZERO_NODE);
+    res->set(3, 1, ZERO_NODE);
+    
+    // Third row
+    res->set(0, 2, ZERO_NODE);
+    res->set(1, 2, ZERO_NODE);
+    res->set(2, 2, new_node_float((far + near) / (near - far)));
+    res->set(3, 2, new_node_float((2 * far * near) / (near - far)));
+    
+    // Fourth row
+    res->set(0, 3, ZERO_NODE);
+    res->set(1, 3, ZERO_NODE);
+    res->set(2, 3, new_node_float(-1));
+    res->set(3, 3, ZERO_NODE);
+    
+    return new_node_matrix(res);
+}
+
+// Create a 3D orthographic projection matrix
+static node_idx_t native_math_matrix_orthographic(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    double left = get_node_float(*it++);
+    double right = get_node_float(*it++);
+    double bottom = get_node_float(*it++);
+    double top = get_node_float(*it++);
+    double near = get_node_float(*it++);
+    double far = get_node_float(*it++);
+    
+    if (left == right || bottom == top || near == far) {
+        warnf("matrix_orthographic: degenerate projection\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t res = new_matrix(4, 4);
+    
+    // First row
+    res->set(0, 0, new_node_float(2.0 / (right - left)));
+    res->set(1, 0, ZERO_NODE);
+    res->set(2, 0, ZERO_NODE);
+    res->set(3, 0, new_node_float(-(right + left) / (right - left)));
+    
+    // Second row
+    res->set(0, 1, ZERO_NODE);
+    res->set(1, 1, new_node_float(2.0 / (top - bottom)));
+    res->set(2, 1, ZERO_NODE);
+    res->set(3, 1, new_node_float(-(top + bottom) / (top - bottom)));
+    
+    // Third row
+    res->set(0, 2, ZERO_NODE);
+    res->set(1, 2, ZERO_NODE);
+    res->set(2, 2, new_node_float(-2.0 / (far - near)));
+    res->set(3, 2, new_node_float(-(far + near) / (far - near)));
+    
+    // Fourth row
+    res->set(0, 3, ZERO_NODE);
+    res->set(1, 3, ZERO_NODE);
+    res->set(2, 3, ZERO_NODE);
+    res->set(3, 3, ONE_NODE);
+    
+    return new_node_matrix(res);
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
 	env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
 	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
@@ -2163,6 +2589,14 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/scale", new_node_native_function("matrix/scale", &native_math_matrix_scale, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/get-row", new_node_native_function("matrix/get-row", &native_math_matrix_get_row, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/get-col", new_node_native_function("matrix/get-col", &native_math_matrix_get_col, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/det", new_node_native_function("matrix/det", &native_math_matrix_det, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/hadamard", new_node_native_function("matrix/hadamard", &native_math_matrix_hadamard, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/norm-frobenius", new_node_native_function("matrix/norm-frobenius", &native_math_matrix_norm_frobenius, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/rotation-2d", new_node_native_function("matrix/rotation-2d", &native_math_matrix_rotation_2d, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/reshape", new_node_native_function("matrix/reshape", &native_math_matrix_reshape, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/power", new_node_native_function("matrix/power", &native_math_matrix_power, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/perspective", new_node_native_function("matrix/perspective", &native_math_matrix_perspective, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/orthographic", new_node_native_function("matrix/orthographic", &native_math_matrix_orthographic, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
     env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
