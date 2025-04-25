@@ -1153,30 +1153,47 @@ static node_idx_t native_math_matrix_sub(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(res);
 }
 
+// Standard Matrix Multiplication C = A * B
+// A: (Ha x Wa) -> matrix(width=Wa, height=Ha)
+// B: (Hb x Wb) -> matrix(width=Wb, height=Hb)
+// Requires Wa == Hb
+// Result C: (Ha x Wb) -> matrix(width=Wb, height=Ha)
 static node_idx_t native_math_matrix_mul(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
     node_idx_t A_idx = *it++;
     node_idx_t B_idx = *it++;
-    node_t *A = get_node(A_idx);
-    node_t *B = get_node(B_idx);
-    if (!A->is_matrix() || !B->is_matrix()) {
-        warnf("warning: matrix multiplication with non-matrix operands\n");
+    node_t *A_node = get_node(A_idx);
+    node_t *B_node = get_node(B_idx);
+
+    if (!A_node->is_matrix() || !B_node->is_matrix()) {
+        warnf("matrix/mul: arguments must be matrices\n");
         return NIL_NODE;
     }
-    matrix_ptr_t A_mat = A->as_matrix();
-    matrix_ptr_t B_mat = B->as_matrix();
-    if (A_mat->width != B_mat->height) {
-        warnf("matrix_mul: incompatible matrix dimensions: %zu x %zu and %zu x %zu\n", A_mat->width, A_mat->height, B_mat->width, B_mat->height);
+    matrix_ptr_t A_mat = A_node->as_matrix();
+    matrix_ptr_t B_mat = B_node->as_matrix();
+
+    int Ha = A_mat->height;
+    int Wa = A_mat->width;
+    int Hb = B_mat->height;
+    int Wb = B_mat->width;
+
+    if (Wa != Hb) {
+        warnf("matrix/mul: incompatible matrix dimensions: (%d x %d) and (%d x %d)\n", Ha, Wa, Hb, Wb); // Prints (HxW) and (HxW)
         return NIL_NODE;
     }
-    matrix_ptr_t res = new_matrix(B_mat->width, A_mat->height);
-    for (size_t j = 0; j < A_mat->height; j++) {
-        for (size_t i = 0; i < B_mat->width; i++) {
-            double dot = 0;
-            for (size_t k = 0; k < A_mat->width; k++) {
-                dot += get_node_float(A_mat->get(k, j)) * get_node_float(B_mat->get(i, k));
+
+    // Result C has dimensions (Ha x Wb) -> width=Wb, height=Ha
+    matrix_ptr_t res = new_matrix(Wb, Ha);
+
+    for (int j = 0; j < Ha; j++) { // row of A, row of C
+        for (int i = 0; i < Wb; i++) { // col of B, col of C
+            double sum = 0.0;
+            for (int k = 0; k < Wa; k++) { // col of A, row of B
+                // C[j, i] = sum_k (A[j, k] * B[k, i])
+                // Using matrix->get(col, row):
+                sum += get_node_float(A_mat->get(k, j)) * get_node_float(B_mat->get(i, k));
             }
-            res->set(i, j, new_node_float(dot));
+            res->set(i, j, new_node_float(sum)); // Set C[col=i, row=j]
         }
     }
     return new_node_matrix(res);
@@ -1375,6 +1392,7 @@ static node_idx_t native_math_matrix_set_col(env_ptr_t env, list_ptr_t args) {
     node_t *A_node = get_node(A_idx);
     if (!A_node->is_matrix()) {
         warnf("native_math_matrix_set_col: not a matrix. arg type is %s\n", A_node->type_name());
+        return A_idx;
     }
     matrix_ptr_t A = A_node->as_matrix();
 
@@ -1383,29 +1401,33 @@ static node_idx_t native_math_matrix_set_col(env_ptr_t env, list_ptr_t args) {
     node_idx_t col_idx = *it++;
     node_t *col_node = get_node(col_idx);
     
-    matrix_ptr_t ret = A->clone();
+    matrix_ptr_t ret = A->clone(); // Clone the matrix first
+    
     if (col_node->is_vector()) { // fast path
         vector_ptr_t col = col_node->as_vector();
         if(col->size() != ret->height) {
             warnf("native_math_matrix_set_col: vector size != matrix height\n");
-            return NIL_NODE;
+            return A_idx;
         }
         for(int y = 0; y < ret->height; ++y) {
-            ret->set(col_num, y, col->nth(y));
+            node_idx_t val = col->nth(y);
+            ret->set(col_num, y, val); // Use set directly on the cloned matrix
         }
     } else if (col_node->is_list()) { // fast path
         list_ptr_t col = col_node->as_list();
         int y = 0;
         for(list_t::iterator it(col); it && y < ret->height; ++it, ++y) {
-            ret->set(col_num, y, *it);
+            node_idx_t val = *it;
+            ret->set(col_num, y, val); // Use set directly on the cloned matrix
         }
     } else if(col_node->is_seq()) {
-        list_ptr_t col = col_node->as_list();
         int y = 0;
         for(seq_iterator_t it(col_idx); it && y < ret->height; it.next(), ++y) {
-            ret->set(col_num, y, it.val);
+            node_idx_t val = it.val;
+            ret->set(col_num, y, val); // Use set directly on the cloned matrix
         }
     }
+    
     return new_node_matrix(ret);
 }
 
@@ -1745,20 +1767,23 @@ static node_idx_t native_math_matrix_transpose(env_ptr_t env, list_ptr_t args) {
     node_idx_t A_idx = *it++;
     node_t *A_node = get_node(A_idx);
     if (!A_node->is_matrix()) {
-        warnf("native_math_matrix_svd: not a matrix. arg type is %s\n", A_node->type_name());
+        warnf("matrix/transpose: argument must be a matrix\n");
+        return NIL_NODE;
     }
     matrix_ptr_t A = A_node->as_matrix();
-    int m = A->height;
-    int n = A->width;
+    int H = A->height; // Original Height
+    int W = A->width;  // Original Width
 
-    matrix_ptr_t V = new_matrix(m, n);
+    // Result V should be matrix(width=H, height=W)
+    matrix_ptr_t V = new_matrix(H, W); // Create matrix width=H, height=W
 
-    for(int i = 0; i < m; ++i) {
-        for(int j = 0; j < n; ++j) {
-            V->set(j, i, A->get(i,j));
+    for(int j = 0; j < H; ++j) { // Loop original rows 0..H-1 (row_a = j)
+        for(int i = 0; i < W; ++i) { // Loop original cols 0..W-1 (col_a = i)
+            // V[col=row_a, row=col_a] = A[col=col_a, row=row_a]
+            // V->set(col=j, row=i, A->get(col=i, row=j))
+            V->set(j, i, A->get(i, j)); 
         }
     }
-
     return new_node_matrix(V);
 }
 
@@ -2200,6 +2225,62 @@ static node_idx_t native_math_matrix_hadamard(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(res);
 }
 
+// Sum columns of a matrix (reduce rows)
+static node_idx_t native_math_matrix_sum_cols(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_sum_cols: argument must be a matrix\\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t A_mat = A->as_matrix();
+    matrix_ptr_t res = new_matrix(A_mat->width, 1); // Result is width x 1
+    
+    for (int i = 0; i < A_mat->width; i++) { // Iterate through columns
+        double col_sum = 0.0;
+        for (int j = 0; j < A_mat->height; j++) { // Iterate through rows
+            col_sum += get_node_float(A_mat->get(i, j));
+        }
+        res->set(i, 0, new_node_float(col_sum));
+    }
+    
+    return new_node_matrix(res);
+}
+
+// Sum rows of a matrix (reduce columns)
+// Input A: (W x H)
+// Output: matrix(W, 1) where element [i, 0] is the sum of row i across all columns.
+// Needed for bias grad: sums across batch dimension.
+// Input dZ: (batch x out_features) -> matrix(out_features, batch)
+// Output db: (1 x out_features) -> matrix(out_features, 1)
+static node_idx_t native_math_matrix_sum_rows(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    
+    node_t *A = get_node(A_idx);
+    if (!A->is_matrix()) {
+        warnf("matrix_sum_rows: argument must be a matrix\n");
+        return NIL_NODE;
+    }
+    
+    matrix_ptr_t A_mat = A->as_matrix(); // Input (W=out_features, H=batch)
+    // Result (W=out_features, H=1)
+    matrix_ptr_t res = new_matrix(A_mat->width, 1); 
+    
+    for (int i = 0; i < A_mat->width; i++) { // Iterate through columns (output features)
+        double row_sum = 0.0;
+        for (int j = 0; j < A_mat->height; j++) { // Iterate through rows (batch)
+            row_sum += get_node_float(A_mat->get(i, j));
+        }
+        res->set(i, 0, new_node_float(row_sum)); // Set element res[i, 0]
+    }
+    
+    return new_node_matrix(res);
+}
+
 // Frobenius norm of matrix (sqrt of sum of squares of all elements)
 static node_idx_t native_math_matrix_norm_frobenius(env_ptr_t env, list_ptr_t args) {
     list_t::iterator it(args);
@@ -2466,6 +2547,29 @@ static node_idx_t native_math_matrix_orthographic(env_ptr_t env, list_ptr_t args
     return new_node_matrix(res);
 }
 
+// Set a single element in a matrix
+static node_idx_t native_math_matrix_set(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        warnf("matrix/set: not a matrix. arg type is %s\n", A_node->type_name());
+        return A_idx;
+    }
+    matrix_ptr_t A = A_node->as_matrix();
+
+    int row = get_node_int(*it++);
+    int col = get_node_int(*it++);
+    node_idx_t value_idx = *it++;
+    
+    matrix_ptr_t ret = A->clone(); // Clone the matrix first
+    
+    // Set the value at the specified position
+    ret->set(row, col, value_idx);
+    
+    return new_node_matrix(ret);
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
 	env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
 	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
@@ -2597,6 +2701,10 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/power", new_node_native_function("matrix/power", &native_math_matrix_power, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/perspective", new_node_native_function("matrix/perspective", &native_math_matrix_perspective, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/orthographic", new_node_native_function("matrix/orthographic", &native_math_matrix_orthographic, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/sum-cols", new_node_native_function("matrix/sum-cols", &native_math_matrix_sum_cols, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/sum-rows", new_node_native_function("matrix/sum-rows", &native_math_matrix_sum_rows, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/norm-frobenius", new_node_native_function("matrix/norm-frobenius", &native_math_matrix_norm_frobenius, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/set", new_node_native_function("matrix/set", &native_math_matrix_set, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
     env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));

@@ -1,6 +1,6 @@
 JO_TARGET=jclj
 DESTDIR=/usr/local/bin
-SRCS=jo_clojure.cpp
+SRCS=jo_clojure.cpp 
 OBJS=$(SRCS:.cpp=.o)
 CXX=c++
 CXXFLAGS=-std=c++17 -Iext -DNO_SOKOL -DNO_MYSQL -DNO_NFD
@@ -17,7 +17,7 @@ $(JO_TARGET)_debug: $(SRCS)
 
 # Object file rule
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -Os -fexceptions -c $< -o $@
+	$(CXX) $(CXXFLAGS) -O3 -fexceptions -c $< -o $@
 
 # Generate dependencies automatically
 DEPS=$(SRCS:.cpp=.d)

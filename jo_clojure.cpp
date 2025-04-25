@@ -6578,6 +6578,7 @@ static node_idx_t native_include(env_ptr_t env, list_ptr_t args) {
 #include "jo_clojure_canvas.h"
 #include "jo_clojure_net.h"
 #include "jo_clojure_protocol.h"
+#include "jo_clojure_nn.h"
 #ifndef NO_SOKOL
 #include "jo_clojure_sokol.h"
 #endif
@@ -6960,6 +6961,7 @@ int main(int argc, char **argv) {
 	jo_clojure_b64_init(env);
 	jo_clojure_canvas_init(env);
 	jo_clojure_net_init(env);
+	jo_clojure_nn_init(env);
 #ifndef NO_SOKOL
 	jo_clojure_sokol_init(env);
 #endif
