@@ -1182,21 +1182,41 @@ static node_idx_t native_math_matrix_mul(env_ptr_t env, list_ptr_t args) {
         return NIL_NODE;
     }
 
-    // Result C has dimensions (Ha x Wb) -> width=Wb, height=Ha
-    matrix_ptr_t res = new_matrix(Wb, Ha);
-
-    for (int j = 0; j < Ha; j++) { // row of A, row of C
-        for (int i = 0; i < Wb; i++) { // col of B, col of C
-            double sum = 0.0;
-            for (int k = 0; k < Wa; k++) { // col of A, row of B
-                // C[j, i] = sum_k (A[j, k] * B[k, i])
-                // Using matrix->get(col, row):
-                sum += get_node_float(A_mat->get(k, j)) * get_node_float(B_mat->get(i, k));
-            }
-            res->set(i, j, new_node_float(sum)); // Set C[col=i, row=j]
+    // Create result matrix
+    matrix_ptr_t C_mat = new_matrix(Wb, Ha);
+    
+    // Precompute get_node_float values for both matrices
+    double* A_values = new double[Ha * Wa];
+    double* B_values = new double[Hb * Wb];
+    
+    for (int i = 0; i < Ha; i++) {
+        for (int j = 0; j < Wa; j++) {
+            A_values[i * Wa + j] = get_node_float(A_mat->get(j, i));
         }
     }
-    return new_node_matrix(res);
+    
+    for (int i = 0; i < Hb; i++) {
+        for (int j = 0; j < Wb; j++) {
+            B_values[i * Wb + j] = get_node_float(B_mat->get(j, i));
+        }
+    }
+    
+    // Perform matrix multiplication using precomputed values
+    for (int i = 0; i < Ha; i++) {
+        for (int j = 0; j < Wb; j++) {
+            double sum = 0.0;
+            for (int k = 0; k < Wa; k++) {
+                sum += A_values[i * Wa + k] * B_values[k * Wb + j];
+            }
+            C_mat->set(j, i, new_node_float(sum));
+        }
+    }
+    
+    // Free temporary memory
+    delete[] A_values;
+    delete[] B_values;
+    
+    return new_node_matrix(C_mat);
 }
 
 static node_idx_t native_math_vector_sub(env_ptr_t env, list_ptr_t args) {
