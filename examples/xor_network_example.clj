@@ -67,8 +67,8 @@
 (defn train-model [model X y epochs learning-rate]
   (println "Training XOR model...")
   
-  ;; Use Adam optimizer with better parameters
-  (let [optimizer (nn/adam model learning-rate 0.9 0.999 1e-8)]
+  ;; Use SGD optimizer with appropriate parameters
+  (let [optimizer (nn/sgd model learning-rate)]
     
     (loop [epoch 1
            current-optimizer optimizer
@@ -89,7 +89,7 @@
               gradients (nn/backward current-model X y)
               
               ;; Update parameters
-              updated-optimizer (nn/adam-step current-optimizer gradients)
+              updated-optimizer (nn/sgd-step current-optimizer gradients)
               
               ;; Track best model based on loss
               [new-best-loss new-best-model new-patience] 

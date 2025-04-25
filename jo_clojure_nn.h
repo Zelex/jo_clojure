@@ -544,39 +544,58 @@ static node_idx_t native_nn_sgd_step(env_ptr_t env, list_ptr_t args) {
     node_idx_t model_idx = optimizer->get(new_node_keyword("model"), node_eq);
     double lr = get_node_float(optimizer->get(new_node_keyword("learning-rate"), node_eq));
     
-    // Create updated model
+    // Create updated model copy
     hash_map_ptr_t model = new_hash_map(*get_node(model_idx)->as_hash_map());
     
-    // Update each parameter in the model
-    for (hash_map_t::iterator it = model->begin(); it; it++) {
-        if (gradients->contains(it->first, node_eq)) {
-            node_idx_t param = it->second;
-            node_idx_t grad = gradients->get(it->first, node_eq);
-            node_t *param_node = get_node(param);
-            node_t *grad_node = get_node(grad);
+    // Iterate through layers in the model
+    for (hash_map_t::iterator layer_it = model->begin(); layer_it; ++layer_it) {
+        node_idx_t layer_key = layer_it->first;
+        node_idx_t layer_node_idx = layer_it->second;
+        node_t *layer_node = get_node(layer_node_idx);
+        
+        if (!layer_node->is_hash_map()) continue;
+        hash_map_ptr_t layer_params = layer_node->as_hash_map();
+        
+        // Get gradients for this layer
+        node_idx_t layer_grad_idx = gradients->get(layer_key, node_eq);
+        if (layer_grad_idx == INV_NODE) continue;
+        hash_map_ptr_t layer_grads = get_node(layer_grad_idx)->as_hash_map();
+        
+        // Copy layer parameters for update
+        hash_map_ptr_t updated_layer_params = new_hash_map(*layer_params);
+        
+        // Update each parameter within this layer
+        for (hash_map_t::iterator param_it = layer_params->begin(); param_it; ++param_it) {
+            node_idx_t param_key = param_it->first;
+            node_idx_t param_idx = param_it->second;
+            node_idx_t grad_idx = layer_grads->get(param_key, node_eq);
+            if (grad_idx == INV_NODE) continue;
             
-            if (param_node->is_matrix() && grad_node->is_matrix()) {
-                matrix_ptr_t param_mat = param_node->as_matrix();
-                matrix_ptr_t grad_mat = grad_node->as_matrix();
-                matrix_ptr_t updated_param = new_matrix(param_mat->width, param_mat->height);
-                
-                for (int i = 0; i < param_mat->width; i++) {
-                    for (int j = 0; j < param_mat->height; j++) {
-                        double p = get_node_float(param_mat->get(i, j));
-                        double g = get_node_float(grad_mat->get(i, j));
-                        updated_param->set(i, j, new_node_float(p - lr * g));
-                    }
+            node_t *param_node = get_node(param_idx);
+            node_t *grad_node = get_node(grad_idx);
+            if (!param_node->is_matrix() || !grad_node->is_matrix()) continue;
+            
+            matrix_ptr_t param_mat = param_node->as_matrix();
+            matrix_ptr_t grad_mat = grad_node->as_matrix();
+            matrix_ptr_t updated_mat = new_matrix(param_mat->width, param_mat->height);
+            
+            for (int i = 0; i < param_mat->width; ++i) {
+                for (int j = 0; j < param_mat->height; ++j) {
+                    double p = get_node_float(param_mat->get(i, j));
+                    double g = get_node_float(grad_mat->get(i, j));
+                    updated_mat->set(i, j, new_node_float(p - lr * g));
                 }
-                
-                model->assoc_inplace(it->first, new_node_matrix(updated_param), node_eq);
             }
+            updated_layer_params->assoc_inplace(param_key, new_node_matrix(updated_mat), node_eq);
         }
+        
+        // Place updated layer back into model
+        model->assoc_inplace(layer_key, new_node_hash_map(updated_layer_params), node_eq);
     }
     
     // Update model in optimizer
     hash_map_ptr_t updated_optimizer = new_hash_map(*optimizer);
     updated_optimizer->assoc_inplace(new_node_keyword("model"), new_node_hash_map(model), node_eq);
-    
     return new_node_hash_map(updated_optimizer);
 }
 
@@ -698,13 +717,13 @@ static node_idx_t native_nn_adam_step(env_ptr_t env, list_ptr_t args) {
         hash_map_ptr_t layer_v = get_node(layer_v_idx)->as_hash_map();
 
         // Create maps to hold updated params and moments for this layer
-        hash_map_ptr_t updated_layer_params = new_hash_map(*layer_params); 
+        hash_map_ptr_t updated_layer_params = new_hash_map(*layer_params);
         hash_map_ptr_t updated_layer_m = new_hash_map();
         hash_map_ptr_t updated_layer_v = new_hash_map();
 
         // Iterate through parameters within the layer (e.g., :weights, :bias)
         for (hash_map_t::iterator param_it = layer_params->begin(); param_it; param_it++) {
-            node_idx_t param_key = param_it->first; 
+            node_idx_t param_key = param_it->first;
             node_idx_t param = param_it->second;
             
             // Look up gradient and moments using param_key within the layer's maps
@@ -1938,7 +1957,7 @@ static node_idx_t native_nn_adamw_step(env_ptr_t env, list_ptr_t args) {
     node_idx_t gradients_idx = *it++;
     
     hash_map_ptr_t optimizer = get_node(optimizer_idx)->as_hash_map();
-    hash_map_ptr_t gradients = get_node(gradients_idx)->as_hash_map();
+    hash_map_ptr_t gradients = get_node(gradients_idx)->as_hash_map(); 
     node_idx_t model_idx = optimizer->get(new_node_keyword("model"), node_eq);
     double lr = get_node_float(optimizer->get(new_node_keyword("learning-rate"), node_eq));
     double weight_decay = get_node_float(optimizer->get(new_node_keyword("weight-decay"), node_eq));
@@ -1978,13 +1997,13 @@ static node_idx_t native_nn_adamw_step(env_ptr_t env, list_ptr_t args) {
         hash_map_ptr_t layer_v = get_node(layer_v_idx)->as_hash_map();
 
         // Create maps to hold updated params and moments for this layer
-        hash_map_ptr_t updated_layer_params = new_hash_map(*layer_params);
+        hash_map_ptr_t updated_layer_params = new_hash_map(*layer_params); 
         hash_map_ptr_t updated_layer_m = new_hash_map();
         hash_map_ptr_t updated_layer_v = new_hash_map();
 
         // Iterate through parameters within the layer
         for (hash_map_t::iterator param_it = layer_params->begin(); param_it; param_it++) {
-            node_idx_t param_key = param_it->first;
+            node_idx_t param_key = param_it->first; 
             node_idx_t param = param_it->second;
             
             // Look up gradient and moments

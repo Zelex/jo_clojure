@@ -148,8 +148,80 @@ static node_idx_t native_format(env_ptr_t env, list_ptr_t args) {
                 result += '%';
                 pos += 2;
             } else {
-                // The next character is the format specifier (simplified approach)
-                char format_char = format_str[pos + 1];
+                // Parse format specifier
+                size_t spec_start = pos;
+                pos++; // Skip the '%'
+                
+                // Check for flags
+                bool left_justify = false;
+                bool show_sign = false;
+                bool zero_pad = false;
+                bool space_for_positive = false;
+                bool alternate_form = false;
+                
+                bool parsing_flags = true;
+                while (parsing_flags && pos < format_str.length()) {
+                    char flag = format_str[pos];
+                    switch (flag) {
+                        case '-': left_justify = true; pos++; break;
+                        case '+': show_sign = true; pos++; break;
+                        case '0': zero_pad = true; pos++; break;
+                        case ' ': space_for_positive = true; pos++; break;
+                        case '#': alternate_form = true; pos++; break;
+                        default: parsing_flags = false; break;
+                    }
+                }
+                
+                // Check for width specification
+                int width = 0;
+                if (pos < format_str.length() && format_str[pos] >= '0' && format_str[pos] <= '9') {
+                    while (pos < format_str.length() && format_str[pos] >= '0' && format_str[pos] <= '9') {
+                        width = width * 10 + (format_str[pos] - '0');
+                        pos++;
+                    }
+                } else if (pos < format_str.length() && format_str[pos] == '*') {
+                    // Width from argument
+                    if (arg_index >= arg_values.size()) {
+                        warnf("format: not enough arguments for width specification\n");
+                        return NIL_NODE;
+                    }
+                    width = (int)get_node_int(arg_values[arg_index++]);
+                    if (width < 0) {
+                        left_justify = true;
+                        width = -width;
+                    }
+                    pos++;
+                }
+                
+                // Check for precision
+                int precision = -1;
+                if (pos < format_str.length() && format_str[pos] == '.') {
+                    pos++; // Skip the '.'
+                    precision = 0;
+                    if (pos < format_str.length() && format_str[pos] == '*') {
+                        // Precision from argument
+                        if (arg_index >= arg_values.size()) {
+                            warnf("format: not enough arguments for precision specification\n");
+                            return NIL_NODE;
+                        }
+                        precision = (int)get_node_int(arg_values[arg_index++]);
+                        precision = precision < 0 ? -1 : precision;
+                        pos++;
+                    } else {
+                        while (pos < format_str.length() && format_str[pos] >= '0' && format_str[pos] <= '9') {
+                            precision = precision * 10 + (format_str[pos] - '0');
+                            pos++;
+                        }
+                    }
+                }
+                
+                // Get the format specifier
+                if (pos >= format_str.length()) {
+                    warnf("format: incomplete format specifier\n");
+                    return NIL_NODE;
+                }
+                
+                char format_char = format_str[pos++];
                 
                 if (arg_index >= arg_values.size()) {
                     warnf("format: not enough arguments for format string\n");
@@ -157,32 +229,167 @@ static node_idx_t native_format(env_ptr_t env, list_ptr_t args) {
                 }
                 
                 node_idx_t arg = arg_values[arg_index++];
+                node_t* arg_node = get_node(arg);
+                
+                // Format the argument based on the specifier
+                jo_string formatted_value;
                 
                 switch (format_char) {
                     case 'd':
-                    case 'i':
-                        result += va("%lld", get_node_int(arg));
+                    case 'i': {
+                        // Integer
+                        long long value = get_node_int(arg);
+                        jo_string fmt = "%";
+                        if (left_justify) fmt += "-";
+                        if (show_sign) fmt += "+";
+                        if (space_for_positive) fmt += " ";
+                        if (zero_pad) fmt += "0";
+                        if (width > 0) fmt += va("%d", width);
+                        if (precision >= 0) fmt += va(".%d", precision);
+                        fmt += "lld";
+                        formatted_value = va(fmt.c_str(), value);
                         break;
+                    }
+                    
+                    case 'u': {
+                        // Unsigned integer
+                        unsigned long long value = (unsigned long long)get_node_int(arg);
+                        jo_string fmt = "%";
+                        if (left_justify) fmt += "-";
+                        if (zero_pad) fmt += "0";
+                        if (width > 0) fmt += va("%d", width);
+                        if (precision >= 0) fmt += va(".%d", precision);
+                        fmt += "llu";
+                        formatted_value = va(fmt.c_str(), value);
+                        break;
+                    }
+                    
                     case 'f':
+                    case 'F':
                     case 'g':
-                        result += va("%g", get_node_float(arg));
+                    case 'G':
+                    case 'e':
+                    case 'E': {
+                        // Floating point
+                        double value = get_node_float(arg);
+                        jo_string fmt = "%";
+                        if (left_justify) fmt += "-";
+                        if (show_sign) fmt += "+";
+                        if (space_for_positive) fmt += " ";
+                        if (zero_pad) fmt += "0";
+                        if (alternate_form) fmt += "#";
+                        if (width > 0) fmt += va("%d", width);
+                        if (precision >= 0) fmt += va(".%d", precision);
+                        fmt += format_char;
+                        formatted_value = va(fmt.c_str(), value);
                         break;
-                    case 's':
-                        {
-                            node_t* str_node = get_node(arg);
-                            if (str_node->type == NODE_STRING) {
-                                result += str_node->t_string;
+                    }
+                    
+                    case 'x':
+                    case 'X': {
+                        // Hexadecimal
+                        unsigned long long value = (unsigned long long)get_node_int(arg);
+                        jo_string fmt = "%";
+                        if (left_justify) fmt += "-";
+                        if (alternate_form) fmt += "#";
+                        if (zero_pad) fmt += "0";
+                        if (width > 0) fmt += va("%d", width);
+                        if (precision >= 0) fmt += va(".%d", precision);
+                        fmt += format_char;
+                        formatted_value = va(fmt.c_str(), value);
+                        break;
+                    }
+                    
+                    case 'o': {
+                        // Octal
+                        unsigned long long value = (unsigned long long)get_node_int(arg);
+                        jo_string fmt = "%";
+                        if (left_justify) fmt += "-";
+                        if (alternate_form) fmt += "#";
+                        if (zero_pad) fmt += "0";
+                        if (width > 0) fmt += va("%d", width);
+                        if (precision >= 0) fmt += va(".%d", precision);
+                        fmt += "llo";
+                        formatted_value = va(fmt.c_str(), value);
+                        break;
+                    }
+                    
+                    case 'c': {
+                        // Character
+                        char value = (char)get_node_int(arg);
+                        jo_string fmt = "%";
+                        if (left_justify) fmt += "-";
+                        if (width > 0) fmt += va("%d", width);
+                        fmt += "c";
+                        formatted_value = va(fmt.c_str(), value);
+                        break;
+                    }
+                    
+                    case 's': {
+                        // String
+                        jo_string str_value;
+                        if (arg_node->type == NODE_STRING) {
+                            str_value = arg_node->t_string;
+                        } else {
+                            str_value = get_node_string(arg);
+                        }
+                        
+                        // Apply precision (truncate)
+                        if (precision >= 0 && (size_t)precision < str_value.length()) {
+                            str_value = str_value.substr(0, precision);
+                        }
+                        
+                        // Apply width and justification
+                        if (width > 0 && (size_t)width > str_value.length()) {
+                            size_t pad_size = width - str_value.length();
+                            if (left_justify) {
+                                // Add spaces at the end
+                                jo_string spaces;
+                                for (size_t i = 0; i < pad_size; i++) {
+                                    spaces += ' ';
+                                }
+                                str_value += spaces;
                             } else {
-                                result += get_node_string(arg);
+                                // Add spaces at the beginning
+                                jo_string spaces;
+                                for (size_t i = 0; i < pad_size; i++) {
+                                    spaces += ' ';
+                                }
+                                str_value = spaces + str_value;
                             }
                         }
+                        
+                        formatted_value = str_value;
                         break;
+                    }
+                    
+                    case 'p': {
+                        // Pointer
+                        void* value = (void*)(uintptr_t)get_node_int(arg);
+                        formatted_value = va("%p", value);
+                        break;
+                    }
+                    
+                    case 'b': {
+                        // Boolean - custom extension
+                        bool value = false;
+                        if (arg_node->type == NODE_BOOL) {
+                            value = arg_node->t_bool;
+                        } else {
+                            value = get_node_bool(arg);
+                        }
+                        formatted_value = value ? "true" : "false";
+                        break;
+                    }
+                    
                     default:
-                        // Just add the argument's string representation
-                        result += get_node_string(arg);
+                        // Unknown format specifier - just add it as-is
+                        warnf("format: unknown format specifier %%%c\n", format_char);
+                        formatted_value = get_node_string(arg);
                         break;
                 }
-                pos += 2; // Move past the % and the format specifier
+                
+                result += formatted_value;
             }
         } else {
             // Regular character - add to result string
