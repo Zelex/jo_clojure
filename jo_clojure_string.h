@@ -12,7 +12,7 @@ static node_idx_t native_str(env_ptr_t env, list_ptr_t args) {
 	return new_node_string(str);
 }
 
-// Returns the substring of ‘s’ beginning at start inclusive, and ending at end (defaults to length of string), exclusive.
+// Returns the substring of 's' beginning at start inclusive, and ending at end (defaults to length of string), exclusive.
 static node_idx_t native_subs(env_ptr_t env, list_ptr_t args) { 
 	return new_node_string(get_node_string(args->first_value()).substr(get_node_int(args->second_value()), get_node_int(args->third_value()))); 
 }
@@ -112,6 +112,86 @@ static node_idx_t native_split(env_ptr_t env, list_ptr_t args) {
 	return new_node_vector(V);
 }
 
+// format string with args, similar to printf but returns a string
+static node_idx_t native_format(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    if (!it) {
+        warnf("format requires at least a format string argument\n");
+        return NIL_NODE;
+    }
+    
+    // Get format string
+    node_t* format_node = get_node(*it);
+    if (format_node->type != NODE_STRING) {
+        warnf("format first argument must be a string\n");
+        return NIL_NODE;
+    }
+    
+    jo_string format_str = format_node->t_string;
+    ++it;
+    
+    // Collect all arguments into a vector
+    std::vector<node_idx_t> arg_values;
+    for (; it; ++it) {
+        arg_values.push_back(*it);
+    }
+    
+    // Process format string
+    size_t pos = 0;
+    size_t arg_index = 0;
+    jo_string result;
+    
+    while (pos < format_str.length()) {
+        if (format_str[pos] == '%' && pos + 1 < format_str.length()) {
+            if (format_str[pos + 1] == '%') {
+                // Escaped % character
+                result += '%';
+                pos += 2;
+            } else {
+                // The next character is the format specifier (simplified approach)
+                char format_char = format_str[pos + 1];
+                
+                if (arg_index >= arg_values.size()) {
+                    warnf("format: not enough arguments for format string\n");
+                    return NIL_NODE;
+                }
+                
+                node_idx_t arg = arg_values[arg_index++];
+                
+                switch (format_char) {
+                    case 'd':
+                    case 'i':
+                        result += va("%lld", get_node_int(arg));
+                        break;
+                    case 'f':
+                    case 'g':
+                        result += va("%g", get_node_float(arg));
+                        break;
+                    case 's':
+                        {
+                            node_t* str_node = get_node(arg);
+                            if (str_node->type == NODE_STRING) {
+                                result += str_node->t_string;
+                            } else {
+                                result += get_node_string(arg);
+                            }
+                        }
+                        break;
+                    default:
+                        // Just add the argument's string representation
+                        result += get_node_string(arg);
+                        break;
+                }
+                pos += 2; // Move past the % and the format specifier
+            }
+        } else {
+            // Regular character - add to result string
+            result += format_str[pos++];
+        }
+    }
+    
+    return new_node_string(result);
+}
 
 void jo_clojure_string_init(env_ptr_t env) {
 	env->set("str", new_node_native_function("str", &native_str, false, NODE_FLAG_PRERESOLVE));
@@ -138,4 +218,5 @@ void jo_clojure_string_init(env_ptr_t env) {
 	env->set("ston", new_node_native_function("ston", &native_ston, false, NODE_FLAG_PRERESOLVE));
 	env->set("ntos", new_node_native_function("ntos", &native_ntos, false, NODE_FLAG_PRERESOLVE));
 	env->set("split", new_node_native_function("split", &native_split, false, NODE_FLAG_PRERESOLVE));
+	env->set("format", new_node_native_function("format", &native_format, false, NODE_FLAG_PRERESOLVE));
 }

@@ -2590,9 +2590,99 @@ static node_idx_t native_math_matrix_set(env_ptr_t env, list_ptr_t args) {
     return new_node_matrix(ret);
 }
 
+// Get a single element from a matrix
+static node_idx_t native_math_matrix_get(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        warnf("matrix/get: not a matrix. arg type is %s\n", A_node->type_name());
+        return A_idx;
+    }
+    matrix_ptr_t A = A_node->as_matrix();
+
+    int row = get_node_int(*it++);
+    int col = get_node_int(*it++);
+    
+    // Check bounds and return default value (0) for out-of-bounds access
+    // This prevents errors in neural network operations
+    if (row < 0 || row >= A->height || col < 0 || col >= A->width) {
+        warnf("matrix/get: indices out of bounds: row=%d, col=%d, matrix is %dx%d\n", 
+             row, col, A->height, A->width);
+        return ZERO_NODE; // Return 0 instead of NIL for out-of-bounds
+    }
+    
+    // Get the value at the specified position
+    return A->get(row, col);
+}
+
+// Get a single element from a matrix with safe bounds checking (returns default value without warnings)
+// Arguments: (matrix row col default-value)
+static node_idx_t native_math_matrix_get_safe(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    node_idx_t A_idx = *it++;
+    node_t *A_node = get_node(A_idx);
+    if (!A_node->is_matrix()) {
+        return ZERO_NODE; // Default to zero for non-matrix inputs
+    }
+    matrix_ptr_t A = A_node->as_matrix();
+
+    int row = get_node_int(*it++);
+    int col = get_node_int(*it++);
+    
+    // Get default value (optional argument)
+    node_idx_t default_value = it ? *it++ : ZERO_NODE;
+    
+    // Check bounds and return default value for out-of-bounds access
+    if (row < 0 || row >= A->height || col < 0 || col >= A->width) {
+        return default_value;
+    }
+    
+    // Get the value at the specified position
+    return A->get(row, col);
+}
+
+// Get matrix width
+static node_idx_t native_math_matrix_width(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    if (!it) {
+        warnf("matrix/width: missing matrix argument\n");
+        return NIL_NODE;
+    }
+
+    node_idx_t A_node_idx = *it;
+    node_t* A_node = get_node(A_node_idx);
+    if (!A_node->is_matrix()) {
+        warnf("matrix/width: not a matrix. arg type is %s\n", A_node->type_name());
+        return NIL_NODE;
+    }
+
+    matrix_ptr_t A = A_node->as_matrix();
+    return new_node_int((int)A->width);
+}
+
+// Get matrix height
+static node_idx_t native_math_matrix_height(env_ptr_t env, list_ptr_t args) {
+    list_t::iterator it(args);
+    if (!it) {
+        warnf("matrix/height: missing matrix argument\n");
+        return NIL_NODE;
+    }
+
+    node_idx_t A_node_idx = *it;
+    node_t* A_node = get_node(A_node_idx);
+    if (!A_node->is_matrix()) {
+        warnf("matrix/height: not a matrix. arg type is %s\n", A_node->type_name());
+        return NIL_NODE;
+    }
+
+    matrix_ptr_t A = A_node->as_matrix();
+    return new_node_int((int)A->height);
+}
+
 void jo_clojure_math_init(env_ptr_t env) {
-	env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
-	env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
+    env->set("boolean", new_node_native_function("boolean", &native_boolean, false, NODE_FLAG_PRERESOLVE));
+    env->set("boolean?", new_node_native_function("boolean?", &native_is_boolean, false, NODE_FLAG_PRERESOLVE));
     env->set("byte", new_node_native_function("byte", &native_byte, false, NODE_FLAG_PRERESOLVE));
     env->set("byte?", new_node_native_function("byte?", &native_byte_q, false, NODE_FLAG_PRERESOLVE));
     env->set("char", new_node_native_function("char", &native_char, false, NODE_FLAG_PRERESOLVE));
@@ -2725,6 +2815,10 @@ void jo_clojure_math_init(env_ptr_t env) {
     env->set("matrix/sum-rows", new_node_native_function("matrix/sum-rows", &native_math_matrix_sum_rows, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/norm-frobenius", new_node_native_function("matrix/norm-frobenius", &native_math_matrix_norm_frobenius, false, NODE_FLAG_PRERESOLVE));
     env->set("matrix/set", new_node_native_function("matrix/set", &native_math_matrix_set, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/get", new_node_native_function("matrix/get", &native_math_matrix_get, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/get-safe", new_node_native_function("matrix/get-safe", &native_math_matrix_get_safe, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/width", new_node_native_function("matrix/width", &native_math_matrix_width, false, NODE_FLAG_PRERESOLVE));
+    env->set("matrix/height", new_node_native_function("matrix/height", &native_math_matrix_height, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/sub", new_node_native_function("vector/sub", &native_math_vector_sub, false, NODE_FLAG_PRERESOLVE));
     env->set("vector/div", new_node_native_function("vector/div", &native_math_vector_div, false, NODE_FLAG_PRERESOLVE));
     env->set("Math/PI", new_node_float(JO_M_PI, NODE_FLAG_PRERESOLVE));
