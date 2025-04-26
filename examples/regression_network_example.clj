@@ -31,12 +31,6 @@
    :forward (fn [layer input]
               (nn/linear-forward layer input))})
 
-;; Activations
-(def activations
-  {:relu {:fn nn/relu :backward nn/relu-backward}
-   :tanh {:fn nn/tanh :backward nn/tanh-backward}
-   :none {:fn identity :backward (fn [_ dy] dy)}})
-
 ;; Create a neural network model for regression - PyTorch style
 (defn create-model []
   (nn/sequential
