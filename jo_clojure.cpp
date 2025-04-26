@@ -2080,7 +2080,7 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 		int sym_type = n1_type;
 		int sym_flags = n1_flags;
 		if(n1_type == NODE_LIST) {
-			sym_idx = eval_list(env, get_node(n1i)->t_list);
+			sym_idx = eval_list(env, get_node(n1i)->t_list, NODE_FLAG_LITERAL);
 			sym_type = get_node_type(sym_idx);
 		} else if(n1_type == NODE_SYMBOL) {
 			sym_idx = env->get(n1i);
@@ -2859,29 +2859,38 @@ static void node_let(env_ptr_t env, node_idx_t n1i, node_idx_t n2i) {
 	node_t *n1 = get_node(n1i);
 	node_t *n2 = get_node(n2i);
 	if(n1->type == NODE_SYMBOL) {
-		env->set_temp(n1i, n2i);
-	/*
-	} else if(n1->is_vector() && n2->is_hash_map()) {
-		hash_map_ptr_t m = n2->as_hash_map();
-		node_idx_t k = n1->as_vector()->nth(0);
-		node_idx_t v = n1->as_vector()->nth(1);
-		if(get_node_type(k) == NODE_SYMBOL) {
-			if(m->size() >= 1) {
-				auto it = m->begin();
-				env->set_temp(get_node(k)->t_string, it->first);
-				node_let(env, v, it->second);
-			}
-		} else if(get_node_type(k) == NODE_KEYWORD) {
-			node_let(env, v, m->get(k, node_eq));
+		// Special case for & symbol (rest pattern)
+		if(n1i == AMP_NODE) {
+			return; // Skip the & symbol itself
 		}
-	*/
+		env->set_temp(n1i, n2i);
 	} else if(n1->is_seq() && n2->is_seq()) {
 		seq_iterator_t i1(n1i), i2(n2i);
-		for(; i1 && i2; i1.next(), i2.next()) {
-			node_let(env, i1.val, i2.val);
-		}
-		if(i1.val != INV_NODE && i2.val != INV_NODE) {
-			node_let(env, i1.val, i2.val);
+		bool in_rest_pattern = false;
+		
+		while(!i1.done()) {
+			// Check for rest pattern
+			if(i1.val == AMP_NODE) {
+				in_rest_pattern = true;
+				i1.next();
+				if(!i1.done()) {
+					// The next symbol gets all remaining items as a list
+					list_ptr_t rest_items = new_list();
+					while(!i2.done()) {
+						rest_items->push_back_inplace(i2.val);
+						i2.next();
+					}
+					node_let(env, i1.val, new_node_list(rest_items));
+				}
+				break;
+			}
+			
+			// Regular binding, if no more values in right side, bind to nil
+			node_idx_t val = i2.done() ? NIL_NODE : i2.val;
+			node_let(env, i1.val, val);
+			
+			i1.next();
+			if(!i2.done()) i2.next();
 		}
 	}
 }
