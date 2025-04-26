@@ -959,7 +959,13 @@ struct node_t {
 				return jo_string(t_int);
 			}
 			return va("%lld", t_int);
-		case NODE_FLOAT:  return va("%g", t_float);
+		case NODE_FLOAT:  
+			// Use %e for small numbers to preserve scientific notation
+			if (fabs(t_float) < 0.0001 && t_float != 0.0) {
+				return va("%.10e", t_float);
+			} else {
+				return va("%g", t_float);
+			}
 		case NODE_LIST: 
 			{
 				jo_string s;
@@ -1728,7 +1734,14 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		// floating point
 		if(tok.str.find('.') != jo_npos) {
 			double float_val = atof(tok_ptr);
-			debugf("float: %f\n", float_val);
+			debugf("float: %g\n", float_val);
+			return new_node_float(float_val, NODE_FLAG_FOREVER);
+		}
+
+		// Also check for scientific notation (e or E in the token)
+		if(tok.str.find('e') != jo_npos || tok.str.find('E') != jo_npos) {
+			double float_val = atof(tok_ptr);
+			debugf("float (scientific): %g\n", float_val);
 			return new_node_float(float_val, NODE_FLAG_FOREVER);
 		}
 
@@ -2039,7 +2052,6 @@ static node_idx_t parse_next(env_ptr_t env, parse_state_t *state, int stop_on_se
 		debugf("map end\n");
 		return new_node(std::move(n));
 	}
-
 	return INV_NODE;
 }
 
@@ -2132,13 +2144,80 @@ static node_idx_t eval_list(env_ptr_t env, list_ptr_t list, int list_flags) {
 					// Skip the & symbol in parameter list
 					i++;
 					if (i) {
-						// Collect all remaining arguments into a list
-						list_ptr_t rest_args = new_list();
-						for (; i2; i2++) {
-							rest_args->push_back_inplace(is_macro ? *i2 : eval_node(env, *i2));
+						node_idx_t rest_param = *i;
+						node_t *rest_param_node = get_node(rest_param);
+						
+						// Check if we need to do keyword destructuring
+						if (rest_param_node->is_hash_map() && sym_node->t_meta) {
+							hash_map_ptr_t meta_map = get_node(sym_node->t_meta)->as_hash_map();
+							
+							// Look for keys-destructure pattern
+							auto keys_entry = meta_map->find(new_node_keyword("keys-destructure"), node_eq);
+							if (keys_entry.third) {
+								vector_ptr_t keys = get_node(keys_entry.second)->as_vector();
+								
+								// Build a map of the keyword arguments
+								hash_map_ptr_t kw_args = new_hash_map();
+								for (; i2; ) {
+									node_idx_t key = is_macro ? *i2++ : eval_node(env, *i2++);
+									if (!i2) break;
+									node_idx_t val = is_macro ? *i2++ : eval_node(env, *i2++);
+									kw_args = kw_args->assoc(key, val, node_eq);
+								}
+								
+								// Get default values if present
+								hash_map_ptr_t defaults = nullptr;
+								auto defaults_entry = meta_map->find(new_node_keyword("keys-defaults"), node_eq);
+								if (defaults_entry.third) {
+									node_t *defaults_node = get_node(defaults_entry.second);
+									if (defaults_node->is_hash_map()) {
+										defaults = defaults_node->as_hash_map();
+									}
+								}
+								
+								// Process each key in the keys vector
+								for (vector_t::iterator k = keys->begin(); k; k++) {
+									node_idx_t key_idx = *k;
+									node_idx_t keyword_idx = new_node_keyword(get_node_string(key_idx));
+									
+									// Look for the keyword in the arguments
+									auto kw_entry = kw_args->find(keyword_idx, node_eq);
+									if (kw_entry.third) {
+										// Key found in arguments, bind to its value
+										node_let(fn_env, key_idx, kw_entry.second);
+									} else if (defaults) {
+										// Key not found, check for default value
+										auto default_entry = defaults->find(key_idx, node_eq);
+										if (default_entry.third) {
+											node_let(fn_env, key_idx, default_entry.second);
+										} else {
+											// No default, bind to nil
+											node_let(fn_env, key_idx, NIL_NODE);
+										}
+									} else {
+										// No defaults map, bind to nil
+										node_let(fn_env, key_idx, NIL_NODE);
+									}
+								}
+							}
+							else {
+								// Collect all remaining arguments into a list
+								list_ptr_t rest_args = new_list();
+								for (; i2; i2++) {
+									rest_args->push_back_inplace(is_macro ? *i2 : eval_node(env, *i2));
+								}
+								// Bind the rest parameter
+								node_let(fn_env, rest_param, new_node_list(rest_args));
+							}
+						} else {
+							// Collect all remaining arguments into a list
+							list_ptr_t rest_args = new_list();
+							for (; i2; i2++) {
+								rest_args->push_back_inplace(is_macro ? *i2 : eval_node(env, *i2));
+							}
+							// Bind the rest parameter
+							node_let(fn_env, *i, new_node_list(rest_args));
 						}
-						// Bind the rest parameter
-						node_let(fn_env, *i, new_node_list(rest_args));
 					}
 				}
 				// Check for arity errors
@@ -3516,6 +3595,36 @@ static node_idx_t native_fn_internal(env_ptr_t env, list_ptr_t args, node_idx_t 
 				// Set the varargs flag and update fixed_args_count
 				ret->flags |= NODE_FLAG_VARARGS;
 				ret->t_func.fixed_args_count = j;
+				
+				// Process varargs destructuring if present
+				if (j + 1 < func_args->size()) {
+					node_idx_t vararg_pattern = func_args->nth(j + 1);
+					node_t *vararg_node = get_node(vararg_pattern);
+					
+					// Handle {:keys [...]} destructuring pattern
+					if (vararg_node->is_hash_map()) {
+						hash_map_ptr_t vararg_map = vararg_node->as_hash_map();
+						
+						// Store metadata for the destructuring pattern
+						hash_map_ptr_t meta_map = new_hash_map();
+						
+						// Process :keys
+						auto keys_entry = vararg_map->find(new_node_keyword("keys"), node_eq);
+						if (keys_entry.third) {
+							meta_map = meta_map->assoc(new_node_keyword("keys-destructure"), keys_entry.second, node_eq);
+						}
+						
+						// Process :or for default values
+						auto or_entry = vararg_map->find(new_node_keyword("or"), node_eq);
+						if (or_entry.third) {
+							meta_map = meta_map->assoc(new_node_keyword("keys-defaults"), or_entry.second, node_eq);
+						}
+						
+						if (meta_map->size() > 0) {
+							ret->t_meta = new_node_hash_map(meta_map);
+						}
+					}
+				}
 				break;
 			}
 		}
@@ -7026,6 +7135,7 @@ int main(int argc, char **argv) {
 
 	return 0;
 }
+
 
 
 

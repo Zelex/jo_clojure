@@ -886,9 +886,9 @@ static node_idx_t native_nn_backward(env_ptr_t env, list_ptr_t args) {
         char Z_cache_key[64];
         char A_cache_key[64];
         
-        sprintf(W_cache_key, "%s/W", layer_name);
-        sprintf(Z_cache_key, "%s/Z", layer_name);
-        sprintf(A_cache_key, "%s/A", layer_name);
+        snprintf(W_cache_key, sizeof(W_cache_key), "%s/W", layer_name);
+        snprintf(Z_cache_key, sizeof(Z_cache_key), "%s/Z", layer_name);
+        snprintf(A_cache_key, sizeof(A_cache_key), "%s/A", layer_name);
         
         cache->assoc_inplace(new_node_keyword(W_cache_key), new_node_matrix(W), node_eq);
         cache->assoc_inplace(new_node_keyword(Z_cache_key), Z_idx, node_eq);
@@ -936,7 +936,7 @@ static node_idx_t native_nn_backward(env_ptr_t env, list_ptr_t args) {
     node_idx_t last_layer_key = layer_keys->nth(layer_keys->size() - 1);
     const char* last_layer_name = get_node(last_layer_key)->t_string.c_str();
     char last_A_cache_key[64];
-    sprintf(last_A_cache_key, "%s/A", last_layer_name);
+    snprintf(last_A_cache_key, sizeof(last_A_cache_key), "%s/A", last_layer_name);
     node_idx_t last_A_idx = cache->get(new_node_keyword(last_A_cache_key), node_eq);
     
     // Initial gradient dZ for output layer: A - y
@@ -956,14 +956,14 @@ static node_idx_t native_nn_backward(env_ptr_t env, list_ptr_t args) {
         char A_cache_key[64];
         char prev_A_cache_key[64];
         
-        sprintf(W_cache_key, "%s/W", layer_name);
-        sprintf(Z_cache_key, "%s/Z", layer_name);
-        sprintf(A_cache_key, "%s/A", layer_name);
+        snprintf(W_cache_key, sizeof(W_cache_key), "%s/W", layer_name);
+        snprintf(Z_cache_key, sizeof(Z_cache_key), "%s/Z", layer_name);
+        snprintf(A_cache_key, sizeof(A_cache_key), "%s/A", layer_name);
         
         // Get the activation for the previous layer (or input X for first layer)
         if (i > 0) {
             const char* prev_layer_name = get_node(layer_keys->nth(i-1))->t_string.c_str();
-            sprintf(prev_A_cache_key, "%s/A", prev_layer_name);
+            snprintf(prev_A_cache_key, sizeof(prev_A_cache_key), "%s/A", prev_layer_name);
         } else {
             strcpy(prev_A_cache_key, "A0");
         }
@@ -1014,7 +1014,7 @@ static node_idx_t native_nn_backward(env_ptr_t env, list_ptr_t args) {
             // Get the previous layer's Z values
             char prev_Z_cache_key[64];
             const char* prev_layer_name = get_node(layer_keys->nth(i-1))->t_string.c_str();
-            sprintf(prev_Z_cache_key, "%s/Z", prev_layer_name);
+            snprintf(prev_Z_cache_key, sizeof(prev_Z_cache_key), "%s/Z", prev_layer_name);
             node_idx_t prev_Z_idx = cache->get(new_node_keyword(prev_Z_cache_key), node_eq);
             matrix_ptr_t prev_Z = get_node(prev_Z_idx)->as_matrix();
             
@@ -2413,7 +2413,7 @@ static node_idx_t native_nn_sequential(env_ptr_t env, list_ptr_t args) {
     int layer_idx = 1;
     for (list_t::iterator it(args); it; it++) {
         char layer_name[32];
-        sprintf(layer_name, "layer%d", layer_idx++);
+        snprintf(layer_name, sizeof(layer_name), "layer%d", layer_idx++);
         
         model->assoc_inplace(new_node_keyword(layer_name), *it, node_eq);
     }
